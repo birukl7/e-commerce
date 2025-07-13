@@ -282,9 +282,9 @@ export default function Welcome() {
 
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1">
-                          <span className="text-xl font-bold text-slate-900 dark:text-white">${product.price}</span>
+                          <span className="text-xl font-bold text-slate-900 dark:text-white">ETB {product.price}</span>
                           {product.originalPrice && (
-                            <span className="text-sm text-slate-500 line-through">${product.originalPrice}</span>
+                            <span className="text-sm text-slate-500 line-through">ETB {product.originalPrice}</span>
                           )}
                         </div>
                       </div>
