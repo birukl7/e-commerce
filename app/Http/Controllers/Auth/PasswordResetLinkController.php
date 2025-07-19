@@ -12,19 +12,17 @@ use Inertia\Response;
 class PasswordResetLinkController extends Controller
 {
     /**
-     * Show the password reset link request page.
+     * Display the password reset link request view.
      */
-    public function create(Request $request): Response
+    public function create(): Response
     {
-        return Inertia::render('auth/forgot-password', [
-            'status' => $request->session()->get('status'),
+        return Inertia::render('Auth/ForgotPassword', [
+            'status' => session('status'),
         ]);
     }
 
     /**
      * Handle an incoming password reset link request.
-     *
-     * @throws \Illuminate\Validation\ValidationException
      */
     public function store(Request $request): RedirectResponse
     {
@@ -32,10 +30,28 @@ class PasswordResetLinkController extends Controller
             'email' => 'required|email',
         ]);
 
-        Password::sendResetLink(
+        // Check if user exists and is active
+        $user = \App\Models\User::where('email', $request->email)->first();
+        
+        if (!$user) {
+            return back()->withErrors([
+                'email' => 'We could not find a user with that email address.'
+            ]);
+        }
+
+        if ($user->status !== 'active') {
+            return back()->withErrors([
+                'email' => 'This account is not active. Please contact support.'
+            ]);
+        }
+
+        // Send password reset link
+        $status = Password::sendResetLink(
             $request->only('email')
         );
 
-        return back()->with('status', __('A reset link will be sent if the account exists.'));
+        return $status === Password::RESET_LINK_SENT
+                    ? back()->with(['status' => __($status)])
+                    : back()->withErrors(['email' => __($status)]);
     }
 }

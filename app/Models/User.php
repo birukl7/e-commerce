@@ -19,12 +19,15 @@ class User extends Authenticatable
      *
      * @var list<string>
      */
+   
     protected $fillable = [
         'name',
         'email',
         'password',
+        'phone',
+        'profile_image',
+        'status',
     ];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -45,6 +48,58 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'status' => 'string',
         ];
+    }
+    
+    // Relationships
+    public function addresses()
+    {
+        return $this->hasMany(UserAddress::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function productRequests()
+    {
+        return $this->hasMany(ProductRequest::class);
+    }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeVerified($query)
+    {
+        return $query->whereNotNull('email_verified_at');
+    }
+
+    // Accessors & Mutators
+    public function getProfileImageUrlAttribute()
+    {
+        if ($this->profile_image) {
+            return asset('storage/' . $this->profile_image);
+        }
+        return asset('images/default-avatar.png');
     }
 }
