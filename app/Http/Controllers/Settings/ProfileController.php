@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Settings;
-namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProfileUpdateRequest;
