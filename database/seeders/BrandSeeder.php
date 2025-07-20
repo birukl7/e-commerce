@@ -14,16 +14,39 @@ class BrandSeeder extends Seeder
      */
     public function run():  void
     {
-        //
         $brands = [
-            ["name" => "Kalvin Klein", "slug" => "kclien1234", "description" => "clothes brand", "logo" => "logos/kalvin", "is_active" => true],
-            ["name" => "Apple", "slug" => "apple1234", "description" => "phone brand", "logo" => "logos/kalvin", "is_active" => true],
-            ["name" => "Lenovo", "slug" => "lenovo1234", "description" => "laptop brand", "logo" => "logos/kalvin", "is_active" => true],
+            [
+                "name" => "Calvin Klein", 
+                "slug" => "calvin-klein", 
+                "description" => "Renowned clothing and fashion brand", 
+                "logo" => "calvin_klein_logo.jpg", 
+                "is_active" => true
+            ],
+            [
+                "name" => "Under Armour", 
+                "slug" => "under-armour", 
+                "description" => "Sports and athletic wear brand", 
+                "logo" => "under_armour_logo.jpg", 
+                "is_active" => true
+            ],
+            [
+                "name" => "Apple", 
+                "slug" => "apple", 
+                "description" => "Technology and electronics brand", 
+                "logo" => "apple_logo.jpg", 
+                "is_active" => true
+            ],
+            [
+                "name" => "Lenovo", 
+                "slug" => "lenovo", 
+                "description" => "Computer and technology brand", 
+                "logo" => "lenovo_logo.jpg", 
+                "is_active" => true
+            ],
         ];
 
         foreach ($brands as $brand) {
             Brand::create($brand);
         }
-
     }
 }

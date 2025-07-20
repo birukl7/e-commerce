@@ -12,89 +12,72 @@ class CategorySeeder extends Seeder
     public function run(): void
     {
         $mainCategories = [
-            // id = 0
             [
-                "name" => "clothes", 
+                "name" => "Clothes", 
                 "slug" => "clothes", 
-                "description" => "Clothes", 
+                "description" => "Clothing and Apparel", 
                 "parent_id" => null, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "img/categories/clothes.jpg"
+                "image" => "clothes.jpg"
             ],
-            // id = 1
             [
-                "name" => "electronics", 
+                "name" => "Electronics", 
                 "slug" => "electronics", 
-                "description" => "Electronics", 
+                "description" => "Electronic Devices and Accessories", 
                 "parent_id" => null, 
                 "sort_order" => 2, 
                 "is_active" => true, 
-                "image" => "img/categories/electronics.jpg"
+                "image" => "electronics.jpg"
             ],
         ];
 
         $subCategories = [
-            // id = 2
             [
-                "name" => "shoes", 
+                "name" => "Shoes", 
                 "slug" => "shoes", 
-                "description" => "Shoes", 
+                "description" => "Footwear for all occasions", 
                 "parent_id" => 1, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "img/categories/shoes.jpg"
+                "image" => "shoes.jpg"
             ],
-            // id = 3
             [
-                "name" => "dresses", 
-                "slug" => "dresses", 
-                "description" => "Dresses", 
-                "parent_id" => 1, 
-                "sort_order" => 2, 
-                "is_active" => true, 
-                "image" => "img/categories/dresses.jpg"
-            ],
-            // id = 4
-            [
-                "name" => "shirts", 
+                "name" => "Shirts", 
                 "slug" => "shirts", 
-                "description" => "Shirts", 
+                "description" => "Various styles of shirts", 
+                "parent_id" => 1, 
+                "sort_order" => 2, 
+                "is_active" => true, 
+                "image" => "shirt.jpg"
+            ],
+            [
+                "name" => "Trousers", 
+                "slug" => "trousers", 
+                "description" => "Female Trousers", 
                 "parent_id" => 1, 
                 "sort_order" => 3, 
                 "is_active" => true, 
-                "image" => "img/categories/shirts.jpg"
+                "image" => "female_trousers.jpg"
             ],
-            // id = 5
             [
-                "name" => "laptops", 
+                "name" => "Laptops", 
                 "slug" => "laptops", 
-                "description" => "Laptops", 
+                "description" => "Portable computers", 
                 "parent_id" => 2, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "img/categories/laptops.jpg"
+                "image" => "laptop.jpg"
             ],
-            // id = 6
             [
-                "name" => "powerbanks", 
-                "slug" => "powerbanks", 
-                "description" => "Power Banks", 
+                "name" => "Smartphones", 
+                "slug" => "smartphones", 
+                "description" => "Mobile phones and smart devices", 
                 "parent_id" => 2, 
                 "sort_order" => 2, 
                 "is_active" => true, 
-                "image" => "img/categories/powerbanks.jpg"
-            ],
-            // id = 7
-            [
-                "name" => "smartphones", 
-                "slug" => "smartphones", 
-                "description" => "Smart Phones", 
-                "parent_id" => 2, 
-                "sort_order" => 3, 
-                "is_active" => true, 
-                "image" => "img/categories/smartphones.jpg"
-            ],
+                "image" => "smartphone.jpg"
+            ]
         ];
 
         foreach ($mainCategories as $category) {
