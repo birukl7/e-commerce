@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 
 type H2Props = {
   children: ReactNode; // Any valid React children
-  className: string
+  className?: string
 };
 
 const H2: React.FC<H2Props> = ({ children, className }) => {

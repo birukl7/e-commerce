@@ -2,7 +2,7 @@ import React, { ReactNode } from "react";
 
 type H3Props = {
   children: ReactNode; // Any valid React children
-  className: string
+  className?: string
 };
 
 const H3: React.FC<H3Props> = ({ children, className }) => {
