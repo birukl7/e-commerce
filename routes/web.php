@@ -12,6 +12,8 @@ Route::resource('categories', CategoryController::class);
 
 Route::get('/category', fn()=> Inertia::render('categories/show'));
 
+Route::get('/product', fn()=> Inertia::render('products/show'));
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');
