@@ -9,7 +9,7 @@ import { Badge } from "./ui/badge"
 import type { SharedData } from "@/types"
 import CartDropdown from "./cart-dropdown"
 // import { DropdownMenu } from "./ui/dropdown-menu"
-import { DropdownMenuDemo } from "./ui/drop-down-menu"
+import { CategoryDropdown } from "./ui/drop-down-menu"
 import SearchBar from "./header-search-bar"
 // import { route } from "@/router" // Import route function
 
@@ -61,7 +61,7 @@ const Header = () => {
               <span className="text-xl font-bold text-slate-900 dark:text-white">ShopHub</span>
             </Link>
             
-            <DropdownMenuDemo/>
+            <CategoryDropdown/>
 
           </div>
 
