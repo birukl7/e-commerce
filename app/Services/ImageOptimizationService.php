@@ -14,7 +14,7 @@ class ImageOptimizationService
 
     public function __construct()
     {
-        $this->basePath = public_path('images');
+        $this->basePath = public_path('image');
     }
 
     /**
