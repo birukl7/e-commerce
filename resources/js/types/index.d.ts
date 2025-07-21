@@ -43,13 +43,16 @@ export interface User {
     [key: string]: unknown; // This allows for additional properties...
 }
 
-export interface Category{
-    id: number;
-    name: string;
-    slug: string;
-    description: string;
-    image: string;
-    parent_id: number;
-    sort_order: number;
-    is_active: boolean;
-}
+
+export interface Category {
+    id: number
+    name: string
+    slug: string
+    description: string
+    image: string
+    parent_id: number | null
+    sort_order: number
+    is_active: boolean
+    product_count?: number
+    subcategories?: Category[]
+  }
