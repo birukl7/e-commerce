@@ -1,0 +1,342 @@
+"use client"
+
+import { useState, useRef, useEffect } from "react"
+import { Link, usePage } from "@inertiajs/react"
+import { useCart } from "@/contexts/cart-context"
+import { Button } from "./ui/button"
+import { Heart, ShoppingCart, User } from "lucide-react"
+import { Badge } from "./ui/badge"
+import type { SharedData } from "@/types"
+import CartDropdown from "./cart-dropdown"
+// import { DropdownMenu } from "./ui/dropdown-menu"
+import { CategoryDropdown } from "./ui/drop-down-menu"
+import SearchBar from "./header-search-bar"
+// import { route } from "@/router" // Import route function
+
+const Header = () => {
+  const [isCartOpen, setIsCartOpen] = useState(false)
+  const { auth } = usePage<SharedData>().props
+  const { getTotalItems } = useCart()
+  const cartButtonRef = useRef<HTMLButtonElement>(null)
+  const headerRef = useRef<HTMLElement>(null)
+
+  const toggleCart = () => {
+    setIsCartOpen(!isCartOpen)
+  }
+
+  const closeCart = () => {
+    setIsCartOpen(false)
+  }
+
+  // Close cart when clicking outside of header area
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (headerRef.current && !headerRef.current.contains(event.target as Node)) {
+        setIsCartOpen(false)
+      }
+    }
+
+    if (isCartOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isCartOpen])
+
+  return (
+    <header
+      ref={headerRef}
+      className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-slate-900/95 dark:supports-[backdrop-filter]:bg-slate-900/60"
+    >
+      <div className="container mx-auto px-2 sm:px-2 lg:px-2">
+        <div className="flex h-20 items-center justify-between">
+          {/* Logo */}
+          <div className="flex items-center space-x-4">
+            <Link href="/" className="flex items-center space-x-2">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">SH</span>
+              </div>
+              <span className="text-xl font-bold text-slate-900 dark:text-white">ShopHub</span>
+            </Link>
+            
+            <CategoryDropdown/>
+
+          </div>
+
+          {/* Search Bar */}
+          <div className="w-full px-10 hidden md:block">
+            <SearchBar/>
+          </div>
+  
+
+          {/* Right side actions */}
+          <div className="flex items-center space-x-2">
+
+
+            {/* Cart with dropdown */}
+
+            {/* Auth buttons */}
+            {auth.user ? (
+              <div className="flex items-center space-x-2">
+                <Button variant="ghost" size="icon">
+                  <User className="h-5 w-5" />
+                </Button>
+                <Link href={route("dashboard")}>
+                  <Button size="sm">Dashboard</Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="flex sm:flex items-center space-x-1 pl-2">
+                <Link href={route("login")} className="hidden sm:block">
+                  <Button size="sm">Log in</Button>
+                </Link>
+                <Link href={route("register")}>
+                  <Button size="sm">Sign up</Button>
+                </Link>
+              </div>
+            )}
+
+          
+
+
+            {/* Wishlist */}
+            <Button variant="ghost" size="icon" className=" sm:flex">
+              <Heart className="h-5 w-5" />
+            </Button>
+            <div className="relative">
+              <Button ref={cartButtonRef} variant="ghost" size="icon" className="relative" onClick={toggleCart}>
+                <ShoppingCart className="h-5 w-5" />
+                {getTotalItems() > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-primary">
+                    {getTotalItems()}
+                  </Badge>
+                )}
+              </Button>
+              <CartDropdown isOpen={isCartOpen} onClose={closeCart} />
+            </div>
+          </div>
+        </div>
+        <div className="w-full px-6 block md:hidden">
+            <SearchBar/>
+          </div>
+      </div>
+    </header>
+  )
+}
+
+export default Header
+import { Head } from "@inertiajs/react"
+import Header from "@/components/header"
+import { CartProvider } from "@/contexts/cart-context"
+import HomePageBanner from "@/components/home-page-banner"
+import { FeaturedInterests } from "@/components/homepage/featured-interests"
+import GiftShowcase from "@/components/homepage/gift-showcase"
+import DealsCarousel from "@/components/homepage/deals-carousel"
+import Section from "@/components/ui/section"
+import CTASection from "@/components/homepage/cta-section"
+import AboutSection from "@/components/homepage/about-section"
+import Footer from "@/components/footer"
+
+
+function WelcomeContent() {
+
+
+  return (
+    <>
+      <Head title="ShopHub - Premium Products">
+      </Head>
+      
+      <div
+        className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white"
+        style={{ fontFamily: "Outfit, sans-serif" }}
+      >
+        {/* Header */}
+        <Header />
+
+        {/* Hero Section with Search Bar */}
+        
+        <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50 dark:bg-slate-800 container mx-auto">
+            <HomePageBanner/>
+        </section>
+
+        <section className="container mx-auto">
+          <FeaturedInterests/>
+        </section>
+
+        <Section>
+          <CTASection/>
+        </Section>
+        
+
+        <section className="container mx-auto">
+          <GiftShowcase/>
+        </section>
+
+        <section className="container mx-auto">
+          <DealsCarousel/>
+        </section>
+
+        <section className="container mx-auto">
+          <GiftShowcase/>
+        </section>
+
+        <section className="container mx-auto">
+          <DealsCarousel/>
+        </section>
+
+        
+          <AboutSection/>
+        
+          <Footer />
+
+      </div>
+    </>
+  )
+}
+
+export default function Welcome() {
+  return (
+    <CartProvider>
+      <WelcomeContent />
+    </CartProvider>
+  )
+}
+<?php
+/*
+
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\VerifyEmailController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('guest')->group(function () {
+    Route::get('register', [RegisteredUserController::class, 'create'])
+        ->name('register');
+
+    Route::post('register', [RegisteredUserController::class, 'store']);
+
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
+
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+
+    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->name('password.reset');
+
+    Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('verify-email', EmailVerificationPromptController::class)
+        ->name('verification.notice');
+
+    Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
+    Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+
+    Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
+        ->name('password.confirm');
+
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+}); 
+*/
+
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\VerifyEmailController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware('guest')->group(function () {
+    Route::get('register', [RegisteredUserController::class, 'create'])
+        ->name('register');
+    
+    Route::post('register', [RegisteredUserController::class, 'store']);
+
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+        ->name('login');
+    
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
+
+    Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+        ->name('password.request');
+    
+    Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->name('password.email');
+
+    Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+        ->name('password.reset');
+    
+    Route::post('reset-password', [NewPasswordController::class, 'store'])
+        ->name('password.store');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('verify-email', EmailVerificationPromptController::class)
+        ->name('verification.notice');
+
+    Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
+
+    Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+        ->middleware('throttle:6,1')
+        ->name('verification.send');
+
+    Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
+        ->name('password.confirm');
+    
+    Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+        ->name('logout');
+});
+<?php
+
+use App\Http\Controllers\CategoryController;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+
+Route::get('/', function () {
+    return Inertia::render('welcome');
+})->name('home');
+
+Route::resource('categories', CategoryController::class);
+
+Route::get('/category', fn()=> Inertia::render('categories/show'));
+
+Route::get('/product', fn()=> Inertia::render('products/show'));
+
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('dashboard', function () {
+        return Inertia::render('dashboard');
+    })->name('dashboard');
+});
+
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

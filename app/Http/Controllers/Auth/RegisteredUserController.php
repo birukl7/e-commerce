@@ -23,7 +23,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('auth/register');
     }
 
     /**
@@ -35,8 +35,8 @@ class RegisteredUserController extends Controller
             'name' => 'required|string|max:255|min:2',
             'email' => 'required|string|lowercase|email|max:255|unique:users',
             'password' => [
-                'required', 
-                'confirmed', 
+                'required',
+                'confirmed',
                 'min:8',
                 'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/',
             ],
@@ -87,10 +87,9 @@ class RegisteredUserController extends Controller
             DB::commit();
 
             event(new Registered($user));
-
             Auth::login($user);
 
-            return redirect()->intended(route('dashboard'));
+            return redirect()->intended(route('dashboard'))->with('status', 'Registration successful! Welcome to ShopHub.');
 
         } catch (\Exception $e) {
             DB::rollBack();
