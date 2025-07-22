@@ -6,6 +6,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
+
 class CategoryController extends Controller
 {
     /**
@@ -14,6 +15,8 @@ class CategoryController extends Controller
     public function index()
     {
         //
+        dd(Category::all());
+        return response()->json(Category::all());
     }
 
     /**
@@ -37,7 +40,42 @@ class CategoryController extends Controller
      */
     public function show(Category $category)
     {
-        return Inertia::render('categories/show');
+        $category->load([
+            'children',
+            'products' => function ($query){
+                $query->with(['images', 'variants']);
+            }
+        ]);
+
+        return Inertia::render('categories/show', [
+            'category' => [
+                'id' => $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+                'description' => $category->description,
+                'image' => $category->image,
+                'subcategories' => $category->children->map(function ($subcategory) {
+                    return [
+                        'id' => $subcategory->id,
+                        'name' => $subcategory->name,
+                        'slug' => $subcategory->slug,
+                        'image' => $subcategory->image,
+                        'product_count' => $subcategory->products()->count(),
+                    ];
+                }),
+                'products' => $category->products->map(function ($product) {
+                    return [
+                        'id' => $product->id,
+                        'name' => $product->name,
+                        'slug' => $product->slug,
+                        'price' => $product->price,
+                        'description' => $product->description,
+                        'image' => $product->image
+                    ];
+                }),
+                'product_count' => $category->products()->count(),
+            ],
+        ]);
     }
 
     /**

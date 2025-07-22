@@ -109,7 +109,8 @@ export function CategoryDropdown({
     if (imagePath.startsWith("http")) {
       return imagePath
     }
-    return `/api/storage/${imagePath}`
+    //return `/api/storage/${imagePath}`
+    return `image/${imagePath}`
   }
 
   if (loading) {

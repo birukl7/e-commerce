@@ -1,10 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import H2 from "../ui/h2"
+import { useEffect, useState } from "react"
 import { InterestCard } from "./interest-card"
 import { InterestCardSkeleton } from "./interest-card-skeleton"
-// import { InterestCardSkeleton } from "./interest-card-skeleton"
 
 interface FeaturedCategory {
   id: number
@@ -19,29 +17,26 @@ interface FeaturedInterestsProps {
   count?: number
 }
 
-export function FeaturedInterests({
-  count = 4,
-}: FeaturedInterestsProps) {
+export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
   const [interests, setInterests] = useState<FeaturedCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchFeaturedInterests()
-  }, [])
+  }, [count])
 
   const fetchFeaturedInterests = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`api/categories/featured?count=${count}`, {
+      const response = await fetch(`/api/categories/featured?count=${count}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
-        // Add cache busting to ensure fresh random data on each request
         cache: "no-store",
       })
 
@@ -50,7 +45,7 @@ export function FeaturedInterests({
       }
 
       const data = await response.json()
-      setInterests(data.data || [])
+      setInterests(data.data || data || [])
     } catch (err) {
       console.error("Error fetching featured interests:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch featured interests")
@@ -59,26 +54,19 @@ export function FeaturedInterests({
     }
   }
 
-  const getImageUrl = (imagePath: string) => {
-    if (imagePath.startsWith("http")) {
-      return imagePath
-    }
-    return `/storage/${imagePath}`
-  }
-
   const handleRetry = () => {
     fetchFeaturedInterests()
   }
 
   if (error) {
     return (
-      <section className="w-full mx-auto px-4 py-12">
-        <H2 className="">Jump into featured interests</H2>
-        <div className="text-center py-8">
-          <p className="text-red-500 mb-4">Failed to load featured interests</p>
+      <section className="mx-auto w-full px-4 py-12">
+        <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
+        <div className="py-8 text-center">
+          <p className="mb-4 text-red-500">Failed to load featured interests</p>
           <button
             onClick={handleRetry}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            className="rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
           >
             Try Again
           </button>
@@ -88,9 +76,9 @@ export function FeaturedInterests({
   }
 
   return (
-    <section className="w-full mx-auto px-4 py-12">
-      <H2 className="">Jump into featured interests</H2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    <section className="mx-auto w-full px-4 py-12">
+      <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {loading
           ? Array.from({ length: count }).map((_, index) => <InterestCardSkeleton key={index} />)
           : interests.map((interest) => (
@@ -98,16 +86,15 @@ export function FeaturedInterests({
                 key={interest.id}
                 title={interest.name}
                 subtitle={interest.description}
-                imageSrc={getImageUrl(interest.image)}
+                imageSrc={interest.image}
                 imageAlt={`${interest.name} category with ${interest.product_count} products`}
                 productCount={interest.product_count}
                 slug={interest.slug}
               />
             ))}
       </div>
-
       {!loading && interests.length === 0 && (
-        <div className="text-center py-8">
+        <div className="py-8 text-center">
           <p className="text-gray-500">No featured interests available at the moment.</p>
         </div>
       )}

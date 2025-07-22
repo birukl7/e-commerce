@@ -8,9 +8,10 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
-Route::resource('categories', CategoryController::class);
 
-Route::get('/category', fn()=> Inertia::render('categories/show'));
+Route::resource('categories', CategoryController::class)->parameters([
+    'categories' => 'category:slug',
+]);
 
 Route::get('/product', fn()=> Inertia::render('products/show'));
 
