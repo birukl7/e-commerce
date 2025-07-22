@@ -36,16 +36,40 @@ interface ShowProps {
 
 export default function Show({ category }: ShowProps) {
     const getImageUrl = (imagePath: string) => {
+        // If no image path, return placeholder
         if (!imagePath) {
+            console.warn('No image path provided');
             return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(category.name)}`;
         }
+
+        // If it's a full URL, return as-is
         if (imagePath.startsWith('http')) {
             return imagePath;
         }
-        return `image/${imagePath}`;
+
+        // Construct the full path
+        const fullPath = `/image/${imagePath}`;
+
+        // Log the full path for debugging
+        console.log('Full image path:', fullPath);
+
+        return fullPath;
     };
 
+    // const getImageUrl = (imagePath: string) => {
+    //     console.log(imagePath);
+    //     if (!imagePath) {
+    //         console.log('imagepath is null?');
+    //         return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(category.name)}`;
+    //     }
+    //     if (imagePath.startsWith('http')) {
+    //         return imagePath;
+    //     }
+    //     return `image/${imagePath}`;
+    // };
+
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+        console.log('handleImageError called');
         const target = e.currentTarget;
         target.src = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(category.name)}`;
     };
@@ -55,6 +79,36 @@ export default function Show({ category }: ShowProps) {
             style: 'currency',
             currency: 'USD',
         }).format(price);
+    };
+
+    const getImageProductUrl = (imagePath: string) => {
+        // If no image path, log and return null
+        if (!imagePath) {
+            console.warn('No image path provided');
+            return null;
+        }
+
+        // If it's a full URL, return as-is
+        if (imagePath.startsWith('http')) {
+            return imagePath;
+        }
+
+        // Possible path variations
+        const pathVariations = [
+            `/image/${imagePath}`, // Current implementation
+            `image/${imagePath}`, // Without leading slash
+            `/storage/image/${imagePath}`, // Potential storage path
+            imagePath, // Raw path
+        ];
+
+        // Log all possible paths for debugging
+        console.log('Image path variations:', {
+            originalPath: imagePath,
+            variations: pathVariations,
+        });
+
+        // Return the first variation (you can modify this logic if needed)
+        return pathVariations[0];
     };
 
     return (
@@ -103,20 +157,9 @@ export default function Show({ category }: ShowProps) {
                                     <Link key={product.id} href={`/products/${product.slug}`} className="group">
                                         <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-shadow duration-200 group-hover:shadow-md">
                                             <div className="aspect-square overflow-hidden bg-gray-100">
-                                                <img
-                                                    src={
-                                                        product.image
-                                                            ? `image/${product.image}`
-                                                            : `/placeholder.svg?height=300&width=300&text=${encodeURIComponent(product.name)}`
-                                                    }
-                                                    alt={product.name}
-                                                    className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                    onError={(e) => {
-                                                        const target = e.currentTarget;
-                                                        target.src = `/placeholder.svg?height=300&width=300&text=${encodeURIComponent(product.name)}`;
-                                                    }}
-                                                />
+                                                
                                             </div>
+
                                             <div className="p-4">
                                                 <h3 className="font-semibold text-gray-900 group-hover:text-blue-600">{product.name}</h3>
                                                 <p className="mt-1 line-clamp-2 text-sm text-gray-600">{product.description}</p>

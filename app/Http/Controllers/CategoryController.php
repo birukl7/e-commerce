@@ -43,34 +43,40 @@ class CategoryController extends Controller
         $category->load([
             'children',
             'products' => function ($query){
-                $query->with(['images', 'variants']);
+                $query->with(['images']);
             }
         ]);
 
+        $category_image = asset('storage/image/' . $category->image);
+        
         return Inertia::render('categories/show', [
+
             'category' => [
                 'id' => $category->id,
                 'name' => $category->name,
                 'slug' => $category->slug,
                 'description' => $category->description,
-                'image' => $category->image,
+                'image' => $category_image,
                 'subcategories' => $category->children->map(function ($subcategory) {
+
+                    $subcategory_image = asset('storage/image/' . $subcategory->image);
                     return [
                         'id' => $subcategory->id,
                         'name' => $subcategory->name,
                         'slug' => $subcategory->slug,
-                        'image' => $subcategory->image,
+                        'image' => $subcategory_image,
                         'product_count' => $subcategory->products()->count(),
                     ];
                 }),
                 'products' => $category->products->map(function ($product) {
+                    $product_image = asset('storage/image/' . $product->image);
                     return [
                         'id' => $product->id,
                         'name' => $product->name,
                         'slug' => $product->slug,
                         'price' => $product->price,
                         'description' => $product->description,
-                        'image' => $product->image
+                        'image' => $product_image
                     ];
                 }),
                 'product_count' => $category->products()->count(),

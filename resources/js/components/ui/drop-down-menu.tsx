@@ -149,7 +149,8 @@ export function CategoryDropdown({
                   <DropdownMenuSubTrigger className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
                       <img
-                        src={getImageUrl(category.image) || "/placeholder.svg"}
+                        //src={getImageUrl(category.image) || "/placeholder.svg"}
+                        src={category.image}
                         alt={category.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -173,7 +174,8 @@ export function CategoryDropdown({
                         >
                           <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100">
                             <img
-                              src={getImageUrl(sub.image) || "/placeholder.svg"}
+                              //src={getImageUrl(sub.image) || "/placeholder.svg"}
+                              src={sub.image}
                               alt={sub.name}
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -198,7 +200,8 @@ export function CategoryDropdown({
                 >
                   <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
                     <img
-                      src={getImageUrl(category.image) || "/placeholder.svg"}
+                      //src={getImageUrl(category.image) || "/placeholder.svg"}
+                      src={category.image}
                       alt={category.name}
                       className="w-full h-full object-cover"
                       onError={(e) => {

@@ -26,6 +26,8 @@ class CategoryController extends Controller
             // Add product count for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
+                var_dump($category_image);
+                $category->image =  asset('storage/image/' . $category->image);
                 
                 if ($category->children) {
                     $category->children->each(function ($child) {
@@ -33,6 +35,7 @@ class CategoryController extends Controller
                     });
                 }
             });
+            var_dump($categories[0]->image);
 
             return response()->json([
                 'success' => true,

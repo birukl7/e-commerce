@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->text('description');
+            $table->string('slug');
             $table->string('sku')->unique();
             $table->decimal('price', 10, 2);
             $table->decimal('sale_price', 10, 2)->nullable();
