@@ -31,6 +31,6 @@ class ProductImage extends Model
     // Accessors
     public function getImageUrlAttribute()
     {
-        return asset('storage/image' . $this->image_path);
+        return asset('image' . $this->image_path);
     }
 }

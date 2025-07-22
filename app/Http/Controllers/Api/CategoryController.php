@@ -27,7 +27,7 @@ class CategoryController extends Controller
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
                 var_dump($category_image);
-                $category->image =  asset('storage/image/' . $category->image);
+                $category->image =  asset('image/' . $category->image);
                 
                 if ($category->children) {
                     $category->children->each(function ($child) {
