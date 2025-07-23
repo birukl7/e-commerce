@@ -3,6 +3,7 @@ import { ProductGrid } from '@/components/category/product-grid'
 import { SubCategoriesSection } from '@/components/category/sub-categories-section'
 import H1 from '@/components/ui/h1'
 import MainLayout from '@/layouts/app/main-layout'
+
 interface SubCategory {
   id: number
   name: string
@@ -11,13 +12,25 @@ interface SubCategory {
   product_count: number
 }
 
+interface ProductImage {
+  id: number
+  url: string
+  alt_text: string
+  is_primary: boolean
+}
+
 interface Product {
   id: number
   name: string
   slug: string
   price: number
+  sale_price?: number | null
+  current_price: number
   description: string
   image: string
+  images: ProductImage[]
+  featured: boolean
+  stock_status: string
 }
 
 interface Category {
