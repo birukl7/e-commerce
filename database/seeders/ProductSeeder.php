@@ -25,8 +25,8 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 50,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 3, // Assuming Trousers is category_id 3
-                "brand_id" => 1, // Calvin Klein
+                "category_id" => 5, 
+                "brand_id" => 1,
                 "featured" => true,
                 "status" => "published",
                 "meta_title" => "Men's Slim Fit Denim Jeans | Calvin Klein",
@@ -43,7 +43,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 75,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 3, // Assuming Trousers is category_id 3
+                "category_id" => 5, 
                 "brand_id" => 1, // Calvin Klein
                 "featured" => false,
                 "status" => "published",
@@ -61,7 +61,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 40,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 1, // Assuming Shoes is category_id 1
+                "category_id" => 3, 
                 "brand_id" => 2, // Under Armour
                 "featured" => true,
                 "status" => "published",
@@ -79,7 +79,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 100,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 2, // Assuming Shirts is category_id 2
+                "category_id" => 4, 
                 "brand_id" => 2, // Under Armour
                 "featured" => false,
                 "status" => "published",
@@ -97,7 +97,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 20,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 4, // Assuming Laptops is category_id 4
+                "category_id" => 6, 
                 "brand_id" => 3, // Apple
                 "featured" => true,
                 "status" => "published",
@@ -115,8 +115,8 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 30,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 5, // Assuming Smartphones is category_id 5
-                "brand_id" => 3, // Apple
+                "category_id" => 7, 
+                "brand_id" => 3,
                 "featured" => true,
                 "status" => "published",
                 "meta_title" => "iPhone 15 Pro Max | Apple",
@@ -133,7 +133,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 25,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 4, // Assuming Laptops is category_id 4
+                "category_id" => 6,
                 "brand_id" => 4, // Lenovo
                 "featured" => false,
                 "status" => "published",
@@ -151,8 +151,8 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 35,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 4, // Assuming Laptops is category_id 4
-                "brand_id" => 4, // Lenovo
+                "category_id" => 6, 
+                "brand_id" => 4, 
                 "featured" => false,
                 "status" => "published",
                 "meta_title" => "Lenovo IdeaPad Flex 5 | 2-in-1 Laptop",
@@ -169,7 +169,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 200,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 2, // Assuming Shirts is category_id 2
+                "category_id" => 4,
                 "brand_id" => 1, // Calvin Klein (can be any clothing brand, but using an existing one)
                 "featured" => false,
                 "status" => "published",
@@ -187,7 +187,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 80,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 1, // Assuming Shoes is category_id 1
+                "category_id" => 3,
                 "brand_id" => 2, // Under Armour (can be any shoe brand, but using an existing one)
                 "featured" => false,
                 "status" => "published",
@@ -205,7 +205,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 15,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 4, // Assuming Laptops is category_id 4
+                "category_id" => 6, 
                 "brand_id" => 4, // Lenovo
                 "featured" => true,
                 "status" => "published",
@@ -223,7 +223,7 @@ class ProductSeeder extends Seeder
                 "stock_quantity" => 40,
                 "manage_stock" => true,
                 "stock_status" => "in_stock",
-                "category_id" => 5, // Assuming Smartphones is category_id 5
+                "category_id" => 7,
                 "brand_id" => 3, // Apple
                 "featured" => false,
                 "status" => "published",
