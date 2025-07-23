@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,7 +14,7 @@ Route::resource('categories', CategoryController::class)->parameters([
     'categories' => 'category:slug',
 ]);
 
-Route::get('/product', fn()=> Inertia::render('products/show'));
+Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {

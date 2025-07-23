@@ -1,144 +1,171 @@
 "use client"
 
+import type React from "react"
+
+import { ChevronLeft, ChevronRight, ZoomIn, ShoppingCart } from "lucide-react"
 import { useState } from "react"
-import { ChevronLeft, ChevronRight, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
 
-const productImages = [
-  "image/image-1.jpg",
-  "image/image-2.jpg",
-  "image/image-3.jpg",
-  "image/image-4.jpg",
-  "image/image-5.jpg",
-  "image/image-6.jpg",
-  "image/image-7.jpg",
-  "image/image-8.jpg",
-];
+interface ProductImage {
+  id: number
+  url: string
+  alt_text: string
+  is_primary: boolean
+  sort_order: number
+}
 
-export function ProductImageGallery() {
+interface ProductImageGalleryProps {
+  images: ProductImage[]
+  productName: string
+  productId?: number
+  price?: number
+  onAddToCart?: (productId: number) => void
+}
+
+export function ProductImageGallery({ images, productName, productId, price, onAddToCart }: ProductImageGalleryProps) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false)
+  const [isZoomed, setIsZoomed] = useState(false)
+  const [isAddingToCart, setIsAddingToCart] = useState(false)
+
+  // Sort images by primary first, then by sort_order
+  const sortedImages = [...images].sort((a, b) => {
+    if (a.is_primary && !b.is_primary) return -1
+    if (!a.is_primary && b.is_primary) return 1
+    return a.sort_order - b.sort_order
+  })
+
+  const currentImage = sortedImages[currentImageIndex] || {
+    url: "/placeholder.svg?height=500&width=500&text=No Image",
+    alt_text: productName,
+    id: 0,
+    is_primary: true,
+    sort_order: 0,
+  }
 
   const nextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % productImages.length)
+    setCurrentImageIndex((prev) => (prev === sortedImages.length - 1 ? 0 : prev + 1))
   }
 
   const prevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + productImages.length) % productImages.length)
+    setCurrentImageIndex((prev) => (prev === 0 ? sortedImages.length - 1 : prev - 1))
   }
 
-  const selectImage = (index: number) => {
-    setCurrentImageIndex(index)
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const target = e.currentTarget
+    target.src = `/placeholder.svg?height=500&width=500&text=${encodeURIComponent(productName)}`
+  }
+
+  const handleAddToCart = async () => {
+    if (!productId || !onAddToCart) return
+
+    setIsAddingToCart(true)
+    try {
+      await onAddToCart(productId)
+    } catch (error) {
+      console.error("Error adding to cart:", error)
+    } finally {
+      setIsAddingToCart(false)
+    }
+  }
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(price)
   }
 
   return (
-    <>
-      <div className="flex gap-4">
-        {/* Thumbnail Column */}
-        <div className="flex flex-col gap-2 w-20">
-          {productImages.map((image, index) => (
+    <div className="space-y-4">
+      {/* Main Image - Made smaller */}
+      <div className="relative aspect-square max-w-md mx-auto overflow-hidden rounded-lg bg-gray-100">
+        <img
+          src={currentImage.url || "/placeholder.svg"}
+          alt={currentImage.alt_text || productName}
+          className={`h-full w-full object-cover transition-transform duration-300 ${
+            isZoomed ? "scale-150 cursor-zoom-out" : "cursor-zoom-in"
+          }`}
+          onClick={() => setIsZoomed(!isZoomed)}
+          onError={handleImageError}
+        />
+
+        {/* Zoom Icon */}
+        <button
+          onClick={() => setIsZoomed(!isZoomed)}
+          className="absolute top-4 right-4 rounded-full bg-white bg-opacity-75 p-2 transition-all hover:bg-opacity-100"
+        >
+          <ZoomIn className="h-5 w-5 text-gray-700" />
+        </button>
+
+        {/* Navigation Arrows - only show if multiple images */}
+        {sortedImages.length > 1 && (
+          <>
             <button
-              key={index}
-              onClick={() => selectImage(index)}
-              className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                index === currentImageIndex ? "border-gray-900" : "border-gray-200 hover:border-gray-400"
+              onClick={prevImage}
+              className="absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white bg-opacity-75 p-2 transition-all hover:bg-opacity-100"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-700" />
+            </button>
+            <button
+              onClick={nextImage}
+              className="absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white bg-opacity-75 p-2 transition-all hover:bg-opacity-100"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-700" />
+            </button>
+          </>
+        )}
+
+        {/* Image Counter */}
+        {sortedImages.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black bg-opacity-50 px-3 py-1 text-sm text-white">
+            {currentImageIndex + 1} / {sortedImages.length}
+          </div>
+        )}
+      </div>
+
+      {/* Thumbnail Images - only show if multiple images */}
+      {sortedImages.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 justify-center">
+          {sortedImages.map((image, index) => (
+            <button
+              key={image.id}
+              onClick={() => setCurrentImageIndex(index)}
+              className={`aspect-square h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                index === currentImageIndex
+                  ? "border-blue-500 ring-2 ring-blue-200"
+                  : "border-gray-200 hover:border-gray-300"
               }`}
             >
               <img
-                src={`image/image-${index + 1}.jpg`}
-                alt={`Product view ${index + 1}`}
-                width={80}
-                height={80}
-                className="w-full h-full object-cover"
+                src={image.url || "/placeholder.svg"}
+                alt={image.alt_text || productName}
+                className="h-full w-full object-cover"
+                onError={handleImageError}
               />
             </button>
           ))}
         </div>
+      )}
 
-        {/* Main Image */}
-        <div className="flex-1 relative">
-          <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative group">
-            <img
-              key={currentImageIndex}
-              src={productImages[currentImageIndex] || "/placeholder.svg"}
-              alt="Product main view"
-              width={600}
-              height={600}
-              className="w-full h-full object-cover cursor-zoom-in"
-              onClick={() => setIsLightboxOpen(true)}
-            />
-
-            {/* Navigation Arrows */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={prevImage}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={nextImage}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+      {/* Add to Cart Section */}
+      <div className="space-y-3 max-w-md mx-auto">
+        {price && (
+          <div className="text-center">
+            <span className="text-2xl font-bold text-gray-900">{formatPrice(price)}</span>
           </div>
-        </div>
+        )}
+
+        <Button
+          onClick={handleAddToCart}
+          disabled={isAddingToCart || !productId}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+        >
+          <ShoppingCart className="h-5 w-5" />
+          {isAddingToCart ? "Adding..." : "Add to Cart"}
+        </Button>
+
+        {!productId && <p className="text-sm text-gray-500 text-center">Product ID required to add to cart</p>}
       </div>
-
-      {/* Lightbox Modal */}
-      <Dialog open={isLightboxOpen} onOpenChange={setIsLightboxOpen}>
-        <DialogContent className="max-w-4xl w-full h-[80vh] p-0 bg-black">
-          <div className="relative w-full h-full flex items-center justify-center">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
-              onClick={() => setIsLightboxOpen(false)}
-            >
-              <X className="w-6 h-6" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20"
-              onClick={prevImage}
-            >
-              <ChevronLeft className="w-8 h-8" />
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20"
-              onClick={nextImage}
-            >
-              <ChevronRight className="w-8 h-8" />
-            </Button>
-
-            <img
-              src={productImages[currentImageIndex] || "/placeholder.svg"}
-              alt="Product lightbox view"
-              width={800}
-              height={800}
-              className="max-w-full max-h-full object-contain"
-            />
-
-            {/* Image Counter */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-sm">
-              {currentImageIndex + 1} / {productImages.length}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+    </div>
   )
 }
-
-

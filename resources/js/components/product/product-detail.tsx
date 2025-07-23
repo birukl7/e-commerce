@@ -1,134 +1,274 @@
+import { useState } from 'react'
+import { Heart, Share2, Star, Truck, Shield, RotateCcw, Tag } from 'lucide-react'
 
+interface ProductImage {
+  id: number
+  url: string
+  alt_text: string
+  is_primary: boolean
+  sort_order: number
+}
 
-import { useState } from "react"
-import { Heart, Star, Check, ChevronDown } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
+interface Category {
+  id: number
+  name: string
+  slug: string
+}
 
-export function ProductDetails() {
-  const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false)
+interface Brand {
+  id: number
+  name: string
+  slug?: string
+}
+
+interface Product {
+  id: number
+  name: string
+  slug: string
+  description: string
+  sku: string
+  price: number
+  sale_price?: number | null
+  current_price: number
+  cost_price?: number | null
+  stock_quantity: number
+  stock_status: string
+  featured: boolean
+  status: string
+  meta_title?: string
+  meta_description?: string
+  images: ProductImage[]
+  primary_image: string
+  category: Category
+  brand: Brand
+  average_rating: number
+  reviews_count: number
+}
+
+interface ProductDetailsProps {
+  product: Product
+}
+
+export function ProductDetails({ product }: ProductDetailsProps) {
+  const [quantity, setQuantity] = useState(1)
+  const [isWishlisted, setIsWishlisted] = useState(false)
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price)
+  }
+
+  const isOnSale = product.sale_price && product.sale_price < product.price
+  const isOutOfStock = product.stock_status === 'out_of_stock'
+  const isLowStock = product.stock_quantity <= 5 && product.stock_quantity > 0
+
+  const handleQuantityChange = (newQuantity: number) => {
+    if (newQuantity >= 1 && newQuantity <= product.stock_quantity) {
+      setQuantity(newQuantity)
+    }
+  }
+
+  const handleAddToCart = () => {
+    // Add to cart logic here
+    console.log(`Adding ${quantity} of product ${product.id} to cart`)
+  }
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: product.description,
+        url: window.location.href,
+      })
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.href)
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Stock Warning */}
-      <div className="text-red-600 font-medium">Low in stock, only 1 left</div>
-
-      {/* Price Section */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-3">
-          <span className="text-3xl font-bold text-green-600">USD 127.20+</span>
-          <span className="text-lg text-gray-500 line-through">USD 159.00+</span>
-          <Badge className="bg-green-100 text-green-800 hover:bg-green-100">20% off</Badge>
+      {/* Product Title and Brand */}
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-sm text-gray-600">{product.brand.name}</span>
+          {product.featured && (
+            <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+              Featured
+            </span>
+          )}
         </div>
-        <div className="text-red-600 font-medium">Sale ends in 9:07:11</div>
-        <div className="text-sm text-gray-600">Local taxes included (where applicable)</div>
+        <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+        <p className="text-sm text-gray-500 mt-1">SKU: {product.sku}</p>
       </div>
 
-      {/* Product Title */}
-      <h1 className="text-2xl font-semibold text-gray-900 leading-tight">
-        Wedding wrap cardigan, ballet wrap shrug, wedding sweater, cover up for wedding dress, white bolero for bride,
-        warm wool bridesmaids jacket
-      </h1>
-
-      {/* Seller Info */}
-      <div className="flex items-center gap-2">
-        <span className="font-medium">EdelweissBride</span>
-        <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center">
-          <Star className="w-3 h-3 fill-purple-500 text-purple-500" />
-        </div>
+      {/* Rating and Reviews */}
+      <div className="flex items-center gap-4">
         <div className="flex items-center">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+          {[...Array(5)].map((_, i) => (
+            <Star
+              key={i}
+              className={`h-5 w-5 ${
+                i < Math.floor(product.average_rating)
+                  ? 'fill-yellow-400 text-yellow-400'
+                  : 'fill-gray-200 text-gray-200'
+              }`}
+            />
           ))}
-        </div>
-      </div>
-
-      {/* Delivery Info */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm">
-          <Check className="w-4 h-4 text-green-600" />
-          <span>
-            Arrives soon! Get it by <span className="font-medium">Jul 28-Aug 2</span> if you order today
+          <span className="ml-2 text-sm text-gray-600">
+            {product.average_rating} ({product.reviews_count} reviews)
           </span>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Check className="w-4 h-4 text-green-600" />
-          <span>Exchanges accepted</span>
-        </div>
       </div>
 
-      {/* Options */}
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">Primary color</label>
-          <Select>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select a color" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="white">White</SelectItem>
-              <SelectItem value="ivory">Ivory</SelectItem>
-              <SelectItem value="cream">Cream</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-900 mb-2">SIZE</label>
-          <Select>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select an option" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="xs">XS</SelectItem>
-              <SelectItem value="s">S</SelectItem>
-              <SelectItem value="m">M</SelectItem>
-              <SelectItem value="l">L</SelectItem>
-              <SelectItem value="xl">XL</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Personalization */}
-        <div>
-          <button
-            onClick={() => setIsPersonalizationOpen(!isPersonalizationOpen)}
-            className="flex items-center justify-between w-full text-left text-sm font-medium text-gray-900"
-          >
-            Add your personalization (optional)
-            <ChevronDown className={`w-4 h-4 transition-transform ${isPersonalizationOpen ? "rotate-180" : ""}`} />
-          </button>
-        </div>
+      {/* Price */}
+      <div className="space-y-2">
+        {isOnSale ? (
+          <div className="flex items-center gap-3">
+            <span className="text-3xl font-bold text-red-600">
+              {formatPrice(product.current_price)}
+            </span>
+            <span className="text-xl text-gray-500 line-through">
+              {formatPrice(product.price)}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-sm font-medium text-red-800">
+              <Tag className="mr-1 h-4 w-4" />
+              Save {formatPrice(product.price - product.current_price)}
+            </span>
+          </div>
+        ) : (
+          <span className="text-3xl font-bold text-gray-900">
+            {formatPrice(product.current_price)}
+          </span>
+        )}
       </div>
 
-      {/* Action Buttons */}
-      <div className="space-y-3">
-        <Button className="w-full bg-black hover:bg-gray-800 text-white py-3 text-lg font-medium rounded-full">
-          Add to cart
-        </Button>
-
-        <Button variant="outline" size="icon" className="rounded-full bg-transparent">
-          <Heart className="w-5 h-5" />
-        </Button>
+      {/* Stock Status */}
+      <div className="flex items-center gap-2">
+        <div className={`h-3 w-3 rounded-full ${
+          isOutOfStock ? 'bg-red-500' : 
+          isLowStock ? 'bg-yellow-500' : 'bg-green-500'
+        }`} />
+        <span className={`text-sm font-medium ${
+          isOutOfStock ? 'text-red-600' : 
+          isLowStock ? 'text-yellow-600' : 'text-green-600'
+        }`}>
+          {isOutOfStock ? 'Out of Stock' : 
+           isLowStock ? `Only ${product.stock_quantity} left in stock` : 'In Stock'}
+        </span>
       </div>
 
-      {/* Star Seller Badge */}
-      <div className="flex items-start gap-3 p-4 bg-purple-50 rounded-lg">
-        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
-          <Star className="w-4 h-4 fill-purple-500 text-purple-500" />
+      {/* Description */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
+        <p className="text-gray-600 leading-relaxed">{product.description}</p>
+      </div>
+
+      {/* Quantity and Add to Cart */}
+      {!isOutOfStock && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+              Quantity:
+            </label>
+            <div className="flex items-center border border-gray-300 rounded-md">
+              <button
+                onClick={() => handleQuantityChange(quantity - 1)}
+                disabled={quantity <= 1}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                -
+              </button>
+              <input
+                id="quantity"
+                type="number"
+                min="1"
+                max={product.stock_quantity}
+                value={quantity}
+                onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                className="w-16 px-3 py-2 text-center border-0 focus:ring-0"
+              />
+              <button
+                onClick={() => handleQuantityChange(quantity + 1)}
+                disabled={quantity >= product.stock_quantity}
+                className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={handleAddToCart}
+              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors"
+            >
+              Add to Cart
+            </button>
+            <button
+              onClick={() => setIsWishlisted(!isWishlisted)}
+              className={`p-3 rounded-md border transition-colors ${
+                isWishlisted
+                  ? 'bg-red-50 border-red-200 text-red-600'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:text-red-600'
+              }`}
+            >
+              <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-current' : ''}`} />
+            </button>
+            <button
+              onClick={handleShare}
+              className="p-3 rounded-md border border-gray-200 bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-        <div className="text-sm">
-          <div className="font-medium text-purple-900 mb-1">Star Seller.</div>
-          <div className="text-gray-700">
-            This seller consistently earned 5-star reviews, shipped on time, and replied quickly to any messages they
-            received.
+      )}
+
+      {/* Features */}
+      <div className="border-t pt-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Truck className="h-5 w-5 text-blue-600" />
+            <span>Free shipping over $50</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <Shield className="h-5 w-5 text-green-600" />
+            <span>1 year warranty</span>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-gray-600">
+            <RotateCcw className="h-5 w-5 text-orange-600" />
+            <span>30-day returns</span>
           </div>
         </div>
       </div>
 
-      {/* Report Link */}
-      <button className="text-sm text-gray-600 hover:text-gray-900 underline">Report this item to Etsy</button>
+      {/* Product Details */}
+      <div className="border-t pt-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Product Details</h3>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <dt className="font-medium text-gray-900">Category</dt>
+            <dd className="text-gray-600">{product.category.name}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-900">Brand</dt>
+            <dd className="text-gray-600">{product.brand.name}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-900">SKU</dt>
+            <dd className="text-gray-600">{product.sku}</dd>
+          </div>
+          <div>
+            <dt className="font-medium text-gray-900">Availability</dt>
+            <dd className="text-gray-600">
+              {product.stock_quantity} units in stock
+            </dd>
+          </div>
+        </dl>
+      </div>
     </div>
   )
 }

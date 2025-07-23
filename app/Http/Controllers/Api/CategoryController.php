@@ -191,11 +191,32 @@ class CategoryController extends Controller
             $categories = Category::whereNull('parent_id')
                 ->where('is_active', true)
                 ->with(['children' => function ($query) {
-                    $query->where('is_active', true)
-                          ->orderBy('sort_order');
+                    $query->where('is_active', true)->orderBy('sort_order');
                 }])
                 ->orderBy('sort_order')
                 ->get();
+
+            // Add product count and format image URLs for each category
+            $categories->each(function ($category) {
+                $category->product_count = $this->getProductCount($category);
+                
+                // Format image URL
+                if ($category->image) {
+                    $category->image = asset('image/' . $category->image);
+                }
+
+                // Process children if they exist
+                if ($category->children) {
+                    $category->children->each(function ($child) {
+                        $child->product_count = $this->getProductCount($child);
+                        
+                        // Format image URL for children
+                        if ($child->image) {
+                            $child->image = asset('image/' . $child->image);
+                        }
+                    });
+                }
+            });
 
             return response()->json([
                 'success' => true,
@@ -210,4 +231,5 @@ class CategoryController extends Controller
             ], 500);
         }
     }
+
 }

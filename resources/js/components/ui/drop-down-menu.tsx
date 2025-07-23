@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,16 +17,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Menu, Loader2 } from "lucide-react"
-import { Category } from "@/types"
 
+interface Category {
+  id: number
+  name: string
+  slug: string
+  description: string
+  image: string
+  parent_id: number | null
+  sort_order: number
+  is_active: boolean
+  product_count: number
+  children?: Category[]
+}
 
 interface CategoryDropdownProps {
   onCategorySelect?: (category: Category) => void
 }
 
-export function CategoryDropdown({
-  onCategorySelect,
-}: CategoryDropdownProps) {
+export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -38,79 +49,102 @@ export function CategoryDropdown({
       setLoading(true)
       setError(null)
 
-      const response = await fetch(`api/categories`, {
+      console.log("Starting fetch request to /api/categories")
+
+      // Try the main categories endpoint first
+      let response = await fetch("/api/categories", {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
+          "X-Requested-With": "XMLHttpRequest",
         },
       })
 
+      // If that fails, try the tree endpoint
       if (!response.ok) {
+        console.log("Main endpoint failed, trying tree endpoint")
+        response = await fetch("/api/categories/tree", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        })
+      }
+
+      console.log("Response status:", response.status)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error("Response error text:", errorText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
-      const data = await response.json()
+      // Get the response as text first to check what we're receiving
+      const responseText = await response.text()
+      console.log("Raw response text:", responseText)
 
-      // Transform flat categories into hierarchical structure
-      const hierarchicalCategories = buildCategoryHierarchy(data.data || data)
-      setCategories(hierarchicalCategories)
+      // Try to parse as JSON
+      let result
+      try {
+        result = JSON.parse(responseText)
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError)
+        throw new Error("Server returned invalid JSON")
+      }
+
+      console.log("Parsed API Response:", result)
+
+      // Handle Laravel resource response structure
+      let categoriesData: Category[] = []
+
+      if (result.success && result.data) {
+        categoriesData = result.data
+      } else if (Array.isArray(result)) {
+        categoriesData = result
+      } else if (result.data && Array.isArray(result.data)) {
+        categoriesData = result.data
+      } else {
+        throw new Error("Unexpected response structure from server")
+      }
+
+      setCategories(categoriesData)
     } catch (err) {
-      console.error("Error fetching categories:", err)
+      console.error("Detailed error in fetchCategories:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch categories")
     } finally {
       setLoading(false)
     }
   }
 
-  const buildCategoryHierarchy = (flatCategories: Category[]): Category[] => {
-    const categoryMap = new Map<number, Category>()
-    const rootCategories: Category[] = []
-
-    // First pass: create map of all categories
-    flatCategories.forEach((category) => {
-      categoryMap.set(category.id, { ...category, subcategories: [] })
-    })
-
-    // Second pass: build hierarchy
-    flatCategories.forEach((category) => {
-      const categoryWithSubs = categoryMap.get(category.id)!
-
-      if (category.parent_id === null) {
-        rootCategories.push(categoryWithSubs)
-      } else {
-        const parent = categoryMap.get(category.parent_id)
-        if (parent) {
-          parent.subcategories = parent.subcategories || []
-          parent.subcategories.push(categoryWithSubs)
-        }
-      }
-    })
-
-    // Sort categories by sort_order
-    const sortCategories = (cats: Category[]) => {
-      cats.sort((a, b) => a.sort_order - b.sort_order)
-      cats.forEach((cat) => {
-        if (cat.subcategories && cat.subcategories.length > 0) {
-          sortCategories(cat.subcategories)
-        }
-      })
-    }
-
-    sortCategories(rootCategories)
-    return rootCategories.filter((cat) => cat.is_active)
-  }
-
   const handleCategoryClick = (category: Category) => {
+    console.log("Category clicked:", category)
     onCategorySelect?.(category)
   }
 
   const getImageUrl = (imagePath: string) => {
+    if (!imagePath) {
+      return "/placeholder.svg?height=40&width=40"
+    }
     if (imagePath.startsWith("http")) {
       return imagePath
     }
-    //return `/api/storage/${imagePath}`
-    return `image/${imagePath}`
+    return imagePath
+  }
+
+  // Fixed image error handler to prevent infinite loops
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, categoryName: string, size: string) => {
+    const target = e.target as HTMLImageElement
+
+    // Prevent infinite loop by checking if we're already showing a placeholder
+    if (target.src.includes("placeholder.svg")) {
+      return
+    }
+
+    // Set to a simple placeholder without the category name to avoid URL encoding issues
+    target.src = `/placeholder.svg?height=${size}&width=${size}`
   }
 
   if (loading) {
@@ -124,9 +158,21 @@ export function CategoryDropdown({
 
   if (error) {
     return (
-      <Button variant="outline" className="border-red-500 text-red-500 bg-transparent" onClick={fetchCategories}>
+      <div className="flex flex-col gap-2">
+        <Button variant="outline" className="border-red-500 text-red-500 bg-transparent" onClick={fetchCategories}>
+          <Menu className="mr-2" />
+          Retry
+        </Button>
+        <div className="text-xs text-red-500 max-w-xs break-words">Error: {error}</div>
+      </div>
+    )
+  }
+
+  if (!categories || categories.length === 0) {
+    return (
+      <Button variant="outline" className="border-gray-400 text-gray-400 bg-transparent" disabled>
         <Menu className="mr-2" />
-        Retry
+        No Categories
       </Button>
     )
   }
@@ -136,7 +182,7 @@ export function CategoryDropdown({
       <DropdownMenuTrigger asChild>
         <Button variant="outline" className="border-black cursor-pointer bg-transparent">
           <Menu className="mr-2" />
-          Categories
+          Categories ({categories.length})
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64" align="start">
@@ -144,19 +190,15 @@ export function CategoryDropdown({
         <DropdownMenuGroup>
           {categories.map((category) => (
             <div key={category.id}>
-              {category.subcategories && category.subcategories.length > 0 ? (
+              {category.children && category.children.length > 0 ? (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
                       <img
-                        //src={getImageUrl(category.image) || "/placeholder.svg"}
-                        src={category.image}
+                        src={getImageUrl(category.image) || "/placeholder.svg"}
                         alt={category.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.src = `/placeholder.svg?height=40&width=40&text=${category.name}`
-                        }}
+                        onError={(e) => handleImageError(e, category.name, "40")}
                       />
                     </div>
                     <div className="flex flex-col text-left">
@@ -166,27 +208,23 @@ export function CategoryDropdown({
                   </DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent className="w-60">
-                      {category.subcategories.map((sub) => (
+                      {category.children.map((child) => (
                         <DropdownMenuItem
-                          key={sub.id}
+                          key={child.id}
                           className="flex items-center space-x-3 cursor-pointer"
-                          onClick={() => handleCategoryClick(sub)}
+                          onClick={() => handleCategoryClick(child)}
                         >
                           <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100">
                             <img
-                              //src={getImageUrl(sub.image) || "/placeholder.svg"}
-                              src={sub.image}
-                              alt={sub.name}
+                              src={getImageUrl(child.image) || "/placeholder.svg"}
+                              alt={child.name}
                               className="w-full h-full object-cover"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.src = `/placeholder.svg?height=32&width=32&text=${sub.name}`
-                              }}
+                              onError={(e) => handleImageError(e, child.name, "32")}
                             />
                           </div>
                           <div className="flex flex-col text-left">
-                            <span className="font-medium">{sub.name}</span>
-                            <span className="text-xs text-gray-500">{sub.product_count || 0} products</span>
+                            <span className="font-medium">{child.name}</span>
+                            <span className="text-xs text-gray-500">{child.product_count || 0} products</span>
                           </div>
                         </DropdownMenuItem>
                       ))}
@@ -200,14 +238,10 @@ export function CategoryDropdown({
                 >
                   <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
                     <img
-                      //src={getImageUrl(category.image) || "/placeholder.svg"}
-                      src={category.image}
+                      src={getImageUrl(category.image) || "/placeholder.svg"}
                       alt={category.name}
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.src = `/placeholder.svg?height=40&width=40&text=${category.name}`
-                      }}
+                      onError={(e) => handleImageError(e, category.name, "40")}
                     />
                   </div>
                   <div className="flex flex-col text-left">
