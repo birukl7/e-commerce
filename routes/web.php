@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,6 +14,9 @@ Route::get('/', function () {
 Route::resource('categories', CategoryController::class)->parameters([
     'categories' => 'category:slug',
 ]);
+
+Route::get('/search', [SearchController::class, 'search'])->name('search');
+Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('search.suggestions');
 
 Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
 

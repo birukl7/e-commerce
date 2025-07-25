@@ -11,6 +11,7 @@ import CartDropdown from "./cart-dropdown"
 // import { DropdownMenu } from "./ui/dropdown-menu"
 import { CategoryDropdown } from "./ui/drop-down-menu"
 import SearchBar from "./header-search-bar"
+import SearchBarAdvanced from "./header-search-bar-adv"
 // import { route } from "@/router" // Import route function
 
 const Header = () => {
@@ -67,7 +68,7 @@ const Header = () => {
 
           {/* Search Bar */}
           <div className="w-full px-10 hidden md:block">
-            <SearchBar/>
+            <SearchBarAdvanced/>
           </div>
   
 
