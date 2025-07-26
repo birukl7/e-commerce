@@ -1,5 +1,5 @@
-import { Button } from "@/components/ui/button"
 import H2 from "../ui/h2"
+import { CustomLink } from "../link"
 
 
 export default function CTASection() {
@@ -13,13 +13,14 @@ export default function CTASection() {
             <p className="text-lg md:text-xl text-white/90 mb-8 leading-relaxed">
               Tell us what you're looking for - we'll source it, stock it, or custom order it for you.
             </p>
-            <Button
-              size="lg"
+
+            <CustomLink
+              sizes="lg"
               variant="secondary"
               className="px-8 py-3 text-lg font-semibold bg-white text-primary hover:bg-gray-100 transition-colors"
-            >
+              href={route('request.index')}>
               Request
-            </Button>
+            </CustomLink>
           </div>
 
           {/* Image Side */}

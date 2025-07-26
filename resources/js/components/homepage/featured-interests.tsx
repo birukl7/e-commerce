@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { InterestCard } from "./interest-card"
 import { InterestCardSkeleton } from "./interest-card-skeleton"
+import { Button } from "../ui/button"
 
 interface FeaturedCategory {
   id: number
@@ -64,12 +65,12 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
         <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
         <div className="py-8 text-center">
           <p className="mb-4 text-red-500">Failed to load featured interests</p>
-          <button
+          <Button
             onClick={handleRetry}
-            className="rounded bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
+            className=""
           >
             Try Again
-          </button>
+          </Button>
         </div>
       </section>
     )

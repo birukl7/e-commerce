@@ -66,6 +66,7 @@
 
 import { Link } from '@inertiajs/react';
 import type React from 'react';
+import H3 from '../ui/h3';
 
 interface InterestCardProps {
     title: string;
@@ -105,7 +106,7 @@ export function InterestCard({ title, subtitle, imageSrc, imageAlt, productCount
                     />
                 </div>
                 <div className="p-6">
-                    <h3 className="mb-2 text-xl font-semibold text-gray-900 transition-colors group-hover:text-blue-600">{title}</h3>
+                    <H3 className="mb-2 text-xl font-semibold text-gray-900 transition-colors">{title}</H3>
                     <p className="mb-1 text-sm text-gray-600">{subtitle}</p>
                     {productCount !== undefined && <p className="text-xs text-gray-500">{productCount} products</p>}
                 </div>

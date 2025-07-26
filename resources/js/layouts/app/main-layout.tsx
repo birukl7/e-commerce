@@ -19,7 +19,9 @@ const MainLayout: React.FC<MainLayout> = ({children, title , className}) => {
         <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white" style={{ fontFamily: "Outfit, sans-serif" }}>
           {/* Header */}
           <Header />
-          {children}
+          <div className="  max-w-[1280px] mx-auto ">
+            {children}
+          </div>
           <Footer />
         </div>
       </div>

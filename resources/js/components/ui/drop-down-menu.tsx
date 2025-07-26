@@ -36,6 +36,7 @@ interface CategoryDropdownProps {
 }
 
 export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
+  
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -29,7 +29,7 @@ function WelcomeContent() {
         {/* Hero Section with Search Bar */}
         
         <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50 dark:bg-slate-800 container mx-auto">
-            <HomePageBanner/>
+          <HomePageBanner/>
         </section>
 
         <section className="container mx-auto">
