@@ -13,7 +13,6 @@ import Footer from "@/components/footer"
 
 function WelcomeContent() {
 
-
   return (
     <>
       <Head title="ShopHub - Premium Products">
@@ -49,14 +48,13 @@ function WelcomeContent() {
           <DealsCarousel/>
         </section>
 
-        <section className="container mx-auto">
+        {/* <section className="container mx-auto">
           <GiftShowcase/>
-        </section>
+        </section> */}
 
-        <section className="container mx-auto">
+        {/* <section className="container mx-auto">
           <DealsCarousel/>
-        </section>
-
+        </section> */}
         
           <AboutSection/>
         

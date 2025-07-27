@@ -12,6 +12,7 @@ import CartDropdown from "./cart-dropdown"
 import { CategoryDropdown } from "./ui/drop-down-menu"
 import SearchBar from "./header-search-bar"
 import SearchBarAdvanced from "./header-search-bar-adv"
+import { CustomLink } from "./link"
 // import { route } from "@/router" // Import route function
 
 const Header = () => {
@@ -81,12 +82,9 @@ const Header = () => {
             {/* Auth buttons */}
             {auth.user ? (
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
-                <Link href={route("dashboard")}>
-                  <Button size="sm">Dashboard</Button>
-                </Link>
+                <CustomLink href={route('user.dashboard')} variant="ghost" sizes="icon" className=" bg-primary hover:bg-amber-600">
+                  <User className="h-5 w-5 text-white" />
+                </CustomLink>
               </div>
             ) : (
               <div className="flex sm:flex items-center space-x-1 pl-2">
@@ -98,8 +96,6 @@ const Header = () => {
                 </Link>
               </div>
             )}
-
-          
 
 
             {/* Wishlist */}

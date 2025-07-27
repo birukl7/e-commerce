@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { InterestCard } from "./interest-card"
 import { InterestCardSkeleton } from "./interest-card-skeleton"
 import { Button } from "../ui/button"
@@ -22,12 +22,12 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
   const [interests, setInterests] = useState<FeaturedCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [hasInitialized, setHasInitialized] = useState(false)
 
-  useEffect(() => {
-    fetchFeaturedInterests()
-  }, [count])
+  const fetchFeaturedInterests = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (loading && hasInitialized) return
 
-  const fetchFeaturedInterests = async () => {
     try {
       setLoading(true)
       setError(null)
@@ -47,15 +47,24 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
 
       const data = await response.json()
       setInterests(data.data || data || [])
+      setHasInitialized(true)
     } catch (err) {
       console.error("Error fetching featured interests:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch featured interests")
     } finally {
       setLoading(false)
     }
-  }
+  }, [count]) // Only depend on count
+
+  useEffect(() => {
+    // Only fetch if we haven't initialized yet
+    if (!hasInitialized) {
+      fetchFeaturedInterests()
+    }
+  }, [fetchFeaturedInterests, hasInitialized])
 
   const handleRetry = () => {
+    setHasInitialized(false)
     fetchFeaturedInterests()
   }
 
@@ -65,10 +74,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
         <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
         <div className="py-8 text-center">
           <p className="mb-4 text-red-500">Failed to load featured interests</p>
-          <Button
-            onClick={handleRetry}
-            className=""
-          >
+          <Button onClick={handleRetry} className="">
             Try Again
           </Button>
         </div>

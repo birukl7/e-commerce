@@ -16,6 +16,7 @@ const socialLinks = [
 
 const bottomLinks = ["Terms of Use", "Privacy", "Interest-based ads", "Local Shops", "Regions"]
 
+
 export default function Footer() {
   return (
     <footer className="bg-slate-800 text-white">

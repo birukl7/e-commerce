@@ -26,8 +26,7 @@ class CategoryController extends Controller
             // Add product count for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                var_dump($category_image);
-                $category->image =  asset('image/' . $category->image);
+                $category->image = asset('image/' . $category->image);
                 
                 if ($category->children) {
                     $category->children->each(function ($child) {
@@ -35,7 +34,6 @@ class CategoryController extends Controller
                     });
                 }
             });
-            var_dump($categories[0]->image);
 
             return response()->json([
                 'success' => true,
@@ -96,9 +94,12 @@ class CategoryController extends Controller
                 ->limit($count)
                 ->get();
 
-            // Add product count for each category
+            // Add product count and format image for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
+                if ($category->image) {
+                    $category->image = asset('image/' . $category->image);
+                }
             });
 
             // If we don't have enough categories with products, fill with any active categories
@@ -114,6 +115,9 @@ class CategoryController extends Controller
 
                 $additionalCategories->each(function ($category) {
                     $category->product_count = $this->getProductCount($category);
+                    if ($category->image) {
+                        $category->image = asset('image/' . $category->image);
+                    }
                 });
 
                 $categories = $categories->merge($additionalCategories);
@@ -134,6 +138,78 @@ class CategoryController extends Controller
         }
     }
 
+    /**
+     * Get categories for showcase (different from featured)
+     */
+    public function showcase(Request $request): JsonResponse
+    {
+        try {
+            $count = $request->get('count', 3);
+            $count = min(max($count, 1), 6); // Limit between 1 and 6
+            
+            // Get excluded category IDs from request (these are from featured interests)
+            $excludeCategories = $request->get('exclude_categories');
+            $excludeCategoryIds = $excludeCategories ? explode(',', $excludeCategories) : [];
+
+            $query = Category::where('is_active', true)
+                ->whereHas('products'); // Only categories that have products
+
+            // Exclude featured categories if provided
+            if (!empty($excludeCategoryIds)) {
+                $query->whereNotIn('id', $excludeCategoryIds);
+            }
+
+            $categories = $query->inRandomOrder()
+                ->limit($count)
+                ->get();
+
+            // Add product count and format image for each category
+            $categories->each(function ($category) {
+                $category->product_count = $this->getProductCount($category);
+                if ($category->image) {
+                    $category->image = asset('image/' . $category->image);
+                }
+            });
+
+            // If we don't have enough different categories, get some without the exclusion
+            if ($categories->count() < $count) {
+                $additionalCount = $count - $categories->count();
+                $existingIds = $categories->pluck('id')->toArray();
+                
+                // Merge with excluded IDs to avoid duplicates
+                $allExcludedIds = array_merge($excludeCategoryIds, $existingIds);
+                
+                $additionalCategories = Category::where('is_active', true)
+                    ->whereNotIn('id', $allExcludedIds)
+                    ->inRandomOrder()
+                    ->limit($additionalCount)
+                    ->get();
+
+                $additionalCategories->each(function ($category) {
+                    $category->product_count = $this->getProductCount($category);
+                    if ($category->image) {
+                        $category->image = asset('image/' . $category->image);
+                    }
+                });
+
+                $categories = $categories->merge($additionalCategories);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $categories->shuffle(),
+                'message' => 'Showcase categories retrieved successfully',
+                'count' => $categories->count()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve showcase categories',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 
     public function trending(Request $request): JsonResponse
     {
@@ -155,6 +231,9 @@ class CategoryController extends Controller
 
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
+                if ($category->image) {
+                    $category->image = asset('image/' . $category->image);
+                }
             });
 
             return response()->json([
@@ -170,8 +249,8 @@ class CategoryController extends Controller
             ], 500);
         }
     }
-
-        /**
+    
+    /**
      * Get product count for a category
      */
     private function getProductCount(Category $category): int
@@ -180,7 +259,6 @@ class CategoryController extends Controller
         // Adjust this based on your actual product model relationship
         return $category->products()->count();
     }
-
     
     /**
      * Get categories tree structure
@@ -231,5 +309,4 @@ class CategoryController extends Controller
             ], 500);
         }
     }
-
 }

@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Menu, Loader2 } from "lucide-react"
+import { CustomLink } from "../link"
 
 interface Category {
   id: number
@@ -253,6 +254,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
               )}
             </div>
           ))}
+          <CustomLink className="mx-auto my-2" href={route('request.index')}>Request</CustomLink>
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>

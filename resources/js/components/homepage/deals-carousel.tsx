@@ -1,86 +1,160 @@
-import { useState, useEffect } from "react"
+"use client"
+import { useState, useEffect, useCallback, useRef } from "react"
+import type React from "react"
+import { Link } from "@inertiajs/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { ChevronLeft, ChevronRight, Clock, Star } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock, Star, Heart } from "lucide-react"
 import H2 from "../ui/h2"
 
+interface Product {
+  id: number
+  name: string
+  slug: string
+  price: string
+  sale_price?: string
+  image?: string
+  category_id: number
+  featured: boolean
+  status: string
+  stock_status: string
+  rating?: number
+}
 
-const deals = [
-  {
-    id: 1,
-    title: "Bracelet, Beaded Jewelry",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.9,
-    currentPrice: "USD 16",
-    originalPrice: null,
-    discount: "50% off",
-    saleInfo: "in 60+ days",
-    discountBadge: "50% off",
-  },
-  {
-    id: 2,
-    title: "Custom Pet Portrait Stained Glass",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.9,
-    currentPrice: "USD 30.27",
-    originalPrice: "USD 67.26",
-    discount: "55% off",
-    saleInfo: "Biggest sale in 60+ days",
-    discountBadge: "55% off",
-  },
-  {
-    id: 3,
-    title: "CROCHET PATTERN & Tutorial",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.9,
-    currentPrice: "USD 7.36",
-    originalPrice: "USD 16.36",
-    discount: "55% off",
-    saleInfo: "Biggest sale in 60+ days",
-    discountBadge: "55% off",
-  },
-  {
-    id: 4,
-    title: "Gold Italian Bracelet, Vintage Style",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.8,
-    currentPrice: "USD 9.71",
-    originalPrice: "USD 30.85",
-    discount: "75% off",
-    saleInfo: "Biggest sale in 60+ days",
-    discountBadge: "75% off",
-  },
-  {
-    id: 5,
-    title: "Custom Birthstone Necklace",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.9,
-    currentPrice: "USD 25.96",
-    originalPrice: "USD 51.92",
-    discount: "50% off",
-    saleInfo: "Biggest sale in 60+ days",
-    discountBadge: "50% off",
-  },
-  {
-    id: 6,
-    title: "Handmade Ceramic Mug",
-    image: "/placeholder.svg?height=200&width=200",
-    rating: 4.7,
-    currentPrice: "USD 18.50",
-    originalPrice: "USD 25.00",
-    discount: "26% off",
-    saleInfo: "Limited time offer",
-    discountBadge: "26% off",
-  },
-]
+interface DealsCarouselProps {
+  excludeCategoryIds?: number[]
+  productCount?: number
+}
 
-export default function DealsCarousel() {
+export default function DealsCarousel({ excludeCategoryIds = [], productCount = 8 }: DealsCarouselProps) {
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   const [timeLeft, setTimeLeft] = useState({
     hours: 7,
     minutes: 55,
     seconds: 14,
   })
+
+  // Use refs to track loading states and prevent multiple simultaneous requests
+  const loadingRef = useRef(false)
+  const lastExcludedIdsRef = useRef<string>("")
+
+  // Create a base64 placeholder image to avoid server requests
+  const createPlaceholderDataUrl = (text: string, width = 200, height = 200) => {
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")
+
+    if (ctx) {
+      // Fill background
+      ctx.fillStyle = "#f3f4f6"
+      ctx.fillRect(0, 0, width, height)
+
+      // Add text
+      ctx.fillStyle = "#9ca3af"
+      ctx.font = "14px Arial"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+
+      // Wrap text if too long
+      const maxWidth = width - 20
+      const words = text.split(" ")
+      let line = ""
+      const lines = []
+
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + " "
+        const metrics = ctx.measureText(testLine)
+        const testWidth = metrics.width
+
+        if (testWidth > maxWidth && n > 0) {
+          lines.push(line)
+          line = words[n] + " "
+        } else {
+          line = testLine
+        }
+      }
+      lines.push(line)
+
+      // Draw lines
+      const lineHeight = 16
+      const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2
+
+      lines.forEach((line, index) => {
+        ctx.fillText(line.trim(), width / 2, startY + index * lineHeight)
+      })
+    }
+
+    return canvas.toDataURL()
+  }
+
+  const fetchProducts = useCallback(
+    async (excludeIds: number[] = []) => {
+      // Prevent multiple simultaneous requests
+      if (loadingRef.current) return
+
+      try {
+        loadingRef.current = true
+        setLoading(true)
+        setError(null)
+
+        const params = new URLSearchParams({
+          count: productCount.toString(),
+          status: "published",
+          stock_status: "in_stock",
+          featured: "true", // Get featured/deal products
+        })
+
+        // Add excluded category IDs if provided
+        if (excludeIds.length > 0) {
+          params.append("exclude_categories", excludeIds.join(","))
+        }
+
+        const response = await fetch(`/api/products/featured?${params}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          cache: "no-store",
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        setProducts(data.data || data || [])
+      } catch (err) {
+        console.error("Error fetching products:", err)
+        setError(err instanceof Error ? err.message : "Failed to fetch products")
+      } finally {
+        setLoading(false)
+        loadingRef.current = false
+      }
+    },
+    [productCount],
+  )
+
+  // Initial load effect
+  useEffect(() => {
+    fetchProducts(excludeCategoryIds)
+  }, [])
+
+  // Effect to handle changes in excludeCategoryIds
+  useEffect(() => {
+    const currentExcludedIds = JSON.stringify(excludeCategoryIds.sort())
+    // Only refetch if excludeCategoryIds actually changed
+    if (lastExcludedIdsRef.current !== currentExcludedIds && lastExcludedIdsRef.current !== "") {
+      fetchProducts(excludeCategoryIds)
+    }
+    lastExcludedIdsRef.current = currentExcludedIds
+  }, [excludeCategoryIds, fetchProducts])
 
   // Countdown timer effect
   useEffect(() => {
@@ -96,7 +170,6 @@ export default function DealsCarousel() {
         return prev
       })
     }, 1000)
-
     return () => clearInterval(timer)
   }, [])
 
@@ -116,28 +189,85 @@ export default function DealsCarousel() {
     const handleResize = () => {
       setVisibleCards(getVisibleCards())
     }
-
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
   const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + visibleCards >= deals.length ? 0 : prev + 1))
+    setCurrentIndex((prev) => (prev + visibleCards >= products.length ? 0 : prev + 1))
   }
 
   const prevSlide = () => {
-    setCurrentIndex((prev) => (prev === 0 ? Math.max(0, deals.length - visibleCards) : prev - 1))
+    setCurrentIndex((prev) => (prev === 0 ? Math.max(0, products.length - visibleCards) : prev - 1))
   }
 
   const formatTime = (time: number) => time.toString().padStart(2, "0")
+
+  const formatPrice = (price: string, salePrice?: string) => {
+    const formattedPrice = `USD ${Number.parseFloat(price).toFixed(2)}`
+    const formattedSalePrice = salePrice ? `USD ${Number.parseFloat(salePrice).toFixed(2)}` : null
+    return formattedSalePrice ? formattedSalePrice : formattedPrice
+  }
+
+  const getProductImage = (product: Product) => {
+    if (!product.image) {
+      return createPlaceholderDataUrl(product.name)
+    }
+    if (product.image.startsWith("http")) {
+      return product.image
+    }
+    return `image/${product.image}`
+  }
+
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {
+    const target = e.currentTarget
+    const currentSrc = target.src
+
+    // Prevent infinite loop by checking if we've already failed this image
+    if (failedImages.has(currentSrc)) {
+      return
+    }
+
+    // Add to failed images set
+    setFailedImages((prev) => new Set(prev).add(currentSrc))
+
+    // Set to data URL placeholder instead of server-dependent placeholder
+    target.src = createPlaceholderDataUrl(fallbackText)
+  }
+
+  const calculateDiscount = (originalPrice: string, salePrice: string) => {
+    const original = Number.parseFloat(originalPrice)
+    const sale = Number.parseFloat(salePrice)
+    const discount = Math.round(((original - sale) / original) * 100)
+    return `${discount}% off`
+  }
+
+  const handleRetry = () => {
+    // Clear failed images when retrying
+    setFailedImages(new Set())
+    fetchProducts(excludeCategoryIds)
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto p-2 md:p-2 lg:p-2">
+        <div className="py-8 text-center">
+          <p className="mb-4 text-red-500">Failed to load deals</p>
+          <Button onClick={handleRetry} className="px-6 py-2">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto p-2 md:p-2 lg:p-2">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <H2 className=" text-gray-900">Today's big deals</H2>
+          <H2 className="text-gray-900">Today's big deals</H2>
           <div className="flex items-center gap-2 text-gray-600">
             <Clock className="w-4 h-4" />
             <span className="text-sm font-medium">
@@ -145,7 +275,6 @@ export default function DealsCarousel() {
             </span>
           </div>
         </div>
-
         {/* Navigation Arrows */}
         <div className="flex gap-2">
           <Button
@@ -153,7 +282,7 @@ export default function DealsCarousel() {
             size="icon"
             onClick={prevSlide}
             className="rounded-full w-10 h-10 border-gray-300 hover:bg-gray-50 bg-transparent"
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || loading}
           >
             <ChevronLeft className="w-5 h-5" />
           </Button>
@@ -162,7 +291,7 @@ export default function DealsCarousel() {
             size="icon"
             onClick={nextSlide}
             className="rounded-full w-10 h-10 border-gray-300 hover:bg-gray-50 bg-transparent"
-            disabled={currentIndex + visibleCards >= deals.length}
+            disabled={currentIndex + visibleCards >= products.length || loading}
           >
             <ChevronRight className="w-5 h-5" />
           </Button>
@@ -177,70 +306,121 @@ export default function DealsCarousel() {
             transform: `translateX(-${currentIndex * (100 / visibleCards)}%)`,
           }}
         >
-          {deals.map((deal, index) => (
-            <Card
-              key={deal.id}
-              className="flex-shrink-0 overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-              style={{ width: `calc(${100 / visibleCards}% - 12px)` }}
-            >
-              <CardContent className="p-0">
-                {/* Product Image */}
-                <div   style={{ backgroundImage: `url(image/image-${index+1}.jpg)` }}
-  className="bg-cover h-[200px] sm:h-[300px] md:h-[400px] w-full aspect-square relative" >
-                  {/* <img
-                    src={deal.image || "/placeholder.svg"}
-                    alt={deal.title}
-                    
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  /> */}
-                  {/* Discount Badge */}
-                  {deal.discountBadge && (
-                    <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                      {deal.discountBadge}
+          {loading
+            ? Array.from({ length: productCount }).map((_, index) => (
+                <Card
+                  key={index}
+                  className="flex-shrink-0 overflow-hidden"
+                  style={{ width: `calc(${100 / visibleCards}% - 12px)` }}
+                >
+                  <CardContent className="p-0">
+                    <div className="h-[200px] sm:h-[300px] md:h-[400px] bg-gray-200 animate-pulse" />
+                    <div className="p-4 space-y-2">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
+                      <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
+                      <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
                     </div>
-                  )}
-                </div>
-
-                {/* Product Info */}
-                <div className="p-4">
-                  <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm">{deal.title}</h3>
-
-                  {/* Rating */}
-                  <div className="flex items-center gap-1 mb-2">
-                    <span className="text-sm font-medium">{deal.rating}</span>
-                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                  </div>
-
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="font-bold text-lg text-gray-900">{deal.currentPrice}</span>
-                    {deal.originalPrice && (
-                      <span className="text-sm text-gray-500 line-through">{deal.originalPrice}</span>
-                    )}
-                    {deal.discount && <span className="text-sm font-medium text-green-600">{deal.discount}</span>}
-                  </div>
-
-                  {/* Sale Info */}
-                  <p className="text-xs text-gray-600">{deal.saleInfo}</p>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardContent>
+                </Card>
+              ))
+            : products.map((product) => (
+                <Link key={product.id} href={`/products/${product.slug}`}>
+                  <Card
+                    className="flex-shrink-0 overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow duration-200"
+    
+                    onMouseEnter={() => setHoveredProduct(product.id)}
+                    onMouseLeave={() => setHoveredProduct(null)}
+                  >
+                    <CardContent className="p-0">
+                      {/* Product Image */}
+                      <div className="h-[200px] sm:h-[300px] md:h-[400px] w-full relative aspect-square overflow-hidden">
+                        <img
+                          src={getProductImage(product) || "/placeholder.svg"}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => handleImageError(e, product.name)}
+                        />
+                        {/* Discount Badge */}
+                        {product.sale_price && (
+                          <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                            {calculateDiscount(product.price, product.sale_price)}
+                          </div>
+                        )}
+                        {/* Wishlist Button */}
+                        <div
+                          className={`absolute top-3 right-3 transition-opacity duration-200 ${
+                            hoveredProduct === product.id ? "opacity-100" : "opacity-0"
+                          }`}
+                        >
+                          <button
+                            className="bg-white rounded-full p-2 shadow-md hover:bg-gray-50 transition-colors"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              console.log("Added to wishlist:", product.id)
+                            }}
+                          >
+                            <Heart className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
+                      {/* Product Info */}
+                      <div className="p-4">
+                        <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm group-hover:text-blue-600 transition-colors">
+                          {product.name}
+                        </h3>
+                        {/* Rating */}
+                        <div className="flex items-center gap-1 mb-2">
+                          <span className="text-sm font-medium">{product.rating || 4.9}</span>
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                        </div>
+                        {/* Price */}
+                        <div className="flex items-center gap-2 mb-2">
+                          {product.sale_price ? (
+                            <>
+                              <span className="font-bold text-lg text-gray-900">{formatPrice(product.sale_price)}</span>
+                              <span className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</span>
+                              <span className="text-sm font-medium text-green-600">
+                                {calculateDiscount(product.price, product.sale_price)}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="font-bold text-lg text-gray-900">{formatPrice(product.price)}</span>
+                          )}
+                        </div>
+                        {/* Sale Info */}
+                        <p className="text-xs text-gray-600">
+                          {product.sale_price ? "Biggest sale in 60+ days" : "Limited time offer"}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
         </div>
       </div>
 
       {/* Dots Indicator for Mobile */}
-      <div className="flex justify-center gap-2 mt-6 md:hidden">
-        {Array.from({ length: Math.ceil(deals.length / visibleCards) }).map((_, index) => (
-          <button
-            key={index}
-            onClick={() => setCurrentIndex(index * visibleCards)}
-            className={`w-2 h-2 rounded-full transition-colors ${
-              Math.floor(currentIndex / visibleCards) === index ? "bg-gray-900" : "bg-gray-300"
-            }`}
-          />
-        ))}
-      </div>
+      {!loading && products.length > 0 && (
+        <div className="flex justify-center gap-2 mt-6 md:hidden">
+          {Array.from({ length: Math.ceil(products.length / visibleCards) }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentIndex(index * visibleCards)}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                Math.floor(currentIndex / visibleCards) === index ? "bg-gray-900" : "bg-gray-300"
+              }`}
+            />
+          ))}
+        </div>
+      )}
+
+      {!loading && products.length === 0 && (
+        <div className="py-8 text-center">
+          <p className="text-gray-500">No deals available at the moment.</p>
+        </div>
+      )}
     </div>
   )
 }

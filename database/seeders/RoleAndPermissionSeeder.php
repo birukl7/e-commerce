@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -165,6 +164,10 @@ class RoleAndPermissionSeeder extends Seeder
             'bookmark products',
             'manage own addresses',
         ]);
+
+        $customer = Role::create(['name' => 'customer', 'guard_name' => 'web']);
+
+        $supplier = Role::create(['name' => 'supplier', 'guard_name' => 'name']);
 
         $this->command->info('Roles and permissions seeded successfully!');
     }

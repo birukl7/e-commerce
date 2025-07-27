@@ -47,6 +47,7 @@ class RegisteredUserController extends Controller
             'state' => 'nullable|string|max:100',
             'postal_code' => 'nullable|string|max:20',
             'country' => 'nullable|string|max:100',
+            'role' => 'required|string',
         ], [
             'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
             'phone.regex' => 'Please enter a valid phone number.',
@@ -67,6 +68,15 @@ class RegisteredUserController extends Controller
             $userRole = Role::where('name', 'user')->first();
             if ($userRole) {
                 $user->assignRole($userRole);
+            }
+
+            $roleName = $request->role;
+
+            $role = Role::where('name', $roleName)->first();
+            if ($role) {
+                $user->assignRole($role);
+            } else {
+                throw new \Exception("Role '{$roleName}' does not exist.");
             }
 
             // Create default address if provided
