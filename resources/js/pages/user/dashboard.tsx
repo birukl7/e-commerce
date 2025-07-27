@@ -4,6 +4,7 @@ import MainLayout from "@/layouts/app/main-layout"
 import type { NavItem, BreadcrumbItem } from "@/types"
 import { BrickWall, ListOrdered, Save, Heart, Package, Clock, CheckCircle, XCircle, Eye, LayoutDashboard } from "lucide-react"
 import { Link } from "@inertiajs/react"
+import H3 from "@/components/ui/h3"
 
 interface Product {
   id: number
@@ -183,7 +184,7 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <span className="text-2xl font-bold text-purple-600">{stats.approved_requests}</span>
               </div>
               <div>
-                <h3 className="font-semibold text-purple-900">Approved</h3>
+                <H3 className="font-semibold text-purple-900">Approved</H3>
                 <p className="text-sm text-purple-700">Requests approved</p>
               </div>
             </div>
@@ -259,7 +260,7 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                   <Heart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-gray-500">No items in your wishlist yet</p>
                   <Link
-                    href="/categories"
+                    href={route('home')}
                     className="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
                     Browse Products
