@@ -6,6 +6,7 @@ use App\Http\Controllers\RequestController;
 use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\PayPalController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -29,6 +30,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 });
+
+
+Route::get('/paypal', [PayPalController::class, 'index'])->name('paypal');
+Route::post('/paypal/payment', [PayPalController::class, 'payment'])->name('paypal.payment');
+Route::get('/paypal/payment/success', [PayPalController::class, 'paymentSuccess'])->name('paypal.payment.success');
+Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])->name('paypal.payment.cancel');
+Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
