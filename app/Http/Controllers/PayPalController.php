@@ -11,7 +11,7 @@ class PayPalController extends Controller
 {
     public function index()
     {
-        return Inertia::render('PayPal', [
+        return Inertia::render('paypal/payment', [
             'errors' => session('errors') ? session('errors')->toArray() : null,
             'success' => session('success'),
         ]);
