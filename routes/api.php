@@ -24,3 +24,5 @@ Route::get('products/showcase', [ProductController::class, 'showcase']);
 Route::get('products/featured', [ProductController::class, 'featured']);
 Route::resource('products', ProductController::class);
 
+
+

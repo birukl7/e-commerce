@@ -22,7 +22,7 @@ class SearchController extends Controller
         
         Log::info('SearchController@search: Preparing Inertia render.', ['data_keys' => array_keys($searchData)]); // Debug log
 
-        return Inertia::render('Search/Results', array_merge($searchData, [
+        return Inertia::render('search/results', array_merge($searchData, [
             'query' => $request->get('q', ''),
             'currentFilters' => [
                 'category' => $request->get('category'),

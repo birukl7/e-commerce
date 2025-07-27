@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
@@ -121,5 +123,30 @@ class Product extends Model
     public function getReviewsCountAttribute()
     {
         return $this->reviews()->count();
+    }
+
+        /**
+     * Get the wishlist items for the product.
+     */
+    public function wishlists(): HasMany
+    {
+        return $this->hasMany(Wishlist::class);
+    }
+
+    /**
+     * Get the users who have this product in their wishlist.
+     */
+    public function wishlistedBy(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'wishlists')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the wishlist count for this product.
+     */
+    public function getWishlistCountAttribute(): int
+    {
+        return $this->wishlists()->count();
     }
 }

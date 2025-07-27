@@ -1,5 +1,4 @@
 "use client"
-
 import type React from "react"
 import { router, usePage } from "@inertiajs/react"
 import { Clock, Search, TrendingUp, X } from "lucide-react"
@@ -13,16 +12,20 @@ interface Suggestion {
 interface SearchBarProps {
   placeholder?: string
   className?: string
+  initialQuery?: string
 }
 
-export default function SearchBarAdvanced({ placeholder = "Search for products...", className = "" }: SearchBarProps) {
+export default function SearchBarAdvanced({
+  placeholder = "Search for products...",
+  className = "",
+  initialQuery = "",
+}: SearchBarProps) {
   const { url } = usePage()
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(initialQuery)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [recentSearches, setRecentSearches] = useState<string[]>([])
-
   const searchRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<NodeJS.Timeout | null>(null)
@@ -32,9 +35,14 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
     console.log("🔄 SearchBar: Loading recent searches from localStorage")
     const saved = localStorage.getItem("recent_searches")
     if (saved) {
-      const parsedSearches = JSON.parse(saved)
-      console.log("✅ SearchBar: Loaded recent searches:", parsedSearches)
-      setRecentSearches(parsedSearches)
+      try {
+        const parsedSearches = JSON.parse(saved)
+        console.log("✅ SearchBar: Loaded recent searches:", parsedSearches)
+        setRecentSearches(parsedSearches)
+      } catch (error) {
+        console.error("❌ SearchBar: Error parsing recent searches:", error)
+        localStorage.removeItem("recent_searches")
+      }
     } else {
       console.log("ℹ️ SearchBar: No recent searches found in localStorage")
     }
@@ -48,15 +56,13 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
         setIsOpen(false)
       }
     }
-
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
-  // Debounced search suggestions using standard fetch
+  // Debounced search suggestions
   useEffect(() => {
     console.log("🔍 SearchBar: Query changed to:", query)
-
     if (debounceRef.current) {
       console.log("⏰ SearchBar: Clearing previous debounce timeout")
       clearTimeout(debounceRef.current)
@@ -65,23 +71,29 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
     if (query.length >= 2) {
       console.log("📝 SearchBar: Query length >= 2, setting up debounced search")
       setIsLoading(true)
-
       debounceRef.current = setTimeout(async () => {
         console.log("🚀 SearchBar: Executing debounced search for:", query)
         const url = `/search/suggestions?q=${encodeURIComponent(query)}`
         console.log("📡 SearchBar: Making fetch request to:", url)
 
         try {
-          const response = await fetch(url)
+          const response = await fetch(url, {
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "X-Requested-With": "XMLHttpRequest",
+            },
+          })
+
           if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`)
           }
+
           const data = await response.json()
           console.log("✅ SearchBar: Suggestions fetch successful")
           console.log("📦 SearchBar: Received data:", data)
 
           const receivedSuggestions = data.suggestions || []
-
           console.log("💡 SearchBar: Received suggestions:", receivedSuggestions)
           console.log("📊 SearchBar: Suggestions count:", receivedSuggestions.length)
 
@@ -125,38 +137,36 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
 
     // Add to recent searches
     const updatedRecentSearches = [searchQuery, ...recentSearches.filter((item) => item !== searchQuery)].slice(0, 5)
-    console.log("💾 SearchBar: Updated recent searches:", updatedRecentSearches)
 
+    console.log("💾 SearchBar: Updated recent searches:", updatedRecentSearches)
     setRecentSearches(updatedRecentSearches)
     localStorage.setItem("recent_searches", JSON.stringify(updatedRecentSearches))
     console.log("✅ SearchBar: Saved recent searches to localStorage")
 
+    // Close suggestions and blur input
+    setIsOpen(false)
+    inputRef.current?.blur()
+
     // Navigate using Inertia router
     console.log("🚀 SearchBar: Navigating to search results page")
-    router.get(
-      "/search",
-      { q: searchQuery },
-      {
-        preserveState: false,
-        preserveScroll: false,
-        onStart: () => {
-          console.log("🏁 SearchBar: Search navigation started")
-        },
-        onSuccess: () => {
-          console.log("✅ SearchBar: Search navigation successful")
-          setIsOpen(false)
-          inputRef.current?.blur()
-          console.log("🔄 SearchBar: Closed suggestions and blurred input")
-        },
-        onError: (errors) => {
-          console.error("❌ SearchBar: Search navigation failed")
-          console.error("🚨 SearchBar: Navigation error details:", errors)
-        },
-        onFinish: () => {
-          console.log("🏁 SearchBar: Search navigation finished")
-        },
+    router.visit(`/search?q=${encodeURIComponent(searchQuery)}`, {
+      method: "get",
+      preserveState: false,
+      preserveScroll: false,
+      onStart: () => {
+        console.log("🏁 SearchBar: Search navigation started")
       },
-    )
+      onSuccess: () => {
+        console.log("✅ SearchBar: Search navigation successful")
+      },
+      onError: (errors) => {
+        console.error("❌ SearchBar: Search navigation failed")
+        console.error("🚨 SearchBar: Navigation error details:", errors)
+      },
+      onFinish: () => {
+        console.log("🏁 SearchBar: Search navigation finished")
+      },
+    })
   }
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
@@ -224,7 +234,7 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
   )
 
   return (
-    <div ref={searchRef} className={`relative w-full`}>
+    <div ref={searchRef} className={`relative w-full ${className}`}>
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
           <Search className="absolute top-1/2 left-3 h-5 w-5 -translate-y-1/2 transform text-gray-400" />
@@ -235,7 +245,7 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
             onChange={(e) => setQuery(e.target.value)}
             onFocus={handleInputFocus}
             placeholder={placeholder}
-            className="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 focus:border-transparent focus:ring-2 focus:ring-primary focus:outline-none"
+            className="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
           {query && (
             <button
@@ -287,10 +297,8 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
           {/* Loading State */}
           {isLoading && query && (
             <div className="p-4 text-center">
-              <div className="mx-auto h-6 w-6 animate-spin rounded-full border-b-2 border-primary"></div>
+              <div className="mx-auto h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
               <p className="mt-2 text-sm text-gray-600">Searching...</p>
-              <p className="mt-1 text-xs text-gray-400">Debug: Loading suggestions for "{query}"</p>
-              <p className="mt-1 text-xs text-red-400">If this persists, check Network tab for errors</p>
             </div>
           )}
 
@@ -325,10 +333,7 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
           {query.length >= 2 && suggestions.length === 0 && !isLoading && (
             <div className="p-4 text-center">
               <p className="text-sm text-gray-600">No suggestions found for "{query}"</p>
-              <p className="mt-1 text-xs text-gray-400">
-                Debug: Query length: {query.length}, Suggestions: {suggestions.length}
-              </p>
-              <button onClick={() => performSearch(query)} className="mt-2 text-sm text-primary hover:underline">
+              <button onClick={() => performSearch(query)} className="mt-2 text-sm text-blue-600 hover:underline">
                 Search anyway
               </button>
             </div>
@@ -352,7 +357,6 @@ export default function SearchBarAdvanced({ placeholder = "Search for products..
                   </button>
                 ))}
               </div>
-              <p className="mt-2 text-xs text-gray-400">Debug: No query, no recent searches</p>
             </div>
           )}
         </div>

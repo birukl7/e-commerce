@@ -11,11 +11,30 @@ use Illuminate\Support\Facades\Storage;
 class RequestController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Display the product request form and history.
      */
     public function index()
     {
-        return Inertia::render('request/index');
+        $user = Auth::user();
+        
+        $requests = ProductRequest::where('user_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function ($request) {
+                return [
+                    'id' => $request->id,
+                    'product_name' => $request->product_name,
+                    'description' => $request->description,
+                    'status' => $request->status,
+                    'image' => $request->image ? asset('storage/' . $request->image) : null,
+                    'created_at' => $request->created_at,
+                    'admin_response' => $request->admin_response,
+                ];
+            });
+
+        return Inertia::render('request/request-dashboard', [
+            'requests' => $requests
+        ]);
     }
 
     /**
@@ -25,7 +44,7 @@ class RequestController extends Controller
     {
         $validated = $request->validate([
             'product_name' => 'required|string|max:255',
-            'description' => 'required|string',
+            'description' => 'required|string|max:1000',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:10240', // 10MB max
         ]);
 
@@ -44,5 +63,32 @@ class RequestController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Product request submitted successfully!');
+    }
+
+    /**
+     * Get user's request history.
+     */
+    public function history()
+    {
+        $user = Auth::user();
+        
+        $requests = ProductRequest::where('user_id', $user->id)
+            ->latest()
+            ->paginate(10)
+            ->through(function ($request) {
+                return [
+                    'id' => $request->id,
+                    'product_name' => $request->product_name,
+                    'description' => $request->description,
+                    'status' => $request->status,
+                    'image' => $request->image ? asset('storage/' . $request->image) : null,
+                    'created_at' => $request->created_at,
+                    'admin_response' => $request->admin_response,
+                ];
+            });
+
+        return Inertia::render('request/request-dashboard', [
+            'requests' => $requests
+        ]);
     }
 }

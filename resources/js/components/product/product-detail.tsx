@@ -1,5 +1,11 @@
-import { useState } from 'react'
-import { Heart, Share2, Star, Truck, Shield, RotateCcw, Tag } from 'lucide-react'
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { Heart, Share2, Star, Shield, RotateCcw, Tag } from "lucide-react"
+import { Button } from "../ui/button"
+import { useCart } from "@/contexts/cart-context" // Import useCart
+import { usePage, router } from "@inertiajs/react" // Import usePage and router
+import type { SharedData } from "@/types" // Import SharedData type
 
 interface ProductImage {
   id: number
@@ -38,7 +44,7 @@ interface Product {
   meta_title?: string
   meta_description?: string
   images: ProductImage[]
-  primary_image: string
+  primary_image: string // Assuming this is the URL for the primary image
   category: Category
   brand: Brand
   average_rating: number
@@ -50,18 +56,37 @@ interface ProductDetailsProps {
 }
 
 export function ProductDetails({ product }: ProductDetailsProps) {
+  const { auth } = usePage<SharedData>().props // Get auth user from Inertia page props
   const [quantity, setQuantity] = useState(1)
   const [isWishlisted, setIsWishlisted] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false) // New state for loading
+  const { addToCart } = useCart() // Get addToCart from context
+
+  // Get CSRF token
+  const getCsrfToken = () => {
+    const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+    if (metaToken) return metaToken
+
+    // Fallback to cookie
+    const cookies = document.cookie.split(";")
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split("=")
+      if (name === "XSRF-TOKEN") {
+        return decodeURIComponent(value)
+      }
+    }
+    return ""
+  }
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "ETB",
     }).format(price)
   }
 
   const isOnSale = product.sale_price && product.sale_price < product.price
-  const isOutOfStock = product.stock_status === 'out_of_stock'
+  const isOutOfStock = product.stock_status === "out_of_stock"
   const isLowStock = product.stock_quantity <= 5 && product.stock_quantity > 0
 
   const handleQuantityChange = (newQuantity: number) => {
@@ -71,7 +96,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   }
 
   const handleAddToCart = () => {
-    // Add to cart logic here
+    addToCart({ ...product, quantity: quantity })
     console.log(`Adding ${quantity} of product ${product.id} to cart`)
   }
 
@@ -83,10 +108,102 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         url: window.location.href,
       })
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href)
     }
   }
+
+  // Fetch initial wishlist status
+  const fetchWishlistStatus = useCallback(async () => {
+    if (!auth.user) {
+      setIsWishlisted(false)
+      return
+    }
+
+    try {
+      const csrfToken = getCsrfToken()
+      const response = await fetch(`/api/wishlist/check?product_id=${product.id}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-CSRF-TOKEN": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "same-origin",
+      })
+
+      if (response.status === 419) {
+        console.warn("CSRF token expired during wishlist check, refreshing page...")
+        window.location.reload()
+        return
+      }
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setIsWishlisted(data.in_wishlist)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching wishlist status:", error)
+    }
+  }, [auth.user, product.id])
+
+  // Toggle wishlist item
+  const handleToggleWishlist = async () => {
+    if (!auth.user) {
+      router.visit("/login") // Redirect to login if not authenticated
+      return
+    }
+
+    setWishlistLoading(true)
+
+    try {
+      const csrfToken = getCsrfToken()
+      if (!csrfToken) {
+        throw new Error("CSRF token not found. Please refresh the page.")
+      }
+
+      const response = await fetch("/api/wishlist/toggle", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-CSRF-TOKEN": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ product_id: product.id }),
+      })
+
+      if (response.status === 419) {
+        console.warn("CSRF token expired during wishlist toggle, refreshing page...")
+        window.location.reload()
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsWishlisted(data.in_wishlist)
+        console.log(data.message)
+      } else {
+        console.error("Wishlist toggle failed:", data.message)
+      }
+    } catch (error) {
+      console.error("Error toggling wishlist:", error)
+      if (error instanceof Error && error.message.includes("CSRF")) {
+        window.location.reload()
+      }
+    } finally {
+      setWishlistLoading(false)
+    }
+  }
+
+  // Effect to fetch wishlist status on component mount or product/user change
+  useEffect(() => {
+    fetchWishlistStatus()
+  }, [fetchWishlistStatus])
 
   return (
     <div className="space-y-6">
@@ -103,7 +220,6 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
         <p className="text-sm text-gray-500 mt-1">SKU: {product.sku}</p>
       </div>
-
       {/* Rating and Reviews */}
       <div className="flex items-center gap-4">
         <div className="flex items-center">
@@ -112,8 +228,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               key={i}
               className={`h-5 w-5 ${
                 i < Math.floor(product.average_rating)
-                  ? 'fill-yellow-400 text-yellow-400'
-                  : 'fill-gray-200 text-gray-200'
+                  ? "fill-yellow-400 text-yellow-400"
+                  : "fill-gray-200 text-gray-200"
               }`}
             />
           ))}
@@ -122,50 +238,41 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </span>
         </div>
       </div>
-
       {/* Price */}
       <div className="space-y-2">
         {isOnSale ? (
           <div className="flex items-center gap-3">
-            <span className="text-3xl font-bold text-red-600">
-              {formatPrice(product.current_price)}
-            </span>
-            <span className="text-xl text-gray-500 line-through">
-              {formatPrice(product.price)}
-            </span>
+            <span className="text-3xl font-bold text-red-600">{formatPrice(product.current_price)}</span>
+            <span className="text-xl text-gray-500 line-through">{formatPrice(product.price)}</span>
             <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-sm font-medium text-red-800">
               <Tag className="mr-1 h-4 w-4" />
               Save {formatPrice(product.price - product.current_price)}
             </span>
           </div>
         ) : (
-          <span className="text-3xl font-bold text-gray-900">
-            {formatPrice(product.current_price)}
-          </span>
+          <span className="text-3xl font-bold text-gray-900">{formatPrice(product.current_price)}</span>
         )}
       </div>
-
       {/* Stock Status */}
       <div className="flex items-center gap-2">
-        <div className={`h-3 w-3 rounded-full ${
-          isOutOfStock ? 'bg-red-500' : 
-          isLowStock ? 'bg-yellow-500' : 'bg-green-500'
-        }`} />
-        <span className={`text-sm font-medium ${
-          isOutOfStock ? 'text-red-600' : 
-          isLowStock ? 'text-yellow-600' : 'text-green-600'
-        }`}>
-          {isOutOfStock ? 'Out of Stock' : 
-           isLowStock ? `Only ${product.stock_quantity} left in stock` : 'In Stock'}
+        <div
+          className={`h-3 w-3 rounded-full ${
+            isOutOfStock ? "bg-red-500" : isLowStock ? "bg-yellow-500" : "bg-green-500"
+          }`}
+        />
+        <span
+          className={`text-sm font-medium ${
+            isOutOfStock ? "text-red-600" : isLowStock ? "text-yellow-600" : "text-green-600"
+          }`}
+        >
+          {isOutOfStock ? "Out of Stock" : isLowStock ? `Only ${product.stock_quantity} left in stock` : "In Stock"}
         </span>
       </div>
-
       {/* Description */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
         <p className="text-gray-600 leading-relaxed">{product.description}</p>
       </div>
-
       {/* Quantity and Add to Cart */}
       {!isOutOfStock && (
         <div className="space-y-4">
@@ -187,7 +294,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
                 min="1"
                 max={product.stock_quantity}
                 value={quantity}
-                onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
                 className="w-16 px-3 py-2 text-center border-0 focus:ring-0"
               />
               <button
@@ -199,40 +306,39 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               </button>
             </div>
           </div>
-
           <div className="flex gap-4">
-            <button
+            <Button
               onClick={handleAddToCart}
-              className="flex-1 bg-blue-600 text-white px-6 py-3 rounded-md font-medium hover:bg-blue-700 transition-colors"
+              className="flex-1 text-white px-6 py-3 rounded-md font-medium transition-colors"
             >
               Add to Cart
-            </button>
-            <button
-              onClick={() => setIsWishlisted(!isWishlisted)}
+            </Button>
+            <Button
+              onClick={handleToggleWishlist} // Use the new toggle function
+              disabled={wishlistLoading} // Disable button during loading
               className={`p-3 rounded-md border transition-colors ${
                 isWishlisted
-                  ? 'bg-red-50 border-red-200 text-red-600'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:text-red-600'
-              }`}
+                  ? "bg-red-50 border-red-200 text-red-600"
+                  : "bg-gray-50 border-gray-200 text-gray-600 hover:text-red-600"
+              } ${wishlistLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-current' : ''}`} />
-            </button>
-            <button
+              <Heart className={`h-5 w-5 ${isWishlisted ? "fill-current" : ""}`} />
+            </Button>
+            <Button
               onClick={handleShare}
-              className="p-3 rounded-md border border-gray-200 bg-gray-50 text-gray-600 hover:text-gray-800 transition-colors"
+              className="p-3 rounded-md border border-gray-200 bg-gray-50 text-gray-600 transition-colors"
             >
               <Share2 className="h-5 w-5" />
-            </button>
+            </Button>
           </div>
         </div>
       )}
-
       {/* Features */}
       <div className="border-t pt-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex items-center gap-3 text-sm text-gray-600">
-            <Truck className="h-5 w-5 text-blue-600" />
-            <span>Free shipping over $50</span>
+            {/* <Truck className="h-5 w-5 text-blue-600" /> */}
+            {/* <span>Free shipping over $50</span> */}
           </div>
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <Shield className="h-5 w-5 text-green-600" />
@@ -244,7 +350,6 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
         </div>
       </div>
-
       {/* Product Details */}
       <div className="border-t pt-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Product Details</h3>
@@ -263,9 +368,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
           <div>
             <dt className="font-medium text-gray-900">Availability</dt>
-            <dd className="text-gray-600">
-              {product.stock_quantity} units in stock
-            </dd>
+            <dd className="text-gray-600">{product.stock_quantity} units in stock</dd>
           </div>
         </dl>
       </div>

@@ -99,7 +99,7 @@ class RegisteredUserController extends Controller
             event(new Registered($user));
             Auth::login($user);
 
-            return redirect()->intended(route('dashboard'))->with('status', 'Registration successful! Welcome to ShopHub.');
+            return redirect()->intended(route('user.dashboard'))->with('status', 'Registration successful! Welcome to ShopHub.');
 
         } catch (\Exception $e) {
             DB::rollBack();

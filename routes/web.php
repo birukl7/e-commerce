@@ -4,9 +4,12 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\RequestController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\WishlistController;
+use App\Http\Controllers\PayPalController;
+use App\Http\Controllers\UserDashboardController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\PayPalController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -16,30 +19,58 @@ Route::resource('categories', CategoryController::class)->parameters([
     'categories' => 'category:slug',
 ]);
 
-// Route::get('/request')
-Route::resource('request', RequestController::class)->middleware('auth');
-
+// Search routes
 Route::get('/search', [SearchController::class, 'search'])->name('search');
-
+Route::get('/request', fn()=> Inertia::render('request/index'))->name(
+'request.index');
 Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('search.suggestions');
 
+// Product routes
 Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('dashboard');
-    })->name('dashboard');
-    Route::get('user-dashboard', fn()=> Inertia::render('user/dashboard'))->name('user.dashboard');
-});
-
-
+// PayPal routes
 Route::get('/paypal', [PayPalController::class, 'index'])->name('paypal');
 Route::post('/paypal/payment', [PayPalController::class, 'payment'])->name('paypal.payment');
 Route::get('/paypal/payment/success', [PayPalController::class, 'paymentSuccess'])->name('paypal.payment.success');
 Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])->name('paypal.payment.cancel');
 Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
+// Authenticated routes
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Main dashboard
+    Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
+    
+    // User dashboard (if different from main dashboard)
+    // Route::get('/user-dashboard', fn() => Inertia::render('user/dashboard'))->name('user.dashboard');
+    
+    // Checkout
+    Route::get('/checkout', fn() => Inertia::render('checkout/show'))->name('checkout');
+    
+    // User-specific pages
+    Route::get('/user-wishlist', [WishlistController::class, 'index'])->name('user.wishlist');
+    Route::get('/user-request', [RequestController::class, 'index'])->name('user.request');
+    // Route::get('/user-order', fn() => Inertia::render('user/orders'))->name('user.order');
+    // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
+    
+    // Product Request routes
+    Route::post('/user-request', [RequestController::class, 'store'])->name('user.request.store');
+    Route::get('/user-request/history', [RequestController::class, 'history'])->name('user.request.history');
+    
+    // Wishlist AJAX routes
+    Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
+    Route::post('/wishlist/add', [WishlistController::class, 'store'])->name('wishlist.store');
+    Route::delete('/wishlist/remove', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
+    Route::get('/wishlist/check', [WishlistController::class, 'check'])->name('wishlist.check');
+});
 
+// Legacy API routes (if still needed)
+Route::middleware(['auth', 'web'])->group(function () {
+    Route::get('/api/wishlist', [WishlistController::class, 'index'])->name('api.wishlist.index');
+    Route::post('/api/wishlist', [WishlistController::class, 'store'])->name('api.wishlist.store');
+    Route::delete('/api/wishlist', [WishlistController::class, 'destroy'])->name('api.wishlist.destroy');
+    Route::post('/api/wishlist/toggle', [WishlistController::class, 'toggle'])->name('api.wishlist.toggle');
+    Route::get('/api/wishlist/check', [WishlistController::class, 'check'])->name('api.wishlist.check');
+});
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

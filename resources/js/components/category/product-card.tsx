@@ -1,59 +1,62 @@
-import { Link } from '@inertiajs/react';
-import { Star, Tag } from 'lucide-react';
-import type React from 'react';
+import { Link } from "@inertiajs/react"
+import { Star, Tag } from "lucide-react"
+import type React from "react"
 
 interface ProductImage {
-  id: number;
-  url: string;
-  alt_text: string;
-  is_primary: boolean;
+  id: number
+  url: string
+  alt_text: string
+  is_primary: boolean
 }
 
 interface Product {
-  id: number;
-  name: string;
-  slug: string;
-  price: number;
-  sale_price?: number | null;
-  current_price: number;
-  description: string;
-  image: string;
-  images: ProductImage[];
-  featured: boolean;
-  stock_status: string;
+  id: number
+  name: string
+  slug: string
+  price: number
+  sale_price?: number | null
+  current_price: number
+  description: string
+  image: string
+  images: ProductImage[]
+  featured: boolean
+  stock_status: string
 }
 
 interface ProductCardProps {
-  product: Product;
-  index: number;
+  product: Product
+  index: number
+}
+
+// Helper function to format Ethiopian Birr
+const formatETB = (amount: number) => {
+  return new Intl.NumberFormat("en-ET", {
+    style: "currency",
+    currency: "ETB",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount)
 }
 
 export function ProductCard({ product, index }: ProductCardProps) {
   const getImageUrl = (imagePath: string) => {
     if (!imagePath) {
-      return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(product.name)}`;
+      return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(product.name)}`
     }
-    if (imagePath.startsWith('http')) {
-      return imagePath;
+    if (imagePath.startsWith("http")) {
+      return imagePath
     }
     // Image path from controller already includes full URL
-    return imagePath;
-  };
+    return imagePath
+  }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const target = e.currentTarget;
-    target.src = `/placeholder.svg?height=300&width=300&text=Product`;
-  };
+    const target = e.currentTarget
+    target.src = `/placeholder.svg?height=300&width=300&text=Product`
+  }
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
-  };
-
-  const isOnSale = product.sale_price && product.sale_price < product.price;
-  const isOutOfStock = product.stock_status === 'out_of_stock';
+  const isOnSale = product.sale_price && product.sale_price < product.price
+  const isOutOfStock = product.stock_status === "out_of_stock"
 
   return (
     <Link href={`/products/${product.slug}`} className="group block">
@@ -61,15 +64,15 @@ export function ProductCard({ product, index }: ProductCardProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <img
-            src={getImageUrl(product.image)}
-            alt={product.images.find(img => img.is_primary)?.alt_text || product.name}
+            src={getImageUrl(product.image) || "/placeholder.svg"}
+            alt={product.images.find((img) => img.is_primary)?.alt_text || product.name}
             className={`h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 ${
-              isOutOfStock ? 'opacity-50' : ''
+              isOutOfStock ? "opacity-50" : ""
             }`}
             onError={handleImageError}
-            loading={index > 3 ? 'lazy' : 'eager'}
+            loading={index > 3 ? "lazy" : "eager"}
           />
-          
+
           {/* Badges */}
           <div className="absolute left-2 top-2 flex flex-col gap-1">
             {product.featured && (
@@ -88,9 +91,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
           {/* Out of Stock Overlay */}
           {isOutOfStock && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-              <span className="rounded bg-white px-3 py-1 text-sm font-medium text-gray-900">
-                Out of Stock
-              </span>
+              <span className="rounded bg-white px-3 py-1 text-sm font-medium text-gray-900">Out of Stock</span>
             </div>
           )}
         </div>
@@ -110,17 +111,11 @@ export function ProductCard({ product, index }: ProductCardProps) {
             <div className="flex items-center gap-2">
               {isOnSale ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-red-600">
-                    {formatPrice(product.current_price)}
-                  </span>
-                  <span className="text-sm text-gray-500 line-through">
-                    {formatPrice(product.price)}
-                  </span>
+                  <span className="text-lg font-bold text-red-600">{formatETB(product.current_price)}</span>
+                  <span className="text-sm text-gray-500 line-through">{formatETB(product.price)}</span>
                 </div>
               ) : (
-                <span className="text-lg font-bold text-gray-900">
-                  {formatPrice(product.current_price)}
-                </span>
+                <span className="text-lg font-bold text-gray-900">{formatETB(product.current_price)}</span>
               )}
             </div>
           </div>
@@ -135,16 +130,16 @@ export function ProductCard({ product, index }: ProductCardProps) {
                 <span className="ml-1">No reviews yet</span>
               </div>
             </div>
-            
-            {product.stock_status === 'in_stock' && (
+
+            {product.stock_status === "in_stock" && (
               <span className="text-xs text-green-600 font-medium">In Stock</span>
             )}
-            {product.stock_status === 'on_backorder' && (
+            {product.stock_status === "on_backorder" && (
               <span className="text-xs text-yellow-600 font-medium">Backorder</span>
             )}
           </div>
         </div>
       </div>
     </Link>
-  );
+  )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 
 export interface CartItem {
   id: number
@@ -19,12 +19,32 @@ interface CartContextType {
   getTotalItems: () => number
   getTotalPrice: () => number
   clearCart: () => void
+  isCartDrawerOpen: boolean
+  openCartDrawer: () => void
+  closeCartDrawer: () => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
+  const [items, setItems] = useState<CartItem[]>(() => {
+    // Initialize state from localStorage
+    if (typeof window !== "undefined") {
+      const savedCart = localStorage.getItem("cartItems")
+      return savedCart ? JSON.parse(savedCart) : []
+    }
+    return []
+  })
+
+  // Explicitly initialize drawer as closed
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false)
+
+  // Save items to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cartItems", JSON.stringify(items))
+    }
+  }, [items])
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addToCart = (product: any) => {
@@ -38,12 +58,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         {
           id: product.id,
           name: product.name,
-          price: product.price,
-          image: product.image,
+          price: product.current_price, // Use current_price for cart item price
+          image: product.primary_image, // Use primary_image for cart item image
           quantity: 1,
         },
       ]
     })
+    openCartDrawer() // Open drawer when item is added
   }
 
   const removeFromCart = (id: number) => {
@@ -68,6 +89,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => {
     setItems([])
+    setIsCartDrawerOpen(false) // Close drawer when cart is cleared
+  }
+
+  const openCartDrawer = () => {
+    setIsCartDrawerOpen(true)
+  }
+
+  const closeCartDrawer = () => {
+    setIsCartDrawerOpen(false)
   }
 
   return (
@@ -80,6 +110,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getTotalItems,
         getTotalPrice,
         clearCart,
+        isCartDrawerOpen,
+        openCartDrawer,
+        closeCartDrawer,
       }}
     >
       {children}

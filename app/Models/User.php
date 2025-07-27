@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -102,4 +104,29 @@ class User extends Authenticatable
         }
         return asset('images/default-avatar.png');
     }
+
+
+    /* Get the wishlist items for the user.
+    */
+   public function wishlists(): HasMany
+   {
+       return $this->hasMany(Wishlist::class);
+   }
+
+   /**
+    * Get the products in the user's wishlist.
+    */
+   public function wishlistProducts(): BelongsToMany
+   {
+       return $this->belongsToMany(Product::class, 'wishlists')
+                   ->withTimestamps();
+   }
+
+   /**
+    * Check if a product is in the user's wishlist.
+    */
+   public function hasInWishlist(int $productId): bool
+   {
+       return $this->wishlists()->where('product_id', $productId)->exists();
+   }
 }

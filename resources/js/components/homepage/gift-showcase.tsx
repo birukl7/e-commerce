@@ -1,11 +1,13 @@
 "use client"
+
 import type React from "react"
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Link } from "@inertiajs/react"
+import { Link, usePage, router } from "@inertiajs/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Heart } from "lucide-react"
 import H2 from "../ui/h2"
+import type { SharedData } from "@/types"
 
 interface Product {
   id: number
@@ -39,6 +41,7 @@ export default function GiftShowcase({
   productCount = 6,
   categoryCount = 3,
 }: GiftShowcaseProps) {
+  const { auth } = usePage<SharedData>().props
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<ShowcaseCategory[]>([])
   const [productsLoading, setProductsLoading] = useState(true)
@@ -46,6 +49,8 @@ export default function GiftShowcase({
   const [productsError, setProductsError] = useState<string | null>(null)
   const [categoriesError, setCategoriesError] = useState<string | null>(null)
   const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
+  const [wishlistItems, setWishlistItems] = useState<Set<number>>(new Set())
+  const [wishlistLoading, setWishlistLoading] = useState<Set<number>>(new Set())
 
   // Track failed images to prevent infinite loops
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
@@ -55,35 +60,46 @@ export default function GiftShowcase({
   const categoriesLoadingRef = useRef(false)
   const lastExcludedIdsRef = useRef<string>("")
 
+  // Get CSRF token
+  const getCsrfToken = () => {
+    const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
+    if (metaToken) return metaToken
+
+    // Fallback to cookie
+    const cookies = document.cookie.split(";")
+    for (const cookie of cookies) {
+      const [name, value] = cookie.trim().split("=")
+      if (name === "XSRF-TOKEN") {
+        return decodeURIComponent(value)
+      }
+    }
+    return ""
+  }
+
   // Create a base64 placeholder image to avoid server requests
   const createPlaceholderDataUrl = (text: string, width = 200, height = 200) => {
     const canvas = document.createElement("canvas")
     canvas.width = width
     canvas.height = height
     const ctx = canvas.getContext("2d")
-
     if (ctx) {
       // Fill background
       ctx.fillStyle = "#f3f4f6"
       ctx.fillRect(0, 0, width, height)
-
       // Add text
       ctx.fillStyle = "#9ca3af"
       ctx.font = "14px Arial"
       ctx.textAlign = "center"
       ctx.textBaseline = "middle"
-
       // Wrap text if too long
       const maxWidth = width - 20
       const words = text.split(" ")
       let line = ""
       const lines = []
-
       for (let n = 0; n < words.length; n++) {
         const testLine = line + words[n] + " "
         const metrics = ctx.measureText(testLine)
         const testWidth = metrics.width
-
         if (testWidth > maxWidth && n > 0) {
           lines.push(line)
           line = words[n] + " "
@@ -92,40 +108,200 @@ export default function GiftShowcase({
         }
       }
       lines.push(line)
-
       // Draw lines
       const lineHeight = 16
       const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2
-
       lines.forEach((line, index) => {
         ctx.fillText(line.trim(), width / 2, startY + index * lineHeight)
       })
     }
-
     return canvas.toDataURL()
+  }
+
+  // Fetch user's wishlist items
+  const fetchWishlist = useCallback(async () => {
+    if (!auth.user) return
+
+    try {
+      const csrfToken = getCsrfToken()
+      const response = await fetch("/api/wishlist", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-CSRF-TOKEN": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "same-origin",
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          const wishlistProductIds = new Set(data.data.map((item: any) => item.id))
+          setWishlistItems(wishlistProductIds)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching wishlist:", error)
+    }
+  }, [auth.user])
+
+  // Toggle wishlist item using Inertia router (more reliable for CSRF)
+  const toggleWishlist = async (productId: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!auth.user) {
+      // Redirect to login
+      router.visit("/login")
+      return
+    }
+
+    // Add to loading set
+    setWishlistLoading((prev) => new Set(prev).add(productId))
+
+    // Use Inertia router for CSRF-protected requests
+    router.post(
+      "/api/wishlist/toggle",
+      { product_id: productId },
+      {
+        preserveScroll: true,
+        preserveState: true,
+        only: [], // Don't reload any props
+        onSuccess: (page) => {
+          // Handle success - we need to make another request to get the response
+          // Since Inertia doesn't return JSON responses directly, let's use fetch as fallback
+          handleToggleSuccess(productId)
+        },
+        onError: (errors) => {
+          console.error("Wishlist toggle failed:", errors)
+          setWishlistLoading((prev) => {
+            const newSet = new Set(prev)
+            newSet.delete(productId)
+            return newSet
+          })
+        },
+      },
+    )
+  }
+
+  // Handle successful toggle
+  const handleToggleSuccess = (productId: number) => {
+    setWishlistItems((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(productId)) {
+        newSet.delete(productId)
+        console.log("Product removed from wishlist")
+      } else {
+        newSet.add(productId)
+        console.log("Product added to wishlist")
+      }
+      return newSet
+    })
+
+    setWishlistLoading((prev) => {
+      const newSet = new Set(prev)
+      newSet.delete(productId)
+      return newSet
+    })
+  }
+
+  // Alternative: Use fetch with better error handling
+  const toggleWishlistFetch = async (productId: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (!auth.user) {
+      router.visit("/login")
+      return
+    }
+
+    setWishlistLoading((prev) => new Set(prev).add(productId))
+
+    try {
+      const csrfToken = getCsrfToken()
+
+      if (!csrfToken) {
+        throw new Error("CSRF token not found. Please refresh the page.")
+      }
+
+      const url = "/api/wishlist/toggle"
+      const options = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-CSRF-TOKEN": csrfToken,
+          "X-Requested-With": "XMLHttpRequest",
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({ product_id: productId }),
+      }
+
+      console.log("Sending request to:", url, "with method:", options.method, "and CSRF token:", csrfToken)
+      const response = await fetch("/api/wishlist/toggle", options)
+
+      console.log("Received response status:", response.status)
+      const responseClone = response.clone()
+      const responseText = await responseClone.text()
+      console.log("Received response body:", responseText)
+
+      if (response.status === 419) {
+        // CSRF token expired
+        console.warn("CSRF token expired, refreshing page...")
+        window.location.reload()
+        return
+      }
+
+      const data = await response.json()
+
+      if (data.success) {
+        setWishlistItems((prev) => {
+          const newSet = new Set(prev)
+          if (data.in_wishlist) {
+            newSet.add(productId)
+          } else {
+            newSet.delete(productId)
+          }
+          return newSet
+        })
+        console.log(data.message)
+      } else {
+        console.error("Wishlist toggle failed:", data.message)
+      }
+    } catch (error) {
+      console.error("Error toggling wishlist:", error)
+      if (error instanceof Error && error.message.includes("CSRF")) {
+        // Refresh page to get new CSRF token
+        window.location.reload()
+      }
+    } finally {
+      setWishlistLoading((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(productId)
+        return newSet
+      })
+    }
   }
 
   const fetchProducts = useCallback(
     async (excludeIds: number[] = []) => {
       // Prevent multiple simultaneous requests
       if (productsLoadingRef.current) return
-
       try {
         productsLoadingRef.current = true
         setProductsLoading(true)
         setProductsError(null)
-
         const params = new URLSearchParams({
           count: productCount.toString(),
           status: "published",
           stock_status: "in_stock",
         })
-
         // Add excluded category IDs if provided
         if (excludeIds.length > 0) {
           params.append("exclude_categories", excludeIds.join(","))
         }
-
         const response = await fetch(`/api/products/showcase?${params}`, {
           method: "GET",
           headers: {
@@ -134,11 +310,9 @@ export default function GiftShowcase({
           },
           cache: "no-store",
         })
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
-
         const data = await response.json()
         setProducts(data.data || data || [])
       } catch (err) {
@@ -156,21 +330,17 @@ export default function GiftShowcase({
     async (excludeIds: number[] = []) => {
       // Prevent multiple simultaneous requests
       if (categoriesLoadingRef.current) return
-
       try {
         categoriesLoadingRef.current = true
         setCategoriesLoading(true)
         setCategoriesError(null)
-
         const params = new URLSearchParams({
           count: categoryCount.toString(),
         })
-
         // Add excluded category IDs if provided
         if (excludeIds.length > 0) {
           params.append("exclude_categories", excludeIds.join(","))
         }
-
         const response = await fetch(`/api/categories/showcase?${params}`, {
           method: "GET",
           headers: {
@@ -179,11 +349,9 @@ export default function GiftShowcase({
           },
           cache: "no-store",
         })
-
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
         }
-
         const data = await response.json()
         setCategories(data.data || data || [])
       } catch (err) {
@@ -201,6 +369,7 @@ export default function GiftShowcase({
   useEffect(() => {
     fetchProducts(excludeCategoryIds)
     fetchCategories(excludeCategoryIds)
+    fetchWishlist()
   }, [])
 
   // Effect to handle changes in excludeCategoryIds
@@ -222,19 +391,18 @@ export default function GiftShowcase({
 
   const getProductImage = (product: Product) => {
     if (!product.image) {
-      return createPlaceholderDataUrl(product.name);
+      return createPlaceholderDataUrl(product.name)
     }
-  
+
     if (product.image.startsWith("http")) {
       // Remove any duplicate slashes in the URL path (except after "http(s):")
-      const url = new URL(product.image);
-      url.pathname = url.pathname.replace(/\/{2,}/g, '/');
-      return url.toString();
+      const url = new URL(product.image)
+      url.pathname = url.pathname.replace(/\/{2,}/g, "/")
+      return url.toString()
     }
-  
-    return product.image;
-  };
-  
+
+    return product.image
+  }
 
   const getCategoryImage = (category: ShowcaseCategory) => {
     if (!category.image) {
@@ -249,15 +417,12 @@ export default function GiftShowcase({
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {
     const target = e.currentTarget
     const currentSrc = target.src
-
     // Prevent infinite loop by checking if we've already failed this image
     if (failedImages.has(currentSrc)) {
       return
     }
-
     // Add to failed images set
     setFailedImages((prev) => new Set(prev).add(currentSrc))
-
     // Set to data URL placeholder instead of server-dependent placeholder
     target.src = createPlaceholderDataUrl(fallbackText)
   }
@@ -281,8 +446,6 @@ export default function GiftShowcase({
       </div>
     )
   }
-
-  console.log('products', products)
 
   return (
     <div className="mx-auto p-2 md:p-2 lg:p-2">
@@ -361,7 +524,7 @@ export default function GiftShowcase({
                   <CardContent className="p-0">
                     <div className="h-[200px] w-full relative aspect-square overflow-hidden">
                       <img
-                        src={getProductImage(product)}
+                        src={getProductImage(product) || "/placeholder.svg"}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => handleImageError(e, product.name)}
@@ -377,14 +540,17 @@ export default function GiftShowcase({
                         }`}
                       >
                         <button
-                          className="bg-white rounded-full p-2 shadow-md hover:bg-gray-50 transition-colors"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            console.log("Added to wishlist:", product.id)
-                          }}
+                          className={`rounded-full p-2 shadow-md transition-colors ${
+                            wishlistItems.has(product.id) ? "bg-red-500 hover:bg-red-600" : "bg-white hover:bg-gray-50"
+                          } ${wishlistLoading.has(product.id) ? "opacity-50 cursor-not-allowed" : ""}`}
+                          onClick={(e) => toggleWishlistFetch(product.id, e)} // Use the fetch version
+                          disabled={wishlistLoading.has(product.id)}
                         >
-                          <Heart className="w-4 h-4 text-gray-600" />
+                          <Heart
+                            className={`w-4 h-4 ${
+                              wishlistItems.has(product.id) ? "text-white fill-current" : "text-gray-600"
+                            }`}
+                          />
                         </button>
                       </div>
                     </div>
