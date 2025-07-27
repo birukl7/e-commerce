@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Instagram, Facebook, Youtube } from "lucide-react"
 
 const footerLinks = {
-  Shop: ["Gift cards", "ShopHub Registry", "Sitemap", "ShopHub blog", "ShopHub United Kingdom", "ShopHub Germany", "ShopHub Canada"],
+  Shop: ["Gift cards", "ShopHub Registry", "Sitemap", "ShopHub blog"],
   Sell: ["Sell on ShopHub", "Teams", "Forums", "Affiliates & Creators"],
   About: ["ShopHub, Inc.", "Policies", "Investors", "Careers", "Press", "Impact", "Legal imprint"],
   Help: ["Help Center", "Privacy settings"],
@@ -85,7 +85,7 @@ export default function Footer() {
             <span>|</span>
             <span>English (US)</span>
             <span>|</span>
-            <span>$ (USD)</span>
+            <span> (ETB)</span>
           </div>
 
           {/* Copyright and Links */}

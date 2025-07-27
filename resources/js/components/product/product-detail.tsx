@@ -1,11 +1,12 @@
 "use client"
-
 import { useState, useEffect, useCallback } from "react"
 import { Heart, Share2, Star, Shield, RotateCcw, Tag } from "lucide-react"
 import { Button } from "../ui/button"
-import { useCart } from "@/contexts/cart-context" // Import useCart
-import { usePage, router } from "@inertiajs/react" // Import usePage and router
-import type { SharedData } from "@/types" // Import SharedData type
+import { useCart } from "@/contexts/cart-context"
+import { usePage, router } from "@inertiajs/react"
+import type { SharedData } from "@/types"
+import { ReviewSection } from "./review-section"
+// import { ReviewSection } from "./review-section"
 
 interface ProductImage {
   id: number
@@ -44,30 +45,53 @@ interface Product {
   meta_title?: string
   meta_description?: string
   images: ProductImage[]
-  primary_image: string // Assuming this is the URL for the primary image
+  primary_image: string
   category: Category
   brand: Brand
   average_rating: number
   reviews_count: number
+  rating_breakdown: { [key: number]: number }
+}
+
+interface Review {
+  id: number
+  rating: number
+  title?: string
+  comment: string
+  user_name: string
+  user_avatar?: string
+  created_at: string
+  helpful_count: number
+  is_verified_purchase: boolean
+  is_helpful_to_user: boolean
+}
+
+interface ReviewsData {
+  data: Review[]
+  pagination: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
 }
 
 interface ProductDetailsProps {
   product: Product
+  reviews: ReviewsData
+  userHasReviewed: boolean
 }
 
-export function ProductDetails({ product }: ProductDetailsProps) {
-  const { auth } = usePage<SharedData>().props // Get auth user from Inertia page props
+export function ProductDetails({ product, reviews, userHasReviewed }: ProductDetailsProps) {
+  const { auth } = usePage<SharedData>().props
   const [quantity, setQuantity] = useState(1)
   const [isWishlisted, setIsWishlisted] = useState(false)
-  const [wishlistLoading, setWishlistLoading] = useState(false) // New state for loading
-  const { addToCart } = useCart() // Get addToCart from context
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+  const { addToCart } = useCart()
 
-  // Get CSRF token
   const getCsrfToken = () => {
     const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content")
     if (metaToken) return metaToken
-
-    // Fallback to cookie
     const cookies = document.cookie.split(";")
     for (const cookie of cookies) {
       const [name, value] = cookie.trim().split("=")
@@ -79,9 +103,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   }
 
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-ET", {
       style: "currency",
       currency: "ETB",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
     }).format(price)
   }
 
@@ -112,16 +138,14 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
   }
 
-  // Fetch initial wishlist status
   const fetchWishlistStatus = useCallback(async () => {
     if (!auth.user) {
       setIsWishlisted(false)
       return
     }
-
     try {
       const csrfToken = getCsrfToken()
-      const response = await fetch(`/api/wishlist/check?product_id=${product.id}`, {
+      const response = await fetch(`/wishlist/check?product_id=${product.id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -131,13 +155,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         },
         credentials: "same-origin",
       })
-
       if (response.status === 419) {
         console.warn("CSRF token expired during wishlist check, refreshing page...")
         window.location.reload()
         return
       }
-
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
@@ -149,22 +171,18 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
   }, [auth.user, product.id])
 
-  // Toggle wishlist item
   const handleToggleWishlist = async () => {
     if (!auth.user) {
-      router.visit("/login") // Redirect to login if not authenticated
+      router.visit("/login")
       return
     }
-
     setWishlistLoading(true)
-
     try {
       const csrfToken = getCsrfToken()
       if (!csrfToken) {
         throw new Error("CSRF token not found. Please refresh the page.")
       }
-
-      const response = await fetch("/api/wishlist/toggle", {
+      const response = await fetch("/wishlist/toggle", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -175,15 +193,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         credentials: "same-origin",
         body: JSON.stringify({ product_id: product.id }),
       })
-
       if (response.status === 419) {
         console.warn("CSRF token expired during wishlist toggle, refreshing page...")
         window.location.reload()
         return
       }
-
       const data = await response.json()
-
       if (data.success) {
         setIsWishlisted(data.in_wishlist)
         console.log(data.message)
@@ -200,7 +215,6 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     }
   }
 
-  // Effect to fetch wishlist status on component mount or product/user change
   useEffect(() => {
     fetchWishlistStatus()
   }, [fetchWishlistStatus])
@@ -220,6 +234,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
         <p className="text-sm text-gray-500 mt-1">SKU: {product.sku}</p>
       </div>
+
       {/* Rating and Reviews */}
       <div className="flex items-center gap-4">
         <div className="flex items-center">
@@ -234,10 +249,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             />
           ))}
           <span className="ml-2 text-sm text-gray-600">
-            {product.average_rating} ({product.reviews_count} reviews)
+            {product.average_rating.toFixed(1)} ({product.reviews_count} reviews)
           </span>
         </div>
       </div>
+
       {/* Price */}
       <div className="space-y-2">
         {isOnSale ? (
@@ -253,6 +269,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           <span className="text-3xl font-bold text-gray-900">{formatPrice(product.current_price)}</span>
         )}
       </div>
+
       {/* Stock Status */}
       <div className="flex items-center gap-2">
         <div
@@ -268,11 +285,13 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           {isOutOfStock ? "Out of Stock" : isLowStock ? `Only ${product.stock_quantity} left in stock` : "In Stock"}
         </span>
       </div>
+
       {/* Description */}
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-2">Description</h3>
         <p className="text-gray-600 leading-relaxed">{product.description}</p>
       </div>
+
       {/* Quantity and Add to Cart */}
       {!isOutOfStock && (
         <div className="space-y-4">
@@ -314,8 +333,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
               Add to Cart
             </Button>
             <Button
-              onClick={handleToggleWishlist} // Use the new toggle function
-              disabled={wishlistLoading} // Disable button during loading
+              onClick={handleToggleWishlist}
+              disabled={wishlistLoading}
               className={`p-3 rounded-md border transition-colors ${
                 isWishlisted
                   ? "bg-red-50 border-red-200 text-red-600"
@@ -333,13 +352,10 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
         </div>
       )}
+
       {/* Features */}
       <div className="border-t pt-6">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex items-center gap-3 text-sm text-gray-600">
-            {/* <Truck className="h-5 w-5 text-blue-600" /> */}
-            {/* <span>Free shipping over $50</span> */}
-          </div>
           <div className="flex items-center gap-3 text-sm text-gray-600">
             <Shield className="h-5 w-5 text-green-600" />
             <span>1 year warranty</span>
@@ -350,6 +366,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
         </div>
       </div>
+
       {/* Product Details */}
       <div className="border-t pt-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Product Details</h3>
@@ -372,6 +389,16 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
         </dl>
       </div>
+
+      {/* Reviews Section */}
+      <ReviewSection
+        productId={product.id}
+        averageRating={product.average_rating}
+        reviewsCount={product.reviews_count}
+        ratingBreakdown={product.rating_breakdown}
+        reviews={reviews}
+        userHasReviewed={userHasReviewed}
+      />
     </div>
   )
 }

@@ -205,8 +205,8 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   const formatTime = (time: number) => time.toString().padStart(2, "0")
 
   const formatPrice = (price: string, salePrice?: string) => {
-    const formattedPrice = `USD ${Number.parseFloat(price).toFixed(2)}`
-    const formattedSalePrice = salePrice ? `USD ${Number.parseFloat(salePrice).toFixed(2)}` : null
+    const formattedPrice = `ETB ${Number.parseFloat(price).toFixed(2)}`
+    const formattedSalePrice = salePrice ? `ETB ${Number.parseFloat(salePrice).toFixed(2)}` : null
     return formattedSalePrice ? formattedSalePrice : formattedPrice
   }
 

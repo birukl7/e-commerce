@@ -149,4 +149,36 @@ class Product extends Model
     {
         return $this->wishlists()->count();
     }
+
+
+
+    /**
+     * Get approved reviews for this product.
+     */
+    public function approvedReviews(): HasMany
+    {
+        return $this->hasMany(Review::class)->approved();
+    }
+
+
+
+    /**
+     * Get rating breakdown (count of each rating).
+     */
+    public function getRatingBreakdownAttribute(): array
+    {
+        $breakdown = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $breakdown[$i] = $this->reviews()->approved()->where('rating', $i)->count();
+        }
+        return $breakdown;
+    }
+
+    /**
+     * Check if a user has reviewed this product.
+     */
+    public function hasReviewFrom(int $userId): bool
+    {
+        return $this->reviews()->where('user_id', $userId)->exists();
+    }
 }
