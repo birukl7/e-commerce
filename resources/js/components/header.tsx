@@ -1,5 +1,3 @@
-"use client"
-
 import { useRef, useEffect } from "react"
 import { Link, usePage } from "@inertiajs/react"
 import { useCart } from "@/contexts/cart-context"
