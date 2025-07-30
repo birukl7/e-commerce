@@ -5,6 +5,7 @@ import type { NavItem, BreadcrumbItem } from "@/types"
 import { BrickWall, ListOrdered, Save, Heart, Trash2, ShoppingCart, Star, LayoutDashboard } from "lucide-react"
 import { Link, router } from "@inertiajs/react"
 import { useState } from "react"
+import { CustomLink } from "@/components/link"
 
 interface Product {
   id: number
@@ -282,12 +283,12 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
                 Start adding products you love to your wishlist. You can save items for later and keep track of your
                 favorites.
               </p>
-              <Link
-                href="/categories"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              <CustomLink
+                href={route('home')}
+                className=" text-white px-6 py-3 rounded-lg  transition-colors font-medium"
               >
                 Browse Products
-              </Link>
+              </CustomLink>
             </div>
           )}
         </div>

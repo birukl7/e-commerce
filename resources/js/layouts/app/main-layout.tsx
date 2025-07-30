@@ -18,7 +18,7 @@ const MainLayout: React.FC<MainLayout> = ({children, title , className, footerOf
       <div className={' ' + className}>
         <Head title={title}>
         </Head>
-        <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white" style={{ fontFamily: "Outfit, sans-serif" }}>
+        <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white" style={{ fontFamily: "Poppins, sans-serif" }}>
           {/* Header */}
           <>
           
