@@ -8,9 +8,22 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\PayPalController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\SocialiteController;
 use App\Http\Controllers\UserDashboardController;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+
+/**
+ * Google Login
+ */
+Route::controller(SocialiteController::class)->group(function() {
+    Route::get('auth/redirection/google', 'authProviderRedirect')->name('auth.redirection');
+
+    Route::get('auth/google/callback', 'googleAuthentication')->name('auth.callback');
+});
 
 Route::get('/', function () {
     return Inertia::render('welcome');

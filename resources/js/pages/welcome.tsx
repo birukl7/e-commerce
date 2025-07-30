@@ -19,15 +19,15 @@ function WelcomeContent() {
       </Head>
       
       <div
-        className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white"
-        style={{ fontFamily: "Outfit, sans-serif" }}
+        className="min-h-screen bg-white text-slate-900 "
+        style={{ fontFamily: "Poppins, sans-serif" }}
       >
         {/* Header */}
         <Header />
 
         {/* Hero Section with Search Bar */}
         
-        <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50 dark:bg-slate-800 container mx-auto">
+        <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50  container mx-auto">
           <HomePageBanner/>
         </section>
 

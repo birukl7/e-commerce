@@ -48,7 +48,7 @@ const Header = () => {
     <>
       <header
         ref={headerRef}
-        className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 dark:bg-slate-900/95 dark:supports-[backdrop-filter]:bg-slate-900/60"
+        className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 "
       >
         <div className="container mx-auto px-2 sm:px-2 lg:px-2">
           <div className="flex h-20 items-center justify-between">
