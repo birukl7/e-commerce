@@ -43,6 +43,7 @@ function CustomLink({
   VariantProps<typeof customLinkVariants>) {
   return (
     <Link
+      prefetch
       data-slot="button"
       className={cn(customLinkVariants({ variant, size, className }))}
       {...props}

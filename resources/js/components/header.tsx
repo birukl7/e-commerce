@@ -54,7 +54,7 @@ const Header = () => {
           <div className="flex h-20 items-center justify-between">
             {/* Logo */}
             <div className="flex items-center space-x-4">
-              <Link href="/" className="flex items-center space-x-2">
+              <Link prefetch href="/" className="flex items-center space-x-2">
                 <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-sm">SH</span>
                 </div>
@@ -82,10 +82,10 @@ const Header = () => {
                 </div>
               ) : (
                 <div className="flex sm:flex items-center space-x-1 pl-2">
-                  <Link href={route("login")} className="hidden sm:block">
+                  <Link prefetch href={route("login")} className="hidden sm:block">
                     <Button size="sm">Log in</Button>
                   </Link>
-                  <Link href={route("register")}>
+                  <Link prefetch href={route("register")}>
                     <Button size="sm">Sign up</Button>
                   </Link>
                 </div>
