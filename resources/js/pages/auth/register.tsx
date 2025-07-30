@@ -1,5 +1,3 @@
-"use client"
-
 import { Head, useForm } from "@inertiajs/react"
 import { LoaderCircle, User, Truck } from "lucide-react"
 import { type FormEventHandler, useState } from "react"
@@ -103,28 +101,6 @@ export default function Register() {
 
       {step === 1 && (
         <div className="flex flex-col gap-6">
-          {/* Google Sign Up Button */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11 border-gray-300 hover:bg-gray-50 transition-colors bg-transparent"
-            onClick={handleGoogleSignUp}
-            disabled={processing}
-          >
-            <GoogleIcon />
-            <span className="ml-3 text-gray-700 font-medium">Continue with Google</span>
-          </Button>
-
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-4 text-gray-500">Or choose your account type</span>
-            </div>
-          </div>
-
           {/* Role Selection Cards */}
           <div className="flex flex-col gap-4 sm:flex-row">
             <Card
@@ -156,36 +132,39 @@ export default function Register() {
       )}
 
       {step === 2 && (
-        <div className="flex flex-col gap-6">
-          {/* Google Sign Up Button for Step 2 */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11 border-gray-300 hover:bg-gray-50 transition-colors bg-transparent"
-            onClick={handleGoogleSignUp}
-            disabled={processing}
-          >
-            <GoogleIcon />
-            <span className="ml-3 text-gray-700 font-medium">Continue with Google</span>
-          </Button>
+        <div className="space-y-6">
+          {/* Google Sign Up Button */}
+          <div className="space-y-4">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 border-gray-300 hover:bg-gray-50 transition-colors bg-transparent"
+              onClick={handleGoogleSignUp}
+              disabled={processing}
+            >
+              <GoogleIcon />
+              <span className="ml-3 text-gray-700 font-medium">Continue with Google</span>
+            </Button>
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-4 text-gray-500">Or fill out the form below</span>
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-4 text-gray-500">Or create account manually</span>
+              </div>
             </div>
           </div>
 
           {/* Registration Form */}
-          <form className="flex flex-col gap-6" onSubmit={submit}>
-            <div className="grid gap-6">
-              {/* Basic Information */}
+          <form className="space-y-6" onSubmit={submit}>
+            {/* Basic Information Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">Full Name</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
                   <Input
                     id="name"
                     type="text"
@@ -197,11 +176,12 @@ export default function Register() {
                     onChange={(e) => setData("name", e.target.value)}
                     disabled={processing}
                     placeholder="Enter your full name"
+                    className="h-11"
                   />
                   <InputError message={errors.name} />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email address</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
                   <Input
                     id="email"
                     type="email"
@@ -212,11 +192,14 @@ export default function Register() {
                     onChange={(e) => setData("email", e.target.value)}
                     disabled={processing}
                     placeholder="email@example.com"
+                    className="h-11"
                   />
                   <InputError message={errors.email} />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Phone Number (Optional)</Label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
                   <Input
                     id="phone"
                     type="tel"
@@ -226,15 +209,19 @@ export default function Register() {
                     onChange={(e) => setData("phone", e.target.value)}
                     disabled={processing}
                     placeholder="+251912345678"
+                    className="h-11"
                   />
                   <InputError message={errors.phone} />
                 </div>
               </div>
+            </div>
 
-              {/* Password Information */}
+            {/* Password Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Security</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="password">Password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
                   <Input
                     id="password"
                     type="password"
@@ -244,16 +231,16 @@ export default function Register() {
                     value={data.password}
                     onChange={(e) => setData("password", e.target.value)}
                     disabled={processing}
-                    placeholder="Password"
+                    placeholder="Create a strong password"
+                    className="h-11"
                   />
                   <InputError message={errors.password} />
                   <p className="text-xs text-muted-foreground">
-                    Password must contain at least 8 characters with uppercase, lowercase, number, and special
-                    character.
+                    Must contain at least 8 characters with uppercase, lowercase, number, and special character.
                   </p>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="password_confirmation">Confirm password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="password_confirmation">Confirm Password *</Label>
                   <Input
                     id="password_confirmation"
                     type="password"
@@ -263,115 +250,133 @@ export default function Register() {
                     value={data.password_confirmation}
                     onChange={(e) => setData("password_confirmation", e.target.value)}
                     disabled={processing}
-                    placeholder="Confirm password"
+                    placeholder="Confirm your password"
+                    className="h-11"
                   />
                   <InputError message={errors.password_confirmation} />
                 </div>
               </div>
+            </div>
 
-              {/* Optional Address Information */}
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-medium text-muted-foreground mb-3">Address Information (Optional)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="address_line_1">Address Line 1</Label>
-                    <Input
-                      id="address_line_1"
-                      type="text"
-                      tabIndex={6}
-                      value={data.address_line_1}
-                      onChange={(e) => setData("address_line_1", e.target.value)}
-                      disabled={processing}
-                      placeholder="Street address"
-                    />
-                    <InputError message={errors.address_line_1} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="address_line_2">Address Line 2</Label>
-                    <Input
-                      id="address_line_2"
-                      type="text"
-                      tabIndex={7}
-                      value={data.address_line_2}
-                      onChange={(e) => setData("address_line_2", e.target.value)}
-                      disabled={processing}
-                      placeholder="Apartment, suite, etc."
-                    />
-                    <InputError message={errors.address_line_2} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      type="text"
-                      tabIndex={8}
-                      value={data.city}
-                      onChange={(e) => setData("city", e.target.value)}
-                      disabled={processing}
-                      placeholder="City"
-                    />
-                    <InputError message={errors.city} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="state">State/Region</Label>
-                    <Input
-                      id="state"
-                      type="text"
-                      tabIndex={9}
-                      value={data.state}
-                      onChange={(e) => setData("state", e.target.value)}
-                      disabled={processing}
-                      placeholder="State/Region"
-                    />
-                    <InputError message={errors.state} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="postal_code">Postal Code</Label>
-                    <Input
-                      id="postal_code"
-                      type="text"
-                      tabIndex={10}
-                      value={data.postal_code}
-                      onChange={(e) => setData("postal_code", e.target.value)}
-                      disabled={processing}
-                      placeholder="Postal code"
-                    />
-                    <InputError message={errors.postal_code} />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Input
-                      id="country"
-                      type="text"
-                      tabIndex={11}
-                      value={data.country}
-                      onChange={(e) => setData("country", e.target.value)}
-                      disabled={processing}
-                      placeholder="Country"
-                    />
-                    <InputError message={errors.country} />
-                  </div>
+            {/* Address Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900">Address Information</h3>
+                <span className="text-sm text-muted-foreground">(Optional)</span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address_line_1">Street Address</Label>
+                  <Input
+                    id="address_line_1"
+                    type="text"
+                    tabIndex={6}
+                    value={data.address_line_1}
+                    onChange={(e) => setData("address_line_1", e.target.value)}
+                    disabled={processing}
+                    placeholder="123 Main Street"
+                    className="h-11"
+                  />
+                  <InputError message={errors.address_line_1} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address_line_2">Apartment/Suite</Label>
+                  <Input
+                    id="address_line_2"
+                    type="text"
+                    tabIndex={7}
+                    value={data.address_line_2}
+                    onChange={(e) => setData("address_line_2", e.target.value)}
+                    disabled={processing}
+                    placeholder="Apt 4B, Suite 100"
+                    className="h-11"
+                  />
+                  <InputError message={errors.address_line_2} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="city">City</Label>
+                  <Input
+                    id="city"
+                    type="text"
+                    tabIndex={8}
+                    value={data.city}
+                    onChange={(e) => setData("city", e.target.value)}
+                    disabled={processing}
+                    placeholder="Addis Ababa"
+                    className="h-11"
+                  />
+                  <InputError message={errors.city} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State/Region</Label>
+                  <Input
+                    id="state"
+                    type="text"
+                    tabIndex={9}
+                    value={data.state}
+                    onChange={(e) => setData("state", e.target.value)}
+                    disabled={processing}
+                    placeholder="Addis Ababa"
+                    className="h-11"
+                  />
+                  <InputError message={errors.state} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="postal_code">Postal Code</Label>
+                  <Input
+                    id="postal_code"
+                    type="text"
+                    tabIndex={10}
+                    value={data.postal_code}
+                    onChange={(e) => setData("postal_code", e.target.value)}
+                    disabled={processing}
+                    placeholder="1000"
+                    className="h-11"
+                  />
+                  <InputError message={errors.postal_code} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    type="text"
+                    tabIndex={11}
+                    value={data.country}
+                    onChange={(e) => setData("country", e.target.value)}
+                    disabled={processing}
+                    placeholder="Ethiopia"
+                    className="h-11"
+                  />
+                  <InputError message={errors.country} />
                 </div>
               </div>
-
-              <div className="flex gap-4 mt-4">
-                <Button type="button" onClick={() => setStep(1)} disabled={processing} variant="outline">
-                  Back
-                </Button>
-                <Button type="submit" className="flex-1" tabIndex={12} disabled={processing}>
-                  {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
-                  Create account
-                </Button>
-              </div>
             </div>
 
-            <div className="text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
-              <TextLink href={route("login")} tabIndex={13}>
-                Log in
-              </TextLink>
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
+              <Button
+                type="button"
+                onClick={() => setStep(1)}
+                disabled={processing}
+                variant="outline"
+                className="h-12 sm:w-auto"
+              >
+                Back to Role Selection
+              </Button>
+              <Button type="submit" className="flex-1 h-12" tabIndex={12} disabled={processing}>
+                {processing && <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />}
+                Create Account
+              </Button>
             </div>
           </form>
+
+          {/* Login Link */}
+          <div className="text-center text-sm text-muted-foreground pt-4 border-t">
+            Already have an account?{" "}
+            <TextLink href={route("login")} tabIndex={13}>
+              Log in
+            </TextLink>
+          </div>
         </div>
       )}
     </AuthLayout>
