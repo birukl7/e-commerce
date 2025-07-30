@@ -56,7 +56,7 @@ const Header = () => {
                 <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-sm">SH</span>
                 </div>
-                <span className="text-xl font-bold text-slate-900 dark:text-white">ShopHub</span>
+                <span className="text-xl font-bold text-slate-900 ">ShopHub</span>
               </Link>
               <CategoryDropdown />
             </div>
@@ -88,10 +88,11 @@ const Header = () => {
                   </Link>
                 </div>
               )}
+
               {/* Wishlist */}
-              <Button variant="ghost" size="icon" className=" sm:flex">
+              <CustomLink href={'/user-wishlist'} variant="ghost" sizes="icon" className="sm:flex">
                 <Heart className="h-5 w-5" />
-              </Button>
+              </CustomLink>
               {/* Cart */}
               <Button
                 ref={cartButtonRef}
@@ -109,6 +110,8 @@ const Header = () => {
                   </Badge>
                 )}
               </Button>
+
+
             </div>
           </div>
           {/* Search Bar (Mobile) */}

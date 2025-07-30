@@ -152,9 +152,10 @@ class ProductController extends Controller
     public function getProductReviews(Request $request, Product $product): JsonResponse
     {
         try {
+            $user = Auth::user();
             $perPage = $request->get('per_page', 10);
-            $sortBy = $request->get('sort_by', 'newest'); // newest, oldest, highest_rating, lowest_rating, most_helpful
-            $filterRating = $request->get('rating'); // Filter by specific rating
+            $sortBy = $request->get('sort_by', 'newest');
+            $filterRating = $request->get('rating');
 
             $query = $product->reviews()->approved()->with('user');
 
@@ -169,13 +170,13 @@ class ProductController extends Controller
                     $query->oldest();
                     break;
                 case 'highest_rating':
-                    $query->orderBy('rating', 'desc');
+                    $query->orderBy('rating', 'desc')->latest();
                     break;
                 case 'lowest_rating':
-                    $query->orderBy('rating', 'asc');
+                    $query->orderBy('rating', 'asc')->latest();
                     break;
                 case 'most_helpful':
-                    $query->orderByRaw('JSON_LENGTH(COALESCE(helpful_votes, "[]")) DESC');
+                    $query->orderByRaw('JSON_LENGTH(COALESCE(helpful_votes, "[]")) DESC')->latest();
                     break;
                 default: // newest
                     $query->latest();
@@ -184,9 +185,28 @@ class ProductController extends Controller
 
             $reviews = $query->paginate($perPage);
 
+            // Format reviews data to match your frontend expectations
+            $formattedReviews = $reviews->getCollection()->map(function ($review) use ($user) {
+                $helpfulVotes = $review->helpful_votes ?? [];
+                $isHelpfulToUser = $user ? in_array($user->id, $helpfulVotes) : false;
+
+                return [
+                    'id' => $review->id,
+                    'rating' => $review->rating,
+                    'title' => $review->title,
+                    'comment' => $review->comment,
+                    'user_name' => $review->user->name ?? 'Anonymous',
+                    'user_avatar' => $review->user->avatar ?? null,
+                    'created_at' => $review->created_at->toISOString(),
+                    'helpful_count' => count($helpfulVotes),
+                    'is_verified_purchase' => $review->is_verified_purchase ?? false,
+                    'is_helpful_to_user' => $isHelpfulToUser,
+                ];
+            });
+
             return response()->json([
                 'success' => true,
-                'reviews' => $reviews->items(),
+                'data' => $formattedReviews,
                 'pagination' => [
                     'current_page' => $reviews->currentPage(),
                     'last_page' => $reviews->lastPage(),

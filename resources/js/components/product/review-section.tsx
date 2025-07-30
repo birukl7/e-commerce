@@ -108,9 +108,9 @@ export function ReviewSection({
         setReviewForm({ rating: 0, title: "", comment: "" })
         // Refresh reviews
         loadReviews()
-        alert("Review submitted successfully!")
+        // alert("Review submitted successfully!")
       } else {
-        alert(data.message || "Failed to submit review")
+        // alert(data.message || "Failed to submit review")
       }
     } catch (error) {
       console.error("Error submitting review:", error)

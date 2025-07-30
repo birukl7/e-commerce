@@ -68,6 +68,23 @@ class AuthenticatedSessionController extends Controller
         return redirect()->intended(route('dashboard'));
     }
 
+
+    public function adminStore(LoginRequest $request): RedirectResponse
+    {
+        $request->authenticate();
+        $request->session()->regenerate();
+
+        // Check if user account is active
+        $user = Auth::user();
+
+        // Check email verification if required
+        if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && !$user->hasVerifiedEmail()) {
+            return redirect()->route('verification.notice');
+        }
+
+        return redirect()->intended(route('admin.dashboard'));
+    }
+
     /**
      * Destroy an authenticated session.
      */

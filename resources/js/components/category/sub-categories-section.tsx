@@ -62,7 +62,7 @@ export function SubCategoriesSection({ subcategories }: SubCategoriesSectionProp
     <div className="mx-auto max-w-7xl px-4 pb-8">
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
         {displayedCategories.map((category) => (
-          <Link key={category.id} href={`/categories/${category.slug}`} className="group cursor-pointer">
+          <Link prefetch key={category.id} href={`/categories/${category.slug}`} className="group cursor-pointer">
             <div className="mb-3 aspect-square overflow-hidden rounded-lg bg-gray-100">
               <img
                 src={getImageUrl(category) || "/placeholder.svg"}

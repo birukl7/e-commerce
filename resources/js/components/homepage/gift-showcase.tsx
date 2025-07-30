@@ -138,7 +138,7 @@ export default function GiftShowcase({
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          const wishlistProductIds = new Set(data.data.map((item: any) => item.id))
+          const wishlistProductIds = new Set<number>(data.data.map((item: { id: number }) => item.id))
           setWishlistItems(wishlistProductIds)
         }
       }
@@ -148,64 +148,8 @@ export default function GiftShowcase({
   }, [auth.user])
 
   // Toggle wishlist item using Inertia router (more reliable for CSRF)
-  const toggleWishlist = async (productId: number, e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    if (!auth.user) {
-      // Redirect to login
-      router.visit("/login")
-      return
-    }
-
-    // Add to loading set
-    setWishlistLoading((prev) => new Set(prev).add(productId))
-
-    // Use Inertia router for CSRF-protected requests
-    router.post(
-      "/api/wishlist/toggle",
-      { product_id: productId },
-      {
-        preserveScroll: true,
-        preserveState: true,
-        only: [], // Don't reload any props
-        onSuccess: (page) => {
-          // Handle success - we need to make another request to get the response
-          // Since Inertia doesn't return JSON responses directly, let's use fetch as fallback
-          handleToggleSuccess(productId)
-        },
-        onError: (errors) => {
-          console.error("Wishlist toggle failed:", errors)
-          setWishlistLoading((prev) => {
-            const newSet = new Set(prev)
-            newSet.delete(productId)
-            return newSet
-          })
-        },
-      },
-    )
-  }
 
   // Handle successful toggle
-  const handleToggleSuccess = (productId: number) => {
-    setWishlistItems((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(productId)) {
-        newSet.delete(productId)
-        console.log("Product removed from wishlist")
-      } else {
-        newSet.add(productId)
-        console.log("Product added to wishlist")
-      }
-      return newSet
-    })
-
-    setWishlistLoading((prev) => {
-      const newSet = new Set(prev)
-      newSet.delete(productId)
-      return newSet
-    })
-  }
 
   // Alternative: Use fetch with better error handling
   const toggleWishlistFetch = async (productId: number, e: React.MouseEvent) => {
@@ -239,12 +183,15 @@ export default function GiftShowcase({
         body: JSON.stringify({ product_id: productId }),
       }
 
+      // Send the wishlist toggle request and log for debugging
       console.log("Sending request to:", url, "with method:", options.method, "and CSRF token:", csrfToken)
-      const response = await fetch("/api/wishlist/toggle", options)
+      const response = await fetch(url, {
+        ...options,
+        credentials: "same-origin" as RequestCredentials, // Fix: ensure correct type
+      })
 
       console.log("Received response status:", response.status)
-      const responseClone = response.clone()
-      const responseText = await responseClone.text()
+      const responseText = await response.clone().text()
       console.log("Received response body:", responseText)
 
       if (response.status === 419) {
@@ -475,7 +422,7 @@ export default function GiftShowcase({
                 </Card>
               ))
             : categories.map((category) => (
-                <Link key={category.id} href={`/categories/${category.slug}`}>
+                <Link prefetch key={category.id} href={`/categories/${category.slug}`}>
                   <Card className="overflow-hidden group cursor-pointer">
                     <CardContent className="p-0 relative">
                       <div className="h-[200px] sm:h-[300px] md:h-[400px] w-full relative overflow-hidden">
@@ -515,7 +462,7 @@ export default function GiftShowcase({
               </Card>
             ))
           : products.map((product) => (
-              <Link key={product.id} href={`/products/${product.slug}`}>
+              <Link prefetch key={product.id} href={`/products/${product.slug}`}>
                 <Card
                   className="overflow-hidden group cursor-pointer relative transition-all duration-300 hover:shadow-lg"
                   onMouseEnter={() => setHoveredProduct(product.id)}

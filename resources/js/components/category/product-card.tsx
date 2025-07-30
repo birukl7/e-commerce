@@ -59,7 +59,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
   const isOutOfStock = product.stock_status === "out_of_stock"
 
   return (
-    <Link href={`/products/${product.slug}`} className="group block">
+    <Link prefetch href={`/products/${product.slug}`} className="group block">
       <div className="overflow-hidden rounded-lg bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">

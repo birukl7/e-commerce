@@ -7,6 +7,7 @@ import type { NavItem, BreadcrumbItem } from "@/types"
 import { BrickWall, ListOrdered, Save, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard } from "lucide-react"
 import { useForm } from "@inertiajs/react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface ProductRequest {
   id: number
@@ -147,13 +148,13 @@ export default function RequestDashboard({ requests }: RequestProps) {
               <h1 className="text-2xl font-bold text-gray-900">Product Requests</h1>
               <p className="text-gray-600">Request products that you'd like to see in our store</p>
             </div>
-            <button
+            <Button
               onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-2  text-white px-4 py-2 rounded-lg  transition-colors"
             >
               <Plus className="w-4 h-4" />
               New Request
-            </button>
+            </Button>
           </div>
 
           {/* Request Form */}
@@ -233,20 +234,20 @@ export default function RequestDashboard({ requests }: RequestProps) {
                 </div>
 
                 <div className="flex gap-3 pt-4">
-                  <button
+                  <Button
                     type="submit"
                     disabled={processing}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className=" text-white px-6 py-2 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {processing ? "Submitting..." : "Submit Request"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     onClick={() => setShowForm(false)}
                     className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -302,12 +303,12 @@ export default function RequestDashboard({ requests }: RequestProps) {
                 Haven't found what you're looking for? Submit a product request and we'll do our best to add it to our
                 store.
               </p>
-              <button
+              <Button
                 onClick={() => setShowForm(true)}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                className=" text-white px-6 py-3 rounded-lg  transition-colors font-medium"
               >
                 Submit Your First Request
-              </button>
+              </Button>
             </div>
           )}
         </div>

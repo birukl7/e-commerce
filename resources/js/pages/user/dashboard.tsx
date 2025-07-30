@@ -1,10 +1,20 @@
-"use client"
 import AppLayout from "@/layouts/app-layout"
 import MainLayout from "@/layouts/app/main-layout"
 import type { NavItem, BreadcrumbItem } from "@/types"
-import { BrickWall, ListOrdered, Save, Heart, Package, Clock, CheckCircle, XCircle, Eye, LayoutDashboard } from "lucide-react"
+import {
+  Bookmark,
+  ShoppingBag,
+  MessageSquare,
+  Package2,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  LayoutDashboard,
+} from "lucide-react"
 import { Link } from "@inertiajs/react"
 import H3 from "@/components/ui/h3"
+// import { route } from "@/router" // Import the route function
 
 interface Product {
   id: number
@@ -59,22 +69,22 @@ const defaultMainNavItems: NavItem[] = [
   {
     title: "BookMarked Products",
     href: "/user-wishlist",
-    icon: Save,
+    icon: Bookmark,
   },
   {
     title: "Orders",
     href: "/user-order",
-    icon: ListOrdered,
+    icon: ShoppingBag,
   },
   {
     title: "Requests",
     href: "/user-request",
-    icon: BrickWall,
+    icon: MessageSquare,
   },
   {
     title: "Bought Products",
     href: "/user-products",
-    icon: ListOrdered,
+    icon: Package2,
   },
 ]
 
@@ -110,7 +120,7 @@ const getStatusIcon = (status: string) => {
     case "pending":
       return <Clock className="h-4 w-4" />
     case "approved":
-      return <CheckCircle className="h-4 w-4" />
+      return <CheckCircle2 className="h-4 w-4" />
     case "rejected":
       return <XCircle className="h-4 w-4" />
     case "reviewed":
@@ -137,7 +147,7 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
             <div className="relative aspect-video rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-gradient-to-br from-blue-50 to-blue-100 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="p-2 bg-blue-500 rounded-lg">
-                  <Heart className="h-6 w-6 text-white" />
+                  <Bookmark className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-blue-600">{stats.wishlist_count}</span>
               </div>
@@ -146,12 +156,11 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <p className="text-sm text-blue-700">Products you love</p>
               </div>
             </div>
-
             {/* Total Requests */}
             <div className="relative aspect-video rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-gradient-to-br from-green-50 to-green-100 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="p-2 bg-green-500 rounded-lg">
-                  <Package className="h-6 w-6 text-white" />
+                  <MessageSquare className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-green-600">{stats.requests_count}</span>
               </div>
@@ -160,7 +169,6 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <p className="text-sm text-green-700">Product requests made</p>
               </div>
             </div>
-
             {/* Pending Requests */}
             <div className="relative aspect-video rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-gradient-to-br from-yellow-50 to-yellow-100 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between">
@@ -174,12 +182,11 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <p className="text-sm text-yellow-700">Awaiting review</p>
               </div>
             </div>
-
             {/* Approved Requests */}
             <div className="relative aspect-video rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-gradient-to-br from-purple-50 to-purple-100 p-6 flex flex-col justify-between">
               <div className="flex items-center justify-between">
                 <div className="p-2 bg-purple-500 rounded-lg">
-                  <CheckCircle className="h-6 w-6 text-white" />
+                  <CheckCircle2 className="h-6 w-6 text-white" />
                 </div>
                 <span className="text-2xl font-bold text-purple-600">{stats.approved_requests}</span>
               </div>
@@ -189,7 +196,6 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
               </div>
             </div>
           </div>
-
           {/* Main Content Area */}
           <div className="grid gap-6 lg:grid-cols-2">
             {/* Recent Wishlist Items */}
@@ -200,7 +206,6 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                   View All
                 </Link>
               </div>
-
               {recentWishlist.length > 0 ? (
                 <div className="space-y-4">
                   {recentWishlist.map((product) => (
@@ -257,10 +262,10 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Heart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <Bookmark className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-gray-500">No items in your wishlist yet</p>
                   <Link
-                    href={route('home')}
+                    href={route("home")}
                     className="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
                     Browse Products
@@ -268,7 +273,6 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 </div>
               )}
             </div>
-
             {/* Recent Requests */}
             <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-white p-6">
               <div className="flex items-center justify-between mb-4">
@@ -277,7 +281,6 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                   View All
                 </Link>
               </div>
-
               {recentRequests.length > 0 ? (
                 <div className="space-y-4">
                   {recentRequests.map((request) => (
@@ -314,7 +317,7 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <MessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                   <p className="text-gray-500">No product requests yet</p>
                   <Link
                     href="/user-request"

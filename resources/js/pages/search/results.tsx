@@ -5,6 +5,7 @@ import MainLayout from "@/layouts/app/main-layout"
 import { Search, Filter, X } from "lucide-react"
 import { router } from "@inertiajs/react"
 import { useState } from "react"
+import { Button } from "@/components/ui/button"
 
 interface ProductImage {
   id: number
@@ -209,9 +210,9 @@ const SearchResults = ({
                     <span>
                       Category: {filters.categories.find((c) => c.id.toString() === currentFilters.category)?.name}
                     </span>
-                    <button onClick={() => clearFilter("category")} className="ml-1 hover:text-blue-600">
+                    <Button onClick={() => clearFilter("category")} className="ml-1">
                       <X className="h-3 w-3" />
-                    </button>
+                    </Button>
                   </div>
                 )}
 
@@ -422,12 +423,12 @@ const SearchResults = ({
                       : "Try adjusting your filters to see more results."}
                   </p>
                   {hasActiveFilters && (
-                    <button
+                    <Button
                       onClick={clearAllFilters}
-                      className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      className="inline-flex items-center px-4 py-2  text-white rounded-md  transition-colors"
                     >
                       Clear all filters
-                    </button>
+                    </Button>
                   )}
                 </div>
               )}
