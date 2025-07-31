@@ -56,7 +56,7 @@ Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
-    Route::get('/admin-dashboard', fn()=>Inertia::render('dashboard'))->name('admin.dashboard');
+    Route::get('/admin-dashboard', fn()=>Inertia::render('admin/dashboard'))->name('admin.dashboard');
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {

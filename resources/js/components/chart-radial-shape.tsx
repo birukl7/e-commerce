@@ -1,36 +1,21 @@
 "use client"
 
 import { TrendingUp } from "lucide-react"
-import {
-  Label,
-  PolarGrid,
-  PolarRadiusAxis,
-  RadialBar,
-  RadialBarChart,
-} from "recharts"
+import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts"
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { ChartConfig, ChartContainer } from "@/components/ui/chart"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart"
 
-export const description = "A radial chart with a custom shape"
+export const description = "Order fulfillment rate"
 
-const chartData = [
-  { browser: "safari", visitors: 1260, fill: "var(--color-safari)" },
-]
+const chartData = [{ metric: "fulfillment", rate: 94, fill: "var(--color-fulfillment)" }]
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  rate: {
+    label: "Fulfillment Rate",
   },
-  safari: {
-    label: "Safari",
+  fulfillment: {
+    label: "Orders Fulfilled",
     color: "var(--chart-2)",
   },
 } satisfies ChartConfig
@@ -39,20 +24,12 @@ export function ChartRadialShape() {
   return (
     <Card className="flex flex-col">
       <CardHeader className="items-center pb-0">
-        <CardTitle>Radial Chart - Shape</CardTitle>
-        <CardDescription>January - June 2024</CardDescription>
+        <CardTitle>Order Fulfillment</CardTitle>
+        <CardDescription>Current month performance</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
-        >
-          <RadialBarChart
-            data={chartData}
-            endAngle={100}
-            innerRadius={80}
-            outerRadius={140}
-          >
+        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
+          <RadialBarChart data={chartData} endAngle={100} innerRadius={80} outerRadius={140}>
             <PolarGrid
               gridType="circle"
               radialLines={false}
@@ -60,31 +37,18 @@ export function ChartRadialShape() {
               className="first:fill-muted last:fill-background"
               polarRadius={[86, 74]}
             />
-            <RadialBar dataKey="visitors" background />
+            <RadialBar dataKey="rate" background />
             <PolarRadiusAxis tick={false} tickLine={false} axisLine={false}>
               <Label
                 content={({ viewBox }) => {
                   if (viewBox && "cx" in viewBox && "cy" in viewBox) {
                     return (
-                      <text
-                        x={viewBox.cx}
-                        y={viewBox.cy}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                      >
-                        <tspan
-                          x={viewBox.cx}
-                          y={viewBox.cy}
-                          className="fill-foreground text-4xl font-bold"
-                        >
-                          {chartData[0].visitors.toLocaleString()}
+                      <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground text-4xl font-bold">
+                          {chartData[0].rate}%
                         </tspan>
-                        <tspan
-                          x={viewBox.cx}
-                          y={(viewBox.cy || 0) + 24}
-                          className="fill-muted-foreground"
-                        >
-                          Visitors
+                        <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 24} className="fill-muted-foreground">
+                          Fulfilled
                         </tspan>
                       </text>
                     )
@@ -97,11 +61,9 @@ export function ChartRadialShape() {
       </CardContent>
       <CardFooter className="flex-col gap-2 text-sm">
         <div className="flex items-center gap-2 leading-none font-medium">
-          Trending up by 5.2% this month <TrendingUp className="h-4 w-4" />
+          Above target by 4% this month <TrendingUp className="h-4 w-4" />
         </div>
-        <div className="text-muted-foreground leading-none">
-          Showing total visitors for the last 6 months
-        </div>
+        <div className="text-muted-foreground leading-none">2,209 of 2,350 orders successfully fulfilled</div>
       </CardFooter>
     </Card>
   )
