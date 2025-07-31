@@ -25,7 +25,6 @@ Route::controller(SocialiteController::class)->group(function() {
     Route::get('auth/google/callback', 'googleAuthentication')->name('auth.callback');
 });
 
-Route::get('/super-admin', fn()=>Inertia::render('auth/admin-login'));
 
 
 Route::get('/', function () {
@@ -54,12 +53,16 @@ Route::get('/paypal/payment/success', [PayPalController::class, 'paymentSuccess'
 Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])->name('paypal.payment.cancel');
 Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
+// Admin routes
+Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+
+    Route::get('/admin-dashboard', fn()=>Inertia::render('dashboard'))->name('admin.dashboard');
+});
 // Authenticated routes
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified',])->group(function () {
     // Main dashboard
     Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
 
-    Route::get('/admin-dashboard', fn()=>Inertia::render('dashboard'))->name('admin.dashboard');
     
     // User dashboard (if different from main dashboard)
     // Route::get('/user-dashboard', fn() => Inertia::render('user/dashboard'))->name('user.dashboard');

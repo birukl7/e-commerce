@@ -37,10 +37,15 @@ class RegisteredUserController extends Controller
             'password' => [
                 'required',
                 'confirmed',
-                'min:8',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/',
+                'min:6',
+                //'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/',
             ],
-            'phone' => 'nullable|string|max:20|regex:/^[\+]?[1-9][\d]{0,15}$/',
+            //'phone' => 'nullable|string|max:20|regex:/^[\+]?[1-9][\d]{0,15}$/',
+            'phone' => [
+                'nullable',
+                'string',
+                'regex:/^(?:(?:09|07)\d{8}|(?:2519|2517)\d{8}|\+(?:2519|2517)\d{8})$/'
+            ],
             'address_line_1' => 'nullable|string|max:255',
             'address_line_2' => 'nullable|string|max:255',
             'city' => 'nullable|string|max:100',
@@ -49,8 +54,10 @@ class RegisteredUserController extends Controller
             'country' => 'nullable|string|max:100',
             'role' => 'required|string',
         ], [
-            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
-            'phone.regex' => 'Please enter a valid phone number.',
+            //'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'password.regex' => 'Password must be 6 at least digits',
+            //'phone.regex' => 'Please enter a valid phone number.',
+            'phone.regex' => 'Phone must be: 10 digits starting with 09 or 07, 12 digits starting with 2519 or 2517 or 13 digits starting with +2519 or +2517'
         ]);
 
         try {
