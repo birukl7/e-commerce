@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import AuthLayout from "@/layouts/auth-layout"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import H3 from "@/components/ui/h3"
 
 type ChooseRoleForm = {
   role: "customer" | "supplier" | ""
@@ -61,18 +60,14 @@ export default function ChooseRole() {
 
   return (
     <AuthLayout
-      title="Complete your profile"
-      description="Choose your account type and provide your address information"
+      title="Choose your account type"
+      description="Select Whether you are a customer or a supplier"
     >
       <Head title="Choose Role" />
 
       <form className="space-y-8" onSubmit={submit}>
         {/* Role Selection Section */}
         <div className="space-y-4">
-          <div className="text-center">
-            <H3 className="text-lg font-semibold text-gray-900 mb-2">What type of account do you need?</H3>
-            <p className="text-sm text-muted-foreground">Select whether you are a customer or a supplier</p>
-          </div>
 
           <div className="flex flex-col gap-4 sm:flex-row">
             <Card
@@ -93,7 +88,7 @@ export default function ChooseRole() {
                 </div>
                 <CardTitle className="text-lg">Customer</CardTitle>
                 <CardDescription className="text-center">
-                  I want to buy products and services from suppliers
+                  I want to buy products.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -116,7 +111,7 @@ export default function ChooseRole() {
                 </div>
                 <CardTitle className="text-lg">Supplier</CardTitle>
                 <CardDescription className="text-center">
-                  I want to sell products and services to customers
+                  I want to sell products.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -133,7 +128,7 @@ export default function ChooseRole() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-gray-900">Contact Information</h3>
-            <span className="text-sm text-muted-foreground">(Optional)</span>
+            <span className="text-sm text-muted-foreground"></span>
           </div>
 
           <div className="space-y-2">
@@ -157,7 +152,7 @@ export default function ChooseRole() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold text-gray-900">Address Information</h3>
-            <span className="text-sm text-muted-foreground">(Optional)</span>
+            <span className="text-sm text-muted-foreground"></span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
