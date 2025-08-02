@@ -1,5 +1,3 @@
-"use client"
-
 import type React from "react"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
@@ -17,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Menu, Loader2 } from "lucide-react"
 import { CustomLink } from "../link"
-// import { route } from "@inertiajs/react" // Import route from Inertia
+
 
 interface Category {
   id: number
@@ -40,6 +38,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
 
   useEffect(() => {
     fetchCategories()
@@ -50,7 +49,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
       setLoading(true)
       setError(null)
       console.log("Starting fetch request to /api/categories")
-      // Try the main categories endpoint first
+
       let response = await fetch("/api/categories", {
         method: "GET",
         headers: {
@@ -59,7 +58,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
           "X-Requested-With": "XMLHttpRequest",
         },
       })
-      // If that fails, try the tree endpoint
+
       if (!response.ok) {
         console.log("Main endpoint failed, trying tree endpoint")
         response = await fetch("/api/categories/tree", {
@@ -71,16 +70,17 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
           },
         })
       }
+
       console.log("Response status:", response.status)
       if (!response.ok) {
         const errorText = await response.text()
         console.error("Response error text:", errorText)
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      // Get the response as text first to check what we're receiving
+
       const responseText = await response.text()
       console.log("Raw response text:", responseText)
-      // Try to parse as JSON
+
       let result
       try {
         result = JSON.parse(responseText)
@@ -88,8 +88,9 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
         console.error("JSON parse error:", parseError)
         throw new Error("Server returned invalid JSON")
       }
+
       console.log("Parsed API Response:", result)
-      // Handle Laravel resource response structure
+
       let categoriesData: Category[] = []
       if (result.success && result.data) {
         categoriesData = result.data
@@ -100,6 +101,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
       } else {
         throw new Error("Unexpected response structure from server")
       }
+
       setCategories(categoriesData)
     } catch (err) {
       console.error("Detailed error in fetchCategories:", err)
@@ -125,6 +127,14 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
       return
     }
     target.src = `/placeholder.svg?height=${size}&width=${size}`
+  }
+
+  const handleMouseEnter = () => {
+    setIsOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    setIsOpen(false)
   }
 
   if (loading) {
@@ -158,26 +168,76 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="border-black cursor-pointer bg-transparent">
-          <Menu className="mr-2" />
-          Categories ({categories.length})
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-64" align="start">
-        <DropdownMenuLabel>Select Category</DropdownMenuLabel>
-        <DropdownMenuGroup>
-          {categories.map((category) => (
-            <div key={category.id}>
-              {category.children && category.children.length > 0 ? (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger className="flex items-center space-x-3">
-                    {/* Apply variant="ghost" and override padding/height */}
+    <div onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" className="cursor-pointer bg-transparent">
+            <Menu className="mr-2" />
+            Categories ({categories.length})
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-64" align="start">
+          <DropdownMenuLabel>Select Category</DropdownMenuLabel>
+          <DropdownMenuGroup>
+            {categories.map((category) => (
+              <div key={category.id}>
+                {category.children && category.children.length > 0 ? (
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger className="flex items-center space-x-3">
+                      <CustomLink
+                        href={route("categories.show", { slug: category.slug })}
+                        className="flex items-center space-x-3 w-full h-auto p-0"
+                        variant="ghost"
+                        onClick={() => onCategorySelect?.(category)}
+                      >
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
+                          <img
+                            src={getImageUrl(category.image) || "/placeholder.svg"}
+                            alt={category.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => handleImageError(e, category.name, "40")}
+                          />
+                        </div>
+                        <div className="flex flex-col text-left">
+                          <span className="font-medium">{category.name}</span>
+                          <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
+                        </div>
+                      </CustomLink>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="w-60">
+                        {category.children.map((child) => (
+                          <DropdownMenuItem key={child.id} className="flex items-center space-x-3 cursor-pointer">
+                            <CustomLink
+                              href={route("categories.show", { slug: child.slug })}
+                              className="flex items-center space-x-3 w-full h-auto p-0"
+                              variant="ghost"
+                              onClick={() => onCategorySelect?.(child)}
+                            >
+                              <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100">
+                                <img
+                                  src={getImageUrl(child.image) || "/placeholder.svg"}
+                                  alt={child.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => handleImageError(e, child.name, "32")}
+                                />
+                              </div>
+                              <div className="flex flex-col text-left">
+                                <span className="font-medium">{child.name}</span>
+                                <span className="text-xs text-gray-500">{child.product_count || 0} products</span>
+                              </div>
+                            </CustomLink>
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                ) : (
+                  <DropdownMenuItem className="flex items-center space-x-3 cursor-pointer">
                     <CustomLink
                       href={route("categories.show", { slug: category.slug })}
-                      className="flex items-center space-x-3 w-full h-auto p-0" // Override padding and height
-                      variant="ghost" // Use ghost variant
+                      className="flex items-center space-x-3 w-full h-auto p-0"
+                      variant="ghost"
                       onClick={() => onCategorySelect?.(category)}
                     >
                       <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
@@ -193,67 +253,16 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                         <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
                       </div>
                     </CustomLink>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent className="w-60">
-                      {category.children.map((child) => (
-                        <DropdownMenuItem key={child.id} className="flex items-center space-x-3 cursor-pointer">
-                          {/* Apply variant="ghost" and override padding/height */}
-                          <CustomLink
-                            href={route("categories.show", { slug: child.slug })}
-                            className="flex items-center space-x-3 w-full h-auto p-0" // Override padding and height
-                            variant="ghost" // Use ghost variant
-                            onClick={() => onCategorySelect?.(child)}
-                          >
-                            <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100">
-                              <img
-                                src={getImageUrl(child.image) || "/placeholder.svg"}
-                                alt={child.name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => handleImageError(e, child.name, "32")}
-                              />
-                            </div>
-                            <div className="flex flex-col text-left">
-                              <span className="font-medium">{child.name}</span>
-                              <span className="text-xs text-gray-500">{child.product_count || 0} products</span>
-                            </div>
-                          </CustomLink>
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              ) : (
-                <DropdownMenuItem className="flex items-center space-x-3 cursor-pointer">
-                  {/* Apply variant="ghost" and override padding/height */}
-                  <CustomLink
-                    href={route("categories.show", { slug: category.slug })}
-                    className="flex items-center space-x-3 w-full h-auto p-0" // Override padding and height
-                    variant="ghost" // Use ghost variant
-                    onClick={() => onCategorySelect?.(category)}
-                  >
-                    <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
-                      <img
-                        src={getImageUrl(category.image) || "/placeholder.svg"}
-                        alt={category.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => handleImageError(e, category.name, "40")}
-                      />
-                    </div>
-                    <div className="flex flex-col text-left">
-                      <span className="font-medium">{category.name}</span>
-                      <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
-                    </div>
-                  </CustomLink>
-                </DropdownMenuItem>
-              )}
-            </div>
-          ))}
-          <CustomLink className="mx-auto my-2" href={route("request.index")}>
-            Request
-          </CustomLink>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                  </DropdownMenuItem>
+                )}
+              </div>
+            ))}
+            <CustomLink className="mx-auto my-2" href={route("request.index")}>
+              Request
+            </CustomLink>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   )
 }
