@@ -110,7 +110,7 @@ interface ShowProps {
 
 const Show = ({ category, products, pagination, filters, currentFilters, sortOptions }: ShowProps) => {
   return (
-    <MainLayout title={category.name} className="">
+    <MainLayout title={category.name} className="" showBackButton>
       <>
         {/* Header Section */}
         <div className="text-center py-8 px-4">

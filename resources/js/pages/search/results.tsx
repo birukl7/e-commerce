@@ -161,7 +161,7 @@ const SearchResults = ({
     currentFilters.category || currentFilters.brand || currentFilters.min_price || currentFilters.max_price
 
   return (
-    <MainLayout title={`Search Results for "${query}"`} className="">
+    <MainLayout title={`Search Results for "${query}"`} className="" showBackButton>
       <>
         {/* Search Header */}
         <div className="bg-gray-50 border-b">
