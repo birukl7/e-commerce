@@ -18,7 +18,7 @@ class RequestController extends Controller
         $user = Auth::user();
         
         $requests = ProductRequest::where('user_id', $user->id)
-            ->latest()
+            ->latest
             ->get()
             ->map(function ($request) {
                 return [

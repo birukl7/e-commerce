@@ -42,8 +42,13 @@ Route::resource('categories', CategoryController::class)->parameters([
 
 // Search routes
 Route::get('/search', [SearchController::class, 'search'])->name('search');
+
 Route::get('/request', fn()=> Inertia::render('request/index'))->name(
 'request.index');
+Route::post('/request', [RequestController::class, 'store']);
+
+
+
 Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('search.suggestions');
 
 // Product routes
