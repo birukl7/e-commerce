@@ -32,20 +32,33 @@ class SocialiteController extends Controller
 
                 if ($user) {
                     Auth::login($user);
+                    return redirect()->route('home');
+                } 
 
-                } else {
-                    $userData = User::create([
-                        'name' => $googleUser->name,
-                        'email' => $googleUser->email,
-                        'password' => Hash::make('Password@1234'),
-                        'profile_image'=> $googleUser->avatar,
-                        'google_id' => $googleUser->id,
-                    ]);
+                // New user – store their Google info temporarily in session
+                session([
+                    'google_user' => [
+                        'name' => $googleUser->getName(),
+                        'email' => $googleUser->getEmail(),
+                        'google_id' => $googleUser->getId(),
+                        'avatar' => $googleUser->getAvatar(),
+                    ]
+                ]);
 
-                    if ($userData) {
-                        Auth::login($userData);
-                    }
+                return redirect('/choose-role');
+
+                $userData = User::create([
+                    'name' => $googleUser->name,
+                    'email' => $googleUser->email,
+                    'password' => Hash::make('Password@1234'),
+                    'profile_image'=> $googleUser->avatar,
+                    'google_id' => $googleUser->id,
+                ]);
+
+                if ($userData) {
+                    Auth::login($userData);
                 }
+                
 
                 return redirect()->route('home');
 

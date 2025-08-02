@@ -117,4 +117,6 @@ class RegisteredUserController extends Controller
             ])->withInput($request->except('password', 'password_confirmation'));
         }
     }
+
+    
 }
