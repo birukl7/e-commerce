@@ -49,6 +49,10 @@ class ChooseRoleController extends Controller
         ]);
     
         $googleUser = session('google_user');
+        
+        if(!$googleUser){
+            abort(404);
+        }
 
         $user = User::create([
             'name' => $googleUser['name'],
