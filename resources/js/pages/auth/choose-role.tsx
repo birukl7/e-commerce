@@ -264,7 +264,7 @@ export default function ChooseRole() {
 
       {/* Skip Link */}
       <div className="text-center text-sm text-muted-foreground pt-6 border-t">
-        <TextLink href={route("dashboard")} tabIndex={9}>
+        <TextLink href={route("user.dashboard")} tabIndex={9}>
           Skip for now - I'll complete this later
         </TextLink>
       </div>
