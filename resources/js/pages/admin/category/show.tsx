@@ -4,6 +4,7 @@ import H1 from "@/components/ui/h1"
 import AppLayout from "@/layouts/app-layout"
 import { Head, Link } from "@inertiajs/react"
 import { ArrowLeftIcon, PencilIcon, TrashIcon, ImageIcon, TagIcon, CalendarIcon, SortAscIcon } from "lucide-react"
+import { adminNavItems } from "../dashboard"
 
 interface Category {
   id: number
@@ -36,7 +37,7 @@ const Show = ({ category }: Props) => {
   }
 
   return (
-    <AppLayout mainNavItems={[]} footerNavItems={[]}>
+    <AppLayout mainNavItems={adminNavItems} footerNavItems={[]}>
       <Head title={`Category: ${category.name}`} />
 
       <div className=" px-4 sm:px-6 lg:px-8 py-8">
@@ -95,7 +96,7 @@ const Show = ({ category }: Props) => {
               <div className="aspect-video bg-gray-100 relative">
                 {category.image ? (
                   <img
-                    src={category.image || "/placeholder.svg"}
+                    src={'/storage/'+category.image || "/placeholder.svg"}
                     alt={category.name}
                     className="w-full h-full object-cover"
                   />

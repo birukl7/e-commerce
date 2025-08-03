@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminBrandController;
 use App\Http\Controllers\AdminCategoryController;
+use App\Http\Controllers\AdminProductController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChooseRoleController;
 use App\Http\Controllers\ProductController;
@@ -86,6 +87,8 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::delete('admin/categories/{category}', [AdminCategoryController::class, 'destroy'])->name('admin.categories.destroy');
 
     Route::resource('admin/brands', AdminBrandController::class);
+
+    Route::resource('admin/products', AdminProductController::class);
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {

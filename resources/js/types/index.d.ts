@@ -56,3 +56,47 @@ export interface Category {
     product_count?: number
     subcategories?: Category[]
   }
+
+  export interface ProductImage {
+    id: number
+    image_path: string
+    alt_text: string
+    is_primary: boolean
+    sort_order: number
+  }
+
+  export interface Brand {
+    id: number
+    name: string
+    slug: string
+    is_active: boolean
+  }
+
+  export interface Product {
+    id: number
+    name: string
+    slug: string
+    description: string
+    sku: string
+    price: number
+    sale_price?: number | null
+    cost_price?: number | null
+    stock_quantity: number
+    manage_stock: boolean
+    stock_status: string
+    weight?: number | null
+    length?: number | null
+    width?: number | null
+    height?: number | null
+    category_id: number
+    brand_id: number
+    featured: boolean
+    status: string
+    meta_title?: string | null
+    meta_description?: string | null
+    created_at: string
+    updated_at: string
+    category: Category
+    brand: Brand
+    images: ProductImage[]
+  }

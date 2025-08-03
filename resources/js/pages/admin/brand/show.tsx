@@ -1,6 +1,7 @@
 import AppLayout from "@/layouts/app-layout"
 import { Head, Link } from "@inertiajs/react"
 import { ArrowLeftIcon, PencilIcon, TrashIcon, ImageIcon, TagIcon, CalendarIcon, ExternalLinkIcon } from "lucide-react"
+import { adminNavItems } from "../dashboard"
 
 interface Brand {
   id: number
@@ -29,7 +30,7 @@ const Show = ({ brand }: Props) => {
   }
 
   return (
-    <AppLayout mainNavItems={[]} footerNavItems={[]}>
+    <AppLayout mainNavItems={adminNavItems} footerNavItems={[]}>
       <Head title={`Brand: ${brand.name}`} />
 
       <div className=" px-4 sm:px-6 lg:px-8 py-8">

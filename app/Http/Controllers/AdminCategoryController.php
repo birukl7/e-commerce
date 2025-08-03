@@ -61,9 +61,6 @@ class AdminCategoryController extends Controller
     public function update(Request $request, Category $category)
     {
 
-        // dd($category);
-        // dd($request->all());
-
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'slug' => 'required|string|unique:categories,slug,' . $category->id,
