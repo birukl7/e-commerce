@@ -1,6 +1,6 @@
 "use client"
 import type React from "react"
-import { router, usePage } from "@inertiajs/react"
+import { router } from "@inertiajs/react"
 import { Clock, Search, TrendingUp, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
@@ -20,7 +20,7 @@ export default function SearchBarAdvanced({
   className = "",
   initialQuery = "",
 }: SearchBarProps) {
-  const { url } = usePage()
+  // const { url } = usePage()
   const [query, setQuery] = useState(initialQuery)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [isOpen, setIsOpen] = useState(false)

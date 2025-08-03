@@ -6,7 +6,7 @@ type H1Props = {
 };
 
 const H1: React.FC<H1Props> = ({ children, className }) => {
-  return <h1 className={' ' + className}>{children}</h1>;
+  return <h1 className={'text-[26px] font-bold text-gray-900 mb-8 ' + className}>{children}</h1>;
 };
 
 export default H1;

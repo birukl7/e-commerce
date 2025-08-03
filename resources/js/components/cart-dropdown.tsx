@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Minus, Plus, Trash2 } from "lucide-react"
 import CheckoutDialog from "./checkout-dialog"
+import H3 from "./ui/h3"
 
 interface CartDropdownProps {
   isOpen: boolean
@@ -53,7 +54,7 @@ export default function CartDropdown({ isOpen, onClose }: CartDropdownProps) {
       <div ref={dropdownRef} className="absolute right-0 top-full mt-2 w-96 z-50">
         <Card className="shadow-lg border border-slate-200 dark:border-slate-700">
           <CardHeader className="pb-3">
-            <h3 className="font-semibold text-lg">Shopping Cart</h3>
+            <H3 className="font-semibold text-lg">Shopping Cart</H3>
           </CardHeader>
           <CardContent className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (

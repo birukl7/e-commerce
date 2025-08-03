@@ -12,8 +12,7 @@ export default function HomePageBanner() {
             <img
               src={`image/image-3.jpg`}
               alt="Back to school supplies and decor"
-              className="object-cover object-left"
-              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover object-left w-full"
             />
             <div className="absolute inset-0 bg-gradient-to-r from-yellow-50/90 via-yellow-50/70 to-transparent" />
           </div>

@@ -30,7 +30,7 @@ const breadcrumbs: BreadcrumbItem[] = [
   },
 ]
 
-const adminNavItems: NavItem[] = [
+export const adminNavItems: NavItem[] = [
   {
     title: "Dashboard",
     href: "/admin/dashboard",

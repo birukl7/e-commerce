@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\AdminBrandController;
+use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChooseRoleController;
 use App\Http\Controllers\ProductController;
@@ -67,6 +69,23 @@ Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
     Route::get('/admin-dashboard', fn()=>Inertia::render('admin/dashboard'))->name('admin.dashboard');
+    
+
+    Route::get('admin/categories', [AdminCategoryController::class, 'index'])->name('admin.categories.index');
+
+    Route::get('admin/categories/create', [AdminCategoryController::class, 'create'])->name('admin.categories.create');
+
+    Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
+
+    Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
+
+    Route::get('admin/categories/{category}/edit', [AdminCategoryController::class, 'edit'])->name('admin.categories.edit');
+
+    Route::put('admin/categories/{category}', [AdminCategoryController::class, 'update'])->name('admin.categories.update');
+
+    Route::delete('admin/categories/{category}', [AdminCategoryController::class, 'destroy'])->name('admin.categories.destroy');
+
+    Route::resource('admin/brands', AdminBrandController::class);
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {

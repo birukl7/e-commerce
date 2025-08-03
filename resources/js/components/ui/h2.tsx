@@ -6,7 +6,7 @@ type H2Props = {
 };
 
 const H2: React.FC<H2Props> = ({ children, className }) => {
-  return <h2 className={' text-[36px] font-bold text-gray-900 mb-8' + className}>{children}</h2>;
+  return <h2 className={' text-[24px] font-bold text-gray-900 mb-8' + className}>{children}</h2>;
 };
 
 export default H2;
