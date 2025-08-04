@@ -75,6 +75,8 @@ Route::prefix('payment')->name('payment.')->group(function () {
     Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
     Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
     Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
+    Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
+    // routes/web.php
 });
 
 // Admin routes

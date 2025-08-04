@@ -58,6 +58,8 @@ class PaymentController extends Controller
         try {
             // Generate transaction reference
             $txRef = 'TX-' . Str::random(10) . '-' . time();
+            // Sanitize description input
+            $description = 'Payment for Order: ' . $request->order_id;
             
             // Prepare Chapa payment data
             $paymentData = [
@@ -69,10 +71,10 @@ class PaymentController extends Controller
                 'phone_number' => $request->customer_phone,
                 'tx_ref' => $txRef,
                 'callback_url' => route('payment.callback'),
-                'return_url' => route('payment.success'),
+                'return_url' => route('payment.return', ['tx_ref' => $txRef]), 
                 'customization' => [
                     'title' => 'ShopHub Payment',
-                    'description' => 'Payment for Order: ' . $request->order_id,
+                    'description' => preg_replace('/[^a-zA-Z0-9\s\._-]/', '', $description), 
                     'logo' => asset('images/logo.png'),
                 ],
                 'meta' => [
@@ -165,6 +167,51 @@ class PaymentController extends Controller
 
         return response()->json(['status' => 'error'], 500);
     }
+
+    public function paymentReturn(string $txRef)
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->chapaSecretKey,
+            ])->get($this->chapaBaseUrl . '/transaction/verify/' . $txRef);
+
+            // Log the full response from Chapa for debugging
+            Log::info('Chapa verification response for ' . $txRef, [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json()['data'];
+                
+                if ($data['status'] === 'success') {
+                    return Inertia::render('payment/payment-success', [
+                        'order_id' => $data['meta']['order_id'],
+                        'transaction_id' => $data['id'],
+                        'amount' => $data['amount'],
+                        'currency' => $data['currency'],
+                        'payment_method' => $data['payment_type'],
+                        'customer_name' => $data['first_name'] . ' ' . $data['last_name'],
+                        'customer_email' => $data['email'],
+                    ]);
+                }
+            }
+            
+            // If the response is not successful or payment status is not 'success'
+            $data = $response->json();
+            return Inertia::render('payment/payment-failed', [
+                'order_id' => $data['data']['meta']['order_id'] ?? null,
+                'error_message' => $data['message'] ?? 'Payment failed',
+                'error_code' => $data['status'] ?? null,
+            ]);
+            
+        } catch (\Exception $e) {
+            Log::error('Payment return error: ' . $e->getMessage());
+            return Inertia::render('payment/payment-failed', [
+                'error_message' => 'An error occurred while verifying the payment.',
+            ]);
+        }
+    } 
 
     public function paymentSuccess(Request $request)
     {
