@@ -7,7 +7,6 @@ import { CheckCircle, Download, ArrowRight, Package } from "lucide-react"
 import { Link } from "@inertiajs/react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { route } from "@/utils/route" // Import the route function
 
 interface PaymentSuccessProps {
   order_id: string

@@ -15,7 +15,6 @@ import Header from "@/components/header"
 import Footer from "@/components/footer"
 import { useState, useEffect } from "react"
 import { Link } from "@inertiajs/react"
-import { route } from "inertiajs-react"
 
 interface PaymentProcessProps {
   order_id: string
@@ -69,9 +68,6 @@ function PaymentProcessContent({
     post(route("payment.process"), {
       onSuccess: (response) => {
         // Redirect to Chapa payment page
-        if (response.props.checkout_url) {
-          window.location.href = response.props.checkout_url
-        }
       },
       onError: (errors) => {
         console.error("Payment processing error:", errors)

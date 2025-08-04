@@ -13,6 +13,7 @@ use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\PayPalController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SocialiteController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;

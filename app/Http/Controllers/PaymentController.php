@@ -33,7 +33,7 @@ class PaymentController extends Controller
         $customerName = $user ? $user->name : '';
         $customerPhone = $user ? $user->phone : '';
 
-        return Inertia::render('PaymentProcess', [
+        return Inertia::render('payment/payment-process', [
             'order_id' => $orderId,
             'total_amount' => $amount,
             'currency' => $currency,
@@ -185,7 +185,7 @@ class PaymentController extends Controller
             return redirect()->route('payment.failed')->with('error', 'Payment not completed');
         }
 
-        return Inertia::render('PaymentSuccess', [
+        return Inertia::render('payment/payment-success', [
             'order_id' => $transaction['order_id'],
             'transaction_id' => $txRef,
             'amount' => $transaction['amount'],
@@ -208,7 +208,7 @@ class PaymentController extends Controller
             $transaction = $this->getTransaction($txRef);
         }
 
-        return Inertia::render('PaymentFailed', [
+        return Inertia::render('payment/payment-failed', [
             'order_id' => $transaction['order_id'] ?? null,
             'error_message' => $errorMessage,
             'error_code' => $errorCode,

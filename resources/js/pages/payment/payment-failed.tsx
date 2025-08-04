@@ -7,7 +7,6 @@ import { XCircle, RefreshCw, ArrowLeft, HelpCircle } from "lucide-react"
 import { Link } from "@inertiajs/react"
 import Header from "@/components/header"
 import Footer from "@/components/footer"
-import { route } from "@/utils/route" // Import route function
 
 interface PaymentFailedProps {
   order_id?: string
