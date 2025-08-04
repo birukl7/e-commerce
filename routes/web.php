@@ -66,6 +66,16 @@ Route::get('/paypal/payment/success', [PayPalController::class, 'paymentSuccess'
 Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])->name('paypal.payment.cancel');
 Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
+
+// payment process routes
+Route::prefix('payment')->name('payment.')->group(function () {
+    Route::get('/process', [PaymentController::class, 'showPaymentPage'])->name('show');
+    Route::post('/process', [PaymentController::class, 'processPayment'])->name('process');
+    Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
+    Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
+    Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
+});
+
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
