@@ -15,6 +15,8 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SocialiteController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\AdminPaymentController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -102,6 +104,18 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::resource('admin/brands', AdminBrandController::class);
 
     Route::resource('admin/products', AdminProductController::class);
+    Route::resource('/admin/customers', CustomerController::class);
+    
+    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
+
+    // Payment management routes
+    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {
