@@ -132,7 +132,9 @@ Route::middleware(['auth', 'verified',])->group(function () {
     // User-specific pages
     Route::get('/user-wishlist', [WishlistController::class, 'index'])->name('user.wishlist');
     Route::get('/user-request', [RequestController::class, 'index'])->name('user.request');
-    // Route::get('/user-order', fn() => Inertia::render('user/orders'))->name('user.order');
+    Route::get('/user-order', fn() => Inertia::render('user/orders'))->name('user.orders');
+    Route::get('/contact', fn() => Inertia::render('user/orders'))->name('contact'); 
+
     // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
     
     // Product Request routes
