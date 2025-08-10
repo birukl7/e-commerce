@@ -39,6 +39,15 @@ Route::get('/', function () {
     return Inertia::render('welcome');
 })->name('home');
 
+// Legal pages
+Route::get('/terms', function () {
+    return Inertia::render('terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return Inertia::render('privacy');
+})->name('privacy');
+
 Route::resource('categories', CategoryController::class)->parameters([
     'categories' => 'category:slug',
 ]);

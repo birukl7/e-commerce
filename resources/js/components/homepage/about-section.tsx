@@ -11,7 +11,7 @@ export default function AboutSection() {
             href="#"
             className="text-gray-700 hover:text-gray-900 underline underline-offset-2 text-sm md:text-base transition-colors"
           >
-            Read our wonderfully weird story
+            Discover our Ethiopian heritage story
           </a>
         </div>
 
@@ -19,44 +19,44 @@ export default function AboutSection() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-16 md:mb-20">
           {/* Column 1 */}
           <div className="text-center md:text-left">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">A community doing good</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Celebrating Ethiopian Heritage</h3>
             <p className="text-gray-700 leading-relaxed mb-4">
-              ShopHub is a global online marketplace, where people come together to make, sell, buy, and collect unique
-              items. We're also a community pushing for positive change for small businesses, people, and the planet.{" "}
-              <a href="#" className="text-gray-700 hover:text-gray-900 underline underline-offset-2 transition-colors">
-                Here are some of the ways we're making a positive impact, together.
-              </a>
+              ShopHub is Ethiopia's premier marketplace, connecting artisans and modern creators with customers worldwide. 
+              We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, 
+              handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today's lifestyle.
             </p>
           </div>
 
           {/* Column 2 */}
           <div className="text-center md:text-left">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Support independent creators</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Supporting Local Artisans</h3>
             <p className="text-gray-700 leading-relaxed">
-              There's no ShopHub warehouse – just millions of people selling the things they love. We make the whole
-              process easy, helping you connect directly with makers to find something extraordinary.
+              From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. 
+              Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets 
+              while preserving traditional techniques and promoting sustainable practices.
             </p>
           </div>
 
           {/* Column 3 */}
           <div className="text-center md:text-left">
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Peace of mind</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4">Quality & Authenticity</h3>
             <p className="text-gray-700 leading-relaxed">
-              Your privacy is the highest priority of our dedicated team. And if you ever need assistance, we are always
-              ready to step in for support.
+              Every product on ShopHub is carefully curated to ensure authenticity and quality. 
+              Whether you're looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, 
+              or modern tech products, we guarantee genuine craftsmanship and exceptional service.
             </p>
           </div>
         </div>
 
         {/* Bottom CTA */}
         <div className="text-center">
-          <p className="text-gray-700 text-lg md:text-xl mb-6">Have a question? Well, we've got some answers.</p>
+          <p className="text-gray-700 text-lg md:text-xl mb-6">Questions about our products or Ethiopian culture?</p>
           <Button
             variant="outline"
             size="lg"
             className="px-8 py-3 text-gray-700 border-gray-400 hover:bg-gray-100 hover:border-gray-500 bg-transparent transition-colors"
           >
-            Go to Help Center
+            Contact Our Team
           </Button>
         </div>
       </div>
