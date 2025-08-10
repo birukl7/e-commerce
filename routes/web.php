@@ -13,7 +13,10 @@ use App\Http\Controllers\WishlistController;
 use App\Http\Controllers\PayPalController;
 use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\SocialiteController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
+use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\AdminPaymentController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -75,6 +78,18 @@ Route::get('/paypal/payment/success', [PayPalController::class, 'paymentSuccess'
 Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])->name('paypal.payment.cancel');
 Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
+
+// payment process routes
+Route::prefix('payment')->name('payment.')->group(function () {
+    Route::get('/process', [PaymentController::class, 'showPaymentPage'])->name('show');
+    Route::post('/process', [PaymentController::class, 'processPayment'])->name('process');
+    Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
+    Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
+    Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
+    Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
+    // routes/web.php
+});
+
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
@@ -98,6 +113,18 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::resource('admin/brands', AdminBrandController::class);
 
     Route::resource('admin/products', AdminProductController::class);
+    Route::resource('/admin/customers', CustomerController::class);
+    
+    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
+
+    // Payment management routes
+    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {
@@ -114,7 +141,9 @@ Route::middleware(['auth', 'verified',])->group(function () {
     // User-specific pages
     Route::get('/user-wishlist', [WishlistController::class, 'index'])->name('user.wishlist');
     Route::get('/user-request', [RequestController::class, 'index'])->name('user.request');
-    // Route::get('/user-order', fn() => Inertia::render('user/orders'))->name('user.order');
+    Route::get('/user-order', fn() => Inertia::render('user/orders'))->name('user.orders');
+    Route::get('/contact', fn() => Inertia::render('user/orders'))->name('contact'); 
+
     // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
     
     // Product Request routes
