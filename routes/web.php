@@ -17,6 +17,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
+use App\Http\Controllers\AdminDashboardController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -93,14 +94,16 @@ Route::prefix('payment')->name('payment.')->group(function () {
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
-    Route::get('/admin-dashboard', fn()=>Inertia::render('admin/dashboard'))->name('admin.dashboard');
-    
+    //Route::get('/admin-dashboard', fn()=>Inertia::render('admin/dashboard'))->name('admin.dashboard');
+    Route::get('/admin-dashboard',[AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
     Route::get('admin/categories', [AdminCategoryController::class, 'index'])->name('admin.categories.index');
 
     Route::get('admin/categories/create', [AdminCategoryController::class, 'create'])->name('admin.categories.create');
 
     Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
+
+    Route::get('admin/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payment-stats');
 
     Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
 

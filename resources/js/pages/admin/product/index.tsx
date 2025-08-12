@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import H1 from '@/components/ui/h1';
 import H2 from '@/components/ui/h2';
 import H3 from '@/components/ui/h3';
-import { Brand, Product } from '@/types';
+import { Brand, BreadcrumbItem, Product } from '@/types';
 import { adminNavItems } from '../dashboard';
 
 interface Category {
@@ -26,7 +26,16 @@ interface Props {
     categories: Category[];
     brands: Brand[];
 }
-
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Admin Dashboard',
+        href: '/admin-dashboard',
+    },
+    {
+        title: 'Products',
+        href: '/admin/products',
+    },
+];
 const Index = ({ products = [], categories = [], brands = [] }: Props) => {
     const [dialogState, setDialogState] = useState<{
         action: 'create' | 'edit' | null;
@@ -107,7 +116,7 @@ const Index = ({ products = [], categories = [], brands = [] }: Props) => {
             <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
                 <div className="relative aspect-square bg-gray-100">
                     {primaryImage ? (
-                        <img src={`/storage/image/${primaryImage.image_path}`} alt={product.name} className="h-full w-full object-cover" />
+                        <img src={`/image/${primaryImage.image_path}`} alt={product.name} className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center">
                             <ImageIcon className="h-12 w-12 text-gray-400" />
@@ -171,7 +180,7 @@ const Index = ({ products = [], categories = [], brands = [] }: Props) => {
     };
 
     return (
-        <AppLayout mainNavItems={adminNavItems} footerNavItems={[]}>
+        <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Products Management" />
 
             <div className="px-4 py-8 sm:px-6 lg:px-8">

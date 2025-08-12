@@ -19,6 +19,7 @@ class AdminPaymentController extends Controller
             ->select([
                 'pt.*',
                 'u.name as customer_name',
+                'u.email as customer_email',
                 'u.phone as customer_phone',
                 'u.id as customer_id',
                 'o.total_amount as order_total',
@@ -54,7 +55,14 @@ class AdminPaymentController extends Controller
             $query->whereDate('pt.created_at', '<=', $request->date_to);
         }
 
-        $payments = $query->latest('pt.created_at')->paginate(15);
+        // Get page from request, default to 1
+        $page = $request->get('page', 1);
+        $perPage = 15;
+
+        $payments = $query->latest('pt.created_at')->paginate($perPage, ['*'], 'page', $page);
+
+        // Add query parameters to pagination links
+        $payments->appends($request->query());
 
         // Calculate summary statistics
         $stats = [
@@ -62,20 +70,57 @@ class AdminPaymentController extends Controller
             'successful_payments' => DB::table('payment_transactions')->where('status', 'completed')->count(),
             'failed_payments' => DB::table('payment_transactions')->where('status', 'failed')->count(),
             'pending_payments' => DB::table('payment_transactions')->where('status', 'pending')->count(),
-            'total_revenue' => DB::table('payment_transactions')->where('status', 'completed')->sum('amount'),
-            'today_revenue' => DB::table('payment_transactions')
+            'total_revenue' => (float) DB::table('payment_transactions')->where('status', 'completed')->sum('amount'),
+            'today_revenue' => (float) DB::table('payment_transactions')
                 ->where('status', 'completed')
                 ->whereDate('created_at', today())
                 ->sum('amount'),
         ];
 
-        return Inertia::render('admin/payments/index', [
+        return Inertia::render('admin/payment/index', [
             'payments' => $payments,
             'stats' => $stats,
-            'filters' => $request->only(['search', 'status', 'payment_method', 'date_from', 'date_to'])
+            'filters' => (object) $request->only(['search', 'status', 'payment_method', 'date_from', 'date_to'])
         ]);
     }
 
+    private function getRecentPayments($limit = 4)
+    {
+        // Fixed typo: payment_transactios -> payment_transactions
+        return DB::table('payment_transactions as pt')
+        ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
+        ->select([
+            'pt.id',
+            'pt.tx_ref',
+            'pt.order_id',
+            'pt.amount',
+            'pt.currency',
+            'pt.status',
+            'pt.payment_method',
+            'pt.created_at',
+            'pt.customer_name',
+            'pt.customer_email',
+            'u.name as user_name',
+        ])
+        ->orderBy('pt.created_at', 'desc')
+        ->limit($limit)
+        ->get()
+        ->map(function ($payment) {
+            return [
+                'id' => $payment->id,
+                'order_id' => $payment->order_id,
+                'tx_ref' => $payment->tx_ref,
+                'customer_name' => $payment->user_name ?: $payment->customer_name,
+                'amount' => $payment->amount,
+                'currency' => $payment->currency,
+                'status' => $payment->status,
+                'payment_method' => $payment->payment_method,
+                'created_at' => $payment->created_at,
+                'formatted_amount' => number_format($payment->amount, 2),
+            ];
+        });
+    }
+    
     /**
      * Display the specified payment.
      */
