@@ -124,7 +124,7 @@ class AdminPaymentController extends Controller
     /**
      * Display the specified payment.
      */
-    public function show($id)
+    public function show($paymentId)
     {
         $payment = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
@@ -148,7 +148,7 @@ class AdminPaymentController extends Controller
                 'ua.state',
                 'ua.country'
             ])
-            ->where('pt.id', $id)
+            ->where('pt.id', $paymentId)
             ->first();
 
         if (!$payment) {
@@ -161,11 +161,15 @@ class AdminPaymentController extends Controller
         if ($payment->order_id) {
             $orderItems = DB::table('order_items as oi')
                 ->join('products as p', 'oi.product_id', '=', 'p.id')
+                ->leftJoin('product_images as pi', function($join) {
+                    $join->on('p.id', '=', 'pi.product_id')
+                         ->where('pi.is_primary', true);
+                })
                 ->select([
                     'oi.*',
                     'p.name as product_name',
                     'p.slug as product_slug',
-                    'p.primary_image'
+                    'pi.image_path as primary_image',
                 ])
                 ->where('oi.order_id', $payment->order_id)
                 ->get();
@@ -174,39 +178,18 @@ class AdminPaymentController extends Controller
         // Get customer's payment history
         $customerPaymentHistory = DB::table('payment_transactions')
             ->where('customer_email', $payment->customer_email)
-            ->where('id', '!=', $id)
+            ->where('id', '!=', $paymentId)
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
-        return Inertia::render('admin/payments/show', [
+        return Inertia::render('admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
             'customerPaymentHistory' => $customerPaymentHistory
         ]);
     }
-
-    /**
-     * Update payment status (for manual adjustments)
-     */
-    public function updateStatus(Request $request, $id)
-    {
-        $request->validate([
-            'status' => 'required|in:pending,completed,failed,refunded',
-            'notes' => 'nullable|string|max:500'
-        ]);
-
-        DB::table('payment_transactions')
-            ->where('id', $id)
-            ->update([
-                'status' => $request->status,
-                'admin_notes' => $request->notes,
-                'updated_at' => now()
-            ]);
-
-        return redirect()->route('admin.payments.show', $id)
-                         ->with('success', 'Payment status updated successfully.');
-    }
+ 
 
     /**
      * Export payments to CSV

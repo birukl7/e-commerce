@@ -18,6 +18,7 @@ use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\AdminOrderController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -104,6 +105,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
 
     Route::get('admin/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payment-stats');
+    Route::get('admin/paymentStats/{paymentId}', [AdminPaymentController::class, 'show'])->name('admin.payment-stats');
 
     Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
 
@@ -117,6 +119,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
     Route::resource('admin/products', AdminProductController::class);
     Route::resource('/admin/customers', CustomerController::class);
+    Route::resource('admin/orders', AdminOrderController::class);
     
     Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
