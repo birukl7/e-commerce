@@ -19,6 +19,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
+use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -94,8 +95,6 @@ Route::prefix('payment')->name('payment.')->group(function () {
 
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
-
-    //Route::get('/admin-dashboard', fn()=>Inertia::render('admin/dashboard'))->name('admin.dashboard');
     Route::get('/admin-dashboard',[AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
     Route::get('admin/categories', [AdminCategoryController::class, 'index'])->name('admin.categories.index');
@@ -120,6 +119,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::resource('admin/products', AdminProductController::class);
     Route::resource('/admin/customers', CustomerController::class);
     Route::resource('admin/orders', AdminOrderController::class);
+    Route::resource('admin/product-requests', AdminProductRequestController::class);
     
     Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');

@@ -60,10 +60,9 @@ export const adminNavItems: NavItem[] = [
     { title: 'Payments', href: '/admin/paymentStats', icon: CreditCard },
     { title: 'Customers', href: '/admin/customers', icon: Users },
     { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
+    { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { title: 'Product Requests', href: '/admin/requests', icon: MessageSquare },
     { title: 'Site Configuration', href: '/admin/settings', icon: Settings },
-    //{title: '', href: '', icon: },
 ];
 
 interface DashboardStats {
