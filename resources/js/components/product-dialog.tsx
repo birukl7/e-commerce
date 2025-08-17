@@ -3,7 +3,7 @@
 import type React from "react"
 import { useForm } from "@inertiajs/react"
 import { useState, useEffect } from "react"
-import { XIcon, ImageIcon, UploadIcon } from "lucide-react"
+import { XIcon, ImageIcon, UploadIcon, AlertTriangleIcon } from "lucide-react"
 import { Button } from "./ui/button"
 
 interface ProductImage {
@@ -206,6 +206,8 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
         },
         onError: (errors) => {
           console.error("Validation errors:", errors)
+          // Don't close dialog on validation errors
+          // The error summary will show the errors to the user
         },
         forceFormData: true,
       })
@@ -216,6 +218,8 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
         },
         onError: (errors) => {
           console.error("Update validation errors:", errors)
+          // Don't close dialog on validation errors
+          // The error summary will show the errors to the user
         },
         forceFormData: true,
       })
@@ -242,6 +246,31 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Error Summary */}
+            {Object.keys(errors).length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <div className="flex-shrink-0">
+                    <AlertTriangleIcon className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-red-800">
+                      Please fix the following errors:
+                    </h3>
+                  </div>
+                </div>
+                <div className="ml-8">
+                  <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                    {Object.entries(errors).map(([field, message]) => (
+                      <li key={field}>
+                        <strong>{field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> {message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
@@ -284,7 +313,7 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
                         name="images"
                       />
                     </label>
-                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB each. Select multiple files at once.</p>
+                    <p className="text-xs text-gray-500 mt-1">JPEG, PNG, JPG, GIF, WebP up to 2MB each. Maximum 10 images.</p>
                     {imagePreviews.length > 0 && (
                       <p className="text-xs text-blue-600 mt-1">{imagePreviews.length} image(s) selected</p>
                     )}

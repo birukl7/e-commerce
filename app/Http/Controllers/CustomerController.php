@@ -13,12 +13,22 @@ class CustomerController extends Controller
      */
     public function index(Request $request)
     {
+        // Get the type parameter to determine if we're showing customers or suppliers
+        $type = $request->get('type', 'customers'); // Default to customers
+        
         $query = User::query()
-            ->role(['customer', 'user']) // Only get users with customer or user roles
             ->withCount(['orders', 'wishlists'])
             ->with(['orders' => function($query) {
                 $query->latest()->limit(5);
             }]);
+
+        // Filter by role based on type
+        if ($type === 'suppliers') {
+            $query->role('supplier');
+        } else {
+            // For customers, include both 'customer' role and 'user' role (legacy users)
+            $query->role(['customer', 'user']);
+        }
 
         // Add search functionality
         if ($request->has('search') && $request->search) {
@@ -33,12 +43,22 @@ class CustomerController extends Controller
             $query->where('status', $request->status);
         }
 
-        $customers = $query->latest()->paginate(10);
+        $users = $query->latest()->paginate(10);
 
         return Inertia::render('admin/customers/index', [
-            'customers' => $customers,
-            'filters' => $request->only(['search', 'status'])
+            'customers' => $users,
+            'filters' => $request->only(['search', 'status', 'type']),
+            'type' => $type
         ]);
+    }
+
+    /**
+     * Display a listing of suppliers (alias for index with type=suppliers).
+     */
+    public function suppliers(Request $request)
+    {
+        $request->merge(['type' => 'suppliers']);
+        return $this->index($request);
     }
 
 

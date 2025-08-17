@@ -9,7 +9,7 @@ import ConfirmationDialog from '@/components/confirmation-dialog';
 import ProductDialog from '@/components/product-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
+import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
 import H1 from '@/components/ui/h1';
 import H2 from '@/components/ui/h2';
 import H3 from '@/components/ui/h3';
@@ -54,11 +54,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 const Index = ({ products, categories = [], brands = [], filters = {} }: Props) => {
     const [showFilters, setShowFilters] = useState(false);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
-    const [selectedCategory, setSelectedCategory] = useState(filters.category || '');
-    const [selectedBrand, setSelectedBrand] = useState(filters.brand || '');
-    const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
-    const [selectedStockStatus, setSelectedStockStatus] = useState(filters.stock_status || '');
-    const [selectedFeatured, setSelectedFeatured] = useState(filters.featured || '');
+    const [selectedCategory, setSelectedCategory] = useState(filters.category || 'all');
+    const [selectedBrand, setSelectedBrand] = useState(filters.brand || 'all');
+    const [selectedStatus, setSelectedStatus] = useState(filters.status || 'all');
+    const [selectedStockStatus, setSelectedStockStatus] = useState(filters.stock_status || 'all');
+    const [selectedFeatured, setSelectedFeatured] = useState(filters.featured || 'all');
     const [minPrice, setMinPrice] = useState(filters.min_price || '');
     const [maxPrice, setMaxPrice] = useState(filters.max_price || '');
     const [sortBy, setSortBy] = useState(filters.sort_by || 'created_at');
@@ -101,16 +101,34 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         }
     };
 
+    const getProductWarningMessage = (productName: string) => {
+        return `
+            <div class="space-y-3">
+                <p><strong>⚠️ WARNING: This action cannot be undone!</strong></p>
+                <p>Deleting the product "<strong>${productName}</strong>" will permanently:</p>
+                <ul class="list-disc list-inside ml-4 space-y-1 text-sm">
+                    <li><strong>Remove the product</strong> from your catalog</li>
+                    <li><strong>Delete all product images</strong> and associated files</li>
+                    <li><strong>Remove from customer wishlists</strong> and shopping carts</li>
+                    <li><strong>Hide from search results</strong> and category listings</li>
+                    <li><strong>Affect order history</strong> where this product was purchased</li>
+                    <li><strong>Remove product reviews</strong> and ratings</li>
+                </ul>
+                <p class="text-orange-600 font-semibold">Consider archiving the product instead of deleting it to preserve historical data.</p>
+            </div>
+        `;
+    };
+
     // Search and filter functions
     const handleSearch = () => {
         const params: any = {};
         
         if (searchTerm) params.search = searchTerm;
-        if (selectedCategory) params.category = selectedCategory;
-        if (selectedBrand) params.brand = selectedBrand;
-        if (selectedStatus) params.status = selectedStatus;
-        if (selectedStockStatus) params.stock_status = selectedStockStatus;
-        if (selectedFeatured) params.featured = selectedFeatured;
+        if (selectedCategory && selectedCategory !== 'all') params.category = selectedCategory;
+        if (selectedBrand && selectedBrand !== 'all') params.brand = selectedBrand;
+        if (selectedStatus && selectedStatus !== 'all') params.status = selectedStatus;
+        if (selectedStockStatus && selectedStockStatus !== 'all') params.stock_status = selectedStockStatus;
+        if (selectedFeatured && selectedFeatured !== 'all') params.featured = selectedFeatured;
         if (minPrice) params.min_price = minPrice;
         if (maxPrice) params.max_price = maxPrice;
         if (sortBy) params.sort_by = sortBy;
@@ -121,11 +139,11 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
     const clearFilters = () => {
         setSearchTerm('');
-        setSelectedCategory('');
-        setSelectedBrand('');
-        setSelectedStatus('');
-        setSelectedStockStatus('');
-        setSelectedFeatured('');
+        setSelectedCategory('all');
+        setSelectedBrand('all');
+        setSelectedStatus('all');
+        setSelectedStockStatus('all');
+        setSelectedFeatured('all');
         setMinPrice('');
         setMaxPrice('');
         setSortBy('created_at');
@@ -133,8 +151,13 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         router.get('/admin/products', {}, { preserveState: true });
     };
 
-    const hasActiveFilters = !!(searchTerm || selectedCategory || selectedBrand || selectedStatus || 
-                               selectedStockStatus || selectedFeatured || minPrice || maxPrice);
+    const hasActiveFilters = !!(searchTerm || 
+                               (selectedCategory && selectedCategory !== 'all') || 
+                               (selectedBrand && selectedBrand !== 'all') || 
+                               (selectedStatus && selectedStatus !== 'all') || 
+                               (selectedStockStatus && selectedStockStatus !== 'all') || 
+                               (selectedFeatured && selectedFeatured !== 'all') || 
+                               minPrice || maxPrice);
 
     // Auto-search on enter key
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -252,7 +275,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Products Management" />
 
-            <div className="px-4 py-8 sm:px-6 lg:px-8">
+            <div className="px-4 py-8 sm:px-6 lg:px-8 mx-auto max-w-7xl">
                 {/* Header */}
                 <div className="mb-8">
                     <H1 className="text-3xl font-bold text-gray-900">Products Management</H1>
@@ -264,15 +287,15 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                     {/* Search and Filter Bar */}
                     <div className="mb-6 space-y-4">
                         <div className="flex items-center justify-between">
-                            <H2>Products</H2>
-                            <Button
-                                onClick={() => openDialog('create')}
-                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                            >
-                                <PlusIcon className="mr-2 h-4 w-4" />
-                                Add Product
-                            </Button>
-                        </div>
+                        <H2>Products</H2>
+                        <Button
+                            onClick={() => openDialog('create')}
+                            className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
+                        >
+                            <PlusIcon className="mr-2 h-4 w-4" />
+                            Add Product
+                        </Button>
+                    </div>
 
                         {/* Search Bar */}
                         <div className="flex flex-col sm:flex-row gap-4">
@@ -327,65 +350,81 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     {/* Category Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                        <select
+                                        <Select
                                             value={selectedCategory}
-                                            onChange={(e) => setSelectedCategory(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSelectedCategory}
                                         >
-                                            <option value="">All Categories</option>
-                                            {categories.map((category) => (
-                                                <option key={category.id} value={category.id}>
-                                                    {category.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="All Categories" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Categories</SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category.id} value={category.id.toString()}>
+                                                        {category.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Brand Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                                        <select
+                                        <Select
                                             value={selectedBrand}
-                                            onChange={(e) => setSelectedBrand(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSelectedBrand}
                                         >
-                                            <option value="">All Brands</option>
-                                            {brands.map((brand) => (
-                                                <option key={brand.id} value={brand.id}>
-                                                    {brand.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="All Brands" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Brands</SelectItem>
+                                                {brands.map((brand) => (
+                                                    <SelectItem key={brand.id} value={brand.id.toString()}>
+                                                        {brand.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Status Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                        <select
+                                        <Select
                                             value={selectedStatus}
-                                            onChange={(e) => setSelectedStatus(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSelectedStatus}
                                         >
-                                            <option value="">All Statuses</option>
-                                            <option value="draft">Draft</option>
-                                            <option value="published">Published</option>
-                                            <option value="archived">Archived</option>
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="All Statuses" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Statuses</SelectItem>
+                                                <SelectItem value="draft">Draft</SelectItem>
+                                                <SelectItem value="published">Published</SelectItem>
+                                                <SelectItem value="archived">Archived</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Stock Status Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Stock Status</label>
-                                        <select
+                                        <Select
                                             value={selectedStockStatus}
-                                            onChange={(e) => setSelectedStockStatus(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSelectedStockStatus}
                                         >
-                                            <option value="">All Stock Statuses</option>
-                                            <option value="in_stock">In Stock</option>
-                                            <option value="out_of_stock">Out of Stock</option>
-                                            <option value="on_backorder">On Backorder</option>
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="All Stock Statuses" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Stock Statuses</SelectItem>
+                                                <SelectItem value="in_stock">In Stock</SelectItem>
+                                                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                                                <SelectItem value="on_backorder">On Backorder</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
 
@@ -393,15 +432,19 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     {/* Featured Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Featured</label>
-                                        <select
+                                        <Select
                                             value={selectedFeatured}
-                                            onChange={(e) => setSelectedFeatured(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSelectedFeatured}
                                         >
-                                            <option value="">All Products</option>
-                                            <option value="1">Featured Only</option>
-                                            <option value="0">Non-Featured</option>
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="All Products" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Products</SelectItem>
+                                                <SelectItem value="1">Featured Only</SelectItem>
+                                                <SelectItem value="0">Non-Featured</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Price Range */}
@@ -429,28 +472,36 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     {/* Sort Options */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                                        <select
+                                        <Select
                                             value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSortBy}
                                         >
-                                            <option value="created_at">Date Created</option>
-                                            <option value="updated_at">Date Modified</option>
-                                            <option value="name">Name</option>
-                                            <option value="price">Price</option>
-                                            <option value="stock_quantity">Stock</option>
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="Sort By" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="created_at">Date Created</SelectItem>
+                                                <SelectItem value="updated_at">Date Modified</SelectItem>
+                                                <SelectItem value="name">Name</SelectItem>
+                                                <SelectItem value="price">Price</SelectItem>
+                                                <SelectItem value="stock_quantity">Stock</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
-                                        <select
+                                        <Select
                                             value={sortDirection}
-                                            onChange={(e) => setSortDirection(e.target.value)}
-                                            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                            onValueChange={setSortDirection}
                                         >
-                                            <option value="desc">Descending</option>
-                                            <option value="asc">Ascending</option>
-                                        </select>
+                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                                <SelectValue placeholder="Order" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="desc">Descending</SelectItem>
+                                                <SelectItem value="asc">Ascending</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
 
@@ -505,13 +556,13 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     Clear Filters
                                 </Button>
                             ) : (
-                                <Button
-                                    onClick={() => openDialog('create')}
-                                    className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                                >
-                                    <PlusIcon className="mr-2 h-4 w-4" />
-                                    Add Product
-                                </Button>
+                            <Button
+                                onClick={() => openDialog('create')}
+                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
+                            >
+                                <PlusIcon className="mr-2 h-4 w-4" />
+                                Add Product
+                            </Button>
                             )}
                         </div>
                     )}
@@ -541,8 +592,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                     onClose={() => setConfirmDialog(null)}
                     onConfirm={confirmDelete}
                     title="Delete Product"
-                    description={`Are you sure you want to delete "${confirmDialog.name}"? This action cannot be undone.`}
-                    confirmText="Delete"
+                    description={getProductWarningMessage(confirmDialog.name)}
+                    confirmText="Yes, Delete Product"
                     cancelText="Cancel"
                     variant="danger"
                 />

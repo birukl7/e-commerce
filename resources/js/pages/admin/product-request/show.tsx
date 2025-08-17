@@ -5,6 +5,7 @@ import AppLayout from '../../../layouts/app-layout';
 import { adminNavItems } from '../dashboard';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { BreadcrumbItem } from '@/types';
 
 // Type definitions
 interface User {
@@ -26,10 +27,6 @@ interface ProductRequest {
     admin?: User;
 }
 
-interface BreadcrumbItem {
-    title: string;
-    href?: string;
-}
 
 interface ProductRequestShowProps {
     product_request: ProductRequest;
@@ -43,7 +40,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
             case 'reviewed':
                 return 'default';
             case 'approved':
-                return 'success';
+                return 'default';
             case 'rejected':
                 return 'destructive';
             default:
@@ -65,14 +62,14 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/admin-dashboard' },
         { title: 'Product Requests', href: '/admin/product-requests' },
-        { title: product_request.product_name },
+        { title: product_request.product_name, href: `/admin/product-requests/${product_request.id}` },
     ];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title={`Request: ${product_request.product_name}`} />
 
-            <div className="m-auto max-w-4xl space-y-6 p-6">
+            <div className=" mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <Link href="/admin/product-requests" className="flex items-center gap-2 text-sm text-muted-foreground hover:underline">
                     <ArrowLeft className="h-4 w-4" />
                     Back to all requests
@@ -83,7 +80,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                             <div>
                                 <CardTitle className="text-2xl">{product_request.product_name}</CardTitle>
                                 <CardDescription>
-                                    Requested by {product_request.user.name} on {formatDate(new Date(product_request.created_at), 'PPP')}
+                                    Requested by {product_request.user.name} on {formatDate(product_request.created_at)}
                                 </CardDescription>
                             </div>
                             <Badge variant={getStatusBadge(product_request.status)} className="capitalize">
@@ -112,7 +109,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                 <p className="text-sm text-muted-foreground">{product_request.admin_response}</p>
                                 {product_request.admin && (
                                     <p className="mt-2 text-xs text-muted-foreground">
-                                        by {product_request.admin.name} on {formatDate(new Date(product_request.updated_at))}
+                                        by {product_request.admin.name} on {formatDate(product_request.updated_at)}
                                     </p>
                                 )}
                             </div>

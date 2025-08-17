@@ -2,6 +2,17 @@ import { Button } from "@/components/ui/button"
 import { Instagram, Facebook, Youtube } from "lucide-react"
 import { Link } from "@inertiajs/react"
 
+interface FooterProps {
+  settings?: {
+    footer_brand_description?: string;
+    footer_download_text?: string;
+    footer_location_text?: string;
+    footer_language_text?: string;
+    footer_currency_text?: string;
+    footer_copyright_text?: string;
+  };
+}
+
 const footerLinks = {
   Shop: ["Traditional Crafts", "Modern Products", "Ethiopian Coffee", "Handmade Textiles", "Art Gallery"],
   Sell: ["Become a Seller", "Artisan Program", "Coffee Partnership", "Craft Workshops", "Seller Support"],
@@ -24,7 +35,7 @@ const bottomLinks = [
 ]
 
 
-export default function Footer() {
+export default function Footer({ settings }: FooterProps) {
   return (
     <footer className="bg-slate-800 text-white">
       {/* Main Footer Content */}
@@ -34,9 +45,11 @@ export default function Footer() {
           <div className="bg-amber-500 rounded-lg p-4 mb-6">
             <span className="text-white font-bold text-2xl">ShopHub</span>
           </div>
-          <p className="text-amber-100 text-center mb-4">Discover Ethiopian treasures and modern essentials</p>
+          <p className="text-amber-100 text-center mb-4">
+            {settings?.footer_brand_description || "Discover Ethiopian treasures and modern essentials"}
+          </p>
           <Button className="bg-amber-800 hover:bg-amber-900 text-white px-6 py-3 rounded-full font-medium" size="lg">
-            Download ShopHub App
+            {settings?.footer_download_text || "Download ShopHub App"}
           </Button>
         </div>
 
@@ -90,16 +103,16 @@ export default function Footer() {
           {/* Location/Language Selector */}
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <span>🇪🇹</span>
-            <span>Ethiopia</span>
+            <span>{settings?.footer_location_text || "Ethiopia"}</span>
             <span>|</span>
-            <span>Amharic / English</span>
+            <span>{settings?.footer_language_text || "Amharic / English"}</span>
             <span>|</span>
-            <span> (ETB)</span>
+            <span>{settings?.footer_currency_text || " (ETB)"}</span>
           </div>
 
           {/* Copyright and Links */}
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-300">
-            <span>© 2025 ShopHub Ethiopia</span>
+            <span>{settings?.footer_copyright_text || "© 2025 ShopHub Ethiopia"}</span>
             {bottomLinks.map((link) => (
               <span key={link.name} className="flex items-center gap-4">
                 <Link href={link.href} className="hover:text-white transition-colors">

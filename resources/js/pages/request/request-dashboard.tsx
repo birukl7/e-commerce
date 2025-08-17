@@ -4,8 +4,8 @@ import type React from "react"
 
 import MainLayout from "@/layouts/app/main-layout"
 import type { NavItem, BreadcrumbItem } from "@/types"
-import { BrickWall, ListOrdered, Save, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard } from "lucide-react"
-import { useForm } from "@inertiajs/react"
+import { BrickWall, ListOrdered, Save, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard, Edit, Trash2 } from "lucide-react"
+import { useForm, Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
@@ -98,6 +98,12 @@ export default function RequestDashboard({ requests }: RequestProps) {
   const [showForm, setShowForm] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
+  const handleDelete = (requestId: number, productName: string) => {
+    if (confirm(`Are you sure you want to delete the request for "${productName}"?`)) {
+      router.delete(route('request.destroy', requestId))
+    }
+  }
+
   const { data, setData, post, processing, errors, reset } = useForm({
     product_name: "",
     description: "",
@@ -123,7 +129,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    post("/user-request", {
+    post(route('request.store'), {
       onSuccess: () => {
         reset()
         setImagePreview(null)
@@ -272,9 +278,30 @@ export default function RequestDashboard({ requests }: RequestProps) {
                         </span>
                       </div>
                       <p className="text-gray-600 mb-3">{request.description}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500">
-                        <span>Submitted: {new Date(request.created_at).toLocaleDateString()}</span>
-                        <span>Request ID: #{request.id}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>Submitted: {new Date(request.created_at).toLocaleDateString()}</span>
+                          <span>Request ID: #{request.id}</span>
+                        </div>
+                        {request.status === 'pending' && (
+                          <div className="flex items-center gap-2">
+                            <Link href={route('request.edit', request.id)}>
+                              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </Button>
+                            </Link>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleDelete(request.id, request.product_name)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              Delete
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                     {request.image && (

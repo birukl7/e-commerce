@@ -182,7 +182,7 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
     return (
         <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title="Payment Statistics" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans">
+            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans w-full max-w-7xl mx-auto">
                 {/* Header Section */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>

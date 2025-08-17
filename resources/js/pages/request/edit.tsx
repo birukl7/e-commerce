@@ -1,7 +1,7 @@
 import type React from "react"
 
 import { useState } from "react"
-import { useForm } from "@inertiajs/react"
+import { useForm, Head, Link } from "@inertiajs/react"
 import H2 from "@/components/ui/h2"
 import MainLayout from "@/layouts/app/main-layout"
 import { Button } from "@/components/ui/button"
@@ -9,22 +9,42 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload, X, CheckCircle, Home } from "lucide-react"
+import { Upload, X, ArrowLeft } from "lucide-react"
 
-const Index = () => {
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [isSubmitted, setIsSubmitted] = useState(false)
+interface ProductRequest {
+  id: number
+  product_name: string
+  description: string
+  image?: string
+  status: 'pending' | 'reviewed' | 'approved' | 'rejected'
+  admin_response?: string
+  created_at: string
+}
 
-  const { data, setData, post, processing, errors, reset } = useForm({
-    product_name: "",
-    description: "",
+interface Props {
+  request: ProductRequest
+}
+
+const EditRequest = ({ request }: Props) => {
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    request.image ? `/storage/${request.image}` : null
+  )
+  const [removeImage, setRemoveImage] = useState(false)
+
+  const { data, setData, post, processing, errors } = useForm({
+    _method: 'PUT',
+    product_name: request.product_name,
+    description: request.description,
     image: null as File | null,
+    remove_image: false,
   })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
       setData("image", file)
+      setRemoveImage(false)
+      setData("remove_image", false)
 
       // Create preview
       const reader = new FileReader()
@@ -35,9 +55,12 @@ const Index = () => {
     }
   }
 
-  const removeImage = () => {
+  const handleRemoveImage = () => {
     setData("image", null)
     setImagePreview(null)
+    setRemoveImage(true)
+    setData("remove_image", true)
+    
     // Reset file input
     const fileInput = document.getElementById("image") as HTMLInputElement
     if (fileInput) {
@@ -47,76 +70,70 @@ const Index = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
-    post(route('request.store'), {
-      onSuccess: () => {
-        setIsSubmitted(true)
-        reset()
-        setImagePreview(null)
+    
+    // Debug: Log form data before submission
+    console.log('Form data before submission:', data)
+    
+    post(route('request.update', request.id), {
+      forceFormData: true,
+      onError: (errors) => {
+        console.error('Validation errors:', errors)
       },
+      onSuccess: () => {
+        console.log('Request updated successfully')
+      }
     })
   }
 
-  const handleBackToHome = () => {
-    window.location.href = "/" // or use Inertia.visit('/')
-  }
-
-  if (isSubmitted) {
-    return (
-      <MainLayout title={"Request a feature"} className={""}>
-        <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center py-12 px-4">
-          <div className="max-w-2xl mx-auto w-full">
-            <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardContent className="p-12 text-center">
-                <div className="flex flex-col items-center space-y-6">
-                  <div className="bg-green-100 p-6 rounded-full">
-                    <CheckCircle className="h-16 w-16 text-green-600" />
-                  </div>
-                  <div className="space-y-3">
-                    <H2 className="text-3xl font-bold text-green-800">Request Submitted Successfully!</H2>
-                    <p className="text-lg text-gray-600 max-w-md text-center">
-                      Thank you for your product request. We'll review it carefully and get back to you soon.
-                    </p>
-                  </div>
-                  <div className="bg-gray-50 p-6 rounded-lg w-full max-w-md">
-                    <p className="text-sm text-gray-500 mb-2 text-left">What happens next?</p>
-                    <ul className="text-sm text-gray-700 space-y-1 text-left">
-                      <li>• Our team will review your request</li>
-                      <li>• We'll evaluate feasibility and impact</li>
-                      <li>• You'll receive updates via email</li>
-                    </ul>
-                  </div>
-                  <Button
-                    onClick={handleBackToHome}
-                    className="mt-6 h-12 px-8 text-base shadow-lg"
-                  >
-                    <Home className="w-5 h-5 mr-2" />
-                    Back to Homepage
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-        </div>
-      </MainLayout>
-    )
-  }
-
   return (
-    <MainLayout title={"Request a feature"} className={""}>
+    <MainLayout title={"Edit Request"} className={""}>
+      <Head title="Edit Product Request" />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
         <div className="max-w-4xl mx-auto">
+          <div className="mb-6">
+            <Link 
+              href={route('request.index')}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Requests
+            </Link>
+          </div>
+
           <div className="text-center mb-8">
-            <H2 className="text-3xl font-bold text-gray-900 mb-4">Request a New Product Feature</H2>
+            <H2 className="text-3xl font-bold text-gray-900 mb-4">Edit Product Request</H2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Have an idea for a new product or feature? We'd love to hear from you! Share your vision and help us build
-              something amazing together.
+              Update your product request details. Note: You can only edit pending requests.
             </p>
           </div>
 
           <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
             <CardContent className="p-8">
+              {/* Error Summary */}
+              {Object.keys(errors).length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                  <div className="flex items-center mb-2">
+                    <div className="flex-shrink-0">
+                      <X className="h-5 w-5 text-red-400" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-red-800">
+                        Please fix the following errors:
+                      </h3>
+                    </div>
+                  </div>
+                  <div className="ml-8">
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {Object.entries(errors).map(([field, message]) => (
+                        <li key={field}>
+                          <strong>{field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}:</strong> {message}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid md:grid-cols-2 gap-8">
                   {/* Left Column - Form Fields */}
@@ -204,12 +221,22 @@ const Index = () => {
                             variant="destructive"
                             size="sm"
                             className="absolute top-3 right-3 opacity-80 hover:opacity-100 shadow-lg"
-                            onClick={removeImage}
+                            onClick={handleRemoveImage}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                           <div className="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg">
                             <span className="text-sm font-medium text-gray-700">Product Image</span>
+                          </div>
+                          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-lg">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => document.getElementById('image')?.click()}
+                            >
+                              Change Image
+                            </Button>
                           </div>
                         </div>
                       )}
@@ -223,32 +250,38 @@ const Index = () => {
                   </div>
                 </div>
 
+                {/* Admin Response (if any) */}
+                {request.admin_response && (
+                  <div className="p-4 bg-gray-50 rounded-lg border">
+                    <h3 className="font-semibold text-gray-800 mb-2">Admin Response:</h3>
+                    <p className="text-gray-600">{request.admin_response}</p>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex flex-col sm:flex-row justify-end gap-4 pt-6 border-t border-gray-200">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      reset()
-                      setImagePreview(null)
-                    }}
-                    disabled={processing}
-                    className="h-12 px-8 text-base"
-                  >
-                    Clear Form
-                  </Button>
+                  <Link href={route('request.index')}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={processing}
+                      className="h-12 px-8 text-base w-full sm:w-auto"
+                    >
+                      Cancel
+                    </Button>
+                  </Link>
                   <Button
                     type="submit"
                     disabled={processing}
-                    className="h-12 px-8 text-base shadow-lg"
+                    className="h-12 px-8 text-base shadow-lg w-full sm:w-auto"
                   >
                     {processing ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Submitting...
+                        Updating...
                       </>
                     ) : (
-                      "Submit Request"
+                      "Update Request"
                     )}
                   </Button>
                 </div>
@@ -261,4 +294,4 @@ const Index = () => {
   )
 }
 
-export default Index
+export default EditRequest

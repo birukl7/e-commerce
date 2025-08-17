@@ -20,6 +20,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
+use App\Http\Controllers\AdminSiteConfigController;
 // use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -43,16 +44,19 @@ Route::controller(SocialiteController::class)->group(function() {
 
 
 Route::get('/', function () {
-    return Inertia::render('welcome');
+    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
+    return Inertia::render('welcome', ['settings' => $settings]);
 })->name('home');
 
 // Legal pages
 Route::get('/terms', function () {
-    return Inertia::render('terms');
+    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
+    return Inertia::render('terms', ['settings' => $settings]);
 })->name('terms');
 
 Route::get('/privacy', function () {
-    return Inertia::render('privacy');
+    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
+    return Inertia::render('privacy', ['settings' => $settings]);
 })->name('privacy');
 
 Route::resource('categories', CategoryController::class)->parameters([
@@ -91,7 +95,10 @@ Route::prefix('payment')->name('payment.')->group(function () {
     Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
     Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
     Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
-    // routes/web.php
+    
+    // Offline payment routes
+    Route::post('/offline/submit', [App\Http\Controllers\OfflinePaymentController::class, 'submit'])->name('offline.submit');
+    Route::get('/offline/payment-methods', [App\Http\Controllers\OfflinePaymentController::class, 'getPaymentMethods'])->name('offline.methods');
 });
 
 // Admin routes
@@ -119,6 +126,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
     Route::resource('admin/products', AdminProductController::class);
     Route::resource('/admin/customers', CustomerController::class);
+    Route::get('/admin/suppliers', [CustomerController::class, 'suppliers'])->name('admin.suppliers.index');
     Route::resource('admin/orders', AdminOrderController::class);
     Route::resource('admin/product-requests', AdminProductRequestController::class);
     
@@ -132,6 +140,20 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
     Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
     Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
+
+    // Site Configuration routes
+    Route::get('/admin/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
+    Route::post('/admin/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
+    
+    // Offline Payment Method Management
+    Route::post('/admin/offline-payment-methods', [AdminSiteConfigController::class, 'storeOfflinePaymentMethod'])->name('admin.offline-payment-methods.store');
+    Route::put('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'updateOfflinePaymentMethod'])->name('admin.offline-payment-methods.update');
+    Route::delete('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'deleteOfflinePaymentMethod'])->name('admin.offline-payment-methods.destroy');
+    
+    // Offline Payment Submissions Management
+    Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])->name('admin.offline-payments.index');
+    Route::get('/admin/offline-payments/{submission}', [App\Http\Controllers\OfflinePaymentController::class, 'adminShow'])->name('admin.offline-payments.show');
+    Route::post('/admin/offline-payments/{submission}/status', [App\Http\Controllers\OfflinePaymentController::class, 'adminUpdateStatus'])->name('admin.offline-payments.update-status');
 });
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {
@@ -154,8 +176,12 @@ Route::middleware(['auth', 'verified',])->group(function () {
     // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
     
     // Product Request routes
-    Route::post('/user-request', [RequestController::class, 'store'])->name('user.request.store');
-    Route::get('/user-request/history', [RequestController::class, 'history'])->name('user.request.history');
+    Route::get('/request', [RequestController::class, 'index'])->name('request.index');
+    Route::post('/request', [RequestController::class, 'store'])->name('request.store');
+    Route::get('/request/{productRequest}/edit', [RequestController::class, 'edit'])->name('request.edit');
+    Route::put('/request/{productRequest}', [RequestController::class, 'update'])->name('request.update');
+    Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
+    Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
     
     // Wishlist AJAX routes
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');

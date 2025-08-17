@@ -7,6 +7,8 @@ use App\Models\Brand;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 
 class AdminCategoryController extends Controller
 {
@@ -92,9 +94,37 @@ class AdminCategoryController extends Controller
     }
     
 
-    public function destroy(Category $category)
+    public function destroy(Request $request, Category $category)
     {
+        // Validate password
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        $user = Auth::user();
+        
+        // Check if the provided password matches the user's password
+        if (!Hash::check($request->password, $user->password)) {
+            return back()->withErrors([
+                'password' => 'The provided password is incorrect.'
+            ])->withInput();
+        }
+
+        // Check if category has products associated with it
+        $productCount = $category->products()->count();
+        $childCategoryCount = $category->children()->count();
+
+        // Delete the category (this will cascade delete products if configured)
         $category->delete();
-        return redirect()->back()->with('success', 'Category deleted successfully.');
+
+        $message = 'Category deleted successfully.';
+        if ($productCount > 0) {
+            $message .= " {$productCount} associated product(s) were also deleted.";
+        }
+        if ($childCategoryCount > 0) {
+            $message .= " {$childCategoryCount} child categor(ies) were also deleted.";
+        }
+
+        return redirect()->back()->with('success', $message);
     }
 }

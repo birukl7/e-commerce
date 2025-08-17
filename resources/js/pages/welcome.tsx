@@ -10,8 +10,11 @@ import CTASection from "@/components/homepage/cta-section"
 import AboutSection from "@/components/homepage/about-section"
 import Footer from "@/components/footer"
 
+interface WelcomeProps {
+  settings?: Record<string, string>;
+}
 
-function WelcomeContent() {
+function WelcomeContent({ settings }: WelcomeProps) {
 
   return (
     <>
@@ -28,7 +31,7 @@ function WelcomeContent() {
         {/* Hero Section with Search Bar */}
         
         <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50  container mx-auto">
-          <HomePageBanner/>
+          <HomePageBanner settings={settings} />
         </section>
 
         <section className="container mx-auto">
@@ -56,19 +59,19 @@ function WelcomeContent() {
           <DealsCarousel/>
         </section> */}
         
-          <AboutSection/>
+          <AboutSection settings={settings} />
         
-          <Footer />
+          <Footer settings={settings} />
 
       </div>
     </>
   )
 }
 
-export default function Welcome() {
+export default function Welcome({ settings }: WelcomeProps) {
   return (
     <CartProvider>
-      <WelcomeContent />
+      <WelcomeContent settings={settings} />
     </CartProvider>
   )
 }

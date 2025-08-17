@@ -71,19 +71,30 @@ class RegisteredUserController extends Controller
                 'status' => 'active',
             ]);
 
-            // Assign default user role
-            $userRole = Role::where('name', 'user')->first();
-            if ($userRole) {
-                $user->assignRole($userRole);
-            }
-
+            // Assign role based on registration choice
             $roleName = $request->role;
-
-            $role = Role::where('name', $roleName)->first();
+            
+            // Map frontend role names to backend role names if needed
+            $roleMapping = [
+                'customer' => 'customer',
+                'supplier' => 'supplier'
+            ];
+            
+            $actualRoleName = $roleMapping[$roleName] ?? $roleName;
+            
+            $role = Role::where('name', $actualRoleName)->first();
             if ($role) {
                 $user->assignRole($role);
+                Log::info("User registered with role: {$actualRoleName}", ['user_id' => $user->id]);
             } else {
-                throw new \Exception("Role '{$roleName}' does not exist.");
+                // If specific role doesn't exist, assign default 'user' role
+                $defaultRole = Role::where('name', 'user')->first();
+                if ($defaultRole) {
+                    $user->assignRole($defaultRole);
+                    Log::warning("Role '{$actualRoleName}' not found, assigned 'user' role instead", ['user_id' => $user->id]);
+                } else {
+                    throw new \Exception("Neither role '{$actualRoleName}' nor default 'user' role exists.");
+                }
             }
 
             // Create default address if provided

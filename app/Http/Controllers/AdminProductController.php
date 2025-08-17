@@ -126,8 +126,20 @@ class AdminProductController extends Controller
             'status' => 'required|in:draft,published,archived',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ], [
+            'images.*.image' => 'Each file must be a valid image.',
+            'images.*.mimes' => 'Images must be JPEG, PNG, JPG, GIF, or WebP format.',
+            'images.*.max' => 'Each image must be less than 2MB.',
+            'images.max' => 'You can upload a maximum of 10 images.',
+            'category_id.required' => 'Please select a category.',
+            'category_id.exists' => 'The selected category is invalid.',
+            'brand_id.required' => 'Please select a brand.',
+            'brand_id.exists' => 'The selected brand is invalid.',
+            'sku.unique' => 'This SKU is already in use. Please choose a different one.',
+            'price.min' => 'Price must be greater than or equal to 0.',
+            'stock_quantity.min' => 'Stock quantity cannot be negative.',
         ]);
 
         // Generate slug from name
@@ -182,8 +194,20 @@ class AdminProductController extends Controller
             'status' => 'required|in:draft,published,archived',
             'meta_title' => 'nullable|string|max:255',
             'meta_description' => 'nullable|string',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images' => 'nullable|array|max:10',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+        ], [
+            'images.*.image' => 'Each file must be a valid image.',
+            'images.*.mimes' => 'Images must be JPEG, PNG, JPG, GIF, or WebP format.',
+            'images.*.max' => 'Each image must be less than 2MB.',
+            'images.max' => 'You can upload a maximum of 10 images.',
+            'category_id.required' => 'Please select a category.',
+            'category_id.exists' => 'The selected category is invalid.',
+            'brand_id.required' => 'Please select a brand.',
+            'brand_id.exists' => 'The selected brand is invalid.',
+            'sku.unique' => 'This SKU is already in use. Please choose a different one.',
+            'price.min' => 'Price must be greater than or equal to 0.',
+            'stock_quantity.min' => 'Stock quantity cannot be negative.',
         ]);
 
         // Generate slug from name

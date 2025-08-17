@@ -47,18 +47,32 @@ class AdminProductRequestController extends Controller
      */
     public function update(Request $request, ProductRequest $productRequest)
     {
-        $request->validate([
+        $validated = $request->validate([
             'status' => ['required', 'in:pending,reviewed,approved,rejected'],
             'admin_response' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'status.required' => 'Please select a status for this request.',
+            'status.in' => 'The selected status is invalid.',
+            'admin_response.max' => 'Admin response cannot exceed 5000 characters.',
         ]);
 
         $productRequest->update([
-            'status' => $request->status,
-            'admin_response' => $request->admin_response,
+            'status' => $validated['status'],
+            'admin_response' => $validated['admin_response'],
             'admin_id' => Auth::id(),
+            'updated_at' => now(),
         ]);
 
+        $statusMessages = [
+            'pending' => 'Product request status has been set to pending.',
+            'reviewed' => 'Product request has been marked as reviewed.',
+            'approved' => 'Product request has been approved successfully.',
+            'rejected' => 'Product request has been rejected.',
+        ];
+
+        $message = $statusMessages[$validated['status']] ?? 'Product request updated successfully.';
+
         return redirect()->route('admin.product-requests.show', $productRequest->id)
-                         ->with('success', 'Product request updated successfully.');
+                         ->with('success', $message);
     }
 }

@@ -58,11 +58,11 @@ export const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
     { title: 'Products', href: '/admin/products', icon: Package },
     { title: 'Payments', href: '/admin/paymentStats', icon: CreditCard },
-    { title: 'Customers', href: '/admin/customers', icon: Users },
+    { title: 'Suppliers and Customers', href: '/admin/customers', icon: Users },
     { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
     { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { title: 'Site Configuration', href: '/admin/settings', icon: Settings },
+    { title: 'Site Configuration', href: '/admin/site-config', icon: Settings },
 ];
 
 interface DashboardStats {
@@ -160,7 +160,7 @@ export default function AdminDashboard({
     return (
         <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title="Admin Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans">
+            <div className="flex   flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans max-w-7xl mx-auto w-full">
                 {/* Header Section */}
                 <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Admin Dashboard</h1>

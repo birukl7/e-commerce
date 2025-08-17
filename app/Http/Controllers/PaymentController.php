@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use App\Models\OfflinePaymentMethod;
 
 class PaymentController extends Controller
 {
@@ -28,10 +29,55 @@ class PaymentController extends Controller
         $currency = $request->get('currency', 'ETB');
         
         // Get customer info from auth or session
-        $user = auth()->user();
+        $user = auth()->check() ? auth()->user() : null;
         $customerEmail = $user ? $user->email : '';
         $customerName = $user ? $user->name : '';
-        $customerPhone = $user ? $user->phone : '';
+        // $customerPhone = $user ? $user->phone : '';
+
+        // Get active offline payment methods - Force test data for now
+        $offlinePaymentMethods = collect([
+            (object) [
+                'id' => 1,
+                'name' => 'Commercial Bank of Ethiopia',
+                'type' => 'bank',
+                'description' => 'Transfer money to our CBE bank account and upload the receipt',
+                'instructions' => 'Please transfer the exact amount to our CBE account and upload a clear screenshot of your payment confirmation.',
+                'details' => [
+                    'account_name' => 'ShopHub E-commerce',
+                    'account_number' => '1000123456789',
+                    'bank_name' => 'Commercial Bank of Ethiopia',
+                    'branch' => 'Main Branch'
+                ],
+                'logo' => null,
+                'is_active' => true,
+                'sort_order' => 1,
+            ],
+            (object) [
+                'id' => 2,
+                'name' => 'Telebirr Mobile Money',
+                'type' => 'mobile',
+                'description' => 'Send payment via Telebirr mobile money and upload the confirmation SMS screenshot',
+                'instructions' => 'Send the exact amount to our Telebirr number and upload a screenshot of the success message.',
+                'details' => [
+                    'phone_number' => '+251911234567',
+                    'account_name' => 'ShopHub Store',
+                    'service' => 'Telebirr'
+                ],
+                'logo' => null,
+                'is_active' => true,
+                'sort_order' => 2,
+            ],
+        ]);
+
+        // TODO: Replace with database query once migrations are run
+        // try {
+        //     $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
+        //     if ($offlinePaymentMethods->isEmpty()) {
+        //         $offlinePaymentMethods = $testData; // Use test data if DB is empty
+        //     }
+        // } catch (\Exception $e) {
+        //     $offlinePaymentMethods = $testData; // Use test data if table doesn't exist
+        // }
 
         return Inertia::render('payment/payment-process', [
             'order_id' => $orderId,
@@ -39,7 +85,8 @@ class PaymentController extends Controller
             'currency' => $currency,
             'customer_email' => $customerEmail,
             'customer_name' => $customerName,
-            'customer_phone' => $customerPhone,
+            // 'customer_phone' => $customerPhone,
+            'offlinePaymentMethods' => $offlinePaymentMethods,
         ]);
     }
 
@@ -49,7 +96,7 @@ class PaymentController extends Controller
             'payment_method' => 'required|in:telebirr,cbe,paypal',
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'required|email',
-            'customer_phone' => 'required|string',
+            // 'customer_phone' => 'required|string',
             'order_id' => 'required|string',
             'amount' => 'required|numeric|min:1',
             'currency' => 'required|string|in:ETB,USD',
@@ -109,7 +156,6 @@ class PaymentController extends Controller
                     return Inertia::location($responseData['data']['checkout_url']);
                 }
             }
-
             Log::error('Chapa payment initialization failed', [
                 'response' => $response->json(),
                 'status' => $response->status(),

@@ -25,13 +25,23 @@ class DatabaseSeeder extends Seeder
             TagSeeder::class,
             ProductSeeder::class,
             ProductImageSeeder::class,
+            UserSeeder::class,
         ]);
 
-        User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
             'password' => Hash::make('test1234'),
             'email_verified_at' => Carbon::now()
+        ]);
+        
+        $user->addresses()->create([
+            'address_line_1' => '123 Main St',
+            'city' => 'Anytown',
+            'state' => 'CA',
+            'postal_code' => '12345',
+            'phone' => '0944055361',
+            'country' => 'USA',
         ]);
 
        $admin =  User::factory()->create([

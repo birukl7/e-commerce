@@ -9,8 +9,8 @@ import H2 from '@/components/ui/h2';
 import H3 from '@/components/ui/h3';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
-import { EyeIcon, ImageIcon, PencilIcon, PlusIcon, TrashIcon } from 'lucide-react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { ImageIcon, PencilIcon, PlusIcon, TrashIcon } from 'lucide-react';
 import { useState } from 'react';
 import { adminNavItems } from '../dashboard';
 
@@ -74,6 +74,15 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         name: string;
     } | null>(null);
 
+    const [deleteErrors, setDeleteErrors] = useState<{
+        password?: string[]
+    }>({});
+
+    // Form for handling deletion with password
+    const deleteForm = useForm({
+        password: ''
+    });
+
     const openDialog = (type: 'category' | 'brand', action: 'create' | 'edit', data?: Category | Brand) => {
         setDialogState({ type, action, data: data || null });
     };
@@ -83,6 +92,8 @@ const Index = ({ categories = [], brands = [] }: Props) => {
     };
 
     const handleDelete = (type: 'category' | 'brand', id: number, name: string) => {
+        setDeleteErrors({}); // Clear any previous errors
+        deleteForm.reset(); // Reset the form
         setConfirmDialog({
             isOpen: true,
             type,
@@ -91,10 +102,66 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         });
     };
 
-    const confirmDelete = () => {
+    const getCategoryWarningMessage = (categoryName: string) => {
+        return `
+            <div class="space-y-3">
+                <p><strong>⚠️ WARNING: This action is irreversible!</strong></p>
+                <p>Deleting the category "<strong>${categoryName}</strong>" will permanently:</p>
+                <ul class="list-disc list-inside ml-4 space-y-1 text-sm">
+                    <li><strong>Delete ALL products</strong> associated with this category</li>
+                    <li><strong>Delete ALL child categories</strong> (subcategories) under this category</li>
+                    <li><strong>Remove ALL product images, descriptions, and data</strong> for products in this category</li>
+                    <li><strong>Delete order history</strong> containing products from this category</li>
+                    <li><strong>Remove wishlist items</strong> that reference products in this category</li>
+                    <li><strong>Clear shopping carts</strong> containing products from this category</li>
+                </ul>
+                <p class="text-red-600 font-semibold">This could affect hundreds of products and customer data!</p>
+                <p>Please enter your password to confirm this dangerous operation.</p>
+            </div>
+        `;
+    };
+
+    const getBrandWarningMessage = (brandName: string) => {
+        return `Are you sure you want to delete "${brandName}"? This action cannot be undone.`;
+    };
+
+    const confirmDelete = (password?: string) => {
         if (confirmDialog) {
-            router.delete(`/admin/${confirmDialog.type === 'category' ? 'categories' : 'brands'}/${confirmDialog.id}`);
-            setConfirmDialog(null);
+            if (confirmDialog.type === 'category' && password) {
+                // Set the password in the form
+                deleteForm.setData('password', password);
+                
+                // Clear any previous errors
+                setDeleteErrors({});
+                
+                deleteForm.delete(`/admin/categories/${confirmDialog.id}`, {
+                    preserveState: true,
+                    onError: (errors) => {
+                        console.log('Delete errors received:', errors);
+                        // Store errors to display in the dialog
+                        if (errors.password) {
+                            setDeleteErrors({ password: Array.isArray(errors.password) ? errors.password : [errors.password] });
+                            // Dialog stays open to show the error
+                        } else {
+                            // For other errors, close dialog and let them be handled by the page
+                            setConfirmDialog(null);
+                            setDeleteErrors({});
+                        }
+                    },
+                    onSuccess: () => {
+                        setConfirmDialog(null);
+                        setDeleteErrors({});
+                        deleteForm.reset();
+                    }
+                });
+            } else {
+                // For brands, use regular router delete (no password required)
+                router.delete(`/admin/brands/${confirmDialog.id}`, {
+                    onSuccess: () => {
+                        setConfirmDialog(null);
+                    }
+                });
+            }
         }
     };
 
@@ -102,7 +169,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
             <div className="relative aspect-video bg-gray-100">
                 {category.image ? (
-                    <img src={`/image/${category.image}`} alt={category.name} className="h-full w-full object-cover" />
+                    <img src={`/storage/${category.image}`} alt={category.name} className="h-full w-full object-cover" />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center">
                         <ImageIcon className="h-12 w-12 text-gray-400" />
@@ -132,13 +199,6 @@ const Index = ({ categories = [], brands = [] }: Props) => {
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">Sort: {category.sort_order}</span>
                     <div className="flex space-x-1">
-                        <Link
-                            href={`/admin/categories/${category.id}`}
-                            className="rounded-full p-2 text-blue-600 transition-colors hover:bg-blue-50"
-                            title="View"
-                        >
-                            <EyeIcon className="h-4 w-4" />
-                        </Link>
                         <button
                             onClick={() => openDialog('category', 'edit', category)}
                             className="rounded-full p-2 text-green-600 transition-colors hover:bg-green-50"
@@ -185,13 +245,6 @@ const Index = ({ categories = [], brands = [] }: Props) => {
                 <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-500">/{brand.slug}</span>
                     <div className="flex space-x-1">
-                        <Link
-                            href={`/admin/brands/${brand.id}`}
-                            className="rounded-full p-2 text-blue-600 transition-colors hover:bg-blue-50"
-                            title="View"
-                        >
-                            <EyeIcon className="h-4 w-4" />
-                        </Link>
                         <button
                             onClick={() => openDialog('brand', 'edit', brand)}
                             className="rounded-full p-2 text-green-600 transition-colors hover:bg-green-50"
@@ -216,7 +269,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Categories & Brands Management" />
 
-            <div className="px-4 py-8 sm:px-6 lg:px-8">
+            <div className="px-4 py-8 sm:px-6 lg:px-8 mx-auto max-w-7xl">
                 {/* Header */}
                 <div className="mb-8">
                     <H1 className="text-3xl font-bold text-gray-900">Categories & Brands</H1>
@@ -342,13 +395,24 @@ const Index = ({ categories = [], brands = [] }: Props) => {
             {confirmDialog && (
                 <ConfirmationDialog
                     isOpen={confirmDialog.isOpen}
-                    onClose={() => setConfirmDialog(null)}
+                    onClose={() => {
+                        setConfirmDialog(null);
+                        setDeleteErrors({});
+                        deleteForm.reset();
+                    }}
                     onConfirm={confirmDelete}
                     title={`Delete ${confirmDialog.type === 'category' ? 'Category' : 'Brand'}`}
-                    description={`Are you sure you want to delete "${confirmDialog.name}"? This action cannot be undone.`}
-                    confirmText="Delete"
+                    description={
+                        confirmDialog.type === 'category' 
+                            ? getCategoryWarningMessage(confirmDialog.name)
+                            : getBrandWarningMessage(confirmDialog.name)
+                    }
+                    confirmText={confirmDialog.type === 'category' ? 'Yes, Delete Category & All Products' : 'Delete'}
                     cancelText="Cancel"
                     variant="danger"
+                    requirePassword={confirmDialog.type === 'category'}
+                    passwordPlaceholder="Enter your admin password to confirm deletion"
+                    serverErrors={deleteForm.errors.password ? { password: [deleteForm.errors.password] } : deleteErrors}
                 />
             )}
         </AppLayout>
