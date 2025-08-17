@@ -3,6 +3,7 @@
 use App\Http\Controllers\AdminBrandController;
 use App\Http\Controllers\AdminCategoryController;
 use App\Http\Controllers\AdminProductController;
+use App\Http\Controllers\AdminProductRequestController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\ChooseRoleController;
 use App\Http\Controllers\ProductController;
@@ -19,7 +20,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
-use App\Http\Controller\AdminProductRequestController;
+// use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;

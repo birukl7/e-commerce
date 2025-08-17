@@ -26,7 +26,7 @@ function CheckoutContent() {
     };
 
     return (
-        <div className="min-h-screen bg-white text-slate-900 dark:bg-slate-900 dark:text-white">
+        <div className="min-h-screen bg-white text-slate-900 ">
             <Header />
             <div className="mx-auto max-w-[1280px] py-8">
                 <div className="container mx-auto px-4 md:px-6">

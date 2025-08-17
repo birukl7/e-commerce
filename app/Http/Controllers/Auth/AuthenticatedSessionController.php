@@ -54,17 +54,16 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        // Redirect based on user role
-        if ($user->hasRole('admin')) {
-            return redirect()->intended(route('admin.dashboard'));
+        // Redirect based on user role (force target routes, not intended)
+        if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
+            return redirect()->route('admin.dashboard');
         }
 
         if ($user->hasRole('user')) {
-            return redirect()->intended(route('home'));
+            return redirect()->route('user.dashboard');
         }
 
-        
-        return redirect()->intended(route('user.dashboard'));
+        return redirect()->route('user.dashboard');
     }
 
 
@@ -76,12 +75,23 @@ class AuthenticatedSessionController extends Controller
         // Check if user account is active
         $user = Auth::user();
 
+        // Ensure the authenticated user actually has admin access
+        if (! $user || ! $user->can('access admin dashboard')) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->withErrors([
+                'email' => 'You do not have permission to access the admin dashboard.',
+            ]);
+        }
+
         // Check email verification if required
         if ($user instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && !$user->hasVerifiedEmail()) {
             return redirect()->route('verification.notice');
         }
 
-        return redirect()->intended(route('admin.dashboard'));
+        // Always send admin users directly to the admin dashboard
+        return redirect()->route('admin.dashboard');
     }
 
     /**

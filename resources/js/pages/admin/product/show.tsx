@@ -6,6 +6,7 @@ import { Head, Link, router } from "@inertiajs/react"
 import { ArrowLeftIcon, PencilIcon, TrashIcon, ImageIcon, TagIcon, CalendarIcon, SortAscIcon, PackageIcon } from "lucide-react"
 import { useState } from "react"
 import ConfirmationDialog from "@/components/confirmation-dialog"
+import ProductDialog from "@/components/product-dialog"
 import { adminNavItems } from "../dashboard"
 
 interface ProductImage {
@@ -59,10 +60,14 @@ interface Product {
 
 interface Props {
   product: Product
+  categories: { id: number; name: string }[]
+  brands: { id: number; name: string }[]
 }
 
-const Show = ({ product }: Props) => {
+const Show = ({ product, categories, brands }: Props) => {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -82,7 +87,7 @@ const Show = ({ product }: Props) => {
     setConfirmDelete(false)
   }
 
-  const primaryImage = product.images.find((img) => img.is_primary) || product.images[0]
+  const displayedImage = product.images[selectedImageIndex] || product.images.find((img) => img.is_primary) || product.images[0]
 
   return (
     <AppLayout mainNavItems={adminNavItems} footerNavItems={[]}>
@@ -136,13 +141,13 @@ const Show = ({ product }: Props) => {
             </div>
 
             <div className="flex space-x-2">
-              <CustomLink
-                href={`/admin/products/${product.id}/edit`}
+              <Button
+                onClick={() => setEditDialogOpen(true)}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <PencilIcon className="w-4 h-4 mr-2" />
                 Edit
-              </CustomLink>
+              </Button>
               <Button
                 className="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 onClick={() => setConfirmDelete(true)}
@@ -160,9 +165,9 @@ const Show = ({ product }: Props) => {
             {/* Images */}
             <div className="bg-white rounded-lg shadow-md overflow-hidden">
               <div className="aspect-video bg-gray-100 relative flex items-center justify-center">
-                {primaryImage ? (
+                {displayedImage ? (
                   <img
-                    src={`/storage/${primaryImage.image_path}`}
+                    src={`/storage/${displayedImage.image_path}`}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
@@ -180,9 +185,10 @@ const Show = ({ product }: Props) => {
                       key={img.id || idx}
                       src={`/storage/${img.image_path}`}
                       alt={img.alt_text || product.name}
-                      className={`w-16 h-16 object-cover rounded border ${
-                        img.is_primary ? "ring-2 ring-blue-500" : ""
+                      className={`w-16 h-16 object-cover rounded border cursor-pointer transition-all ${
+                        idx === selectedImageIndex ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-gray-300"
                       }`}
+                      onClick={() => setSelectedImageIndex(idx)}
                     />
                   ))}
                 </div>
@@ -318,6 +324,18 @@ const Show = ({ product }: Props) => {
             </div>
           </div>
         </div>
+
+        {/* Edit Dialog */}
+        {editDialogOpen && (
+          <ProductDialog
+            isOpen={true}
+            onClose={() => setEditDialogOpen(false)}
+            action="edit"
+            product={product as any}
+            categories={categories as any}
+            brands={brands as any}
+          />
+        )}
 
         {/* Confirmation Dialog */}
         {confirmDelete && (

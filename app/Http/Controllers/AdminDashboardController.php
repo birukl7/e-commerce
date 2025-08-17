@@ -87,15 +87,24 @@ class AdminDashboardController extends Controller
             }
         }
 
-        // 6. Customer Registration Trends
+        // 6. Customer Registration Trends (DB-agnostic month formatting)
+        $driver = DB::connection()->getDriverName();
+        if ($driver === 'sqlite') {
+            $monthFormat = "strftime('%Y-%m', created_at)";
+        } elseif ($driver === 'pgsql') {
+            $monthFormat = "to_char(created_at, 'YYYY-MM')";
+        } else { // mysql, mariadb, etc.
+            $monthFormat = "DATE_FORMAT(created_at, '%Y-%m')";
+        }
+
         $customerRegistrationTrends = User::select(
-                                            DB::raw('DATE_FORMAT(created_at, "%Y-%m") as month'),
-                                            DB::raw('COUNT(*) as count')
-                                        )
-                                        ->where('created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
-                                        ->groupBy('month')
-                                        ->orderBy('month')
-                                        ->get();
+                                                DB::raw("{$monthFormat} as month"),
+                                                DB::raw('COUNT(*) as count')
+                                            )
+                                            ->where('created_at', '>=', Carbon::now()->subMonths(11)->startOfMonth())
+                                            ->groupBy(DB::raw($monthFormat))
+                                            ->orderBy('month')
+                                            ->get();
 
         // --- Payment Transactions Listing (Moved from AdminPaymentController) ---
         $paymentQuery = PaymentTransaction::query()

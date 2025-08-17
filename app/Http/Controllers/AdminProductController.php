@@ -8,36 +8,104 @@ use App\Models\Brand;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
 
 class AdminProductController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $products = Product::with(['category', 'brand', 'images'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-            
+        $query = Product::with(['category', 'brand', 'images']);
+
+        // Search functionality
+        if ($request->filled('search')) {
+            $search = $request->get('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        // Category filter
+        if ($request->filled('category')) {
+            $query->where('category_id', $request->get('category'));
+        }
+
+        // Brand filter
+        if ($request->filled('brand')) {
+            $query->where('brand_id', $request->get('brand'));
+        }
+
+        // Status filter
+        if ($request->filled('status')) {
+            $query->where('status', $request->get('status'));
+        }
+
+        // Stock status filter
+        if ($request->filled('stock_status')) {
+            $query->where('stock_status', $request->get('stock_status'));
+        }
+
+        // Featured filter
+        if ($request->filled('featured')) {
+            $query->where('featured', $request->boolean('featured'));
+        }
+
+        // Price range filter
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', $request->get('min_price'));
+        }
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', $request->get('max_price'));
+        }
+
+        // Sorting
+        $sortBy = $request->get('sort_by', 'created_at');
+        $sortDirection = $request->get('sort_direction', 'desc');
+        
+        $allowedSorts = ['created_at', 'name', 'price', 'stock_quantity', 'updated_at'];
+        if (in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortDirection);
+        }
+
+        $products = $query->paginate(12)->withQueryString();
+
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
         return Inertia::render('admin/product/index', [
             'products' => $products,
             'categories' => $categories,
-            'brands' => $brands
+            'brands' => $brands,
+            'filters' => $request->only([
+                'search', 'category', 'brand', 'status', 'stock_status', 
+                'featured', 'min_price', 'max_price', 'sort_by', 'sort_direction'
+            ])
         ]);
     }
 
     public function show(Product $product)
     {
         $product->load(['category', 'brand', 'images', 'attributes', 'tags']);
-        
+
+        $categories = Category::where('is_active', true)->orderBy('name')->get();
+        $brands = Brand::where('is_active', true)->orderBy('name')->get();
+
         return Inertia::render('admin/product/show', [
-            'product' => $product
+            'product' => $product,
+            'categories' => $categories,
+            'brands' => $brands,
         ]);
     }
 
     public function store(Request $request)
     {
+        Log::info('Product store request received', [
+            'has_images' => $request->hasFile('images'),
+            'image_count' => $request->hasFile('images') ? count($request->file('images')) : 0,
+            'all_files' => $request->allFiles(),
+        ]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
@@ -69,8 +137,10 @@ class AdminProductController extends Controller
 
         // Handle image uploads
         if ($request->hasFile('images')) {
+            Log::info('Processing image uploads', ['count' => count($request->file('images'))]);
             foreach ($request->file('images') as $index => $image) {
                 $path = $image->store('products', 'public');
+                Log::info('Image stored', ['path' => $path, 'index' => $index]);
                 $product->images()->create([
                     'image_path' => $path,
                     'alt_text' => $validated['name'],
@@ -85,6 +155,13 @@ class AdminProductController extends Controller
 
     public function update(Request $request, Product $product)
     {
+        Log::info('Product update request received', [
+            'product_id' => $product->id,
+            'has_images' => $request->hasFile('images'),
+            'image_count' => $request->hasFile('images') ? count($request->file('images')) : 0,
+            'all_files' => $request->allFiles(),
+        ]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'required|string',
@@ -116,11 +193,13 @@ class AdminProductController extends Controller
 
         // Handle image uploads
         if ($request->hasFile('images')) {
+            Log::info('Processing update image uploads', ['count' => count($request->file('images'))]);
             // Delete existing images if new ones are uploaded
             $product->images()->delete();
             
             foreach ($request->file('images') as $index => $image) {
                 $path = $image->store('products', 'public');
+                Log::info('Update image stored', ['path' => $path, 'index' => $index]);
                 $product->images()->create([
                     'image_path' => $path,
                     'alt_text' => $validated['name'],

@@ -4,6 +4,7 @@ import type React from "react"
 import { useForm } from "@inertiajs/react"
 import { useState, useEffect } from "react"
 import { XIcon, ImageIcon, UploadIcon } from "lucide-react"
+import { Button } from "./ui/button"
 
 interface ProductImage {
   id?: number
@@ -59,6 +60,7 @@ interface Props {
 }
 
 const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }: Props) => {
+  
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
 
   const { data, setData, post, processing, errors, reset } = useForm<{
@@ -134,7 +136,9 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           status: product.status || "draft",
           meta_title: product.meta_title || "",
           meta_description: product.meta_description || "",
-          images: product.images?.map(img => img.image_path) || [],
+          // Do NOT send existing image path strings to the server on edit.
+          // Only send files if the user selects new images. Otherwise leave empty.
+          images: [],
         })
         setImagePreviews(product.images?.map(img => `/storage/${img.image_path}`) || [])
       } else if (action === "create") {
@@ -179,15 +183,19 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
+    
     if (files.length) {
+      // Explicitly set the images in the form data
       setData("images", files)
-      setImagePreviews(files.map(file => URL.createObjectURL(file)))
+      
+      // Create preview URLs for all selected files
+      const previews = files.map(file => URL.createObjectURL(file))
+      setImagePreviews(previews)
     }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
 
     if (action === "create") {
       post("/admin/products", {
@@ -197,7 +205,7 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           onClose()
         },
         onError: (errors) => {
-          console.log("Validation errors:", errors)
+          console.error("Validation errors:", errors)
         },
         forceFormData: true,
       })
@@ -207,7 +215,7 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           onClose()
         },
         onError: (errors) => {
-          console.log("Validation errors:", errors)
+          console.error("Update validation errors:", errors)
         },
         forceFormData: true,
       })
@@ -237,28 +245,50 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
             {/* Image Upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
-              <div className="flex items-center space-x-4">
-                {imagePreviews.length > 0 ? (
-                  imagePreviews.map((src, idx) => (
-                    <img
-                      key={idx}
-                      src={src}
-                      alt={`Preview ${idx + 1}`}
-                      className="w-24 h-24 object-cover rounded-lg border"
-                    />
-                  ))
-                ) : (
-                  <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <ImageIcon className="w-8 h-8 text-gray-400" />
+              <div className="space-y-4">
+                {/* Image Previews */}
+                {imagePreviews.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {imagePreviews.map((src, idx) => (
+                      <div key={idx} className="relative">
+                        <img
+                          src={src}
+                          alt={`Preview ${idx + 1}`}
+                          className="w-24 h-24 object-cover rounded-lg border"
+                        />
+                        <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {idx + 1}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
-                <div>
-                  <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                    <UploadIcon className="w-4 h-4 mr-2" />
-                    Upload Images
-                    <input type="file" accept="image/*" multiple onChange={handleImageChange} className="hidden" />
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB each</p>
+                
+                {/* Upload Area */}
+                <div className="flex items-center space-x-4">
+                  {imagePreviews.length === 0 && (
+                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <ImageIcon className="w-8 h-8 text-gray-400" />
+                    </div>
+                  )}
+                  <div>
+                    <label className="cursor-pointer inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                      <UploadIcon className="w-4 h-4 mr-2" />
+                      {imagePreviews.length > 0 ? 'Replace Images' : 'Upload Images'}
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        multiple 
+                        onChange={handleImageChange} 
+                        className="hidden"
+                        name="images"
+                      />
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">PNG, JPG up to 2MB each. Select multiple files at once.</p>
+                    {imagePreviews.length > 0 && (
+                      <p className="text-xs text-blue-600 mt-1">{imagePreviews.length} image(s) selected</p>
+                    )}
+                  </div>
                 </div>
               </div>
               {errors.images && <p className="text-red-600 text-sm mt-1">{errors.images}</p>}
@@ -540,20 +570,20 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
 
             {/* Actions */}
             <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-              <button
+              <Button
                 type="button"
                 onClick={onClose}
                 className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
                 disabled={processing}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2  text-white rounded-lg  disabled:opacity-50 transition-colors"
               >
                 {processing ? "Saving..." : action === "create" ? "Create Product" : "Update Product"}
-              </button>
+              </Button>
             </div>
           </form>
         </div>

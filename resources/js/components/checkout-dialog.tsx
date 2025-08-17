@@ -132,7 +132,7 @@ export default function CheckoutDialog({ isOpen, onClose }: CheckoutDialogProps)
   return (
     <div className="fixed inset-0 z-[100] bottom-0  flex items-center justify-center">
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/50" />
+      <div className="fixed inset-0 " />
 
       {/* Dialog Content */}
       <div className="relative z-[101] w-full max-w-2xl mt-[600px] overflow-y-auto bg-white rounded-lg shadow-lg mx-4">

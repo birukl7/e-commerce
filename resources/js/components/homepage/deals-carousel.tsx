@@ -184,6 +184,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   }
 
   const [visibleCards, setVisibleCards] = useState(4)
+  const totalSlides = loading ? productCount : products.length
 
   useEffect(() => {
     const handleResize = () => {
@@ -301,102 +302,112 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
       {/* Carousel */}
       <div className="overflow-hidden">
         <div
-          className="flex transition-transform duration-300 ease-in-out gap-4"
+          className="flex transition-transform duration-300 ease-in-out -mx-2"
           style={{
-            transform: `translateX(-${currentIndex * (100 / visibleCards)}%)`,
+            transform: `translateX(-${(currentIndex * 100) / Math.max(totalSlides, 1)}%)`,
+            willChange: "transform",
           }}
         >
           {loading
             ? Array.from({ length: productCount }).map((_, index) => (
-                <Card
+                <div
                   key={index}
-                  className="flex-shrink-0 overflow-hidden"
-                  style={{ width: `calc(${100 / visibleCards}% - 12px)` }}
-                >
-                  <CardContent className="p-0">
-                    <div className="h-[200px] sm:h-[300px] md:h-[400px] bg-gray-200 animate-pulse" />
-                    <div className="p-4 space-y-2">
-                      <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                      <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
-                      <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
-                      <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            : products.map((product) => (
-                <Link key={product.id} href={`/products/${product.slug}`}>
-                  <Card
-                    className="flex-shrink-0 overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-    
-                    onMouseEnter={() => setHoveredProduct(product.id)}
-                    onMouseLeave={() => setHoveredProduct(null)}
-                  >
+                  className="flex-shrink-0 px-2"
+                  style={{ flex: `0 0 calc(100% / ${visibleCards})` }}
+               >
+                  <Card className="overflow-hidden">
                     <CardContent className="p-0">
-                      {/* Product Image */}
-                      <div className="h-[200px] sm:h-[300px] md:h-[400px] w-full relative aspect-square overflow-hidden">
-                        <img
-                          src={getProductImage(product) || "/placeholder.svg"}
-                          alt={product.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => handleImageError(e, product.name)}
-                        />
-                        {/* Discount Badge */}
-                        {product.sale_price && (
-                          <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                            {calculateDiscount(product.price, product.sale_price)}
-                          </div>
-                        )}
-                        {/* Wishlist Button */}
-                        <div
-                          className={`absolute top-3 right-3 transition-opacity duration-200 ${
-                            hoveredProduct === product.id ? "opacity-100" : "opacity-0"
-                          }`}
-                        >
-                          <button
-                            className="bg-white rounded-full p-2 shadow-md hover:bg-gray-50 transition-colors"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              e.stopPropagation()
-                              console.log("Added to wishlist:", product.id)
-                            }}
-                          >
-                            <Heart className="w-4 h-4 text-gray-600" />
-                          </button>
-                        </div>
-                      </div>
-                      {/* Product Info */}
-                      <div className="p-4">
-                        <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm group-hover:text-blue-600 transition-colors">
-                          {product.name}
-                        </h3>
-                        {/* Rating */}
-                        <div className="flex items-center gap-1 mb-2">
-                          <span className="text-sm font-medium">{product.rating || 4.9}</span>
-                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                        </div>
-                        {/* Price */}
-                        <div className="flex items-center gap-2 mb-2">
-                          {product.sale_price ? (
-                            <>
-                              <span className="font-bold text-lg text-gray-900">{formatPrice(product.sale_price)}</span>
-                              <span className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</span>
-                              <span className="text-sm font-medium text-green-600">
-                                {calculateDiscount(product.price, product.sale_price)}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="font-bold text-lg text-gray-900">{formatPrice(product.price)}</span>
-                          )}
-                        </div>
-                        {/* Sale Info */}
-                        <p className="text-xs text-gray-600">
-                          {product.sale_price ? "Biggest sale in 60+ days" : "Limited time offer"}
-                        </p>
+                      <div className="h-[200px] sm:h-[300px] md:h-[400px] bg-gray-200 animate-pulse" />
+                      <div className="p-4 space-y-2">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                        <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
+                        <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
+                        <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
                       </div>
                     </CardContent>
                   </Card>
-                </Link>
+                </div>
+              ))
+            : products.map((product) => (
+                <div
+                  key={product.id}
+                  className="flex-shrink-0 px-2"
+                  style={{ flex: `0 0 calc(100% / ${visibleCards})` }}
+               >
+                  <Link href={`/products/${product.slug}`}>
+                    <Card
+                      className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow duration-200"
+                      onMouseEnter={() => setHoveredProduct(product.id)}
+                      onMouseLeave={() => setHoveredProduct(null)}
+                    >
+                      <CardContent className="p-0">
+                        {/* Product Image */}
+                        <div className="h-[200px] sm:h-[300px] md:h-[400px] w-full relative aspect-square overflow-hidden">
+                          <img
+                            loading="lazy"
+                            decoding="async"
+                            src={getProductImage(product) || "/placeholder.svg"}
+                            alt={product.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => handleImageError(e, product.name)}
+                          />
+                          {/* Discount Badge */}
+                          {product.sale_price && (
+                            <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                              {calculateDiscount(product.price, product.sale_price)}
+                            </div>
+                          )}
+                          {/* Wishlist Button */}
+                          <div
+                            className={`absolute top-3 right-3 transition-opacity duration-200 ${
+                              hoveredProduct === product.id ? "opacity-100" : "opacity-0"
+                            }`}
+                          >
+                            <button
+                              className="bg-white rounded-full p-2 shadow-md hover:bg-gray-50 transition-colors"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                console.log("Added to wishlist:", product.id)
+                              }}
+                            >
+                              <Heart className="w-4 h-4 text-gray-600" />
+                            </button>
+                          </div>
+                        </div>
+                        {/* Product Info */}
+                        <div className="p-4">
+                          <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm group-hover:text-blue-600 transition-colors">
+                            {product.name}
+                          </h3>
+                          {/* Rating */}
+                          <div className="flex items-center gap-1 mb-2">
+                            <span className="text-sm font-medium">{product.rating || 4.9}</span>
+                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          </div>
+                          {/* Price */}
+                          <div className="flex items-center gap-2 mb-2">
+                            {product.sale_price ? (
+                              <>
+                                <span className="font-bold text-lg text-gray-900">{formatPrice(product.sale_price)}</span>
+                                <span className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</span>
+                                <span className="text-sm font-medium text-green-600">
+                                  {calculateDiscount(product.price, product.sale_price)}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="font-bold text-lg text-gray-900">{ formatPrice(product.price)}</span>
+                            )}
+                          </div>
+                          {/* Sale Info */}
+                          <p className="text-xs text-gray-600">
+                            {product.sale_price ? "Biggest sale in 60+ days" : "Limited time offer"}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                </div>
               ))}
         </div>
       </div>

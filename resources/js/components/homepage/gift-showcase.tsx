@@ -434,7 +434,7 @@ export default function GiftShowcase({
                         />
                         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors duration-300" />
                         <div className="absolute bottom-4 left-4">
-                          <h3 className="text-white font-semibold text-lg md:text-xl transition-colors group-hover:text-blue-200">
+                          <h3 className="text-white font-semibold text-lg md:text-xl transition-colors group-hover:primary">
                             {category.name}
                           </h3>
                           <p className="text-white/80 text-sm">{category.product_count} products</p>
@@ -502,7 +502,7 @@ export default function GiftShowcase({
                       </div>
                     </div>
                     <div className="p-3">
-                      <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                      <p className="text-sm font-medium text-gray-900 mb-1 line-clamp-2 group-hover:text-sprimary transition-colors">
                         {product.name}
                       </p>
                       <div className="flex items-center gap-2">
