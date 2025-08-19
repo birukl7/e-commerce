@@ -87,19 +87,9 @@ Route::get('/paypal/payment/cancel', [PayPalController::class, 'paymentCancel'])
 Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus'])->name('paypal.payment.status');
 
 
-// payment process routes
-Route::prefix('payment')->name('payment.')->group(function () {
-    Route::get('/process', [PaymentController::class, 'showPaymentPage'])->name('show');
-    Route::post('/process', [PaymentController::class, 'processPayment'])->name('process');
-    Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
-    Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
-    Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
-    Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
-    
-    // Offline payment routes
-    Route::post('/offline/submit', [App\Http\Controllers\OfflinePaymentController::class, 'submit'])->name('offline.submit');
-    Route::get('/offline/payment-methods', [App\Http\Controllers\OfflinePaymentController::class, 'getPaymentMethods'])->name('offline.methods');
-});
+// Add these routes to your web.php file
+
+
 
 // Admin routes
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
@@ -159,8 +149,7 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 Route::middleware(['auth', 'verified',])->group(function () {
     // Main dashboard
     Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
-
-    
+   
     // User dashboard (if different from main dashboard)
     // Route::get('/user-dashboard', fn() => Inertia::render('user/dashboard'))->name('user.dashboard');
     
@@ -182,7 +171,28 @@ Route::middleware(['auth', 'verified',])->group(function () {
     Route::put('/request/{productRequest}', [RequestController::class, 'update'])->name('request.update');
     Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
     Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
-    
+
+    // Payment flow routes (replace existing payment routes)
+    Route::prefix('payment')->name('payment.')->group(function () {
+        // Payment method selection (first step after checkout)
+        Route::get('/select', [PaymentController::class, 'selectMethod'])->name('select');
+        
+        // Payment processing page (shows Chapa form or offline form based on selection)
+        Route::get('/process', [PaymentController::class, 'showPaymentPage'])->name('show');
+        Route::post('/process', [PaymentController::class, 'processPayment'])->name('process');
+        
+        // Chapa payment routes
+        Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
+        Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
+        
+        // Offline payment routes
+        Route::post('/offline/submit', [PaymentController::class, 'submitOffline'])->name('offline.submit');
+        Route::get('/offline/success', [PaymentController::class, 'offlineSubmissionSuccess'])->name('offline.success');
+        
+        // Generic success/failed pages
+        Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
+        Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
+    }); 
     // Wishlist AJAX routes
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
     Route::post('/wishlist/add', [WishlistController::class, 'store'])->name('wishlist.store');
