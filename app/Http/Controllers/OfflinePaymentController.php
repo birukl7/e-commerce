@@ -159,7 +159,30 @@ class OfflinePaymentController extends Controller
             $updateData['verified_by'] = null;
         }
 
-        $submission->update($updateData);
+        DB::transaction(function() use ($submission) {
+            $submission->update([
+                'status' => $updateData["status"],
+                'verified_by' => auth()->id(),
+                'verified_at' => now(),
+            ]);
+
+            // Update payment_transactions (find by order_id & offline)
+            DB::table('payment_transactions')
+            ->where('order_id', $submission->order_id)
+            ->where('payment_method','offline')
+            ->update([
+                'status' => 'completed',
+                'chapa_data' => null,
+                'updated_at' => now(),
+            ]);
+
+            // Update the order model: mark paid / change order status
+            $order = Order::where('order_number', $submission->order_id)->first();
+            if ($order) {
+                $order->update(['payment_status' => 'paid','status' => 'processing']);
+                // Add order note / history record if you have one
+            }
+        });
 
         return redirect()->back()->with('success', 'Submission status updated successfully!');
     }

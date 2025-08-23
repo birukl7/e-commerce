@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('offline_payment_submissions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('submission_ref')->unique(); // Unique reference for the submission
             $table->foreignId('offline_payment_method_id')->constrained()->onDelete('cascade');
             $table->string('order_id');
