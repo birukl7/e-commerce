@@ -47,6 +47,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
 
       const data = await response.json()
       setInterests(data.data || data || [])
+      console.log("Featured interests:", data)
       setHasInitialized(true)
     } catch (err) {
       console.error("Error fetching featured interests:", err)

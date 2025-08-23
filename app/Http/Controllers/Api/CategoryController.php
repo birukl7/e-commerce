@@ -98,7 +98,7 @@ class CategoryController extends Controller
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
                 if ($category->image) {
-                    $category->image = asset('image/' . $category->image);
+                    $category->image = $category->image;
                 }
             });
 
