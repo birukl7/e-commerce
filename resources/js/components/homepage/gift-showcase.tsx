@@ -348,7 +348,7 @@ export default function GiftShowcase({
       return url.toString()
     }
 
-    return product.image
+    return '/storage/'+product.image
   }
 
   const getCategoryImage = (category: ShowcaseCategory) => {
@@ -358,7 +358,7 @@ export default function GiftShowcase({
     if (category.image.startsWith("http")) {
       return category.image
     }
-    return category.image
+    return '/storage/'+category.image
   }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {

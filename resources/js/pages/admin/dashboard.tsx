@@ -133,7 +133,7 @@ export default function AdminDashboard({
     customerRegistrationTrends,
     paymentStats,
 }: AdminDashboardProps) {
-    const formatCurrency = (amount: number, currency = 'USD') => {
+    const formatCurrency = (amount: number, currency = 'ETB') => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency,

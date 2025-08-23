@@ -218,7 +218,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
     if (product.image.startsWith("http")) {
       return product.image
     }
-    return `image/${product.image}`
+    return `/storage/${product.image}`
   }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {
