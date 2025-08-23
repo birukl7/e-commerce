@@ -318,12 +318,12 @@ class ProductController extends Controller
                     'current_price' => (float) ($product->sale_price ?? $product->price),
                     'description' => $product->description,
                     'image' => $primaryImage 
-                        ? asset('image' . $primaryImage->image_path)
-                        : asset('image/placeholder.jpg'),
+                        ? asset('/storage/' . $primaryImage->image_path)
+                            : asset('/storage/placeholder.jpg'),
                     'images' => $product->images->map(function ($image) {
                         return [
                             'id' => $image->id,
-                            'url' => asset('image' . $image->image_path),
+                            'url' => asset('/storage/' . $image->image_path),
                             'alt_text' => $image->alt_text,
                             'is_primary' => $image->is_primary,
                         ];
@@ -389,7 +389,7 @@ class ProductController extends Controller
             $products->each(function ($product) {
                 // Add primary image URL
                 $primaryImage = $product->images()->where('is_primary', true)->first();
-                $product->image = $primaryImage ? asset('storage/' . $primaryImage->image_path) : null;
+                $product->image = $primaryImage ? asset('/storage/' . $primaryImage->image_path) : null;
                 
                 // Format prices
                 $product->formatted_price = 'USD ' . number_format($product->price, 2);
@@ -432,7 +432,7 @@ class ProductController extends Controller
 
             $products->each(function ($product) {
                 $primaryImage = $product->images()->where('is_primary', true)->first();
-                $product->image = $primaryImage ? asset('storage/' . $primaryImage->image_path) : null;
+                $product->image = $primaryImage ? asset('/storage/' . $primaryImage->image_path) : null;
                 unset($product->images);
             });
 

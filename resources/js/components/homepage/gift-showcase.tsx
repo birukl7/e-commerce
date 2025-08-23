@@ -41,6 +41,7 @@ export default function GiftShowcase({
   productCount = 6,
   categoryCount = 3,
 }: GiftShowcaseProps) {
+
   const { auth } = usePage<SharedData>().props
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<ShowcaseCategory[]>([])
@@ -184,15 +185,15 @@ export default function GiftShowcase({
       }
 
       // Send the wishlist toggle request and log for debugging
-      console.log("Sending request to:", url, "with method:", options.method, "and CSRF token:", csrfToken)
+      // console.log("Sending request to:", url, "with method:", options.method, "and CSRF token:", csrfToken)
       const response = await fetch(url, {
         ...options,
         credentials: "same-origin" as RequestCredentials, // Fix: ensure correct type
       })
 
-      console.log("Received response status:", response.status)
-      const responseText = await response.clone().text()
-      console.log("Received response body:", responseText)
+      // console.log("Received response status:", response.status)
+      // const responseText = await response.clone().text()
+      // console.log("Received response body:", responseText)
 
       if (response.status === 419) {
         // CSRF token expired
@@ -213,7 +214,7 @@ export default function GiftShowcase({
           }
           return newSet
         })
-        console.log(data.message)
+        // console.log(data.message)
       } else {
         console.error("Wishlist toggle failed:", data.message)
       }
@@ -262,6 +263,7 @@ export default function GiftShowcase({
         }
         const data = await response.json()
         setProducts(data.data || data || [])
+        // console.log("Products data:", data.data)
       } catch (err) {
         console.error("Error fetching products:", err)
         setProductsError(err instanceof Error ? err.message : "Failed to fetch products")
@@ -331,21 +333,22 @@ export default function GiftShowcase({
   }, [excludeCategoryIds, fetchProducts, fetchCategories])
 
   const formatPrice = (price: string, salePrice?: string) => {
-    const formattedPrice = `USD ${Number.parseFloat(price).toFixed(2)}`
-    const formattedSalePrice = salePrice ? `USD ${Number.parseFloat(salePrice).toFixed(2)}` : null
+    const formattedPrice = `ETB ${Number.parseFloat(price).toFixed(2)}`
+    const formattedSalePrice = salePrice ? `ETB ${Number.parseFloat(salePrice).toFixed(2)}` : null
     return formattedSalePrice ? formattedSalePrice : formattedPrice
   }
 
   const getProductImage = (product: Product) => {
+    // console.log("Product image:", product.image)
     if (!product.image) {
       return createPlaceholderDataUrl(product.name)
     }
 
     if (product.image.startsWith("http")) {
-      // Remove any duplicate slashes in the URL path (except after "http(s):")
-      const url = new URL(product.image)
-      url.pathname = url.pathname.replace(/\/{2,}/g, "/")
-      return url.toString()
+      // // Remove any duplicate slashes in the URL path (except after "http(s):")
+      // const url = new URL(product.image)
+      // url.pathname = url.pathname.replace(/\/{2,}/g, "/")
+      return product.image;
     }
 
     return '/storage/'+product.image
@@ -400,7 +403,7 @@ export default function GiftShowcase({
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8">
         <div className="mb-6 lg:mb-0">
           <H2 className="text-gray-900 mb-4 leading-tight">
-            ShopHub-special gifts
+            Serdo-special gifts
             <br />
             for birthdays
           </H2>
@@ -474,7 +477,7 @@ export default function GiftShowcase({
                         src={getProductImage(product) || "/placeholder.svg"}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => handleImageError(e, product.name)}
+                        // onError={(e) => handleImageError(e, product.name)}
                       />
                       {product.sale_price && (
                         <div className="absolute top-2 left-2 bg-red-500 text-white px-2 py-1 text-xs font-semibold rounded">

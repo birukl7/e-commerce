@@ -27,9 +27,8 @@ export default function CTASection() {
           <div className="flex justify-center lg:justify-end">
             <div className="relative w-full ">
               <img
-                src="image/image-9.jpg"
+                src="image/Looking.jpg"
                 alt="Person searching for custom items"
-                
                 className="object-top object-cover w-full h-[300px] rounded-2xl shadow-lg"
               />
             </div>

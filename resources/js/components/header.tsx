@@ -64,7 +64,7 @@ const Header = () => {
                   <span className="text-primary-foreground font-bold text-sm">SH</span>
                 </div>
                 {/* Hide company name on mobile */}
-                <span className="text-xl font-bold text-slate-900 hidden sm:block">ShopHub</span>
+                <span className="text-xl font-bold text-slate-900 hidden sm:block">Serdo</span>
               </Link>
               {/* Hide CategoryDropdown on mobile */}
               <div className="hidden sm:block">
