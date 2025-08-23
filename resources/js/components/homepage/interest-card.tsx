@@ -79,19 +79,16 @@ interface InterestCardProps {
 }
 
 export function InterestCard({ title, subtitle, imageSrc, imageAlt, productCount, slug, onClick }: InterestCardProps) {
-    const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-        const target = e.currentTarget;
-        target.src = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(title)}`;
-    };
+    // const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    //     const target = e.currentTarget;
+    //     target.src = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(title)}`;
+    // };
 
     const getImageUrl = (imagePath: string) => {
-        if (!imagePath) {
-            return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(title)}`;
+        if (imagePath.startsWith("http")) {
+            return imagePath
         }
-        if (imagePath.startsWith('http')) {
-            return imagePath;
-        }
-        return `image/${imagePath}`;
+        return `/storage/${imagePath}`
     };
 
     const cardContent = (
@@ -102,7 +99,7 @@ export function InterestCard({ title, subtitle, imageSrc, imageAlt, productCount
                         src={getImageUrl(imageSrc) || '/placeholder.svg'}
                         alt={imageAlt}
                         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        onError={handleImageError}
+                        // onError={handleImageError}
                     />
                 </div>
                 <div className="p-6">

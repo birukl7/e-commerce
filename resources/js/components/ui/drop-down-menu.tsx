@@ -142,7 +142,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
     setIsOpen(true)
   }
 
-  const scheduleClose = (delayMs: number = 120) => {
+  const scheduleClose = (delayMs: number = 300) => {
     cancelScheduledClose()
     closeTimeoutRef.current = window.setTimeout(() => {
       setIsOpen(false)
@@ -157,7 +157,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
           variant="outline"
           className="cursor-pointer bg-transparent"
           onMouseEnter={openMenuInstantly}
-          onMouseLeave={() => scheduleClose(120)}
+          onMouseLeave={() => scheduleClose(300)}
         >
           <Menu className="mr-2" />
           {categories.length > 0 ? `Categories (${categories.length})` : "Categories"}
@@ -167,7 +167,8 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
         className="w-64 transition-none data-[state=open]:animate-none data-[state=closed]:animate-none"
         align="start"
         onMouseEnter={openMenuInstantly}
-        onMouseLeave={() => scheduleClose(120)}
+        onMouseLeave={() => scheduleClose(300)}
+        sideOffset={5}
       >
         {loading ? (
           <div className="px-3 py-2 text-sm flex items-center gap-2">
@@ -218,7 +219,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                       <DropdownMenuSubContent
                         className="w-60 transition-none data-[state=open]:animate-none data-[state=closed]:animate-none"
                         onMouseEnter={openMenuInstantly}
-                        onMouseLeave={() => scheduleClose(120)}
+                        onMouseLeave={() => scheduleClose(300)}
                       >
                         {category.children.map((child) => (
                           <DropdownMenuItem key={child.id} className="flex items-center space-x-3 cursor-pointer">
