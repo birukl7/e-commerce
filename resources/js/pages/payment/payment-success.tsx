@@ -1,12 +1,11 @@
 'use client';
 
-import Footer from '@/components/footer';
-import Header from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { CartProvider } from '@/contexts/cart-context';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle, Download, Package } from 'lucide-react';
+import { useEffect } from 'react';
+import MainLayout from '@/layouts/app/main-layout';
 
 interface PaymentSuccessProps {
     order_id: string;
@@ -35,6 +34,14 @@ function PaymentSuccessContent({
     customer_email,
     order_items = [],
 }: PaymentSuccessProps) {
+    // Clear cart when payment is successful
+    useEffect(() => {
+        // Clear cart from localStorage directly since this is a standalone page
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('cartItems');
+        }
+    }, []);
+
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -52,12 +59,45 @@ function PaymentSuccessContent({
         }).format(date);
     };
 
-    return (
-        <div className="min-h-screen bg-gray-50">
-            <Head title="Payment Successful - ShopHub" />
-            <Header />
+    const handleDownloadReceipt = () => {
+        // Create receipt content
+        const receiptContent = `
+Payment Receipt
 
-            <div className="mx-auto max-w-4xl px-4 py-12">
+Order ID: ${order_id}
+Transaction ID: ${transaction_id}
+Date: ${formatDate()}
+Customer: ${customer_name}
+Email: ${customer_email}
+
+Payment Details:
+- Amount: ${formatPrice(amount)}
+- Payment Method: ${payment_method}
+- Status: Completed
+
+Items:
+${order_items.map(item => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
+
+Total: ${formatPrice(amount)}
+
+Thank you for your purchase!
+        `.trim();
+
+        // Create blob and download
+        const blob = new Blob([receiptContent], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `receipt-${order_id}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    };
+
+    return (
+        <MainLayout title="Payment Successful - ShopHub">
+            <div className="py-12">
                 {/* Success Header */}
                 <div className="mb-8 text-center">
                     <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
@@ -192,7 +232,11 @@ function PaymentSuccessContent({
                                         </Link>
                                     </Button>
 
-                                    <Button variant="outline" className="w-full bg-transparent">
+                                    <Button 
+                                        variant="outline" 
+                                        className="w-full bg-transparent"
+                                        onClick={handleDownloadReceipt}
+                                    >
                                         <Download className="mr-2 h-4 w-4" />
                                         Download Receipt
                                     </Button>
@@ -209,16 +253,10 @@ function PaymentSuccessContent({
                     </div>
                 </div>
             </div>
-
-            <Footer />
-        </div>
+        </MainLayout>
     );
 }
 
 export default function PaymentSuccess(props: PaymentSuccessProps) {
-    return (
-        <CartProvider>
-            <PaymentSuccessContent {...props} />
-        </CartProvider>
-    );
+    return <PaymentSuccessContent {...props} />;
 }

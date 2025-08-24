@@ -10,18 +10,76 @@ interface ProductImage {
   sort_order: number
 }
 
-interface ShowProps {
-  product: {
-    name: string
-    images: ProductImage[]
-    [key: string]: any
+interface Category {
+  id: number
+  name: string
+  slug: string
+}
+
+interface Brand {
+  id: number
+  name: string
+  slug: string
+}
+
+interface Product {
+  id: number
+  name: string
+  slug: string
+  description: string
+  sku: string
+  price: number
+  sale_price?: number | null
+  current_price: number
+  cost_price?: number | null
+  stock_quantity: number
+  stock_status: string
+  featured: boolean
+  status: string
+  meta_title?: string
+  meta_description?: string
+  images: ProductImage[]
+  primary_image: string
+  category: Category
+  brand: Brand
+  average_rating: number
+  reviews_count: number
+  rating_breakdown: { [key: number]: number }
+}
+
+interface Review {
+  id: number
+  rating: number
+  title?: string
+  comment: string
+  user_name: string
+  user_avatar?: string
+  created_at: string
+  helpful_count: number
+  is_verified_purchase: boolean
+  is_helpful_to_user: boolean
+}
+
+interface ReviewsData {
+  data: Review[]
+  pagination: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
   }
+}
+
+interface ShowProps {
+  product: Product
   related_products: any[]
+  reviews?: ReviewsData
+  userHasReviewed?: boolean
 }
 
 
 
-const Show = ({ product, related_products }: ShowProps) => {
+const Show = ({ product, related_products, reviews, userHasReviewed }: ShowProps) => {
   return (
     <MainLayout 
       title={product?.name || 'Product'} 
@@ -38,7 +96,11 @@ const Show = ({ product, related_products }: ShowProps) => {
           <ProductImageGallery images={product.images || []} productName={product.name} />
         </div>
 
-         <ProductDetails product={product} />
+         <ProductDetails 
+           product={product} 
+           reviews={reviews || { data: [], pagination: { current_page: 1, last_page: 1, per_page: 10, total: 0 } }}
+           userHasReviewed={userHasReviewed || false}
+         />
         
         {/* <ProductReviews 
           reviews={product.reviews}

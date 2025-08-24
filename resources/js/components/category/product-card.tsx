@@ -40,14 +40,14 @@ const formatETB = (amount: number) => {
 
 export function ProductCard({ product, index }: ProductCardProps) {
   const getImageUrl = (imagePath: string) => {
-    if (!imagePath) {
-      return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(product.name)}`
-    }
+    // if (!imagePath) {
+    //   return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(product.name)}`
+    // }
     if (imagePath.startsWith("http")) {
       return imagePath
     }
     // Image path from controller already includes full URL
-    return imagePath
+    return `/storage/${imagePath}`
   }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -69,7 +69,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
             className={`h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 ${
               isOutOfStock ? "opacity-50" : ""
             }`}
-            onError={handleImageError}
+            // onError={handleImageError}
             loading={index > 3 ? "lazy" : "eager"}
           />
 

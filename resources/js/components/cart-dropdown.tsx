@@ -64,7 +64,7 @@ export default function CartDropdown({ isOpen, onClose }: CartDropdownProps) {
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center gap-3 p-2 border rounded-lg">
                     <img
-                      src={item.image || "/placeholder.svg"}
+                      src={`/storage/${item.image}` || "/placeholder.svg"}
                       alt={item.name}
                       className="w-12 h-12 object-cover rounded"
                     />

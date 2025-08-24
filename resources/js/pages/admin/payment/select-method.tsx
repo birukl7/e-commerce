@@ -1,28 +1,4 @@
-// import { Link, usePage } from '@inertiajs/react';
 
-// interface SelectProps {
-//   order_id: string;
-//   amount: number;
-//   currency: string;
-// }
-// export default function SelectMethod({ order_id, amount, currency }: SelectProps) {
-//   return (
-//     <div className="mx-auto max-w-2xl p-6">
-//       <h2 className="text-xl font-bold">Choose payment method</h2>
-//       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-//         <Link href={route('payment.show', { order_id, amount, currency })} className="p-6 border rounded-lg text-center">
-//           <h3>Pay with Chapa</h3>
-//           <p>Secure, immediate online payment</p>
-//         </Link>
-
-//         <Link href={route('payment.show', { order_id, amount, currency, payment_method: 'offline' })} className="p-6 border rounded-lg text-center">
-//           <h3>Pay & Upload Proof</h3>
-//           <p>Transfer via bank/app then upload screenshot</p>
-//         </Link>
-//       </div>
-//     </div>
-//   );
-// }
 import { Head, Link } from '@inertiajs/react';
 import { CreditCard, Upload } from 'lucide-react';
 

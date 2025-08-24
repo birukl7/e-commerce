@@ -664,15 +664,46 @@ class PaymentController extends Controller
                     // Update transaction status
                     $this->updateTransactionStatus($txRef, 'completed', $data);
                     
+                    // Get order items if order exists
+                    $orderItems = [];
+                    $orderId = $data['meta']['order_id'] ?? null;
+                    if ($orderId) {
+                        $orderItems = DB::table('order_items as oi')
+                            ->join('products as p', 'oi.product_id', '=', 'p.id')
+                            ->leftJoin('product_images as pi', function($join) {
+                                $join->on('p.id', '=', 'pi.product_id')
+                                     ->where('pi.is_primary', true);
+                            })
+                            ->select([
+                                'oi.id',
+                                'p.name',
+                                'oi.quantity',
+                                'oi.price',
+                                'pi.image_path as image',
+                            ])
+                            ->where('oi.order_id', $orderId)
+                            ->get()
+                            ->map(function ($item) {
+                                return [
+                                    'id' => $item->id,
+                                    'name' => $item->name,
+                                    'quantity' => $item->quantity,
+                                    'price' => (float) $item->price,
+                                    'image' => $item->image ? asset('storage/' . $item->image) : null,
+                                ];
+                            })
+                            ->toArray();
+                    }
+                    
                     return Inertia::render('payment/payment-success', [
-                        'order_id' => $data['meta']['order_id'] ?? 'N/A',
+                        'order_id' => $orderId ?? 'N/A',
                         'transaction_id' => $data['id'] ?? $txRef,
                         'amount' => floatval($data['amount'] ?? 0),
                         'currency' => $data['currency'] ?? 'ETB',
                         'payment_method' => $data['payment_type'] ?? $data['meta']['payment_method'] ?? 'unknown',
                         'customer_name' => trim(($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? '')),
                         'customer_email' => $data['email'] ?? '',
-                        'order_items' => [], // Add order items if available
+                        'order_items' => $orderItems,
                     ]);
                 }
             }

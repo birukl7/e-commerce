@@ -123,7 +123,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
 
   const handleAddToCart = () => {
     addToCart({ ...product, quantity: quantity })
-    console.log(`Adding ${quantity} of product ${product.id} to cart`)
+    // console.log(`Adding ${quantity} of product ${product.id} to cart`)
   }
 
   const handleShare = () => {

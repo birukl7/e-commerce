@@ -272,7 +272,7 @@ class ProductController extends Controller
                 'images' => $product->images->map(function ($image) {
                     return [
                         'id' => $image->id,
-                        'url' => asset('image' . $image->image_path),
+                        'url' => asset('/storage/' . $image->image_path),
                         'alt_text' => $image->alt_text,
                         'is_primary' => $image->is_primary,
                         'sort_order' => $image->sort_order,
@@ -380,7 +380,7 @@ class ProductController extends Controller
                 $query->whereNotIn('category_id', $excludeCategoryIds);
             }
 
-            // Get random products
+            // Get random protducts
             $products = $query->inRandomOrder()
                 ->limit($count)
                 ->get();
