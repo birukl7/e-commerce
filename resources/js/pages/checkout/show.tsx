@@ -173,11 +173,11 @@ function CheckoutContent() {
                                     {/* Online Payment with Chapa */}
                                     <button
                                         onClick={() => handlePaymentMethod('online')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-blue-200 bg-white p-4 transition-all hover:border-blue-400 hover:shadow-lg"
+                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 group-hover:bg-blue-200">
-                                                <CreditCard className="h-6 w-6 text-blue-600" />
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
+                                                <CreditCard className="h-6 w-6 text-primary-600" />
                                             </div>
                                             <div className="text-left">
                                                 <h4 className="font-semibold text-gray-900">Pay with Chapa</h4>
@@ -189,11 +189,11 @@ function CheckoutContent() {
                                     {/* Offline Payment */}
                                     <button
                                         onClick={() => handlePaymentMethod('offline')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-orange-200 bg-white p-4 transition-all hover:border-orange-400 hover:shadow-lg"
+                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 group-hover:bg-orange-200">
-                                                <Upload className="h-6 w-6 text-orange-600" />
+                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
+                                                <Upload className="h-6 w-6 text-primary-600" />
                                             </div>
                                             <div className="text-left">
                                                 <h4 className="font-semibold text-gray-900">Pay & Upload Proof</h4>

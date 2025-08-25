@@ -2,20 +2,20 @@
 
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
-import { EyeIcon, ImageIcon, PackageIcon, PencilIcon, PlusIcon, TrashIcon, SearchIcon, FilterIcon, XIcon } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { EyeIcon, FilterIcon, ImageIcon, PackageIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from 'lucide-react';
+import { useState } from 'react';
 // import ProductDialog from "@/components/product-dialog"
 import ConfirmationDialog from '@/components/confirmation-dialog';
 import ProductDialog from '@/components/product-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectValue, SelectTrigger, SelectContent, SelectItem } from '@/components/ui/select';
 import H1 from '@/components/ui/h1';
 import H2 from '@/components/ui/h2';
 import H3 from '@/components/ui/h3';
-import { Brand, BreadcrumbItem, Product, Paginated } from '@/types';
-import { adminNavItems } from '../dashboard';
+import { Input } from '@/components/ui/input';
 import Pagination from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Brand, BreadcrumbItem, Paginated, Product } from '@/types';
+import { adminNavItems } from '../dashboard';
 
 interface Category {
     id: number;
@@ -114,7 +114,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                     <li><strong>Affect order history</strong> where this product was purchased</li>
                     <li><strong>Remove product reviews</strong> and ratings</li>
                 </ul>
-                <p class="text-orange-600 font-semibold">Consider archiving the product instead of deleting it to preserve historical data.</p>
+                <p class="text-primary-600 font-semibold">Consider archiving the product instead of deleting it to preserve historical data.</p>
             </div>
         `;
     };
@@ -122,7 +122,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
     // Search and filter functions
     const handleSearch = () => {
         const params: any = {};
-        
+
         if (searchTerm) params.search = searchTerm;
         if (selectedCategory && selectedCategory !== 'all') params.category = selectedCategory;
         if (selectedBrand && selectedBrand !== 'all') params.brand = selectedBrand;
@@ -151,13 +151,16 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         router.get('/admin/products', {}, { preserveState: true });
     };
 
-    const hasActiveFilters = !!(searchTerm || 
-                               (selectedCategory && selectedCategory !== 'all') || 
-                               (selectedBrand && selectedBrand !== 'all') || 
-                               (selectedStatus && selectedStatus !== 'all') || 
-                               (selectedStockStatus && selectedStockStatus !== 'all') || 
-                               (selectedFeatured && selectedFeatured !== 'all') || 
-                               minPrice || maxPrice);
+    const hasActiveFilters = !!(
+        searchTerm ||
+        (selectedCategory && selectedCategory !== 'all') ||
+        (selectedBrand && selectedBrand !== 'all') ||
+        (selectedStatus && selectedStatus !== 'all') ||
+        (selectedStockStatus && selectedStockStatus !== 'all') ||
+        (selectedFeatured && selectedFeatured !== 'all') ||
+        minPrice ||
+        maxPrice
+    );
 
     // Auto-search on enter key
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -275,7 +278,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Products Management" />
 
-            <div className="px-4 py-8 sm:px-6 lg:px-8 mx-auto max-w-7xl">
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 {/* Header */}
                 <div className="mb-8">
                     <H1 className="text-3xl font-bold text-gray-900">Products Management</H1>
@@ -287,55 +290,44 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                     {/* Search and Filter Bar */}
                     <div className="mb-6 space-y-4">
                         <div className="flex items-center justify-between">
-                        <H2>Products</H2>
-                        <Button
-                            onClick={() => openDialog('create')}
-                            className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                        >
-                            <PlusIcon className="mr-2 h-4 w-4" />
-                            Add Product
-                        </Button>
-                    </div>
+                            <H2>Products</H2>
+                            <Button
+                                onClick={() => openDialog('create')}
+                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
+                            >
+                                <PlusIcon className="mr-2 h-4 w-4" />
+                                Add Product
+                            </Button>
+                        </div>
 
                         {/* Search Bar */}
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex-1 relative">
-                                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <div className="flex flex-col gap-4 sm:flex-row">
+                            <div className="relative flex-1">
+                                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
                                 <Input
                                     type="text"
                                     placeholder="Search products by name, SKU, or description..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     onKeyPress={handleKeyPress}
-                                    className="pl-10 h-10"
+                                    className="h-10 pl-10"
                                 />
                             </div>
                             <div className="flex gap-2">
-                                <Button
-                                    onClick={handleSearch}
-                                    className="px-4 py-2 h-10"
-                                >
+                                <Button onClick={handleSearch} className="h-10 px-4 py-2">
                                     Search
                                 </Button>
-                                <Button
-                                    onClick={() => setShowFilters(!showFilters)}
-                                    variant="outline"
-                                    className="px-4 py-2 h-10"
-                                >
+                                <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="h-10 px-4 py-2">
                                     <FilterIcon className="mr-2 h-4 w-4" />
                                     Filters
                                     {hasActiveFilters && (
-                                        <span className="ml-2 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                        <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-xs text-white">
                                             !
                                         </span>
                                     )}
                                 </Button>
                                 {hasActiveFilters && (
-                                    <Button
-                                        onClick={clearFilters}
-                                        variant="outline"
-                                        className="px-4 py-2 h-10 text-red-600 hover:text-red-700"
-                                    >
+                                    <Button onClick={clearFilters} variant="outline" className="h-10 px-4 py-2 text-red-600 hover:text-red-700">
                                         <XIcon className="mr-2 h-4 w-4" />
                                         Clear
                                     </Button>
@@ -345,15 +337,12 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                         {/* Filter Panel */}
                         {showFilters && (
-                            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="space-y-4 rounded-lg bg-gray-50 p-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                                     {/* Category Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                                        <Select
-                                            value={selectedCategory}
-                                            onValueChange={setSelectedCategory}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
+                                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="All Categories" />
                                             </SelectTrigger>
@@ -370,11 +359,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Brand Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                                        <Select
-                                            value={selectedBrand}
-                                            onValueChange={setSelectedBrand}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Brand</label>
+                                        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="All Brands" />
                                             </SelectTrigger>
@@ -391,11 +377,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Status Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                                        <Select
-                                            value={selectedStatus}
-                                            onValueChange={setSelectedStatus}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                                        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="All Statuses" />
                                             </SelectTrigger>
@@ -410,11 +393,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Stock Status Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Stock Status</label>
-                                        <Select
-                                            value={selectedStockStatus}
-                                            onValueChange={setSelectedStockStatus}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Stock Status</label>
+                                        <Select value={selectedStockStatus} onValueChange={setSelectedStockStatus}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="All Stock Statuses" />
                                             </SelectTrigger>
@@ -428,14 +408,11 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
                                     {/* Featured Filter */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Featured</label>
-                                        <Select
-                                            value={selectedFeatured}
-                                            onValueChange={setSelectedFeatured}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Featured</label>
+                                        <Select value={selectedFeatured} onValueChange={setSelectedFeatured}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="All Products" />
                                             </SelectTrigger>
@@ -449,7 +426,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Price Range */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Min Price</label>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Min Price</label>
                                         <Input
                                             type="number"
                                             placeholder="0"
@@ -459,7 +436,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Price</label>
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Max Price</label>
                                         <Input
                                             type="number"
                                             placeholder="1000"
@@ -471,11 +448,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Sort Options */}
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-                                        <Select
-                                            value={sortBy}
-                                            onValueChange={setSortBy}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Sort By</label>
+                                        <Select value={sortBy} onValueChange={setSortBy}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="Sort By" />
                                             </SelectTrigger>
@@ -489,11 +463,8 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                         </Select>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Order</label>
-                                        <Select
-                                            value={sortDirection}
-                                            onValueChange={setSortDirection}
-                                        >
+                                        <label className="mb-1 block text-sm font-medium text-gray-700">Order</label>
+                                        <Select value={sortDirection} onValueChange={setSortDirection}>
                                             <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
                                                 <SelectValue placeholder="Order" />
                                             </SelectTrigger>
@@ -506,10 +477,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                 </div>
 
                                 <div className="flex justify-end">
-                                    <Button
-                                        onClick={handleSearch}
-                                        className="px-6 py-2"
-                                    >
+                                    <Button onClick={handleSearch} className="px-6 py-2">
                                         Apply Filters
                                     </Button>
                                 </div>
@@ -537,39 +505,30 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                     ) : (
                         <div className="py-12 text-center">
                             <PackageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-                            <H3>
-                                {hasActiveFilters ? 'No products match your search criteria' : 'No products found'}
-                            </H3>
+                            <H3>{hasActiveFilters ? 'No products match your search criteria' : 'No products found'}</H3>
                             <p className="mb-4 text-gray-600">
-                                {hasActiveFilters 
+                                {hasActiveFilters
                                     ? 'Try adjusting your search or filters to find products.'
-                                    : 'Get started by creating your first product.'
-                                }
+                                    : 'Get started by creating your first product.'}
                             </p>
                             {hasActiveFilters ? (
-                                <Button
-                                    onClick={clearFilters}
-                                    variant="outline"
-                                    className="inline-flex items-center rounded-lg px-4 py-2"
-                                >
+                                <Button onClick={clearFilters} variant="outline" className="inline-flex items-center rounded-lg px-4 py-2">
                                     <XIcon className="mr-2 h-4 w-4" />
                                     Clear Filters
                                 </Button>
                             ) : (
-                            <Button
-                                onClick={() => openDialog('create')}
-                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                            >
-                                <PlusIcon className="mr-2 h-4 w-4" />
-                                Add Product
-                            </Button>
+                                <Button
+                                    onClick={() => openDialog('create')}
+                                    className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
+                                >
+                                    <PlusIcon className="mr-2 h-4 w-4" />
+                                    Add Product
+                                </Button>
                             )}
                         </div>
                     )}
                     {/* pagination */}
-                    {products.links && products.links.length > 0 ? (
-                        <Pagination links={products.links} />
-                    ) : null}
+                    {products.links && products.links.length > 0 ? <Pagination links={products.links} /> : null}
                 </div>
             </div>
 

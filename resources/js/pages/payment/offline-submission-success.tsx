@@ -1,11 +1,9 @@
-import type React from 'react';
-
 import Footer from '@/components/footer';
 import Header from '@/components/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Head, Link } from '@inertiajs/react';
-import { CheckCircle, Clock, FileImage, Home, ShoppingBag, User } from 'lucide-react';
+import { CheckCircle, Clock, FileImage, Home, User } from 'lucide-react';
 
 interface OfflineSubmissionSuccessProps {
     submission_ref: string;
@@ -15,13 +13,7 @@ interface OfflineSubmissionSuccessProps {
     payment_method: string;
 }
 
-export default function OfflineSubmissionSuccess({
-    submission_ref,
-    order_id,
-    amount,
-    currency,
-    payment_method,
-}: OfflineSubmissionSuccessProps) {
+export default function OfflineSubmissionSuccess({ submission_ref, order_id, amount, currency, payment_method }: OfflineSubmissionSuccessProps) {
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -39,44 +31,40 @@ export default function OfflineSubmissionSuccess({
             <div className="mx-auto max-w-4xl px-4 py-8">
                 <div className="text-center">
                     {/* Success Icon */}
-                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
-                        <FileImage className="h-10 w-10 text-orange-600" />
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-100">
+                        <FileImage className="h-10 w-10 text-primary-600" />
                     </div>
 
                     {/* Success Message */}
                     <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment Submitted Successfully!</h1>
-                    <p className="mb-8 text-lg text-gray-600">
-                        Your payment proof has been submitted and is pending verification by our team.
-                    </p>
+                    <p className="mb-8 text-lg text-gray-600">Your payment proof has been submitted and is pending verification by our team.</p>
 
                     {/* Submission Details Card */}
-                    <Card className="mx-auto mb-8 max-w-md border-orange-200 bg-orange-50">
+                    <Card className="mx-auto mb-8 max-w-md border-primary-200 bg-primary-50">
                         <CardHeader className="text-center">
-                            <CardTitle className="flex items-center justify-center gap-2 text-orange-900">
+                            <CardTitle className="flex items-center justify-center gap-2 text-primary-900">
                                 <Clock className="h-5 w-5" />
                                 Submission Details
                             </CardTitle>
-                            <CardDescription className="text-orange-700">
-                                Please keep this information for your records
-                            </CardDescription>
+                            <CardDescription className="text-primary-700">Please keep this information for your records</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <p className="font-medium text-orange-800">Submission ID:</p>
-                                    <p className="font-mono text-orange-600">{submission_ref}</p>
+                                    <p className="font-medium text-primary-800">Submission ID:</p>
+                                    <p className="font-mono text-primary-600">{submission_ref}</p>
                                 </div>
                                 <div>
-                                    <p className="font-medium text-orange-800">Order ID:</p>
-                                    <p className="font-mono text-orange-600">{order_id}</p>
+                                    <p className="font-medium text-primary-800">Order ID:</p>
+                                    <p className="font-mono text-primary-600">{order_id}</p>
                                 </div>
                                 <div>
-                                    <p className="font-medium text-orange-800">Amount:</p>
-                                    <p className="font-semibold text-orange-600">{formatPrice(amount)}</p>
+                                    <p className="font-medium text-primary-800">Amount:</p>
+                                    <p className="font-semibold text-primary-600">{formatPrice(amount)}</p>
                                 </div>
                                 <div>
-                                    <p className="font-medium text-orange-800">Method:</p>
-                                    <p className="text-orange-600">{payment_method}</p>
+                                    <p className="font-medium text-primary-800">Method:</p>
+                                    <p className="text-primary-600">{payment_method}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -126,7 +114,7 @@ export default function OfflineSubmissionSuccess({
                                 Continue Shopping
                             </Link>
                         </Button>
-                        
+
                         <Button asChild variant="outline">
                             <Link href={route('user.dashboard')} className="flex items-center gap-2">
                                 <User className="h-4 w-4" />

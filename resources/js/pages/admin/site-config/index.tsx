@@ -1,17 +1,16 @@
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import ImageUpload from '@/components/ui/image-upload';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RichTextEditor from '@/components/ui/rich-text-editor';
-import ImageUpload from '@/components/ui/image-upload';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
+import { FileImage, FileText, Globe, Info, Palette, Settings } from 'lucide-react';
 import { adminNavItems } from '../dashboard';
-import { Settings, FileImage, FileText, Info, Palette, Globe } from 'lucide-react';
 
 interface OfflinePaymentMethod {
     id: number;
@@ -168,8 +167,8 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                             </div>
                             <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
                                 <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-orange-100 rounded-lg">
-                                        <FileText className="h-5 w-5 text-orange-600" />
+                                    <div className="p-2 bg-primary-100 rounded-lg">
+                                        <FileText className="h-5 w-5 text-primary-600" />
                                     </div>
                                     <div>
                                         <p className="text-sm font-medium text-gray-600">Legal</p>
@@ -607,23 +606,23 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
 
                                 {/* Offline Payments Tab */}
                                 <TabsContent value="offline-payments" className="space-y-8 mt-0">
-                                    <div className="bg-gradient-to-r from-orange-50 to-red-50 rounded-xl p-6 border border-orange-100">
+                                    <div className="bg-gradient-to-r from-primary-50 to-red-50 rounded-xl p-6 border border-primary-100">
                                         <div className="flex items-center gap-3 mb-4">
-                                            <div className="p-2 bg-orange-100 rounded-lg">
-                                                <FileImage className="h-5 w-5 text-orange-600" />
+                                            <div className="p-2 bg-primary-100 rounded-lg">
+                                                <FileImage className="h-5 w-5 text-primary-600" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-semibold text-orange-900">Offline Payment Methods</h3>
-                                                <p className="text-sm text-orange-700">Manage available offline payment methods for manual payment submissions</p>
+                                                <h3 className="text-lg font-semibold text-primary-900">Offline Payment Methods</h3>
+                                                <p className="text-sm text-primary-700">Manage available offline payment methods for manual payment submissions</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-                                        <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 rounded-t-lg">
+                                        <CardHeader className="bg-gradient-to-r from-primary-50 to-red-50 rounded-t-lg">
                                             <CardTitle className="flex items-center gap-2 text-gray-800">
-                                                <div className="p-1.5 bg-orange-100 rounded-md">
-                                                    <FileImage className="h-4 w-4 text-orange-600" />
+                                                <div className="p-1.5 bg-primary-100 rounded-md">
+                                                    <FileImage className="h-4 w-4 text-primary-600" />
                                                 </div>
                                                 Available Payment Methods
                                             </CardTitle>
