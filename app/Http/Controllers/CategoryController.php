@@ -117,7 +117,7 @@ class CategoryController extends Controller
         $category_image = asset('/image/' . $category->image);
 
         // temporary fix: remove "subcategories" sub path for image subcategories
-        
+
         return Inertia::render('categories/show', [
             'category' => [
                 'id' => $category->id,
