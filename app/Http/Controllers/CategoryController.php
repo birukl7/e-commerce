@@ -114,8 +114,10 @@ class CategoryController extends Controller
         $availableFilters = $this->getAvailableFilters($category->id);
 
         // Fix: Use 'image/' instead of 'storage/image/' for category image
-        $category_image = asset('/storage/' . $category->image);
+        $category_image = asset('/image/' . $category->image);
 
+        // temporary fix: remove "subcategories" sub path for image subcategories
+        
         return Inertia::render('categories/show', [
             'category' => [
                 'id' => $category->id,
@@ -125,7 +127,7 @@ class CategoryController extends Controller
                 'image' => $category_image,
                 'subcategories' => $category->children->map(function ($subcategory) {
                     // Fix: Use 'image/' instead of 'storage/image/'
-                    $subcategory_image = asset('/storage/' . $subcategory->image);
+                    $subcategory_image = asset('/image/' . $subcategory->image);
                     return [
                         'id' => $subcategory->id,
                         'name' => $subcategory->name,
@@ -203,8 +205,8 @@ class CategoryController extends Controller
                      ?? $product->images->first();
                             
         $product_image = $primaryImage
-             ? asset('/storage/' . $primaryImage->image_path)
-            : asset('/storage/placeholder.jpg'); // fallback image
+             ? asset('/image/' . $primaryImage->image_path)
+            : asset('/image/placeholder.jpg'); // fallback image
 
         return [
             'id' => $product->id,
@@ -218,7 +220,7 @@ class CategoryController extends Controller
             'images' => $product->images->map(function ($image) {
                 return [
                     'id' => $image->id,
-                    'url' => asset('/storage/' . $image->image_path),
+                    'url' => asset('/image/' . $image->image_path),
                     'alt_text' => $image->alt_text,
                     'is_primary' => $image->is_primary,
                 ];

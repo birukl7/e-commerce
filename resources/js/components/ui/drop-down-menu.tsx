@@ -1,5 +1,3 @@
-import type React from "react"
-import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,7 +11,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Loader2 } from "lucide-react"
+import { Loader2, Menu } from "lucide-react"
+import type React from "react"
+import { useEffect, useRef, useState } from "react"
 import { CustomLink } from "../link"
 
 
@@ -113,6 +113,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
   }
 
   const getImageUrl = (imagePath: string) => {
+    console.log("category image: ", imagePath)
     if (!imagePath) {
       return "/placeholder.svg?height=40&width=40"
     }

@@ -65,7 +65,6 @@
 'use client';
 
 import { Link } from '@inertiajs/react';
-import type React from 'react';
 import H3 from '../ui/h3';
 
 interface InterestCardProps {
@@ -85,10 +84,11 @@ export function InterestCard({ title, subtitle, imageSrc, imageAlt, productCount
     // };
 
     const getImageUrl = (imagePath: string) => {
-        if (imagePath.startsWith("http")) {
-            return imagePath
+        console.log(imagePath);
+        if (imagePath.startsWith('http')) {
+            return imagePath;
         }
-        return `/storage/${imagePath}`
+        return `/image/${imagePath}`;
     };
 
     const cardContent = (
