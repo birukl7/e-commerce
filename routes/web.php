@@ -163,6 +163,11 @@ Route::middleware(['auth', 'verified',])->group(function () {
     Route::get('/contact', fn() => Inertia::render('user/orders'))->name('contact'); 
 
     // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
+    // Add these routes to your web.php file in the authenticated middleware group
+
+    // Individual order details and tracking
+    Route::get('/user/orders/{order}', [UserDashboardController::class, 'showOrder'])->name('user.orders.show');
+    Route::get('/user/orders/{order}/track', [UserDashboardController::class, 'trackOrder'])->name('user.orders.track');
     
     // Product Request routes
     Route::get('/request', [RequestController::class, 'index'])->name('request.index');

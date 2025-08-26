@@ -60,6 +60,8 @@ class RegisteredUserController extends Controller
             'phone.regex' => 'Phone must be: 10 digits starting with 09 or 07, 12 digits starting with 2519 or 2517 or 13 digits starting with +2519 or +2517'
         ]);
 
+        //$verificationCode = rand(100000, 999999);
+
         try {
             DB::beginTransaction();
 
@@ -67,9 +69,13 @@ class RegisteredUserController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
+                // 'verification_code' => $verificationCode,
                 'phone' => $request->phone,
                 'status' => 'active',
             ]);
+
+            // Try sending email
+            //Mail::to($user->email)->send(new VerifyCodeMail($verificationCode));
 
             // Assign role based on registration choice
             $roleName = $request->role;

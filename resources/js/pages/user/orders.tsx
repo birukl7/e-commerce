@@ -1,9 +1,11 @@
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Package, Eye, Calendar, DollarSign } from 'lucide-react';
+import AppLayout from '@/layouts/app-layout';
 import MainLayout from '@/layouts/app/main-layout';
+import { BreadcrumbItem, NavItem } from '@/types';
+import { Link } from '@inertiajs/react';
+import { ArrowLeft, BrickWall, Calendar, DollarSign, Eye, LayoutDashboard, ListOrdered, Package, Save } from 'lucide-react';
 
 interface OrderItem {
     id: number;
@@ -28,7 +30,43 @@ interface Order {
 interface UserOrdersProps {
     orders: Order[];
 }
-
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Dashboard',
+        href: '/user-dashboard',
+    },
+    {
+        title: 'Orders',
+        href: '/user-orders',
+    },
+];
+const defaultMainNavItems: NavItem[] = [
+    {
+        title: 'Dashboard',
+        href: '/user-dashboard',
+        icon: LayoutDashboard,
+    },
+    {
+        title: 'BookMarked Products',
+        href: '/user-wishlist',
+        icon: Save,
+    },
+    {
+        title: 'Orders',
+        href: '/user-order',
+        icon: ListOrdered,
+    },
+    {
+        title: 'Requests',
+        href: '/user-request',
+        icon: BrickWall,
+    },
+    {
+        title: 'Bought Products',
+        href: '/user-products',
+        icon: ListOrdered,
+    },
+];
 export default function UserOrders({ orders = [] }: UserOrdersProps) {
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -78,120 +116,122 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
     };
 
     return (
-        <MainLayout title="My Orders - ShopHub">
-            <div className="py-8">
-                {/* Header */}
-                <div className="mb-8">
-                    <div className="mb-4 flex items-center gap-4">
-                        <Button variant="outline" size="sm" onClick={() => window.history.back()}>
-                            <ArrowLeft className="mr-2 h-4 w-4" />
-                            Back
-                        </Button>
-                        <div>
-                            <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
-                            <p className="text-gray-600">Track your order history and status</p>
+        <MainLayout title="My Orders - ShopHub" className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
+            <AppLayout
+                logoDisplay=" invisible"
+                sidebarStyle="mt-[20px]"
+                breadcrumbs={breadcrumbs}
+                mainNavItems={defaultMainNavItems}
+                footerNavItems={[]}
+            >
+                <div className="py-8">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <div className="mb-4 flex items-center gap-4">
+                            <Button variant="outline" size="sm" onClick={() => window.history.back()}>
+                                <ArrowLeft className="mr-2 h-4 w-4" />
+                                Back
+                            </Button>
+                            <div>
+                                <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
+                                <p className="text-gray-600">Track your order history and status</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {orders.length === 0 ? (
-                    <Card>
-                        <CardContent className="flex flex-col items-center justify-center py-12">
-                            <Package className="mb-4 h-16 w-16 text-gray-400" />
-                            <h3 className="mb-2 text-xl font-semibold text-gray-900">No Orders Yet</h3>
-                            <p className="mb-6 text-gray-600">You haven't placed any orders yet.</p>
-                            <Button asChild>
-                                <Link href={route('home')}>
-                                    Start Shopping
-                                </Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <div className="space-y-6">
-                        {orders.map((order) => (
-                            <Card key={order.id} className="overflow-hidden">
-                                <CardHeader className="bg-gray-50">
-                                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                                        <div>
-                                            <CardTitle className="flex items-center gap-2">
-                                                <Package className="h-5 w-5" />
-                                                Order #{order.order_number}
-                                            </CardTitle>
-                                            <CardDescription className="flex items-center gap-4 mt-2">
-                                                <span className="flex items-center gap-1">
-                                                    <Calendar className="h-4 w-4" />
-                                                    {formatDate(order.created_at)}
-                                                </span>
-                                                <span className="flex items-center gap-1">
-                                                    <DollarSign className="h-4 w-4" />
-                                                    {formatPrice(order.total_amount)}
-                                                </span>
-                                            </CardDescription>
+                    {orders.length === 0 ? (
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center py-12">
+                                <Package className="mb-4 h-16 w-16 text-gray-400" />
+                                <h3 className="mb-2 text-xl font-semibold text-gray-900">No Orders Yet</h3>
+                                <p className="mb-6 text-gray-600">You haven't placed any orders yet.</p>
+                                <Button asChild>
+                                    <Link href={route('home')}>Start Shopping</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    ) : (
+                        <div className="space-y-6">
+                            {orders.map((order) => (
+                                <Card key={order.id} className="overflow-hidden">
+                                    <CardHeader className="bg-gray-50">
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                            <div>
+                                                <CardTitle className="flex items-center gap-2">
+                                                    <Package className="h-5 w-5" />
+                                                    Order #{order.order_number}
+                                                </CardTitle>
+                                                <CardDescription className="mt-2 flex items-center gap-4">
+                                                    <span className="flex items-center gap-1">
+                                                        <Calendar className="h-4 w-4" />
+                                                        {formatDate(order.created_at)}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <DollarSign className="h-4 w-4" />
+                                                        {formatPrice(order.total_amount)}
+                                                    </span>
+                                                </CardDescription>
+                                            </div>
+                                            <div className="flex flex-wrap gap-2">
+                                                <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
+                                                <Badge className={getPaymentStatusColor(order.payment_status)}>{order.payment_status}</Badge>
+                                            </div>
                                         </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            <Badge className={getStatusColor(order.status)}>
-                                                {order.status}
-                                            </Badge>
-                                            <Badge className={getPaymentStatusColor(order.payment_status)}>
-                                                {order.payment_status}
-                                            </Badge>
-                                        </div>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="p-6">
-                                    {/* Order Items Preview */}
-                                    <div className="mb-6">
-                                        <h4 className="mb-3 font-semibold">Items</h4>
-                                        <div className="space-y-3">
-                                            {order.items.slice(0, 3).map((item) => (
-                                                <div key={item.id} className="flex items-center gap-3">
-                                                    <img
-                                                        src={item.primary_image || '/placeholder.svg?height=50&width=50&query=product'}
-                                                        alt={item.product_name}
-                                                        className="h-12 w-12 rounded-md object-cover"
-                                                    />
-                                                    <div className="flex-1">
-                                                        <p className="font-medium">{item.product_name}</p>
-                                                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                                    </CardHeader>
+                                    <CardContent className="p-6">
+                                        {/* Order Items Preview */}
+                                        <div className="mb-6">
+                                            <h4 className="mb-3 font-semibold">Items</h4>
+                                            <div className="space-y-3">
+                                                {order.items.slice(0, 3).map((item) => (
+                                                    <div key={item.id} className="flex items-center gap-3">
+                                                        <img
+                                                            src={item.primary_image || '/placeholder.svg?height=50&width=50&query=product'}
+                                                            alt={item.product_name}
+                                                            className="h-12 w-12 rounded-md object-cover"
+                                                        />
+                                                        <div className="flex-1">
+                                                            <p className="font-medium">{item.product_name}</p>
+                                                            <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
+                                                        </div>
+                                                        <p className="font-semibold">{formatPrice(item.price * item.quantity)}</p>
                                                     </div>
-                                                    <p className="font-semibold">{formatPrice(item.price * item.quantity)}</p>
-                                                </div>
-                                            ))}
-                                            {order.items.length > 3 && (
-                                                <p className="text-sm text-gray-600">
-                                                    +{order.items.length - 3} more items
-                                                </p>
-                                            )}
+                                                ))}
+                                                {order.items.length > 3 && (
+                                                    <p className="text-sm text-gray-600">+{order.items.length - 3} more items</p>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Order Actions */}
-                                    <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-                                        <div className="text-sm text-gray-600">
-                                            <p>Total: <span className="font-semibold">{formatPrice(order.total_amount)}</span></p>
+                                        {/* Order Actions */}
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
+                                            <div className="text-sm text-gray-600">
+                                                <p>
+                                                    Total: <span className="font-semibold">{formatPrice(order.total_amount)}</span>
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <Button variant="outline" size="sm" asChild>
+                                                    <Link href={`/user/orders/${order.id}`}>
+                                                        <Eye className="mr-2 h-4 w-4" />
+                                                        View Details
+                                                    </Link>
+                                                </Button>
+                                                <Button size="sm" asChild>
+                                                    <Link href={`/user/orders/${order.id}/track`}>
+                                                        <Package className="mr-2 h-4 w-4" />
+                                                        Track Order
+                                                    </Link>
+                                                </Button>
+                                            </div>
                                         </div>
-                                        <div className="flex gap-3">
-                                            <Button variant="outline" size="sm" asChild>
-                                                <Link href={`/user/orders/${order.id}`}>
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    View Details
-                                                </Link>
-                                            </Button>
-                                            <Button size="sm" asChild>
-                                                <Link href={`/user/orders/${order.id}/track`}>
-                                                    <Package className="mr-2 h-4 w-4" />
-                                                    Track Order
-                                                </Link>
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                )}
-            </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </AppLayout>
         </MainLayout>
     );
 }
