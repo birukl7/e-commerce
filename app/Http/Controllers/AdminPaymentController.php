@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PaymentTransaction;
+use App\Services\PaymentFinalizer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class AdminPaymentController extends Controller
 {
+    public function __construct(
+        private PaymentFinalizer $paymentFinalizer
+    ) {}
+
     /**
      * Display a listing of payment summaries.
      */
@@ -16,6 +23,7 @@ class AdminPaymentController extends Controller
         $query = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
             ->leftJoin('orders as o', 'pt.order_id', '=', 'o.id')
+            ->leftJoin('users as admin', 'pt.admin_id', '=', 'admin.id')
             ->select([
                 'pt.*',
                 'u.name as customer_name',
@@ -24,7 +32,8 @@ class AdminPaymentController extends Controller
                 'u.id as customer_id',
                 'o.total_amount as order_total',
                 'o.status as order_status',
-                'o.created_at as order_date'
+                'o.created_at as order_date',
+                'admin.name as admin_name'
             ]);
 
         // Add search functionality
@@ -37,9 +46,14 @@ class AdminPaymentController extends Controller
             });
         }
 
-        // Add status filter
-        if ($request->has('status') && $request->status) {
-            $query->where('pt.status', $request->status);
+        // Gateway status filter
+        if ($request->has('gateway_status') && $request->gateway_status) {
+            $query->where('pt.gateway_status', $request->gateway_status);
+        }
+
+        // Admin status filter
+        if ($request->has('admin_status') && $request->admin_status) {
+            $query->where('pt.admin_status', $request->admin_status);
         }
 
         // Add payment method filter
@@ -55,100 +69,67 @@ class AdminPaymentController extends Controller
             $query->whereDate('pt.created_at', '<=', $request->date_to);
         }
 
-        // Get page from request, default to 1
+        // Priority filter - show items needing attention first
+        $orderBy = 'pt.created_at';
+        $orderDirection = 'desc';
+        
+        if ($request->get('priority') === 'needs_attention') {
+            $query->orderByRaw("
+                CASE 
+                    WHEN pt.gateway_status IN ('paid', 'proof_uploaded') AND pt.admin_status = 'unseen' THEN 1
+                    WHEN pt.gateway_status IN ('paid', 'proof_uploaded') AND pt.admin_status = 'seen' THEN 2
+                    ELSE 3
+                END ASC
+            ");
+        }
+
         $page = $request->get('page', 1);
         $perPage = 15;
 
-        $payments = $query->latest('pt.created_at')->paginate($perPage, ['*'], 'page', $page);
-
-        // Add query parameters to pagination links
+        $payments = $query->orderBy($orderBy, $orderDirection)->paginate($perPage, ['*'], 'page', $page);
         $payments->appends($request->query());
 
-        // Calculate summary statistics
+        // Calculate enhanced statistics
         $stats = [
             'total_transactions' => DB::table('payment_transactions')->count(),
-            'successful_payments' => DB::table('payment_transactions')->where('status', 'completed')->count(),
-            'failed_payments' => DB::table('payment_transactions')->where('status', 'failed')->count(),
-            'pending_payments' => DB::table('payment_transactions')->where('status', 'pending')->count(),
-            'total_revenue' => (float) DB::table('payment_transactions')->where('status', 'completed')->sum('amount'),
-            'today_revenue' => (float) DB::table('payment_transactions')
-                ->where('status', 'completed')
-                ->whereDate('created_at', today())
+            'gateway_paid' => DB::table('payment_transactions')->where('gateway_status', 'paid')->count(),
+            'awaiting_approval' => DB::table('payment_transactions')
+                ->whereIn('gateway_status', ['paid', 'proof_uploaded'])
+                ->where('admin_status', '!=', 'approved')
+                ->where('admin_status', '!=', 'rejected')
+                ->count(),
+            'fully_completed' => DB::table('payment_transactions')
+                ->where('gateway_status', 'paid')
+                ->where('admin_status', 'approved')
+                ->count(),
+            'unseen_payments' => DB::table('payment_transactions')->where('admin_status', 'unseen')->count(),
+            'total_revenue' => (float) DB::table('payment_transactions')
+                ->where('gateway_status', 'paid')
+                ->where('admin_status', 'approved')
+                ->sum('amount'),
+            'pending_revenue' => (float) DB::table('payment_transactions')
+                ->whereIn('gateway_status', ['paid', 'proof_uploaded'])
+                ->where('admin_status', '!=', 'approved')
                 ->sum('amount'),
         ];
 
         return Inertia::render('admin/payment/index', [
             'payments' => $payments,
             'stats' => $stats,
-            'filters' => (object) $request->only(['search', 'status', 'payment_method', 'date_from', 'date_to'])
+            'filters' => (object) $request->only([
+                'search', 'gateway_status', 'admin_status', 'payment_method', 
+                'date_from', 'date_to', 'priority'
+            ])
         ]);
     }
 
-    private function getRecentPayments($limit = 4)
-    {
-        // Fixed typo: payment_transactios -> payment_transactions
-        return DB::table('payment_transactions as pt')
-        ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
-        ->select([
-            'pt.id',
-            'pt.tx_ref',
-            'pt.order_id',
-            'pt.amount',
-            'pt.currency',
-            'pt.status',
-            'pt.payment_method',
-            'pt.created_at',
-            'pt.customer_name',
-            'pt.customer_email',
-            'u.name as user_name',
-        ])
-        ->orderBy('pt.created_at', 'desc')
-        ->limit($limit)
-        ->get()
-        ->map(function ($payment) {
-            return [
-                'id' => $payment->id,
-                'order_id' => $payment->order_id,
-                'tx_ref' => $payment->tx_ref,
-                'customer_name' => $payment->user_name ?: $payment->customer_name,
-                'amount' => $payment->amount,
-                'currency' => $payment->currency,
-                'status' => $payment->status,
-                'payment_method' => $payment->payment_method,
-                'created_at' => $payment->created_at,
-                'formatted_amount' => number_format($payment->amount, 2),
-            ];
-        });
-    }
-    
     /**
      * Display the specified payment.
      */
     public function show($paymentId)
     {
-        $payment = DB::table('payment_transactions as pt')
-            ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
-            ->leftJoin('orders as o', 'pt.order_id', '=', 'o.id')
-            ->leftJoin('user_addresses as ua', function($join) {
-                $join->on('u.id', '=', 'ua.user_id')
-                     ->where('ua.is_default', true);
-            })
-            ->select([
-                'pt.*',
-                'u.name as customer_name',
-                'u.phone as customer_phone',
-                'u.id as customer_id',
-                'u.email_verified_at',
-                'u.created_at as customer_since',
-                'o.total_amount as order_total',
-                'o.status as order_status',
-                'o.created_at as order_date',
-                'ua.address_line_1',
-                'ua.city',
-                'ua.state',
-                'ua.country'
-            ])
-            ->where('pt.id', $paymentId)
+        $payment = PaymentTransaction::with(['admin', 'order'])
+            ->where('id', $paymentId)
             ->first();
 
         if (!$payment) {
@@ -156,7 +137,12 @@ class AdminPaymentController extends Controller
                            ->with('error', 'Payment not found.');
         }
 
-        // Get order items if order exists
+        // Mark as seen if unseen
+        if ($payment->isAdminUnseen()) {
+            $payment->markSeen(Auth::user());
+        }
+
+        // Get additional data same as before...
         $orderItems = [];
         if ($payment->order_id) {
             $orderItems = DB::table('order_items as oi')
@@ -175,9 +161,7 @@ class AdminPaymentController extends Controller
                 ->get();
         }
 
-        // Get customer's payment history
-        $customerPaymentHistory = DB::table('payment_transactions')
-            ->where('customer_email', $payment->customer_email)
+        $customerPaymentHistory = PaymentTransaction::where('customer_email', $payment->customer_email)
             ->where('id', '!=', $paymentId)
             ->orderBy('created_at', 'desc')
             ->limit(5)
@@ -186,10 +170,125 @@ class AdminPaymentController extends Controller
         return Inertia::render('admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
-            'customerPaymentHistory' => $customerPaymentHistory
+            'customerPaymentHistory' => $customerPaymentHistory,
+            'canApprove' => $payment->canBeApproved(),
+            'canReject' => $payment->canBeRejected(),
+            'orderStatus' => $this->paymentFinalizer->getOrderStatusForPayment($payment)
         ]);
     }
- 
+
+    /**
+     * Approve a payment
+     */
+    public function approve(Request $request, $paymentId)
+    {
+        $request->validate([
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        $payment = PaymentTransaction::findOrFail($paymentId);
+        
+        if (!$payment->canBeApproved()) {
+            return back()->with('error', 'Payment cannot be approved at this time.');
+        }
+
+        $success = $this->paymentFinalizer->handleAdminApproval(
+            $payment, 
+            Auth::user(), 
+            $request->input('notes')
+        );
+
+        if ($success) {
+            return back()->with('success', 'Payment approved successfully.');
+        }
+
+        return back()->with('error', 'Failed to approve payment.');
+    }
+
+    /**
+     * Reject a payment
+     */
+    public function reject(Request $request, $paymentId)
+    {
+        $request->validate([
+            'notes' => 'required|string|max:1000'
+        ]);
+
+        $payment = PaymentTransaction::findOrFail($paymentId);
+        
+        if (!$payment->canBeRejected()) {
+            return back()->with('error', 'Payment cannot be rejected at this time.');
+        }
+
+        $success = $this->paymentFinalizer->handleAdminRejection(
+            $payment, 
+            Auth::user(), 
+            $request->input('notes')
+        );
+
+        if ($success) {
+            return back()->with('success', 'Payment rejected.');
+        }
+
+        return back()->with('error', 'Failed to reject payment.');
+    }
+
+    /**
+     * Mark payment as seen
+     */
+    public function markSeen($paymentId)
+    {
+        $payment = PaymentTransaction::findOrFail($paymentId);
+        $payment->markSeen(Auth::user());
+        
+        return back()->with('success', 'Payment marked as seen.');
+    }
+
+    /**
+     * Bulk actions
+     */
+    public function bulkAction(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|in:mark_seen,approve,reject',
+            'payment_ids' => 'required|array',
+            'payment_ids.*' => 'exists:payment_transactions,id',
+            'notes' => 'nullable|string|max:1000'
+        ]);
+
+        $payments = PaymentTransaction::whereIn('id', $request->payment_ids)->get();
+        $successCount = 0;
+        $admin = Auth::user();
+
+        foreach ($payments as $payment) {
+            switch ($request->action) {
+                case 'mark_seen':
+                    if ($payment->isAdminUnseen()) {
+                        $payment->markSeen($admin);
+                        $successCount++;
+                    }
+                    break;
+
+                case 'approve':
+                    if ($payment->canBeApproved()) {
+                        if ($this->paymentFinalizer->handleAdminApproval($payment, $admin, $request->notes)) {
+                            $successCount++;
+                        }
+                    }
+                    break;
+
+                case 'reject':
+                    if ($payment->canBeRejected()) {
+                        if ($this->paymentFinalizer->handleAdminRejection($payment, $admin, $request->notes)) {
+                            $successCount++;
+                        }
+                    }
+                    break;
+            }
+        }
+
+        return back()->with('success', "{$successCount} payments processed successfully.");
+    }
 
     /**
      * Export payments to CSV
@@ -198,6 +297,7 @@ class AdminPaymentController extends Controller
     {
         $query = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
+            ->leftJoin('users as admin', 'pt.admin_id', '=', 'admin.id')
             ->select([
                 'pt.tx_ref',
                 'pt.order_id',
@@ -206,13 +306,20 @@ class AdminPaymentController extends Controller
                 'pt.amount',
                 'pt.currency',
                 'pt.payment_method',
-                'pt.status',
+                'pt.gateway_status',
+                'pt.admin_status',
+                'admin.name as admin_name',
+                'pt.admin_action_at',
                 'pt.created_at'
             ]);
 
         // Apply same filters as index
-        if ($request->has('status') && $request->status) {
-            $query->where('pt.status', $request->status);
+        if ($request->has('gateway_status') && $request->gateway_status) {
+            $query->where('pt.gateway_status', $request->gateway_status);
+        }
+
+        if ($request->has('admin_status') && $request->admin_status) {
+            $query->where('pt.admin_status', $request->admin_status);
         }
 
         if ($request->has('payment_method') && $request->payment_method) {
@@ -247,8 +354,11 @@ class AdminPaymentController extends Controller
                 'Amount',
                 'Currency',
                 'Payment Method',
-                'Status',
-                'Date'
+                'Gateway Status',
+                'Admin Status',
+                'Reviewed By',
+                'Review Date',
+                'Transaction Date'
             ]);
 
             // Add data rows
@@ -261,7 +371,10 @@ class AdminPaymentController extends Controller
                     $payment->amount,
                     $payment->currency,
                     $payment->payment_method,
-                    $payment->status,
+                    $payment->gateway_status,
+                    $payment->admin_status,
+                    $payment->admin_name,
+                    $payment->admin_action_at,
                     $payment->created_at
                 ]);
             }
