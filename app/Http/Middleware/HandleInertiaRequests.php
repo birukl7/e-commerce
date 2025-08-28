@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\AdminMenuService;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -39,7 +40,7 @@ class HandleInertiaRequests extends Middleware
     {
         [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
 
-        return [
+        $sharedData = [
             ...parent::share($request),
             'name' => config('app.name'),
             'quote' => ['message' => trim($message), 'author' => trim($author)],
@@ -52,5 +53,22 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+
+        // Add admin menu structure for authenticated admin users
+        if ($request->user() && $this->isAdminRoute($request)) {
+            $adminMenuService = app(AdminMenuService::class);
+            $sharedData['adminMenu'] = [
+                'structure' => $adminMenuService->getAdminMenuStructure(),
+                'flatItems' => $adminMenuService->getFlatMenuItems(),
+            ];
+        }
+
+        return $sharedData;
+    }
+
+    private function isAdminRoute(Request $request): bool
+    {
+        return str_starts_with($request->path(), 'admin') || 
+               str_starts_with($request->path(), 'admin-dashboard');
     }
 }

@@ -11,11 +11,11 @@ return new class extends Migration
         Schema::create('settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
+            $table->string('group')->default('general');
             $table->text('value')->nullable();
             $table->enum('type', ['string', 'integer', 'boolean', 'json']);
-            $table->string('group')->default('general')->after('key');
-            $table->boolean('autoload')->default(true)->after('type');
-            $table->text('description')->nullable()->after('autoload');
+            $table->boolean('autoload')->default(true);
+            $table->text('description')->nullable();
             $table->timestamps();
         });
     }

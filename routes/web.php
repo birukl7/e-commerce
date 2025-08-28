@@ -114,6 +114,8 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     
     // Export
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])
+    ->name('admin.offline-payments.index');
 
     Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
 
