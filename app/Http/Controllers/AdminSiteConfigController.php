@@ -7,12 +7,20 @@ use App\Models\OfflinePaymentMethod;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use App\Services\SiteConfigService; 
 
 class AdminSiteConfigController extends Controller
 {
+    public function __construct(SiteConfigService $siteConfig)
+    {
+        $this->siteConfig = $siteConfig;
+    }
+
     /**
      * Display site configuration settings.
      */
+    private SiteConfigService $siteConfig;
+
     public function index()
     {
         $settings = Setting::pluck('value', 'key')->toArray();
@@ -69,6 +77,57 @@ class AdminSiteConfigController extends Controller
             'settings' => $settings,
             'offlinePaymentMethods' => $offlinePaymentMethods
         ]);
+    }
+    /**
+     * Get system-wide settings for payments, UI, etc.
+     */
+    public function getSystemSettings()
+    {
+        return [
+            'payment_methods' => $this->siteConfig->getEnabledPaymentMethods(),
+            'manual_payment_enabled' => $this->siteConfig->isManualPaymentEnabled(),
+            'require_admin_approval' => $this->siteConfig->requiresAdminApproval(),
+            'tax_rate' => $this->siteConfig->getTaxRate(),
+            'auto_approve_gateway_payments' => $this->siteConfig->shouldAutoApproveGatewayPayments(),
+            'sales_sidebar_group' => $this->siteConfig->getSalesSidebarGroup(),
+            'admin_menu_groups' => $this->siteConfig->getAdminMenuGroups(),
+        ];
+    }
+
+    /**
+     * Update system settings.
+     */
+    public function updateSystemSettings(Request $request)
+    {
+        $validated = $request->validate([
+            'payment_methods' => 'array',
+            'payment_methods.*' => 'in:chapa,paypal,manual',
+            'manual_payment_enabled' => 'boolean',
+            'require_admin_approval' => 'boolean', 
+            'tax_rate' => 'numeric|min:0|max:1',
+            'auto_approve_gateway_payments' => 'boolean',
+            'sales_sidebar_group' => 'string|max:50',
+            'admin_menu_groups' => 'array',
+        ]);
+
+        // Update each setting
+        foreach ($validated as $key => $value) {
+            $settingKey = 'payments.' . $key;
+            if (in_array($key, ['sales_sidebar_group', 'admin_menu_groups'])) {
+                $settingKey = 'ui.' . $key;
+            }
+            
+            $type = match($key) {
+                'payment_methods', 'admin_menu_groups' => 'json',
+                'manual_payment_enabled', 'require_admin_approval', 'auto_approve_gateway_payments' => 'boolean',
+                'tax_rate' => 'decimal',
+                default => 'string'
+            };
+            
+            $this->siteConfig->set($settingKey, $value, $type, 'system');
+        }
+
+        return redirect()->back()->with('success', 'System settings updated successfully!');
     }
 
     /**

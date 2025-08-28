@@ -13,6 +13,9 @@ return new class extends Migration
             $table->string('key')->unique();
             $table->text('value')->nullable();
             $table->enum('type', ['string', 'integer', 'boolean', 'json']);
+            $table->string('group')->default('general')->after('key');
+            $table->boolean('autoload')->default(true)->after('type');
+            $table->text('description')->nullable()->after('autoload');
             $table->timestamps();
         });
     }
@@ -22,6 +25,7 @@ return new class extends Migration
      */
     public function down(): void
     {
+        
         Schema::dropIfExists('settings');
     }
 };
