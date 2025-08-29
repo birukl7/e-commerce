@@ -59,7 +59,7 @@ class AdminOrderController extends Controller
             'today_orders' => Order::whereDate('created_at', today())->count(),
         ];
 
-        return Inertia::render('admin/orders/index', [
+        return Inertia::render('admin/order/index', [
             'orders' => $orders,
             'stats' => $stats,
             'filters' => $request->only(['status', 'payment_status', 'search', 'date_from', 'date_to']),
@@ -87,7 +87,7 @@ class AdminOrderController extends Controller
             'total_amount' => $order->total_amount,
         ];
 
-        return Inertia::render('admin/orders/show', [
+        return Inertia::render('admin/order/show', [
             'order' => $order,
             'orderSummary' => $orderSummary,
         ]);

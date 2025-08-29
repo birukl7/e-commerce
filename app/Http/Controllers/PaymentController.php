@@ -12,18 +12,22 @@ use App\Models\OfflinePaymentSubmission;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Facades\Storage;
+use App\Services\PaymentFinalizer;
 
 class PaymentController extends Controller
 {
     private $chapaSecretKey;
     private $chapaPublicKey;
     private $chapaBaseUrl;
+    private PaymentFinalizer $paymentFinalizer;
 
     public function __construct()
     {
         $this->chapaSecretKey = config('services.chapa.secret_key');
         $this->chapaPublicKey = config('services.chapa.public_key');
         $this->chapaBaseUrl = config('services.chapa.base_url', 'https://api.chapa.co/v1');
+        // Resolve PaymentFinalizer via the container to avoid breaking existing route bindings
+        $this->paymentFinalizer = app(PaymentFinalizer::class);
     }
 
     public function selectMethod(Request $request)
@@ -75,40 +79,7 @@ class PaymentController extends Controller
         // Get offline payment methods for offline payments
         $offlinePaymentMethods = collect();
         if ($paymentMethod === 'offline') {
-            // Use test data for now - replace with database query once migrations are run
-            $offlinePaymentMethods = collect([
-                (object) [
-                    'id' => 1,
-                    'name' => 'Commercial Bank of Ethiopia',
-                    'type' => 'bank',
-                    'description' => 'Transfer money to our CBE bank account and upload the receipt',
-                    'instructions' => 'Please transfer the exact amount to our CBE account and upload a clear screenshot of your payment confirmation.',
-                    'details' => [
-                        'account_name' => 'ShopHub E-commerce',
-                        'account_number' => '1000123456789',
-                        'bank_name' => 'Commercial Bank of Ethiopia',
-                        'branch' => 'Main Branch'
-                    ],
-                    'logo' => null,
-                    'is_active' => true,
-                    'sort_order' => 1,
-                ],
-                (object) [
-                    'id' => 2,
-                    'name' => 'Telebirr Mobile Money',
-                    'type' => 'mobile',
-                    'description' => 'Send payment via Telebirr mobile money and upload the confirmation SMS screenshot',
-                    'instructions' => 'Send the exact amount to our Telebirr number and upload a screenshot of the success message.',
-                    'details' => [
-                        'phone_number' => '+251911234567',
-                        'account_name' => 'ShopHub Store',
-                        'service' => 'Telebirr'
-                    ],
-                    'logo' => null,
-                    'is_active' => true,
-                    'sort_order' => 2,
-                ],
-            ]);
+            $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
         }
 
         return Inertia::render('payment/payment-process', [
@@ -278,7 +249,7 @@ class PaymentController extends Controller
                         'customer_email' => $request->customer_email,
                         'customer_name' => $request->customer_name,
                         'customer_phone' => $request->customer_phone,
-                        'payment_method' => $request->payment_method,
+                        'payment_method' => 'chapa', // Always use 'chapa' for Chapa payments
                         'status' => 'pending',
                         'checkout_url' => $responseData['data']['checkout_url'],
                     ]);
@@ -324,19 +295,16 @@ class PaymentController extends Controller
                 $data = $response->json()['data'];
                 
                 if ($data['status'] === 'success') {
-                    // Update transaction status
-                    $this->updateTransactionStatus($txRef, 'completed', $data);
-                    
-                    // FIXED: Get order ID and update payment status to 'paid'
+                    // Mark gateway as paid but require admin approval before finalization
+                    $this->paymentFinalizer->updateGatewayStatus($txRef, 'paid', $data);
+
+                    // Prepare success page props
                     $orderId = $data['meta']['order_id'] ?? null;
                     if ($orderId) {
-                        $paymentMethod = $data['payment_type'] ?? $data['meta']['payment_method'] ?? 'chapa';
-                        $this->updateOrderPaymentStatus($orderId, 'paid', $paymentMethod);
-                        
-                        // Get order items for display
+                        // Do NOT mark order as paid here; admin approval is required.
                         $orderItems = $this->getOrderItemsForDisplay($orderId);
                     }
-                    
+
                     return Inertia::render('payment/payment-success', [
                         'order_id' => $orderId ?? 'N/A',
                         'transaction_id' => $data['id'] ?? $txRef,
@@ -346,6 +314,7 @@ class PaymentController extends Controller
                         'customer_name' => trim(($data['first_name'] ?? '') . ' ' . ($data['last_name'] ?? '')),
                         'customer_email' => $data['email'] ?? '',
                         'order_items' => $orderItems ?? [],
+                        'awaiting_admin_approval' => true,
                     ]);
                 }
             }

@@ -15,7 +15,10 @@ class PaymentFinalizer
      */
     public function canFinalizeOrder(PaymentTransaction $payment): bool
     {
-        return $payment->isGatewayPaid() && $payment->isAdminApproved();
+        // Allow finalization when admin has approved and either:
+        // - Gateway confirms paid (e.g., online processors)
+        // - Proof has been uploaded for offline methods and admin approved it
+        return $payment->isAdminApproved() && ($payment->isGatewayPaid() || $payment->hasProofUploaded());
     }
 
     /**
@@ -43,7 +46,7 @@ class PaymentFinalizer
                 // Update order status to processing/confirmed
                 $order->update([
                     'status' => 'processing', // or 'confirmed' depending on your order flow
-                    'payment_status' => 'completed',
+                    'payment_status' => 'paid',
                 ]);
 
                 // Update inventory, send confirmation emails, etc.
@@ -137,10 +140,8 @@ class PaymentFinalizer
             'admin_id' => $admin->id
         ]);
 
-        // Try to finalize if gateway is also ready
-        if ($payment->isGatewayPaid()) {
-            $this->finalizeOrder($payment);
-        }
+        // Attempt to finalize order; finalizeOrder internally checks eligibility via canFinalizeOrder()
+        $this->finalizeOrder($payment);
 
         return true;
     }
@@ -199,11 +200,19 @@ class PaymentFinalizer
      */
     private function handleGatewayPaid(PaymentTransaction $payment): void
     {
-        // Send notification that payment is received but needs admin approval
-        // Queue job to notify customer and admins
+        // Ensure admin_status is set to 'unseen' for admin review
+        // Only update if not already set to avoid overriding existing admin actions
+        if ($payment->admin_status === null || $payment->admin_status === '') {
+            $payment->update(['admin_status' => 'unseen']);
+            
+            Log::info('Payment gateway paid, awaiting admin approval', [
+                'payment_id' => $payment->id,
+                'tx_ref' => $payment->tx_ref
+            ]);
+        }
         
-        // If auto-approval is enabled for certain payment methods, could approve automatically
-        // For now, all payments require manual admin approval
+        // Notify admins of pending review
+        $this->notifyAdminsOfPendingReview($payment);
     }
 
     /**

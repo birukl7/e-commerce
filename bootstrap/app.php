@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             HandleAppearance::class,
+            \App\Http\Middleware\ValidateAdminSession::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
@@ -29,6 +30,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // register this middleware with its alias
         $middleware->alias([
             'admin' => EnsureUserHasAdminAccess::class,
+            'validate.admin.session' => \App\Http\Middleware\ValidateAdminSession::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

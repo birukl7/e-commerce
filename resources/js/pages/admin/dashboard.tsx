@@ -57,12 +57,12 @@ const breadcrumbs: BreadcrumbItem[] = [
 export const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
     { title: 'Products', href: '/admin/products', icon: Package },
-    { title: 'Payments', href: '/admin/paymentStats', icon: CreditCard },
+    { title: 'Payments', href: '/paymentStats', icon: CreditCard },
     { title: 'Suppliers and Customers', href: '/admin/customers', icon: Users },
     { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
     { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { title: 'Site Configuration', href: '/admin/site-config', icon: Settings },
+    { title: 'Site Configuration', href: '/site-config', icon: Settings },
 ];
 
 interface DashboardStats {

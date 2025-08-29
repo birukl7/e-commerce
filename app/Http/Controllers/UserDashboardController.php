@@ -80,7 +80,7 @@ class UserDashboardController extends Controller
     {
         $user = Auth::user();
         
-        // Get user's orders with items - including ALL payment statuses
+        // Get user's orders with items and payment transaction status
         $orders = DB::table('orders as o')
             ->leftJoin('order_items as oi', 'o.id', '=', 'oi.order_id')
             ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
@@ -88,6 +88,7 @@ class UserDashboardController extends Controller
                 $join->on('p.id', '=', 'pi.product_id')
                     ->where('pi.is_primary', true);
             })
+            ->leftJoin('payment_transactions as pt', 'o.id', '=', 'pt.order_id')
             ->select([
                 'o.id',
                 'o.order_number',
@@ -97,6 +98,8 @@ class UserDashboardController extends Controller
                 'o.payment_method',
                 'o.created_at',
                 'o.updated_at',
+                'pt.gateway_status',
+                'pt.admin_status',
                 'oi.id as item_id',
                 'oi.quantity',
                 'oi.price as item_price',
@@ -122,13 +125,45 @@ class UserDashboardController extends Controller
                     ];
                 })->toArray();
 
+                // Determine actual order status based on persisted order first.
+                // Only fall back to payment transaction when order is still pending/unpaid.
+                $actualStatus = $firstOrder->status;
+                $actualPaymentStatus = $firstOrder->payment_status;
+
+                // Normalize: if order has progressed but payment_status is still pending, assume paid
+                if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
+                    $actualPaymentStatus = 'paid';
+                }
+
+                $isOrderFinalized = in_array($firstOrder->payment_status, ['paid', 'completed', 'rejected', 'refunded'], true)
+                    || in_array($firstOrder->status, ['processing', 'shipped', 'delivered', 'cancelled'], true);
+
+                if (!$isOrderFinalized && $firstOrder->gateway_status && $firstOrder->admin_status) {
+                    if ($firstOrder->gateway_status === 'paid' && $firstOrder->admin_status === 'approved') {
+                        $actualStatus = 'processing';
+                        $actualPaymentStatus = 'paid';
+                    } elseif ($firstOrder->gateway_status === 'proof_uploaded' && $firstOrder->admin_status === 'unseen') {
+                        $actualStatus = 'awaiting_admin_approval';
+                        $actualPaymentStatus = 'pending_approval';
+                    } elseif ($firstOrder->admin_status === 'approved' && $firstOrder->gateway_status === 'proof_uploaded') {
+                        // Offline flow: admin approved with proof uploaded
+                        $actualStatus = 'processing';
+                        $actualPaymentStatus = 'paid';
+                    } elseif ($firstOrder->admin_status === 'rejected') {
+                        $actualStatus = 'payment_rejected';
+                        $actualPaymentStatus = 'rejected';
+                    }
+                }
+
                 return [
                     'id' => $firstOrder->id,
                     'order_number' => $firstOrder->order_number,
                     'total_amount' => (float) $firstOrder->total_amount,
-                    'status' => $firstOrder->status,
-                    'payment_status' => $firstOrder->payment_status,
+                    'status' => $actualStatus,
+                    'payment_status' => $actualPaymentStatus,
                     'payment_method' => $firstOrder->payment_method,
+                    'gateway_status' => $firstOrder->gateway_status,
+                    'admin_status' => $firstOrder->admin_status,
                     'created_at' => $firstOrder->created_at,
                     'updated_at' => $firstOrder->updated_at,
                     'items' => $items,
@@ -149,7 +184,7 @@ class UserDashboardController extends Controller
             abort(403, 'Unauthorized');
         }
 
-        // Get order with items and product details
+        // Get order with items, product details, and payment transaction
         $orderData = DB::table('orders as o')
             ->leftJoin('order_items as oi', 'o.id', '=', 'oi.order_id')
             ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
@@ -157,6 +192,7 @@ class UserDashboardController extends Controller
                 $join->on('p.id', '=', 'pi.product_id')
                     ->where('pi.is_primary', true);
             })
+            ->leftJoin('payment_transactions as pt', 'o.id', '=', 'pt.order_id')
             ->select([
                 'o.*',
                 'oi.id as item_id',
@@ -166,6 +202,9 @@ class UserDashboardController extends Controller
                 'p.name as product_name',
                 'p.slug as product_slug',
                 'pi.image_path as primary_image',
+                'pt.payment_method as actual_payment_method',
+                'pt.gateway_status',
+                'pt.admin_status',
             ])
             ->where('o.id', $order->id)
             ->get();
@@ -187,12 +226,59 @@ class UserDashboardController extends Controller
             ];
         })->toArray();
 
+        // Apply same status normalization as orders list
+        $actualStatus = $firstOrder->status;
+        $actualPaymentStatus = $firstOrder->payment_status;
+        
+        // For Chapa payments, require both gateway paid AND admin approval
+        // For offline payments, require admin approval of proof upload
+        if ($firstOrder->gateway_status && $firstOrder->admin_status) {
+            if ($firstOrder->gateway_status === 'paid' && $firstOrder->admin_status === 'approved') {
+                $actualStatus = 'processing';
+                $actualPaymentStatus = 'paid';
+            } elseif ($firstOrder->gateway_status === 'proof_uploaded' && $firstOrder->admin_status === 'approved') {
+                $actualStatus = 'processing';
+                $actualPaymentStatus = 'paid';
+            } elseif ($firstOrder->gateway_status === 'paid' && $firstOrder->admin_status === 'unseen') {
+                $actualStatus = 'awaiting_admin_approval';
+                $actualPaymentStatus = 'pending_approval';
+            } elseif ($firstOrder->gateway_status === 'proof_uploaded' && $firstOrder->admin_status === 'unseen') {
+                $actualStatus = 'awaiting_admin_approval';
+                $actualPaymentStatus = 'pending_approval';
+            } elseif ($firstOrder->admin_status === 'rejected') {
+                $actualStatus = 'payment_rejected';
+                $actualPaymentStatus = 'rejected';
+            }
+        }
+        
+        // Remove duplicate payment method assignment - will be set below
+        
+        // Get payment transaction data for better context
+        $paymentTransaction = \App\Models\PaymentTransaction::where('order_id', $order->id)->first();
+        
+        // Determine payment method type based on tx_ref pattern
+        $paymentMethodType = 'Unknown';
+        if ($paymentTransaction) {
+            if (str_starts_with($paymentTransaction->tx_ref, 'TX-')) {
+                $paymentMethodType = 'Chapa Online Payment';
+                $actualPaymentMethod = $paymentTransaction->payment_method ?: $firstOrder->payment_method ?: 'chapa';
+            } elseif (str_starts_with($paymentTransaction->tx_ref, 'OFFLINE-')) {
+                $paymentMethodType = 'Offline Payment';
+                $actualPaymentMethod = $paymentTransaction->payment_method ?: 'offline';
+            } else {
+                $actualPaymentMethod = $paymentTransaction->payment_method ?: $firstOrder->payment_method ?: 'N/A';
+            }
+        } else {
+            $actualPaymentMethod = $firstOrder->payment_method ?: 'N/A';
+        }
+        
         $orderDetails = [
             'id' => $firstOrder->id,
             'order_number' => $firstOrder->order_number,
-            'status' => $firstOrder->status,
-            'payment_status' => $firstOrder->payment_status,
-            'payment_method' => $firstOrder->payment_method,
+            'status' => $actualStatus,
+            'payment_status' => $actualPaymentStatus,
+            'payment_method' => $actualPaymentMethod,
+            'payment_method_type' => $paymentMethodType,
             'currency' => $firstOrder->currency,
             'subtotal' => (float) $firstOrder->subtotal,
             'tax_amount' => (float) $firstOrder->tax_amount,
@@ -219,6 +305,14 @@ class UserDashboardController extends Controller
             abort(403, 'Unauthorized');
         }
 
+        // Apply same status normalization for tracking
+        $actualStatus = $order->status;
+        $actualPaymentStatus = $order->payment_status;
+        
+        if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
+            $actualPaymentStatus = 'paid';
+        }
+
         // Create order tracking timeline
         $timeline = [];
         
@@ -231,16 +325,55 @@ class UserDashboardController extends Controller
             'completed' => true,
         ];
 
-        // Payment status
-        if ($order->payment_status === 'paid') {
+        // Get payment transaction for detailed status
+        $paymentTransaction = \App\Models\PaymentTransaction::where('order_id', $order->id)->first();
+        $paymentMethodType = 'Unknown Payment';
+        if ($paymentTransaction) {
+            if (str_starts_with($paymentTransaction->tx_ref, 'TX-')) {
+                $paymentMethodType = 'Chapa Online Payment';
+            } elseif (str_starts_with($paymentTransaction->tx_ref, 'OFFLINE-')) {
+                $paymentMethodType = 'Offline Payment';
+            }
+        }
+
+        // Enhanced payment status tracking
+        if ($actualPaymentStatus === 'paid') {
+            // Payment received step
             $timeline[] = [
-                'status' => 'paid',
-                'title' => 'Payment Confirmed',
-                'description' => 'Payment has been confirmed',
-                'date' => $order->updated_at, // You might want to track payment date separately
+                'status' => 'payment_received',
+                'title' => 'Payment Received',
+                'description' => "Payment received via {$paymentMethodType}",
+                'date' => $order->updated_at,
                 'completed' => true,
             ];
-        } elseif ($order->payment_status === 'pending') {
+            
+            // Admin approval step
+            $timeline[] = [
+                'status' => 'admin_approved',
+                'title' => 'Payment Approved',
+                'description' => 'Payment has been reviewed and approved by admin',
+                'date' => $order->updated_at,
+                'completed' => true,
+            ];
+        } elseif ($actualPaymentStatus === 'pending_approval') {
+            // Payment received step
+            $timeline[] = [
+                'status' => 'payment_received',
+                'title' => 'Payment Received',
+                'description' => "Payment received via {$paymentMethodType}",
+                'date' => $order->updated_at,
+                'completed' => true,
+            ];
+            
+            // Awaiting admin approval step
+            $timeline[] = [
+                'status' => 'awaiting_admin_approval',
+                'title' => 'Awaiting Admin Approval',
+                'description' => 'Payment is being reviewed by admin for approval',
+                'date' => null,
+                'completed' => false,
+            ];
+        } elseif ($actualPaymentStatus === 'pending') {
             $timeline[] = [
                 'status' => 'payment_pending',
                 'title' => 'Payment Pending',
@@ -248,7 +381,16 @@ class UserDashboardController extends Controller
                 'date' => null,
                 'completed' => false,
             ];
-        } elseif ($order->payment_status === 'failed') {
+        } elseif ($actualPaymentStatus === 'rejected') {
+            $timeline[] = [
+                'status' => 'payment_rejected',
+                'title' => 'Payment Rejected',
+                'description' => 'Payment was rejected by admin',
+                'date' => $order->updated_at,
+                'completed' => false,
+                'error' => true,
+            ];
+        } elseif ($actualPaymentStatus === 'failed') {
             $timeline[] = [
                 'status' => 'payment_failed',
                 'title' => 'Payment Failed',
@@ -260,7 +402,7 @@ class UserDashboardController extends Controller
         }
 
         // Processing
-        if ($order->status === 'processing' && $order->payment_status === 'paid') {
+        if ($actualStatus === 'processing' && $actualPaymentStatus === 'paid') {
             $timeline[] = [
                 'status' => 'processing',
                 'title' => 'Processing',
@@ -279,7 +421,7 @@ class UserDashboardController extends Controller
         }
 
         // Shipped
-        if ($order->status === 'shipped' || $order->status === 'delivered') {
+        if ($actualStatus === 'shipped' || $actualStatus === 'delivered') {
             $timeline[] = [
                 'status' => 'shipped',
                 'title' => 'Shipped',
@@ -298,7 +440,7 @@ class UserDashboardController extends Controller
         }
 
         // Delivered
-        if ($order->status === 'delivered') {
+        if ($actualStatus === 'delivered') {
             $timeline[] = [
                 'status' => 'delivered',
                 'title' => 'Delivered',
@@ -317,7 +459,7 @@ class UserDashboardController extends Controller
         }
 
         // Handle cancelled orders
-        if ($order->status === 'cancelled') {
+        if ($actualStatus === 'cancelled') {
             $timeline = [
                 $timeline[0], // Keep order placed
                 [
@@ -335,8 +477,8 @@ class UserDashboardController extends Controller
             'order' => [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
-                'status' => $order->status,
-                'payment_status' => $order->payment_status,
+                'status' => $actualStatus,
+                'payment_status' => $actualPaymentStatus,
                 'total_amount' => (float) $order->total_amount,
                 'currency' => $order->currency,
                 'created_at' => $order->created_at,

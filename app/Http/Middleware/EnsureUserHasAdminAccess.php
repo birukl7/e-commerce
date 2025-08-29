@@ -18,10 +18,29 @@ class EnsureUserHasAdminAccess
         if (!auth()->check()){
             return redirect()->route('login');
         } 
-        // check if use has admin dashboard access permission
-        if (!auth()->user()->can('access admin dashboard')){
-            abort(403, 'Access denied, admin privileges required');
+        
+        $user = auth()->user();
+        
+        // Check if user account is still active
+        if ($user->status !== 'active') {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->withErrors([
+                'email' => 'Your account is no longer active. Please contact support.',
+            ]);
         }
+        
+        // Validate admin permissions on every request to prevent privilege escalation
+        if (!$user->can('access admin dashboard') && !$user->hasRole('admin') && !$user->hasRole('super_admin')) {
+            auth()->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->withErrors([
+                'email' => 'You do not have permission to access the admin dashboard.',
+            ]);
+        }
+        
         return $next($request);
     }
 }

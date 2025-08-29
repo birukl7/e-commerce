@@ -23,9 +23,11 @@ export function AppSidebar({
     logoDisplay
 }: AppSidebarProps) {
     const { adminMenu } = usePage<{ adminMenu?: AdminMenu }>().props;
-    
-    // Use dynamic admin menu if available, fallback to passed mainNavItems
-    const navItems = adminMenu ? adminMenu.flatItems : mainNavItems;
+
+    // Use dynamic admin menu if available and non-empty; otherwise fallback
+    const navItems = adminMenu && Array.isArray(adminMenu.flatItems) && adminMenu.flatItems.length > 0
+        ? adminMenu.flatItems
+        : mainNavItems;
 
     return (
         <Sidebar collapsible="icon" variant="inset">

@@ -14,6 +14,8 @@ interface OfflineSubmissionSuccessProps {
 }
 
 export default function OfflineSubmissionSuccess({ submission_ref, order_id, amount, currency, payment_method }: OfflineSubmissionSuccessProps) {
+    // Debug log to check if component is rendering
+    console.log('OfflineSubmissionSuccess props:', { submission_ref, order_id, amount, currency, payment_method });
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -23,16 +25,40 @@ export default function OfflineSubmissionSuccess({ submission_ref, order_id, amo
             .replace('$', currency + ' ');
     };
 
+    // Early return with simple content if props are missing
+    if (!submission_ref || !order_id) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <Head title="Payment Submitted Successfully - ShopHub" />
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Payment Submitted Successfully!</h1>
+                    <p className="text-gray-600 mb-8">Your payment proof has been submitted for verification.</p>
+                    <Button asChild style={{ backgroundColor: '#ef4e2a' }}>
+                        <Link href="/">Continue Shopping</Link>
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Head title="Payment Submitted Successfully - ShopHub" />
-            <Header />
+            
+            {/* Simplified header to avoid component errors */}
+            <div className="bg-white shadow-sm border-b">
+                <div className="max-w-7xl mx-auto px-4 py-4">
+                    <Link href="/" className="text-2xl font-bold" style={{ color: '#ef4e2a' }}>
+                        ShopHub
+                    </Link>
+                </div>
+            </div>
 
             <div className="mx-auto max-w-4xl px-4 py-8">
                 <div className="text-center">
                     {/* Success Icon */}
-                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary-100">
-                        <FileImage className="h-10 w-10 text-primary-600" />
+                    <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-100">
+                        <FileImage className="h-10 w-10 text-green-600" />
                     </div>
 
                     {/* Success Message */}
@@ -108,15 +134,15 @@ export default function OfflineSubmissionSuccess({ submission_ref, order_id, amo
 
                     {/* Action Buttons */}
                     <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-                        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
-                            <Link href={route('home')} className="flex items-center gap-2">
+                        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={{ backgroundColor: '#ef4e2a' }}>
+                            <Link href="/" className="flex items-center gap-2">
                                 <Home className="h-4 w-4" />
                                 Continue Shopping
                             </Link>
                         </Button>
 
                         <Button asChild variant="outline">
-                            <Link href={route('user.dashboard')} className="flex items-center gap-2">
+                            <Link href="/user-order" className="flex items-center gap-2">
                                 <User className="h-4 w-4" />
                                 View My Orders
                             </Link>
@@ -143,7 +169,12 @@ export default function OfflineSubmissionSuccess({ submission_ref, order_id, amo
                 </div>
             </div>
 
-            <Footer />
+            {/* Simplified footer to avoid component errors */}
+            <div className="bg-gray-900 text-white py-8 mt-16">
+                <div className="max-w-7xl mx-auto px-4 text-center">
+                    <p className="text-gray-400">© 2024 ShopHub Ethiopia. All rights reserved.</p>
+                </div>
+            </div>
         </div>
     );
 }

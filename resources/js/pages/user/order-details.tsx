@@ -21,6 +21,7 @@ interface Order {
     status: string;
     payment_status: string;
     payment_method: string;
+    payment_method_type: string;
     currency: string;
     subtotal: number;
     tax_amount: number;
@@ -80,10 +81,29 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                 return 'bg-green-100 text-green-800';
             case 'pending':
                 return 'bg-yellow-100 text-yellow-800';
+            case 'pending_approval':
+                return 'bg-orange-100 text-orange-800';
+            case 'awaiting_admin_approval':
+                return 'bg-orange-100 text-orange-800';
+            case 'approved':
+                return 'bg-green-100 text-green-800';
+            case 'rejected':
+                return 'bg-red-100 text-red-800';
             case 'failed':
                 return 'bg-red-100 text-red-800';
             default:
                 return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const formatPaymentStatus = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'pending_approval':
+                return 'Awaiting Approval';
+            case 'awaiting_admin_approval':
+                return 'Awaiting Admin Approval';
+            default:
+                return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
     };
 
@@ -205,16 +225,55 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                     Payment Details
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex justify-between text-sm">
-                                    <span>Payment Method:</span>
-                                    <span className="capitalize">{order.payment_method.replace('_', ' ')}</span>
+                            <CardContent className="space-y-4">
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Payment Method:</span>
+                                        <span className="capitalize font-medium">{order.payment_method.replace('_', ' ')}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Payment Type:</span>
+                                        <span className="font-medium">{order.payment_method_type}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Payment Status:</span>
+                                        <Badge className={getPaymentStatusColor(order.payment_status)}>
+                                            {formatPaymentStatus(order.payment_status)}
+                                        </Badge>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Total Amount:</span>
+                                        <span className="font-semibold">{formatPrice(order.total_amount)}</span>
+                                    </div>
                                 </div>
-                                <div className="flex justify-between text-sm">
-                                    <span>Payment Status:</span>
-                                    <Badge className={getPaymentStatusColor(order.payment_status)}>
-                                        {order.payment_status}
-                                    </Badge>
+
+                                {/* Order Items in Payment Details */}
+                                <div className="border-t pt-4">
+                                    <h4 className="text-sm font-medium text-gray-900 mb-3">Items Ordered</h4>
+                                    <div className="space-y-3">
+                                        {order.items.map((item) => (
+                                            <div key={item.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
+                                                {item.primary_image && (
+                                                    <img
+                                                        src={item.primary_image}
+                                                        alt={item.product_name}
+                                                        className="w-12 h-12 object-cover rounded-md"
+                                                    />
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                                        {item.product_name}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        Qty: {item.quantity} × {formatPrice(item.price)}
+                                                    </p>
+                                                </div>
+                                                <div className="text-sm font-medium text-gray-900">
+                                                    {formatPrice(item.total)}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

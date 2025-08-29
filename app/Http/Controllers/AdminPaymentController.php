@@ -39,8 +39,8 @@ class AdminPaymentController extends Controller
         // Add search functionality
         if ($request->has('search') && $request->search) {
             $query->where(function($q) use ($request) {
-                $q->where('pt.customer_name', 'like', '%' . $request->search . '%')
-                  ->orWhere('pt.customer_email', 'like', '%' . $request->search . '%')
+                $q->where('u.name', 'like', '%' . $request->search . '%')
+                  ->orWhere('u.email', 'like', '%' . $request->search . '%')
                   ->orWhere('pt.tx_ref', 'like', '%' . $request->search . '%')
                   ->orWhere('pt.order_id', 'like', '%' . $request->search . '%');
             });
@@ -182,27 +182,46 @@ class AdminPaymentController extends Controller
      */
     public function approve(Request $request, $paymentId)
     {
-        $request->validate([
-            'notes' => 'nullable|string|max:1000'
-        ]);
+        try {
+            $request->validate([
+                'notes' => 'nullable|string|max:1000'
+            ]);
 
-        $payment = PaymentTransaction::findOrFail($paymentId);
-        
-        if (!$payment->canBeApproved()) {
-            return back()->with('error', 'Payment cannot be approved at this time.');
+            $payment = PaymentTransaction::findOrFail($paymentId);
+            
+            \Log::info('Before approve:', [
+                'payment_id' => $payment->id,
+                'admin_status' => $payment->admin_status,
+                'gateway_status' => $payment->gateway_status,
+                'can_be_approved' => $payment->canBeApproved()
+            ]);
+            
+            if (!$payment->canBeApproved()) {
+                return back()->with('error', 'Payment cannot be approved at this time.');
+            }
+
+            $success = $this->paymentFinalizer->handleAdminApproval(
+                $payment, 
+                Auth::user(), 
+                $request->input('notes')
+            );
+
+            \Log::info('After approve:', [
+                'payment_id' => $payment->id,
+                'admin_status' => $payment->fresh()->admin_status,
+                'gateway_status' => $payment->fresh()->gateway_status,
+                'success' => $success
+            ]);
+
+            if ($success) {
+                return back()->with('success', 'Payment approved successfully.');
+            }
+
+            return back()->with('error', 'Failed to approve payment.');
+        } catch (\Exception $e) {
+            \Log::error('approve failed:', ['error' => $e->getMessage(), 'payment_id' => $paymentId]);
+            return back()->with('error', 'Failed to approve payment: ' . $e->getMessage());
         }
-
-        $success = $this->paymentFinalizer->handleAdminApproval(
-            $payment, 
-            Auth::user(), 
-            $request->input('notes')
-        );
-
-        if ($success) {
-            return back()->with('success', 'Payment approved successfully.');
-        }
-
-        return back()->with('error', 'Failed to approve payment.');
     }
 
     /**
@@ -238,10 +257,28 @@ class AdminPaymentController extends Controller
      */
     public function markSeen($paymentId)
     {
-        $payment = PaymentTransaction::findOrFail($paymentId);
-        $payment->markSeen(Auth::user());
-        
-        return back()->with('success', 'Payment marked as seen.');
+        try {
+            $payment = PaymentTransaction::findOrFail($paymentId);
+            
+            \Log::info('Before markSeen:', [
+                'payment_id' => $payment->id,
+                'admin_status' => $payment->admin_status,
+                'gateway_status' => $payment->gateway_status
+            ]);
+            
+            $payment->markSeen(Auth::user());
+            
+            \Log::info('After markSeen:', [
+                'payment_id' => $payment->id,
+                'admin_status' => $payment->admin_status,
+                'gateway_status' => $payment->gateway_status
+            ]);
+            
+            return back()->with('success', 'Payment marked as seen.');
+        } catch (\Exception $e) {
+            \Log::error('markSeen failed:', ['error' => $e->getMessage(), 'payment_id' => $paymentId]);
+            return back()->with('error', 'Failed to mark payment as seen.');
+        }
     }
 
     /**

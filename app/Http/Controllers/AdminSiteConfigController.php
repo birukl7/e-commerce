@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\OfflinePaymentMethod;
+use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,8 @@ use App\Services\SiteConfigService;
 
 class AdminSiteConfigController extends Controller
 {
+    private SiteConfigService $siteConfig;
+
     public function __construct(SiteConfigService $siteConfig)
     {
         $this->siteConfig = $siteConfig;
@@ -19,8 +22,6 @@ class AdminSiteConfigController extends Controller
     /**
      * Display site configuration settings.
      */
-    private SiteConfigService $siteConfig;
-
     public function index()
     {
         $settings = Setting::pluck('value', 'key')->toArray();
@@ -47,87 +48,44 @@ class AdminSiteConfigController extends Controller
             'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
             'about_column3_title' => 'Quality & Authenticity',
             'about_column3_text' => 'Every product on ShopHub is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
-            'about_cta_text' => 'Questions about our products or Ethiopian culture?',
-            'about_cta_button_text' => 'Contact Our Team',
             
-            // Footer Settings
-            'footer_brand_description' => 'Discover Ethiopian treasures and modern essentials',
-            'footer_download_text' => 'Download ShopHub App',
-            'footer_location_text' => 'Ethiopia',
-            'footer_language_text' => 'Amharic / English',
-            'footer_currency_text' => ' (ETB)',
-            'footer_copyright_text' => '© 2025 ShopHub Ethiopia',
-            
-            // Legal Content
+            // Privacy Policy
             'privacy_policy_content' => $this->getDefaultPrivacyPolicy(),
-            'terms_conditions_content' => $this->getDefaultTermsConditions(),
+            
+            // Payment Settings
+            'manual_payment_enabled' => true,
+            'require_admin_approval' => true,
+            'auto_approve_gateway_payments' => false,
+            'tax_rate' => 0.15,
         ];
         
-        // Merge defaults with existing settings
-        foreach ($defaultSettings as $key => $defaultValue) {
-            if (!isset($settings[$key])) {
-                $settings[$key] = $defaultValue;
-            }
-        }
+        $settings = array_merge($defaultSettings, $settings);
         
-        // Get offline payment methods
-        $offlinePaymentMethods = OfflinePaymentMethod::ordered()->get();
+        // Load offline payment methods
+        $offlinePaymentMethods = OfflinePaymentMethod::orderBy('sort_order')->get();
         
+        // Load recent payment data for dashboard with fresh data
+        // Use tx_ref patterns to distinguish payment types:
+        // Chapa: TX-xxxxx (from PaymentController)
+        // Offline: OFFLINE-xxxxx (from offline submission)
+        $recentChapaPayments = PaymentTransaction::where('tx_ref', 'like', 'TX-%')
+            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+            
+        $recentOfflinePayments = PaymentTransaction::where('tx_ref', 'like', 'OFFLINE-%')
+            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
         return Inertia::render('admin/site-config/index', [
             'settings' => $settings,
-            'offlinePaymentMethods' => $offlinePaymentMethods
+            'offlinePaymentMethods' => $offlinePaymentMethods,
+            'recentChapaPayments' => $recentChapaPayments,
+            'recentOfflinePayments' => $recentOfflinePayments,
         ]);
-    }
-    /**
-     * Get system-wide settings for payments, UI, etc.
-     */
-    public function getSystemSettings()
-    {
-        return [
-            'payment_methods' => $this->siteConfig->getEnabledPaymentMethods(),
-            'manual_payment_enabled' => $this->siteConfig->isManualPaymentEnabled(),
-            'require_admin_approval' => $this->siteConfig->requiresAdminApproval(),
-            'tax_rate' => $this->siteConfig->getTaxRate(),
-            'auto_approve_gateway_payments' => $this->siteConfig->shouldAutoApproveGatewayPayments(),
-            'sales_sidebar_group' => $this->siteConfig->getSalesSidebarGroup(),
-            'admin_menu_groups' => $this->siteConfig->getAdminMenuGroups(),
-        ];
-    }
-
-    /**
-     * Update system settings.
-     */
-    public function updateSystemSettings(Request $request)
-    {
-        $validated = $request->validate([
-            'payment_methods' => 'array',
-            'payment_methods.*' => 'in:chapa,paypal,manual',
-            'manual_payment_enabled' => 'boolean',
-            'require_admin_approval' => 'boolean', 
-            'tax_rate' => 'numeric|min:0|max:1',
-            'auto_approve_gateway_payments' => 'boolean',
-            'sales_sidebar_group' => 'string|max:50',
-            'admin_menu_groups' => 'array',
-        ]);
-
-        // Update each setting
-        foreach ($validated as $key => $value) {
-            $settingKey = 'payments.' . $key;
-            if (in_array($key, ['sales_sidebar_group', 'admin_menu_groups'])) {
-                $settingKey = 'ui.' . $key;
-            }
-            
-            $type = match($key) {
-                'payment_methods', 'admin_menu_groups' => 'json',
-                'manual_payment_enabled', 'require_admin_approval', 'auto_approve_gateway_payments' => 'boolean',
-                'tax_rate' => 'decimal',
-                default => 'string'
-            };
-            
-            $this->siteConfig->set($settingKey, $value, $type, 'system');
-        }
-
-        return redirect()->back()->with('success', 'System settings updated successfully!');
     }
 
     /**
@@ -141,136 +99,88 @@ class AdminSiteConfigController extends Controller
             'banner_main_subtitle' => 'required|string|max:255',
             'banner_main_button_text' => 'required|string|max:100',
             'banner_main_button_link' => 'required|string|max:255',
-            'banner_main_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'banner_main_image' => 'required|string|max:255',
             'banner_secondary_title' => 'required|string|max:255',
             'banner_secondary_button_text' => 'required|string|max:100',
             'banner_secondary_button_link' => 'required|string|max:255',
-            'banner_secondary_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
+            'banner_secondary_image' => 'required|string|max:255',
             
             // About Section
             'about_title' => 'required|string|max:255',
             'about_subtitle' => 'required|string|max:255',
             'about_column1_title' => 'required|string|max:255',
-            'about_column1_text' => 'required|string',
+            'about_column1_text' => 'required|string|max:2000',
             'about_column2_title' => 'required|string|max:255',
-            'about_column2_text' => 'required|string',
+            'about_column2_text' => 'required|string|max:2000',
             'about_column3_title' => 'required|string|max:255',
-            'about_column3_text' => 'required|string',
-            'about_cta_text' => 'required|string|max:255',
-            'about_cta_button_text' => 'required|string|max:100',
+            'about_column3_text' => 'required|string|max:2000',
             
-            // Footer
-            'footer_brand_description' => 'required|string|max:255',
-            'footer_download_text' => 'required|string|max:100',
-            'footer_location_text' => 'required|string|max:100',
-            'footer_language_text' => 'required|string|max:100',
-            'footer_currency_text' => 'required|string|max:50',
-            'footer_copyright_text' => 'required|string|max:255',
-            
-            // Legal Content
+            // Privacy Policy
             'privacy_policy_content' => 'required|string',
-            'terms_conditions_content' => 'required|string',
+            
+            // Payment Settings
+            'manual_payment_enabled' => 'boolean',
+            'require_admin_approval' => 'boolean',
+            'auto_approve_gateway_payments' => 'boolean',
+            'tax_rate' => 'numeric|min:0|max:1',
         ]);
 
-        // Handle image uploads
-        if ($request->hasFile('banner_main_image')) {
-            $path = $request->file('banner_main_image')->store('banners', 'public');
-            $validated['banner_main_image'] = 'storage/' . $path;
-        } else {
-            unset($validated['banner_main_image']);
-        }
-
-        if ($request->hasFile('banner_secondary_image')) {
-            $path = $request->file('banner_secondary_image')->store('banners', 'public');
-            $validated['banner_secondary_image'] = 'storage/' . $path;
-        } else {
-            unset($validated['banner_secondary_image']);
-        }
-
-        // Update or create settings
+        // Save each setting
         foreach ($validated as $key => $value) {
-            Setting::updateOrCreate(
-                ['key' => $key],
-                [
-                    'value' => $value,
-                    'type' => 'string'
-                ]
-            );
+            $settingKey = "site.{$key}";
+            
+            // Determine the type based on the key
+            $type = match($key) {
+                'payment_methods', 'admin_menu_groups' => 'json',
+                'manual_payment_enabled', 'require_admin_approval', 'auto_approve_gateway_payments' => 'boolean',
+                'tax_rate' => 'decimal',
+                default => 'string'
+            };
+            
+            $this->siteConfig->set($settingKey, $value, $type, 'system');
         }
 
-        return redirect()->back()->with('success', 'Site configuration updated successfully!');
+        return redirect('/site-config')->with('success', 'Settings updated successfully');
     }
 
-    /**
-     * Store a new offline payment method.
-     */
     public function storeOfflinePaymentMethod(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|string|in:bank,mobile,cash',
-            'description' => 'required|string',
-            'instructions' => 'required|string',
+            'type' => 'required|in:bank,mobile',
+            'description' => 'required|string|max:500',
+            'instructions' => 'required|string|max:2000',
             'details' => 'required|array',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
         ]);
 
-        if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('offline-payment-logos', 'public');
-            $validated['logo'] = 'storage/' . $path;
-        }
+        $sortOrder = OfflinePaymentMethod::max('sort_order') + 1;
 
-        OfflinePaymentMethod::create($validated);
+        OfflinePaymentMethod::create([
+            'name' => $validated['name'],
+            'type' => $validated['type'],
+            'description' => $validated['description'],
+            'instructions' => $validated['instructions'],
+            'details' => $validated['details'],
+            'is_active' => true,
+            'sort_order' => $sortOrder,
+        ]);
 
-        return redirect()->back()->with('success', 'Offline payment method created successfully!');
+        return redirect()->route('admin.site-config.index')->with('success', 'Payment method created successfully');
     }
 
-    /**
-     * Update an existing offline payment method.
-     */
     public function updateOfflinePaymentMethod(Request $request, OfflinePaymentMethod $offlinePaymentMethod)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|string|in:bank,mobile,cash',
-            'description' => 'required|string',
-            'instructions' => 'required|string',
-            'details' => 'required|array',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'is_active' => 'boolean',
-            'sort_order' => 'integer|min:0',
+            'is_active' => 'sometimes|boolean',
+            'name' => 'sometimes|string|max:255',
+            'description' => 'sometimes|string|max:500',
+            'instructions' => 'sometimes|string|max:2000',
+            'details' => 'sometimes|array',
         ]);
-
-        if ($request->hasFile('logo')) {
-            // Delete old logo if exists
-            if ($offlinePaymentMethod->logo && Storage::disk('public')->exists(str_replace('storage/', '', $offlinePaymentMethod->logo))) {
-                Storage::disk('public')->delete(str_replace('storage/', '', $offlinePaymentMethod->logo));
-            }
-            
-            $path = $request->file('logo')->store('offline-payment-logos', 'public');
-            $validated['logo'] = 'storage/' . $path;
-        }
 
         $offlinePaymentMethod->update($validated);
 
-        return redirect()->back()->with('success', 'Offline payment method updated successfully!');
-    }
-
-    /**
-     * Delete an offline payment method.
-     */
-    public function deleteOfflinePaymentMethod(OfflinePaymentMethod $offlinePaymentMethod)
-    {
-        // Delete logo if exists
-        if ($offlinePaymentMethod->logo && Storage::disk('public')->exists(str_replace('storage/', '', $offlinePaymentMethod->logo))) {
-            Storage::disk('public')->delete(str_replace('storage/', '', $offlinePaymentMethod->logo));
-        }
-
-        $offlinePaymentMethod->delete();
-
-        return redirect()->back()->with('success', 'Offline payment method deleted successfully!');
+        return redirect()->route('admin.site-config.index')->with('success', 'Payment method updated successfully');
     }
 
     /**
@@ -283,96 +193,75 @@ class AdminSiteConfigController extends Controller
     }
 
     /**
-     * Get all settings as an array.
+     * Get all settings for public pages.
      */
     public static function getAllSettings()
     {
-        return Setting::pluck('value', 'key')->toArray();
+        $settings = Setting::pluck('value', 'key')->toArray();
+        
+        // Ensure all required settings exist with defaults
+        $defaultSettings = [
+            // Homepage Banner Settings
+            'banner_main_title' => 'Back to school',
+            'banner_main_subtitle' => 'For the first day and beyond',
+            'banner_main_button_text' => 'Shop school supplies',
+            'banner_main_button_link' => '/categories/school-supplies',
+            'banner_main_image' => 'image/image-3.jpg',
+            'banner_secondary_title' => 'Teacher Appreciation Gifts',
+            'banner_secondary_button_text' => 'Shop now',
+            'banner_secondary_button_link' => '/categories/gifts',
+            'banner_secondary_image' => 'image/image-4.jpg',
+            
+            // About Section Settings
+            'about_title' => 'What is ShopHub?',
+            'about_subtitle' => 'Discover our Ethiopian heritage story',
+            'about_column1_title' => 'Celebrating Ethiopian Heritage',
+            'about_column1_text' => 'ShopHub is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
+            'about_column2_title' => 'Supporting Local Artisans',
+            'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
+            'about_column3_title' => 'Quality & Authenticity',
+            'about_column3_text' => 'Every product on ShopHub is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
+            
+            // Privacy Policy
+            'privacy_policy_content' => (new self(app(SiteConfigService::class)))->getDefaultPrivacyPolicy(),
+            
+            // Payment Settings
+            'manual_payment_enabled' => true,
+            'require_admin_approval' => true,
+            'auto_approve_gateway_payments' => false,
+            'tax_rate' => 0.15,
+        ];
+        
+        return array_merge($defaultSettings, $settings);
     }
 
-    private function getDefaultPrivacyPolicy()
+    private function getDefaultPrivacyPolicy(): string
     {
-        return '
+        return '# Privacy Policy
+
 ## Information We Collect
 
-We collect information you provide directly to us, such as when you create an account, make a purchase, or contact us for support. This may include:
-
-- Name, email address, and phone number
-- Billing and shipping addresses
-- Payment information (processed securely through our payment partners)
-- Order history and preferences
-- Communications with our customer service team
+We collect information you provide directly to us, such as when you create an account, make a purchase, or contact us for support.
 
 ## How We Use Your Information
 
 We use the information we collect to:
-
 - Process your orders and payments
-- Communicate with you about your orders and account
-- Send you marketing communications (with your consent)
-- Improve our services and develop new features
-- Protect against fraud and ensure security
-- Comply with legal obligations
+- Communicate with you about your account or orders
+- Improve our services and customer experience
+- Send you promotional materials (with your consent)
 
 ## Information Sharing
 
-We do not sell, trade, or otherwise transfer your personal information to third parties, except in the following circumstances:
-
-- With your explicit consent
-- To process payments (payment processors)
-- To fulfill orders (shipping partners)
-- To comply with legal requirements
-- To protect our rights and safety
+We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this policy.
 
 ## Data Security
 
-We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the internet is 100% secure.
+We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.
 
 ## Contact Us
 
-If you have any questions about this privacy policy or our data practices, please contact us at:
-
-**ShopHub Ethiopia**
-Email: privacy@shophub.et
-Phone: +251 911 123 456
-Address: Addis Ababa, Ethiopia
-';
-    }
-
-    private function getDefaultTermsConditions()
-    {
-        return '
-## Acceptance of Terms
-
-By accessing and using ShopHub Ethiopia ("we," "our," or "us"), you accept and agree to be bound by the terms and provision of this agreement.
-
-## Description of Service
-
-ShopHub is an Ethiopian e-commerce platform that connects buyers with sellers of traditional Ethiopian crafts, modern products, and authentic Ethiopian goods including coffee, textiles, and artwork.
-
-## User Accounts
-
-You are responsible for maintaining the confidentiality of your account and password. You agree to accept responsibility for all activities that occur under your account.
-
-## Product Information
-
-While we strive to provide accurate product information, we do not warrant that product descriptions, prices, or other content is accurate, complete, reliable, current, or error-free.
-
-## Pricing and Payment
-
-All prices are in Ethiopian Birr (ETB) unless otherwise stated. Payment must be made at the time of purchase. We reserve the right to modify prices at any time.
-
-## Shipping and Delivery
-
-Delivery times may vary depending on your location and the type of product. We will provide estimated delivery times at checkout.
-
-## Returns and Refunds
-
-Returns are accepted within 14 days of delivery for most items. Some products may have different return policies as specified in the product description.
-
-## Contact Information
-
-If you have any questions about these Terms and Conditions, please contact us at:
+If you have any questions about this Privacy Policy, please contact us at:
 
 **ShopHub Ethiopia**
 Email: support@shophub.et

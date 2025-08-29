@@ -128,22 +128,50 @@ class PaymentTransaction extends Model
     // Admin Actions
     public function markSeen(User $admin): void
     {
+        \Log::info('PaymentTransaction markSeen called:', [
+            'payment_id' => $this->id,
+            'current_admin_status' => $this->admin_status,
+            'is_admin_unseen' => $this->isAdminUnseen(),
+            'admin_id' => $admin->id
+        ]);
+        
         if ($this->isAdminUnseen()) {
-            $this->update([
+            $updated = $this->update([
                 'admin_status' => 'seen',
                 'admin_id' => $admin->id,
                 'admin_action_at' => now(),
             ]);
+            
+            \Log::info('PaymentTransaction markSeen update result:', [
+                'payment_id' => $this->id,
+                'update_success' => $updated,
+                'new_admin_status' => $this->fresh()->admin_status
+            ]);
+        } else {
+            \Log::info('PaymentTransaction markSeen skipped - not unseen');
         }
     }
 
     public function approve(User $admin, ?string $notes = null): void
     {
-        $this->update([
+        \Log::info('PaymentTransaction approve called:', [
+            'payment_id' => $this->id,
+            'current_admin_status' => $this->admin_status,
+            'can_be_approved' => $this->canBeApproved(),
+            'admin_id' => $admin->id
+        ]);
+        
+        $updated = $this->update([
             'admin_status' => 'approved',
             'admin_id' => $admin->id,
             'admin_notes' => $notes,
             'admin_action_at' => now(),
+        ]);
+        
+        \Log::info('PaymentTransaction approve update result:', [
+            'payment_id' => $this->id,
+            'update_success' => $updated,
+            'new_admin_status' => $this->fresh()->admin_status
         ]);
     }
 

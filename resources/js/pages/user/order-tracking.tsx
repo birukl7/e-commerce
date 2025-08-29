@@ -19,6 +19,8 @@ interface Order {
     order_number: string;
     status: string;
     payment_status: string;
+    payment_method: string;
+    payment_method_type: string;
     total_amount: number;
     currency: string;
     created_at: string;
@@ -69,8 +71,44 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                 return 'bg-green-100 text-green-800';
             case 'cancelled':
                 return 'bg-red-100 text-red-800';
+            case 'awaiting_admin_approval':
+                return 'bg-orange-100 text-orange-800';
+            case 'payment_rejected':
+                return 'bg-red-100 text-red-800';
             default:
                 return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const getPaymentStatusColor = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'paid':
+                return 'default';
+            case 'pending':
+                return 'secondary';
+            case 'pending_approval':
+                return 'outline';
+            case 'awaiting_admin_approval':
+                return 'outline';
+            case 'approved':
+                return 'default';
+            case 'rejected':
+                return 'destructive';
+            case 'failed':
+                return 'destructive';
+            default:
+                return 'secondary';
+        }
+    };
+
+    const formatPaymentStatus = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'pending_approval':
+                return 'Awaiting Approval';
+            case 'awaiting_admin_approval':
+                return 'Awaiting Admin Approval';
+            default:
+                return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
     };
 
@@ -191,9 +229,17 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                                         <span className="font-medium">{formatPrice(order.total_amount)}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Payment Method:</span>
+                                        <span className="font-medium">{order.payment_method}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-600">Payment Type:</span>
+                                        <span className="font-medium">{order.payment_method_type}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">Payment Status:</span>
-                                        <Badge className="text-xs" variant={order.payment_status === 'paid' ? 'default' : 'secondary'}>
-                                            {order.payment_status}
+                                        <Badge className="text-xs" variant={getPaymentStatusColor(order.payment_status)}>
+                                            {formatPaymentStatus(order.payment_status)}
                                         </Badge>
                                     </div>
                                 </div>
