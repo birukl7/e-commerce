@@ -101,8 +101,24 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
     Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
 
-    Route::get('admin/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payment-stats');
-    Route::get('admin/paymentStats/{paymentId}', [AdminPaymentController::class, 'show'])->name('admin.payment-stats');
+    Route::get('/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    
+    // Add proper admin/payment route for consistency
+    Route::get('/admin/payment', [AdminPaymentController::class, 'index'])->name('admin.payment.index');
+    
+    // Admin actions
+    Route::post('/admin/payments/{payment}/approve', [AdminPaymentController::class, 'approve'])->name('admin.payments.approve');
+    Route::post('/admin/payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('admin.payments.reject');
+    Route::post('/admin/payments/{payment}/mark-seen', [AdminPaymentController::class, 'markSeen'])->name('admin.payments.mark_seen');
+    
+    // Bulk actions
+    Route::post('/admin/payments/bulk-action', [AdminPaymentController::class, 'bulkAction'])->name('admin.payments.bulk_action');
+    
+    // Export
+    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])
+    ->name('admin.offline-payments.index');
 
     Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
 
@@ -120,31 +136,18 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::resource('admin/orders', AdminOrderController::class);
     Route::resource('admin/product-requests', AdminProductRequestController::class);
     
-    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
-    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
-    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
-    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
-
-    // Payment management routes
-    Route::get('/admin/payments', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
-    Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
-    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
-    Route::put('/admin/payments/{payment}/status', [AdminPaymentController::class, 'updateStatus'])->name('admin.payments.updateStatus');
-
-    // Site Configuration routes
-    Route::get('/admin/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
-    Route::post('/admin/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
+    Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
+    Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
     
-    // Offline Payment Method Management
+    // Offline Payment Methods Management
     Route::post('/admin/offline-payment-methods', [AdminSiteConfigController::class, 'storeOfflinePaymentMethod'])->name('admin.offline-payment-methods.store');
-    Route::put('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'updateOfflinePaymentMethod'])->name('admin.offline-payment-methods.update');
-    Route::delete('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'deleteOfflinePaymentMethod'])->name('admin.offline-payment-methods.destroy');
-    
+    Route::patch('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'updateOfflinePaymentMethod'])->name('admin.offline-payment-methods.update');
     // Offline Payment Submissions Management
     Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])->name('admin.offline-payments.index');
     Route::get('/admin/offline-payments/{submission}', [App\Http\Controllers\OfflinePaymentController::class, 'adminShow'])->name('admin.offline-payments.show');
     Route::post('/admin/offline-payments/{submission}/status', [App\Http\Controllers\OfflinePaymentController::class, 'adminUpdateStatus'])->name('admin.offline-payments.update-status');
 });
+
 // Authenticated routes
 Route::middleware(['auth', 'verified',])->group(function () {
     // Main dashboard
@@ -207,6 +210,9 @@ Route::middleware(['auth', 'verified',])->group(function () {
     // Review routes
     Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
     Route::post('/reviews/{review}/helpful', [ReviewController::class, 'toggleHelpful'])->name('reviews.helpful');
+    
+    // Checkout routes
+    Route::post('/checkout/process', [PaymentController::class, 'processCheckout'])->name('checkout.process');
 });
 
 // Legacy API routes (if still needed)

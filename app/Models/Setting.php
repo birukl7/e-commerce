@@ -13,27 +13,62 @@ class Setting extends Model
         'key',
         'value',
         'type',
+        'group',
+        'autoload',
+        'description'
     ];
 
-    // Accessors
-    public function getValueAttribute($value)
+    protected $casts = [
+        'autoload' => 'boolean',
+    ];
+
+    // Scope for autoloaded settings
+    public function scopeAutoloaded($query)
     {
-        return match($this->type) {
-            'boolean' => (bool) $value,
-            'integer' => (int) $value,
-            'json' => json_decode($value, true),
-            default => $value,
+        return $query->where('autoload', true);
+    }
+
+    // Scope by group
+    public function scopeByGroup($query, string $group)
+    {
+        return $query->where('group', $group);
+    }
+
+    // Helper to get typed value
+    public function getTypedValue()
+    {
+        return match ($this->type) {
+            'boolean' => filter_var($this->value, FILTER_VALIDATE_BOOLEAN),
+            'integer' => (int) $this->value,
+            'float', 'decimal' => (float) $this->value,
+            'array', 'json' => is_string($this->value) ? json_decode($this->value, true) : $this->value,
+            default => $this->value
         };
     }
 
-    // Mutators
-    public function setValueAttribute($value)
+    // Static helper methods
+    public static function get(string $key, $default = null)
     {
-        $this->attributes['value'] = match($this->type) {
+        $setting = static::where('key', $key)->first();
+        return $setting ? $setting->getTypedValue() : $default;
+    }
+
+    public static function set(string $key, $value, string $type = 'string', string $group = 'general', bool $autoload = true): void
+    {
+        $processedValue = match ($type) {
+            'array', 'json' => is_string($value) ? $value : json_encode($value),
             'boolean' => $value ? '1' : '0',
-            'integer' => (string) $value,
-            'json' => json_encode($value),
-            default => $value,
+            default => (string) $value
         };
+
+        static::updateOrCreate(
+            ['key' => $key],
+            [
+                'value' => $processedValue,
+                'type' => $type,
+                'group' => $group,
+                'autoload' => $autoload
+            ]
+        );
     }
 }

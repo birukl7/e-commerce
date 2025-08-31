@@ -22,6 +22,7 @@ interface PaymentSuccessProps {
         price: number;
         image?: string;
     }>;
+    awaiting_admin_approval?: boolean;
 }
 
 function PaymentSuccessContent({
@@ -33,6 +34,7 @@ function PaymentSuccessContent({
     customer_name,
     customer_email,
     order_items = [],
+    awaiting_admin_approval = false,
 }: PaymentSuccessProps) {
     // Clear cart when payment is successful
     useEffect(() => {
@@ -73,7 +75,7 @@ Email: ${customer_email}
 Payment Details:
 - Amount: ${formatPrice(amount)}
 - Payment Method: ${payment_method}
-- Status: Completed
+- Status: ${awaiting_admin_approval ? 'Pending Admin Approval' : 'Completed'}
 
 Items:
 ${order_items.map(item => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
@@ -105,6 +107,11 @@ Thank you for your purchase!
                     </div>
                     <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment Successful!</h1>
                     <p className="text-lg text-gray-600">Thank you for your purchase, {customer_name}</p>
+                    {awaiting_admin_approval && (
+                        <div className="mx-auto mt-4 max-w-2xl rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
+                            Payment received and verified by the gateway. Your order will proceed after an admin reviews and approves the payment.
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
@@ -116,7 +123,11 @@ Thank you for your purchase!
                                     <Package className="h-5 w-5" />
                                     Order Details
                                 </CardTitle>
-                                <CardDescription>Your order has been confirmed and is being processed.</CardDescription>
+                                <CardDescription>
+                                    {awaiting_admin_approval
+                                        ? 'Your payment was received and is awaiting admin approval.'
+                                        : 'Your order has been confirmed and is being processed.'}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -220,7 +231,11 @@ Thank you for your purchase!
                                     </div>
                                     <div className="flex justify-between text-sm text-gray-600">
                                         <span>Status</span>
-                                        <span className="font-semibold text-green-600">Completed</span>
+                                        {awaiting_admin_approval ? (
+                                            <span className="font-semibold text-yellow-600">Pending Admin Approval</span>
+                                        ) : (
+                                            <span className="font-semibold text-green-600">Completed</span>
+                                        )}
                                     </div>
                                 </div>
 

@@ -7,11 +7,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent } from "@/components/ui/card"
-import { CheckCircle, CreditCard, Smartphone, Wallet, ArrowLeft, ArrowRight, X } from "lucide-react"
+import { CheckCircle, CreditCard, Smartphone, Wallet, ArrowLeft, ArrowRight, X, Upload, FileImage } from "lucide-react"
+import { router } from "@inertiajs/react"
+
+interface OfflinePaymentMethod {
+  id: number
+  name: string
+  type: string
+  description: string
+  instructions: string
+  details: Record<string, any>
+  is_active: boolean
+}
 
 interface CheckoutDialogProps {
   isOpen: boolean
   onClose: () => void
+  offlinePaymentMethods?: OfflinePaymentMethod[]
 }
 
 interface AddressForm {
@@ -28,34 +40,23 @@ interface AddressForm {
 
 const paymentMethods = [
   {
-    id: "paypal",
-    name: "PayPal",
-    description: "Pay with your PayPal account",
-    icon: <Wallet className="h-5 w-5" />,
-  },
-  {
-    id: "stripe",
-    name: "Credit/Debit Card",
-    description: "Visa, Mastercard, American Express",
+    id: "chapa",
+    name: "Chapa Online Payment",
+    description: "Pay instantly with Chapa (Cards, Mobile Money)",
     icon: <CreditCard className="h-5 w-5" />,
   },
   {
-    id: "apple-pay",
-    name: "Apple Pay",
-    description: "Pay with Touch ID or Face ID",
-    icon: <Smartphone className="h-5 w-5" />,
-  },
-  {
-    id: "google-pay",
-    name: "Google Pay",
-    description: "Pay with your Google account",
-    icon: <Smartphone className="h-5 w-5" />,
+    id: "offline",
+    name: "Pay & Upload Proof",
+    description: "Bank transfer or mobile money with proof upload",
+    icon: <Wallet className="h-5 w-5" />,
   },
 ]
 
-export default function CheckoutDialog({ isOpen, onClose }: CheckoutDialogProps) {
+export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods = [] }: CheckoutDialogProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedPayment, setSelectedPayment] = useState("")
+  const [selectedOfflineMethod, setSelectedOfflineMethod] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const { items, getTotalPrice, clearCart } = useCart()
 
@@ -89,11 +90,41 @@ export default function CheckoutDialog({ isOpen, onClose }: CheckoutDialogProps)
 
   const handlePayment = async () => {
     setIsProcessing(true)
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    setIsProcessing(false)
-    setCurrentStep(3)
-    clearCart()
+    
+    try {
+      if (selectedPayment === 'chapa') {
+        // Create order and redirect to Chapa payment
+        const orderData = {
+          items: items.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          shipping_address: addressForm,
+          payment_method: 'chapa'
+        }
+        
+        router.post('/checkout/process', orderData as any)
+      } else if (selectedPayment === 'offline' && selectedOfflineMethod) {
+        // Create order and redirect to offline payment upload
+        const orderData = {
+          items: items.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity,
+            price: item.price
+          })),
+          shipping_address: addressForm,
+          payment_method: 'offline',
+          offline_payment_method_id: selectedOfflineMethod
+        }
+        
+        router.post('/checkout/process', orderData as any)
+      }
+    } catch (error) {
+      console.error('Payment processing failed:', error)
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const handleClose = () => {
@@ -308,6 +339,43 @@ export default function CheckoutDialog({ isOpen, onClose }: CheckoutDialogProps)
                     ))}
                   </div>
                 </RadioGroup>
+
+                {/* Offline Payment Methods Selection */}
+                {selectedPayment === 'offline' && (
+                  <div className="mt-6 space-y-4">
+                    <h4 className="font-medium">Select Payment Method</h4>
+                    <RadioGroup value={selectedOfflineMethod?.toString() || ''} onValueChange={(value) => setSelectedOfflineMethod(parseInt(value))}>
+                      <div className="space-y-3">
+                        {offlinePaymentMethods.filter(method => method.is_active).map((method) => (
+                          <div key={method.id} className="border rounded-lg p-4">
+                            <div className="flex items-center space-x-3">
+                              <RadioGroupItem value={method.id.toString()} id={`offline-${method.id}`} />
+                              <Label htmlFor={`offline-${method.id}`} className="cursor-pointer flex-1">
+                                <div className="flex items-start space-x-3">
+                                  <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-lg">
+                                    {method.type === 'bank' ? <CreditCard className="h-5 w-5 text-blue-600" /> : <Smartphone className="h-5 w-5 text-blue-600" />}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="font-medium">{method.name}</div>
+                                    <div className="text-sm text-slate-600 mb-2">{method.description}</div>
+                                    <div className="text-xs text-slate-500">
+                                      {method.type === 'bank' && method.details.account_number && (
+                                        <div>Account: {method.details.account_number}</div>
+                                      )}
+                                      {method.type === 'mobile' && method.details.phone_number && (
+                                        <div>Phone: {method.details.phone_number}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Label>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </RadioGroup>
+                  </div>
+                )}
               </div>
             )}
 
@@ -352,8 +420,8 @@ export default function CheckoutDialog({ isOpen, onClose }: CheckoutDialogProps)
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Address
                 </Button>
-                <Button onClick={handlePayment} disabled={!selectedPayment || isProcessing}>
-                  {isProcessing ? "Processing..." : `Pay ETB ${getTotalPrice().toFixed(2)}`}
+                <Button onClick={handlePayment} disabled={!selectedPayment || (selectedPayment === 'offline' && !selectedOfflineMethod) || isProcessing}>
+                  {isProcessing ? "Processing..." : selectedPayment === 'offline' ? 'Continue to Upload' : `Pay ETB ${getTotalPrice().toFixed(2)}`}
                 </Button>
               </>
             )}

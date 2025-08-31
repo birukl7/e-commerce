@@ -3,23 +3,32 @@ import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import AppLogo from './app-logo';
 
-
-
+interface AdminMenu {
+    structure: Record<string, NavItem[]>;
+    flatItems: NavItem[];
+}
 
 interface AppSidebarProps {
-    mainNavItems: NavItem[];
+    mainNavItems?: NavItem[]; // Keep for backward compatibility
     footerNavItems: NavItem[];
-    logoDisplay: string
+    logoDisplay: string;
 }
 
 export function AppSidebar({ 
-    mainNavItems, 
+    mainNavItems = [], 
     footerNavItems,
     logoDisplay
 }: AppSidebarProps) {
+    const { adminMenu } = usePage<{ adminMenu?: AdminMenu }>().props;
+
+    // Use dynamic admin menu if available and non-empty; otherwise fallback
+    const navItems = adminMenu && Array.isArray(adminMenu.flatItems) && adminMenu.flatItems.length > 0
+        ? adminMenu.flatItems
+        : mainNavItems;
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -35,7 +44,7 @@ export function AppSidebar({
             </SidebarHeader>
 
             <SidebarContent className='mt-20'>
-                <NavMain items={mainNavItems} />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>
@@ -43,5 +52,5 @@ export function AppSidebar({
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
-    );
+    ); 
 }

@@ -54,16 +54,21 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        // Redirect based on user role (force target routes, not intended)
+        // Redirect based on user role and intended URL
         if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
+            // Check if user was trying to access an admin route before login
+            $intended = $request->session()->get('url.intended');
+            if ($intended && (str_contains($intended, '/admin') || str_contains($intended, 'admin-dashboard'))) {
+                return redirect()->intended(route('admin.dashboard'));
+            }
             return redirect()->route('admin.dashboard');
         }
 
         if ($user->hasRole('user')) {
-            return redirect()->route('user.dashboard');
+            return redirect()->intended(route('user.dashboard'));
         }
 
-        return redirect()->route('user.dashboard');
+        return redirect()->intended(route('user.dashboard'));
     }
 
 
@@ -103,6 +108,9 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+        
+        // Clear any cached role/permission data
+        $request->session()->forget(['user_roles', 'user_permissions']);
 
         return redirect('/');
     }

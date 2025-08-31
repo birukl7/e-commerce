@@ -1,15 +1,19 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import ImageUpload from '@/components/ui/image-upload';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import RichTextEditor from '@/components/ui/rich-text-editor';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { Head, useForm } from '@inertiajs/react';
-import { FileImage, FileText, Globe, Info, Palette, Settings } from 'lucide-react';
+import { Head, useForm, router, Link } from '@inertiajs/react';
+import React from 'react';
+import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, CheckCircle, AlertTriangle, Eye, Ban, Plus, X } from 'lucide-react';
 import { adminNavItems } from '../dashboard';
 
 interface OfflinePaymentMethod {
@@ -24,9 +28,25 @@ interface OfflinePaymentMethod {
     sort_order: number;
 }
 
+interface PaymentRow {
+    id: number;
+    tx_ref: string;
+    order_id: string | null;
+    customer_name: string;
+    customer_email: string;
+    amount: number;
+    currency: string;
+    payment_method: string;
+    gateway_status: 'pending' | 'proof_uploaded' | 'paid' | 'failed' | 'refunded';
+    admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
+    created_at: string;
+}
+
 interface SiteConfigProps {
     settings: Record<string, string>;
     offlinePaymentMethods: OfflinePaymentMethod[];
+    recentChapaPayments: PaymentRow[];
+    recentOfflinePayments: PaymentRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -40,7 +60,17 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConfigProps) {
+export default function SiteConfig({ settings, offlinePaymentMethods, recentChapaPayments, recentOfflinePayments }: SiteConfigProps) {
+    const [showAddPaymentModal, setShowAddPaymentModal] = React.useState(false);
+    
+    const paymentForm = useForm({
+        name: '',
+        type: 'bank',
+        description: '',
+        instructions: '',
+        details: {} as Record<string, any>,
+    });
+    
     const { data, setData, post, processing, errors, reset } = useForm({
         // Homepage Banner
         banner_main_title: settings.banner_main_title || '',
@@ -80,7 +110,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        post('/admin/site-config', {
+        post('/site-config', {
             preserveScroll: true,
             onSuccess: () => {
                 // Reset file inputs after successful upload
@@ -98,10 +128,11 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
-            <Head title="Site Configuration" />
-            
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
+        <>
+            <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
+                <Head title="Site Configuration" />
+                
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
                 <div className="flex w-full flex-col p-6 font-sans max-w-7xl mx-auto">
                     {/* Enhanced Header */}
                     <div className="mb-8">
@@ -183,7 +214,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                         <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
                             <Tabs defaultValue="homepage" className="w-full">
                                 <div className="border-b border-gray-200/50 bg-white/30 px-6 py-4">
-                                    <TabsList className="grid w-full grid-cols-5 bg-gray-100/50 p-1 rounded-xl">
+                                    <TabsList className="grid w-full grid-cols-6 bg-gray-100/50 p-1 rounded-xl">
                                         <TabsTrigger value="homepage" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <Globe className="h-4 w-4" />
                                             <span className="hidden sm:inline">Homepage</span>
@@ -199,6 +230,10 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                                         <TabsTrigger value="offline-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <FileImage className="h-4 w-4" />
                                             <span className="hidden sm:inline">Offline Submit</span>
+                                        </TabsTrigger>
+                                        <TabsTrigger value="payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
+                                            <CreditCard className="h-4 w-4" />
+                                            <span className="hidden sm:inline">Payments</span>
                                         </TabsTrigger>
                                         <TabsTrigger value="legal" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <FileText className="h-4 w-4" />
@@ -375,6 +410,223 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                                             </div>
                                         </CardContent>
                                     </Card>
+                        </TabsContent>
+
+                        {/* Payments Management Tab */}
+                        <TabsContent value="payments" className="space-y-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <CreditCard className="h-5 w-5" />
+                                        Payments (Quick Review)
+                                    </CardTitle>
+                                    <CardDescription>Review and take action on recent Chapa and Offline payments</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Tabs defaultValue="chapa">
+                                        <TabsList>
+                                            <TabsTrigger value="chapa">Chapa</TabsTrigger>
+                                            <TabsTrigger value="offline">Offline</TabsTrigger>
+                                        </TabsList>
+                                        <TabsContent value="chapa">
+                                            <div className="overflow-x-auto mt-4">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b">
+                                                            <th className="text-left py-2">Tx Ref</th>
+                                                            <th className="text-left py-2">Order</th>
+                                                            <th className="text-left py-2">Customer</th>
+                                                            <th className="text-left py-2">Amount</th>
+                                                            <th className="text-left py-2">Gateway</th>
+                                                            <th className="text-left py-2">Admin</th>
+                                                            <th className="text-left py-2">Date</th>
+                                                            <th className="text-left py-2">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {recentChapaPayments.map(p => (
+                                                            <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
+                                                                <td className="py-2">{p.order_id ?? '-'}</td>
+                                                                <td className="py-2">
+                                                                    <div className="flex flex-col">
+                                                                        <span>{p.customer_name}</span>
+                                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-2">{new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency === 'ETB' ? 'USD' : p.currency }).format(p.amount).replace('$', p.currency + ' ')}</td>
+                                                                <td className="py-2">
+                                                                    {p.gateway_status === 'paid' && <Badge className="bg-green-100 text-green-800">paid</Badge>}
+                                                                    {p.gateway_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">pending</Badge>}
+                                                                    {p.gateway_status === 'failed' && <Badge className="bg-red-100 text-red-800">failed</Badge>}
+                                                                </td>
+                                                                <td className="py-2">
+                                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
+                                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
+                                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
+                                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
+                                                                </td>
+                                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
+                                                                <td className="py-2">
+                                                                    <div className="flex gap-2">
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            variant="outline" 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                console.log('Mark seen clicked for Chapa payment:', p.id);
+                                                                                router.post(`/admin/payments/${p.id}/mark-seen`, {}, {
+                                                                                    onSuccess: (page) => {
+                                                                                        console.log('Mark seen success, reloading...');
+                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
+                                                                                    },
+                                                                                    onError: (errors) => {
+                                                                                        console.error('Mark seen failed:', errors);
+                                                                                        alert('Failed to mark as seen: ' + JSON.stringify(errors));
+                                                                                    }
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            Mark seen
+                                                                        </Button>
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                console.log('Approve clicked for Chapa payment:', p.id);
+                                                                                router.post(`/admin/payments/${p.id}/approve`, {}, {
+                                                                                    onSuccess: (page) => {
+                                                                                        console.log('Approve success, reloading...');
+                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
+                                                                                    },
+                                                                                    onError: (errors) => {
+                                                                                        console.error('Approve failed:', errors);
+                                                                                        alert('Failed to approve: ' + JSON.stringify(errors));
+                                                                                    }
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            Approve
+                                                                        </Button>
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            variant="destructive" 
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                console.log('Reject clicked for Chapa payment:', p.id);
+                                                                                router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from site config' }, {
+                                                                                    onSuccess: (page) => {
+                                                                                        console.log('Reject success, reloading...');
+                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
+                                                                                    },
+                                                                                    onError: (errors) => {
+                                                                                        console.error('Reject failed:', errors);
+                                                                                        alert('Failed to reject: ' + JSON.stringify(errors));
+                                                                                    }
+                                                                                });
+                                                                            }}
+                                                                        >
+                                                                            Reject
+                                                                        </Button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {recentChapaPayments.length === 0 && (
+                                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </TabsContent>
+                                        <TabsContent value="offline">
+                                            <div className="overflow-x-auto mt-4">
+                                                <table className="w-full text-sm">
+                                                    <thead>
+                                                        <tr className="border-b">
+                                                            <th className="text-left py-2">Tx Ref</th>
+                                                            <th className="text-left py-2">Order</th>
+                                                            <th className="text-left py-2">Customer</th>
+                                                            <th className="text-left py-2">Amount</th>
+                                                            <th className="text-left py-2">Gateway</th>
+                                                            <th className="text-left py-2">Admin</th>
+                                                            <th className="text-left py-2">Date</th>
+                                                            <th className="text-left py-2">Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {recentOfflinePayments.map(p => (
+                                                            <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
+                                                                <td className="py-2">{p.order_id ?? '-'}</td>
+                                                                <td className="py-2">
+                                                                    <div className="flex flex-col">
+                                                                        <span>{p.customer_name}</span>
+                                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="py-2">{new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency === 'ETB' ? 'USD' : p.currency }).format(p.amount).replace('$', p.currency + ' ')}</td>
+                                                                <td className="py-2">
+                                                                    {p.gateway_status === 'proof_uploaded' && <Badge className="bg-blue-100 text-blue-800">proof uploaded</Badge>}
+                                                                </td>
+                                                                <td className="py-2">
+                                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
+                                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
+                                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
+                                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
+                                                                </td>
+                                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
+                                                                <td className="py-2">
+                                                                    <div className="flex gap-2">
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            variant="outline" 
+                                                                            type="button"
+                                                                            onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`, {}, {
+                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
+                                                                                onError: (errors) => console.error('Mark seen failed:', errors)
+                                                                            })}
+                                                                        >
+                                                                            Mark seen
+                                                                        </Button>
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            type="button"
+                                                                            onClick={() => router.post(`/admin/payments/${p.id}/approve`, {}, {
+                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
+                                                                                onError: (errors) => console.error('Approve failed:', errors)
+                                                                            })}
+                                                                        >
+                                                                            Approve
+                                                                        </Button>
+                                                                        <Button 
+                                                                            size="sm" 
+                                                                            variant="destructive" 
+                                                                            type="button"
+                                                                            onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from site config' }, {
+                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
+                                                                                onError: (errors) => console.error('Reject failed:', errors)
+                                                                            })}
+                                                                        >
+                                                                            Reject
+                                                                        </Button>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {recentOfflinePayments.length === 0 && (
+                                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
+                                                        )}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </TabsContent>
+                                    </Tabs>
+                                    <div className="mt-4 text-right">
+                                        <Link href={route('admin.payments.index')} className="text-sm text-primary hover:underline">Go to full payments page →</Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
                         </TabsContent>
 
                         {/* About Section Tab */}
@@ -686,16 +938,16 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                                             <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                                                 <h5 className="font-medium text-gray-900 mb-3">Quick Add Payment Method</h5>
                                                 <p className="text-sm text-gray-600 mb-4">
-                                                    You can add payment methods like Bank Transfer, Mobile Money, etc. 
-                                                    For full management, visit the dedicated payment methods page.
+                                                    Add new offline payment methods for customers to use during checkout.
                                                 </p>
                                                 <Button 
                                                     type="button" 
                                                     variant="outline"
-                                                    onClick={() => window.open('/admin/offline-payment-methods', '_blank')}
+                                                    onClick={() => setShowAddPaymentModal(true)}
                                                     className="w-full"
                                                 >
-                                                    Manage Offline Payment Methods
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Add Payment Method
                                                 </Button>
                                             </div>
                                         </CardContent>
@@ -776,8 +1028,246 @@ export default function SiteConfig({ settings, offlinePaymentMethods }: SiteConf
                             </Button>
                         </div>
                     </form>
+
+                    {/* Add Payment Method Modal */}
+                    <Dialog open={showAddPaymentModal} onOpenChange={setShowAddPaymentModal}>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold text-gray-900">Add Offline Payment Method</DialogTitle>
+                                <DialogDescription className="text-gray-600">
+                                    Create a new offline payment method for customers to use during checkout.
+                                </DialogDescription>
+                            </DialogHeader>
+                            
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                paymentForm.post('/admin/offline-payment-methods', {
+                                    onSuccess: () => {
+                                        setShowAddPaymentModal(false);
+                                        paymentForm.reset();
+                                    }
+                                });
+                            }} className="space-y-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="payment_name" className="text-sm font-medium text-gray-700">
+                                            Payment Method Name *
+                                        </Label>
+                                        <Input
+                                            id="payment_name"
+                                            type="text"
+                                            value={paymentForm.data.name}
+                                            onChange={(e) => paymentForm.setData('name', e.target.value)}
+                                            placeholder="e.g., CBE Bank Transfer"
+                                            className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            required
+                                        />
+                                        {paymentForm.errors.name && (
+                                            <p className="mt-1 text-sm text-red-600">{paymentForm.errors.name}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="payment_type" className="text-sm font-medium text-gray-700">
+                                            Payment Type *
+                                        </Label>
+                                        <Select 
+                                            value={paymentForm.data.type} 
+                                            onValueChange={(value) => paymentForm.setData('type', value)}
+                                        >
+                                            <SelectTrigger className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                                                <SelectValue placeholder="Select payment type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                                <SelectItem value="mobile">Mobile Money</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {paymentForm.errors.type && (
+                                            <p className="mt-1 text-sm text-red-600">{paymentForm.errors.type}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="payment_description" className="text-sm font-medium text-gray-700">
+                                        Description *
+                                    </Label>
+                                    <Input
+                                        id="payment_description"
+                                        type="text"
+                                        value={paymentForm.data.description}
+                                        onChange={(e) => paymentForm.setData('description', e.target.value)}
+                                        placeholder="Brief description of the payment method"
+                                        className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        required
+                                    />
+                                    {paymentForm.errors.description && (
+                                        <p className="mt-1 text-sm text-red-600">{paymentForm.errors.description}</p>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="payment_instructions" className="text-sm font-medium text-gray-700">
+                                        Payment Instructions *
+                                    </Label>
+                                    <Textarea
+                                        id="payment_instructions"
+                                        value={paymentForm.data.instructions}
+                                        onChange={(e) => paymentForm.setData('instructions', e.target.value)}
+                                        placeholder="Detailed instructions for customers on how to make the payment..."
+                                        className="mt-1 min-h-[100px] focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        required
+                                    />
+                                    {paymentForm.errors.instructions && (
+                                        <p className="mt-1 text-sm text-red-600">{paymentForm.errors.instructions}</p>
+                                    )}
+                                </div>
+
+                                {paymentForm.data.type === 'bank' && (
+                                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+                                        <h4 className="font-medium text-gray-900">Bank Details</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Bank Name</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.bank_name || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        bank_name: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Commercial Bank of Ethiopia"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Account Number</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.account_number || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        account_number: e.target.value
+                                                    })}
+                                                    placeholder="Account number"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Account Holder</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.account_holder || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        account_holder: e.target.value
+                                                    })}
+                                                    placeholder="Account holder name"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Branch</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.branch || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        branch: e.target.value
+                                                    })}
+                                                    placeholder="Branch name/location"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {paymentForm.data.type === 'mobile' && (
+                                    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border">
+                                        <h4 className="font-medium text-gray-900">Mobile Money Details</h4>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Provider</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.provider || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        provider: e.target.value
+                                                    })}
+                                                    placeholder="e.g., M-Birr, HelloCash"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Phone Number</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.phone_number || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        phone_number: e.target.value
+                                                    })}
+                                                    placeholder="Mobile money phone number"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium text-gray-700">Account Name</Label>
+                                                <Input
+                                                    type="text"
+                                                    value={paymentForm.data.details.account_name || ''}
+                                                    onChange={(e) => paymentForm.setData('details', {
+                                                        ...paymentForm.data.details,
+                                                        account_name: e.target.value
+                                                    })}
+                                                    placeholder="Account holder name"
+                                                    className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <DialogFooter className="flex gap-3 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setShowAddPaymentModal(false);
+                                            paymentForm.reset();
+                                        }}
+                                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={paymentForm.processing}
+                                        className="bg-primary hover:bg-primary/90 text-white font-medium"
+                                        style={{ backgroundColor: '#ef4e2a' }}
+                                    >
+                                        {paymentForm.processing ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                Creating...
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Plus className="h-4 w-4" />
+                                                Create Payment Method
+                                            </div>
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
                 </div>
-            </div>
-        </AppLayout>
+                </div>
+            </AppLayout>
+        </>
     );
 }
