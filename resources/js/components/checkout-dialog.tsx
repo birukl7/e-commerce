@@ -92,38 +92,69 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
     setIsProcessing(true)
     
     try {
+      // Prepare cart items for the request
+      const cartItems = items.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        total: item.price * item.quantity
+      }));
+
       if (selectedPayment === 'chapa') {
         // Create order and redirect to Chapa payment
         const orderData = {
-          items: items.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          })),
+          items: cartItems,
+          cart_items: JSON.stringify(cartItems), // Include cart items as JSON string
+          customer_name: `${addressForm.firstName} ${addressForm.lastName}`.trim(),
+          customer_email: addressForm.email,
+          customer_phone: addressForm.phone,
+          amount: getTotalPrice(),
+          currency: 'ETB',
+          payment_method: 'chapa',
           shipping_address: addressForm,
-          payment_method: 'chapa'
-        }
+          _token: (window as any).Laravel?.csrfToken
+        };
         
-        router.post('/checkout/process', orderData as any)
+        router.post(route('payment.process'), orderData as any, {
+          onSuccess: () => {
+            // Clear cart after successful payment initiation
+            clearCart();
+          },
+          onError: (errors) => {
+            console.error('Payment processing failed:', errors);
+          }
+        });
       } else if (selectedPayment === 'offline' && selectedOfflineMethod) {
         // Create order and redirect to offline payment upload
         const orderData = {
-          items: items.map(item => ({
-            product_id: item.id,
-            quantity: item.quantity,
-            price: item.price
-          })),
-          shipping_address: addressForm,
+          items: cartItems,
+          cart_items: JSON.stringify(cartItems), // Include cart items as JSON string
+          customer_name: `${addressForm.firstName} ${addressForm.lastName}`.trim(),
+          customer_email: addressForm.email,
+          customer_phone: addressForm.phone,
+          amount: getTotalPrice(),
+          currency: 'ETB',
           payment_method: 'offline',
-          offline_payment_method_id: selectedOfflineMethod
-        }
+          offline_payment_method_id: selectedOfflineMethod,
+          shipping_address: addressForm,
+          _token: (window as any).Laravel?.csrfToken
+        };
         
-        router.post('/checkout/process', orderData as any)
+        router.post(route('payment.offline.submit'), orderData as any, {
+          onSuccess: () => {
+            // Clear cart after successful submission
+            clearCart();
+          },
+          onError: (errors) => {
+            console.error('Offline payment submission failed:', errors);
+          }
+        });
       }
     } catch (error) {
-      console.error('Payment processing failed:', error)
+      console.error('Payment processing failed:', error);
     } finally {
-      setIsProcessing(false)
+      setIsProcessing(false);
     }
   }
 

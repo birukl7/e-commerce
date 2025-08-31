@@ -1,9 +1,9 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Package, Calendar, DollarSign, Truck, CreditCard, MapPin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MainLayout from '@/layouts/app/main-layout';
+import { Head, Link } from '@inertiajs/react';
+import { ArrowLeft, CreditCard, DollarSign, MapPin, Package, Truck } from 'lucide-react';
 
 interface OrderItem {
     id: number;
@@ -45,7 +45,9 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: order.currency === 'ETB' ? 'USD' : order.currency,
-        }).format(price).replace('$', order.currency + ' ');
+        })
+            .format(price)
+            .replace('$', order.currency + ' ');
     };
 
     const formatDate = (dateString: string) => {
@@ -103,14 +105,14 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
             case 'awaiting_admin_approval':
                 return 'Awaiting Admin Approval';
             default:
-                return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return status.replace('_', ' ').replace(/\b\w/g, (l) => l.toUpperCase());
         }
     };
 
     return (
         <MainLayout title={`Order #${order.order_number} - ShopHub`}>
             <Head title={`Order #${order.order_number}`} />
-            
+
             <div className="py-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -128,12 +130,8 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                             <p className="text-gray-600">Placed on {formatDate(order.created_at)}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            <Badge className={getStatusColor(order.status)}>
-                                {order.status}
-                            </Badge>
-                            <Badge className={getPaymentStatusColor(order.payment_status)}>
-                                {order.payment_status}
-                            </Badge>
+                            <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
+                            <Badge className={getPaymentStatusColor(order.payment_status)}>{order.payment_status}</Badge>
                         </div>
                     </div>
                 </div>
@@ -157,10 +155,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                             className="h-16 w-16 rounded-lg object-cover"
                                         />
                                         <div className="flex-1">
-                                            <Link 
-                                                href={`/products/${item.product_slug}`}
-                                                className="font-medium hover:text-primary"
-                                            >
+                                            <Link href={`/products/${item.product_slug}`} className="font-medium hover:text-primary">
                                                 {item.product_name}
                                             </Link>
                                             <div className="mt-1 flex items-center gap-4 text-sm text-gray-600">
@@ -229,7 +224,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                 <div className="grid grid-cols-1 gap-3">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">Payment Method:</span>
-                                        <span className="capitalize font-medium">{order.payment_method.replace('_', ' ')}</span>
+                                        <span className="font-medium capitalize">{order.payment_method.replace('_', ' ')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-gray-600">Payment Type:</span>
@@ -248,33 +243,6 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                 </div>
 
                                 {/* Order Items in Payment Details */}
-                                <div className="border-t pt-4">
-                                    <h4 className="text-sm font-medium text-gray-900 mb-3">Items Ordered</h4>
-                                    <div className="space-y-3">
-                                        {order.items.map((item) => (
-                                            <div key={item.id} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                                                {item.primary_image && (
-                                                    <img
-                                                        src={item.primary_image}
-                                                        alt={item.product_name}
-                                                        className="w-12 h-12 object-cover rounded-md"
-                                                    />
-                                                )}
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-gray-900 truncate">
-                                                        {item.product_name}
-                                                    </p>
-                                                    <p className="text-xs text-gray-500">
-                                                        Qty: {item.quantity} × {formatPrice(item.price)}
-                                                    </p>
-                                                </div>
-                                                <div className="text-sm font-medium text-gray-900">
-                                                    {formatPrice(item.total)}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
                             </CardContent>
                         </Card>
 
@@ -314,7 +282,7 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                     Track Order
                                 </Link>
                             </Button>
-                            
+
                             {order.payment_status === 'failed' && (
                                 <Button variant="outline" className="w-full">
                                     Retry Payment

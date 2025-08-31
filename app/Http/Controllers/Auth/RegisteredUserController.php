@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
@@ -21,7 +21,7 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): Response
+    public function create(): InertiaResponse
     {
         return Inertia::render('auth/register');
     }
@@ -120,10 +120,22 @@ class RegisteredUserController extends Controller
 
             DB::commit();
 
+            // Send email verification notification
             event(new Registered($user));
+            
+            // Log in the user
             Auth::login($user);
-
-            return redirect()->intended(route('home'))->with('status', 'Registration successful! Welcome to ShopHub.');
+            
+            // Debug logging
+            Log::info('User registered and logged in, redirecting to verify-email', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'is_authenticated' => Auth::check(),
+            ]);
+            
+            // Redirect to the email verification page using the named route
+            return redirect()->route('verification.notice')
+                ->with('status', 'Registration successful! Welcome to ShopHub. Please verify your email address.');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -134,6 +146,4 @@ class RegisteredUserController extends Controller
             ])->withInput($request->except('password', 'password_confirmation'));
         }
     }
-
-    
-}
+} 

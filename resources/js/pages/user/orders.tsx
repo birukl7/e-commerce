@@ -13,6 +13,7 @@ interface OrderItem {
     product_slug: string;
     quantity: number;
     price: number;
+    total: number;
     primary_image?: string;
 }
 
@@ -22,9 +23,16 @@ interface Order {
     total_amount: number;
     status: string;
     payment_status: string;
+    payment_method: string;
+    payment_type: string;
+    tx_ref: string;
+    currency: string;
     created_at: string;
     updated_at: string;
     items: OrderItem[];
+    item_count: number;
+    product_summary: string;
+    first_item_image?: string;
 }
 
 interface UserOrdersProps {
@@ -85,42 +93,41 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
         }).format(new Date(dateString));
     };
 
+    const formatStatusText = (status: string) => {
+        return status
+            .split('_')
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
+
     const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'processing':
-                return 'bg-blue-100 text-blue-800';
-            case 'shipped':
-                return 'bg-purple-100 text-purple-800';
-            case 'delivered':
-                return 'bg-green-100 text-green-800';
-            case 'cancelled':
-                return 'bg-red-100 text-red-800';
-            case 'awaiting_admin_approval':
-                return 'bg-orange-100 text-orange-800';
-            case 'payment_rejected':
-                return 'bg-red-100 text-red-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
+        const statusLower = status.toLowerCase();
+        if (statusLower.includes('rejected') || statusLower === 'cancelled') {
+            return 'bg-red-100 text-red-800';
+        } else if (statusLower.includes('pending') || statusLower === 'awaiting') {
+            return 'bg-yellow-100 text-yellow-800';
+        } else if (statusLower === 'processing') {
+            return 'bg-blue-100 text-blue-800';
+        } else if (statusLower === 'shipped') {
+            return 'bg-purple-100 text-purple-800';
+        } else if (statusLower === 'delivered' || statusLower === 'completed') {
+            return 'bg-green-100 text-green-800';
         }
+        return 'bg-gray-100 text-gray-800';
     };
 
     const getPaymentStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
-            case 'paid':
-            case 'completed':
-                return 'bg-green-100 text-green-800';
-            case 'pending':
-                return 'bg-yellow-100 text-yellow-800';
-            case 'pending_approval':
-                return 'bg-orange-100 text-orange-800';
-            case 'rejected':
-            case 'failed':
-                return 'bg-red-100 text-red-800';
-            default:
-                return 'bg-gray-100 text-gray-800';
+        const statusLower = status.toLowerCase();
+        if (statusLower === 'paid' || statusLower === 'completed') {
+            return 'bg-green-100 text-green-800';
+        } else if (statusLower === 'pending_approval' || statusLower === 'awaiting_approval') {
+            return 'bg-orange-100 text-orange-800';
+        } else if (statusLower === 'pending') {
+            return 'bg-yellow-100 text-yellow-800';
+        } else if (statusLower === 'rejected' || statusLower === 'failed') {
+            return 'bg-red-100 text-red-800';
         }
+        return 'bg-gray-100 text-gray-800';
     };
 
     return (
@@ -180,24 +187,51 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                     </span>
                                                 </CardDescription>
                                             </div>
-                                            <div className="flex flex-wrap gap-2">
-                                                <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
-                                                <Badge className={getPaymentStatusColor(order.payment_status)}>{order.payment_status}</Badge>
+                                            <div className="flex flex-col items-end gap-2">
+                                                <div className="flex flex-wrap justify-end gap-2">
+                                                    <Badge variant="outline" className="text-xs">
+                                                        {order.payment_type} • {order.payment_method}
+                                                    </Badge>
+                                                </div>
+                                                <div className="flex flex-wrap justify-end gap-2">
+                                                    <Badge className={getStatusColor(order.status)}>{formatStatusText(order.status)}</Badge>
+                                                    <Badge className={getPaymentStatusColor(order.payment_status)}>
+                                                        {formatStatusText(order.payment_status)}
+                                                    </Badge>
+                                                </div>
                                             </div>
                                         </div>
                                     </CardHeader>
                                     <CardContent className="p-6">
                                         {/* Order Items Preview */}
                                         <div className="mb-6">
-                                            <h4 className="mb-3 font-semibold">Items</h4>
+                                            <h4 className="mb-3 font-semibold">
+                                                {order.item_count} {order.item_count === 1 ? 'Item' : 'Items'} • {order.product_summary}
+                                            </h4>
                                             <div className="space-y-3">
-                                                {order.items.slice(0, 3).map((item) => (
-                                                    <div key={item.id} className="flex items-center gap-3">
+                                                {/* {order.items.map((item) => (
+                                                    <div key={item.id} className="flex items-start gap-3">
                                                         <img
                                                             src={item.primary_image || '/placeholder.svg?height=50&width=50&query=product'}
                                                             alt={item.product_name}
-                                                            className="h-12 w-12 rounded-md object-cover"
+                                                            className="h-12 w-12 flex-shrink-0 rounded-md object-cover"
                                                         />
+                                                        <div className="flex-1">
+                                                            <div className="flex items-start justify-between">
+                                                                <Link
+                                                                    href={route('products.show', item.product_slug)}
+                                                                    className="font-medium text-gray-900 hover:underline"
+                                                                >
+                                                                    {item.product_name}
+                                                                </Link>
+                                                                <span className="ml-2 font-medium">{formatPrice(item.total)}</span>
+                                                            </div>
+                                                            <div className="mt-1 flex items-center text-sm text-gray-500">
+                                                                <span>Qty: {item.quantity}</span>
+                                                                <span className="mx-2">•</span>
+                                                                <span>{formatPrice(item.price)} each</span>
+                                                            </div>
+                                                        </div>
                                                         <div className="flex-1">
                                                             <p className="font-medium">{item.product_name}</p>
                                                             <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
@@ -207,7 +241,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                 ))}
                                                 {order.items.length > 3 && (
                                                     <p className="text-sm text-gray-600">+{order.items.length - 3} more items</p>
-                                                )}
+                                                )} */}
                                             </div>
                                         </div>
 

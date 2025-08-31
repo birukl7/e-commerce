@@ -35,6 +35,14 @@ function CheckoutContent() {
         const orderId = generateOrderId();
         const amount = getTotalPrice();
         const currency = 'ETB';
+        
+        // Prepare cart items data
+        const cartItemsData = items.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+        }));
 
         if (method === 'online') {
             // Redirect to Chapa payment
@@ -42,6 +50,7 @@ function CheckoutContent() {
                 order_id: orderId,
                 amount: amount.toString(),
                 currency: currency,
+                cart_items: JSON.stringify(cartItemsData)
             });
             window.location.href = route('payment.show') + '?' + params.toString();
         } else {
@@ -51,6 +60,7 @@ function CheckoutContent() {
                 amount: amount.toString(),
                 currency: currency,
                 payment_method: 'offline',
+                cart_items: JSON.stringify(cartItemsData)
             });
             window.location.href = route('payment.show') + '?' + params.toString();
         }

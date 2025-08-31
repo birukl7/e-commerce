@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -14,13 +13,15 @@ class EmailVerificationPromptController extends Controller
     /**
      * Display the email verification prompt.
      */
-    public function __invoke(Request $request): RedirectResponse|Response
+    public function __invoke(Request $request)
     {
-        return $request->user()->hasVerifiedEmail()
-                    ? redirect()->intended(route('home', absolute: false))
-                    : Inertia::render('auth/verify-email', [
-                        'status' => session('status'),
-                        'canResendEmail' => true,
-                    ]);
+        if ($request->user()->hasVerifiedEmail()) {
+            return redirect()->intended(route('home', absolute: false));
+        }
+
+        // Correct path - should match your actual file location
+        return Inertia::render('auth/verify-email', [
+            'status' => session('status')
+        ]);
     }
 }

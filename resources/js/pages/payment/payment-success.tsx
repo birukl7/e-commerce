@@ -2,10 +2,10 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Head, Link } from '@inertiajs/react';
+import MainLayout from '@/layouts/app/main-layout';
+import { Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle, Download, Package } from 'lucide-react';
 import { useEffect } from 'react';
-import MainLayout from '@/layouts/app/main-layout';
 
 interface PaymentSuccessProps {
     order_id: string;
@@ -78,7 +78,7 @@ Payment Details:
 - Status: ${awaiting_admin_approval ? 'Pending Admin Approval' : 'Completed'}
 
 Items:
-${order_items.map(item => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
+${order_items.map((item) => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
 
 Total: ${formatPrice(amount)}
 
@@ -148,29 +148,6 @@ Thank you for your purchase!
                                         <p className="font-semibold">{formatDate()}</p>
                                     </div>
                                 </div>
-
-                                {/* Order Items */}
-                                {order_items.length > 0 && (
-                                    <div className="border-t pt-4">
-                                        <h4 className="mb-3 font-semibold">Items Ordered</h4>
-                                        <div className="space-y-3">
-                                            {order_items.map((item) => (
-                                                <div key={item.id} className="flex items-center gap-3">
-                                                    <img
-                                                        src={item.image || '/placeholder.svg?height=50&width=50&query=product'}
-                                                        alt={item.name}
-                                                        className="h-12 w-12 rounded-md object-cover"
-                                                    />
-                                                    <div className="flex-1">
-                                                        <p className="font-medium">{item.name}</p>
-                                                        <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
-                                                    </div>
-                                                    <p className="font-semibold">{formatPrice(item.price * item.quantity)}</p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
 
@@ -247,11 +224,7 @@ Thank you for your purchase!
                                         </Link>
                                     </Button>
 
-                                    <Button 
-                                        variant="outline" 
-                                        className="w-full bg-transparent"
-                                        onClick={handleDownloadReceipt}
-                                    >
+                                    <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
                                         <Download className="mr-2 h-4 w-4" />
                                         Download Receipt
                                     </Button>

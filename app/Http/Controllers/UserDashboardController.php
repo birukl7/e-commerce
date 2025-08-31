@@ -80,93 +80,139 @@ class UserDashboardController extends Controller
     {
         $user = Auth::user();
         
-        // Get user's orders with items and payment transaction status
+        // First get all orders for the user
         $orders = DB::table('orders as o')
-            ->leftJoin('order_items as oi', 'o.id', '=', 'oi.order_id')
-            ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
-            ->leftJoin('product_images as pi', function($join) {
-                $join->on('p.id', '=', 'pi.product_id')
-                    ->where('pi.is_primary', true);
-            })
             ->leftJoin('payment_transactions as pt', 'o.id', '=', 'pt.order_id')
             ->select([
                 'o.id',
                 'o.order_number',
-                'o.total_amount',
                 'o.status',
                 'o.payment_status',
                 'o.payment_method',
+                'o.total_amount',
+                'o.currency',
                 'o.created_at',
                 'o.updated_at',
                 'pt.gateway_status',
                 'pt.admin_status',
-                'oi.id as item_id',
-                'oi.quantity',
-                'oi.price as item_price',
-                'p.name as product_name',
-                'p.slug as product_slug',
-                'pi.image_path as primary_image',
+                'pt.tx_ref',
             ])
             ->where('o.user_id', $user->id)
             ->orderBy('o.created_at', 'desc')
-            ->get()
-            ->groupBy('id')
-            ->map(function ($orderGroup) {
-                $firstOrder = $orderGroup->first();
+            ->get();
+            
+        // Get all order items for the user's orders
+        $orderItems = [];
+        if ($orders->isNotEmpty()) {
+            $orderIds = $orders->pluck('id')->toArray();
+            
+            $items = DB::table('order_items as oi')
+                ->join('products as p', 'oi.product_id', '=', 'p.id')
+                ->leftJoin('product_images as pi', function($join) {
+                    $join->on('p.id', '=', 'pi.product_id')
+                        ->where('pi.is_primary', true);
+                })
+                ->select([
+                    'oi.order_id',
+                    'oi.id as item_id',
+                    'oi.quantity',
+                    'oi.price as item_price',
+                    'p.name as product_name',
+                    'p.slug as product_slug',
+                    'pi.image_path as primary_image',
+                ])
+                ->whereIn('oi.order_id', $orderIds)
+                ->get();
                 
-                $items = $orderGroup->whereNotNull('item_id')->map(function ($item) {
+            // Group items by order_id
+            foreach ($items as $item) {
+                $orderItems[$item->order_id][] = $item;
+            }
+        }
+        
+        // Process and group orders with their items
+        $orders = $orders->map(function ($order) use ($orderItems) {
+            // Add items to each order
+            $items = collect($orderItems[$order->id] ?? [])
+                ->map(function ($item) {
                     return [
                         'id' => $item->item_id,
                         'product_name' => $item->product_name,
                         'product_slug' => $item->product_slug,
                         'quantity' => $item->quantity,
                         'price' => (float) $item->item_price,
+                        'total' => (float) $item->item_price * $item->quantity,
                         'primary_image' => $item->primary_image ? asset('storage/' . $item->primary_image) : null,
                     ];
                 })->toArray();
-
+                
+            // Get first product name for display
+            $firstProduct = $items[0] ?? null;
+            $productSummary = $firstProduct ? 
+                $firstProduct['product_name'] . 
+                (count($items) > 1 ? ' +' . (count($items) - 1) . ' more' : '') : 
+                'No items';
+                
+            // Get payment method type from payment_method and tx_ref
+            $paymentMethodType = 'Unknown';
+            if ($order->payment_method === 'offline') {
+                $paymentMethodType = 'Offline';
+            } elseif (in_array($order->payment_method, ['chapa', 'telebirr', 'cbe', 'paypal'])) {
+                $paymentMethodType = 'Online';
+            } elseif ($order->tx_ref) {
+                if (str_starts_with($order->tx_ref, 'TX-')) {
+                    $paymentMethodType = 'Online';
+                } elseif (str_starts_with($order->tx_ref, 'OFFLINE-')) {
+                    $paymentMethodType = 'Offline';
+                }
+            }
+                
                 // Determine actual order status based on persisted order first.
                 // Only fall back to payment transaction when order is still pending/unpaid.
-                $actualStatus = $firstOrder->status;
-                $actualPaymentStatus = $firstOrder->payment_status;
+                $actualStatus = $order->status;
+                $actualPaymentStatus = $order->payment_status;
 
                 // Normalize: if order has progressed but payment_status is still pending, assume paid
                 if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
                     $actualPaymentStatus = 'paid';
                 }
 
-                $isOrderFinalized = in_array($firstOrder->payment_status, ['paid', 'completed', 'rejected', 'refunded'], true)
-                    || in_array($firstOrder->status, ['processing', 'shipped', 'delivered', 'cancelled'], true);
+                $isOrderFinalized = in_array($order->payment_status, ['paid', 'completed', 'rejected', 'refunded'], true)
+                    || in_array($order->status, ['processing', 'shipped', 'delivered', 'cancelled'], true);
 
-                if (!$isOrderFinalized && $firstOrder->gateway_status && $firstOrder->admin_status) {
-                    if ($firstOrder->gateway_status === 'paid' && $firstOrder->admin_status === 'approved') {
+                if (!$isOrderFinalized && $order->gateway_status && $order->admin_status) {
+                    if ($order->gateway_status === 'paid' && $order->admin_status === 'approved') {
                         $actualStatus = 'processing';
                         $actualPaymentStatus = 'paid';
-                    } elseif ($firstOrder->gateway_status === 'proof_uploaded' && $firstOrder->admin_status === 'unseen') {
+                    } elseif ($order->gateway_status === 'proof_uploaded' && $order->admin_status === 'unseen') {
                         $actualStatus = 'awaiting_admin_approval';
                         $actualPaymentStatus = 'pending_approval';
-                    } elseif ($firstOrder->admin_status === 'approved' && $firstOrder->gateway_status === 'proof_uploaded') {
+                    } elseif ($order->admin_status === 'approved' && $order->gateway_status === 'proof_uploaded') {
                         // Offline flow: admin approved with proof uploaded
                         $actualStatus = 'processing';
                         $actualPaymentStatus = 'paid';
-                    } elseif ($firstOrder->admin_status === 'rejected') {
+                    } elseif ($order->admin_status === 'rejected') {
                         $actualStatus = 'payment_rejected';
                         $actualPaymentStatus = 'rejected';
                     }
                 }
 
                 return [
-                    'id' => $firstOrder->id,
-                    'order_number' => $firstOrder->order_number,
-                    'total_amount' => (float) $firstOrder->total_amount,
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
                     'status' => $actualStatus,
                     'payment_status' => $actualPaymentStatus,
-                    'payment_method' => $firstOrder->payment_method,
-                    'gateway_status' => $firstOrder->gateway_status,
-                    'admin_status' => $firstOrder->admin_status,
-                    'created_at' => $firstOrder->created_at,
-                    'updated_at' => $firstOrder->updated_at,
+                    'payment_method' => $this->formatPaymentMethod($order->payment_method),
+                    'payment_type' => $paymentMethodType,
+                    'tx_ref' => $order->tx_ref,
+                    'total_amount' => (float) $order->total_amount,
+                    'currency' => $order->currency,
+                    'created_at' => $order->created_at,
+                    'updated_at' => $order->updated_at,
                     'items' => $items,
+                    'item_count' => count($items),
+                    'product_summary' => $productSummary,
+                    'first_item_image' => $firstProduct['primary_image'] ?? null,
                 ];
             })
             ->values()
@@ -293,8 +339,125 @@ class UserDashboardController extends Controller
             'items' => $items,
         ];
 
+        // Create payment timeline similar to trackOrder
+        $timeline = [];
+        
+        // Order placed
+        $timeline[] = [
+            'status' => 'ordered',
+            'title' => 'Order Placed',
+            'description' => 'Your order has been placed and is being processed',
+            'date' => $firstOrder->created_at,
+            'completed' => true,
+        ];
+
+        // Enhanced payment status tracking
+        if ($actualPaymentStatus === 'paid') {
+            // Payment received step
+            $timeline[] = [
+                'status' => 'payment_received',
+                'title' => 'Payment Received',
+                'description' => "Payment received via {$paymentMethodType}",
+                'date' => $firstOrder->updated_at,
+                'completed' => true,
+            ];
+            
+            // Admin approval step
+            $timeline[] = [
+                'status' => 'admin_approved',
+                'title' => 'Payment Approved',
+                'description' => 'Payment has been reviewed and approved by admin',
+                'date' => $firstOrder->updated_at,
+                'completed' => true,
+            ];
+        } elseif ($actualPaymentStatus === 'pending_approval') {
+            // Payment received step
+            $timeline[] = [
+                'status' => 'payment_received',
+                'title' => 'Payment Received',
+                'description' => "Payment received via {$paymentMethodType}",
+                'date' => $firstOrder->updated_at,
+                'completed' => true,
+            ];
+            
+            // Awaiting admin approval step
+            $timeline[] = [
+                'status' => 'awaiting_admin_approval',
+                'title' => 'Awaiting Admin Approval',
+                'description' => 'Payment is being reviewed by admin for approval',
+                'date' => null,
+                'completed' => false,
+            ];
+        } elseif ($actualPaymentStatus === 'pending') {
+            $timeline[] = [
+                'status' => 'payment_pending',
+                'title' => 'Payment Pending',
+                'description' => 'Waiting for payment confirmation',
+                'date' => null,
+                'completed' => false,
+            ];
+        } elseif ($actualPaymentStatus === 'rejected') {
+            $timeline[] = [
+                'status' => 'payment_rejected',
+                'title' => 'Payment Rejected',
+                'description' => 'Payment was rejected by admin',
+                'date' => $firstOrder->updated_at,
+                'completed' => false,
+                'error' => true,
+            ];
+        } elseif ($actualPaymentStatus === 'failed') {
+            $timeline[] = [
+                'status' => 'payment_failed',
+                'title' => 'Payment Failed',
+                'description' => 'Payment could not be processed',
+                'date' => $firstOrder->updated_at,
+                'completed' => false,
+                'error' => true,
+            ];
+        }
+
+        // Add order processing steps if payment is approved
+        if ($actualStatus === 'processing') {
+            $timeline[] = [
+                'status' => 'processing',
+                'title' => 'Processing',
+                'description' => 'Your order is being processed',
+                'date' => $firstOrder->updated_at,
+                'completed' => true,
+            ];
+        } elseif (in_array($actualStatus, ['shipped', 'delivered'])) {
+            $timeline[] = [
+                'status' => 'processing',
+                'title' => 'Processing',
+                'description' => 'Your order is being processed',
+                'date' => $firstOrder->updated_at,
+                'completed' => true,
+            ];
+            
+            $shippedDate = $firstOrder->shipped_at ?? now();
+            $timeline[] = [
+                'status' => 'shipped',
+                'title' => 'Shipped',
+                'description' => 'Your order has been shipped',
+                'date' => $shippedDate,
+                'completed' => true,
+            ];
+            
+            if ($actualStatus === 'delivered') {
+                $deliveredDate = $firstOrder->delivered_at ?? now();
+                $timeline[] = [
+                    'status' => 'delivered',
+                    'title' => 'Delivered',
+                    'description' => 'Your order has been delivered',
+                    'date' => $deliveredDate,
+                    'completed' => true,
+                ];
+            }
+        }
+
         return Inertia::render('user/order-details', [
             'order' => $orderDetails,
+            'timeline' => $timeline,
         ]);
     }
 
@@ -487,5 +650,14 @@ class UserDashboardController extends Controller
         ]);
     }
 
+    private function formatPaymentMethod($method)
+    {
+        if (str_starts_with($method, 'TX-')) {
+            return 'Chapa Online Payment';
+        } elseif (str_starts_with($method, 'OFFLINE-')) {
+            return 'Offline Payment';
+        }
+        return $method;
+    }
     
 }

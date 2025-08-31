@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Head, Link } from '@inertiajs/react';
 import { CheckCircle, Clock, FileImage, Home, User } from 'lucide-react';
+import { useEffect } from 'react';
 
 interface OfflineSubmissionSuccessProps {
     submission_ref: string;
@@ -14,6 +15,15 @@ interface OfflineSubmissionSuccessProps {
 }
 
 export default function OfflineSubmissionSuccess({ submission_ref, order_id, amount, currency, payment_method }: OfflineSubmissionSuccessProps) {
+    // Clear cart when offline payment is successfully submitted
+    useEffect(() => {
+        // Clear cart from localStorage since payment was successful
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('cartItems');
+            console.log('Cart cleared after successful offline payment submission');
+        }
+    }, []);
+
     // Debug log to check if component is rendering
     console.log('OfflineSubmissionSuccess props:', { submission_ref, order_id, amount, currency, payment_method });
     const formatPrice = (price: number) => {

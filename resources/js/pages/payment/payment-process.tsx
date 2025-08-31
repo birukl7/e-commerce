@@ -47,6 +47,106 @@ export default function PaymentProcess({
             .replace('$', currency + ' ');
     };
 
+    // Debug logging
+    console.log('PaymentProcess component props:', {
+        order_id,
+        total_amount,
+        currency,
+        customer_email,
+        customer_name,
+        payment_method_type,
+        offlinePaymentMethods: offlinePaymentMethods.length,
+        offlinePaymentMethodsData: offlinePaymentMethods
+    });
+
+    // Additional debugging for offline payment flow
+    if (payment_method_type === 'offline') {
+        console.log('Payment method type is offline, checking offline payment methods');
+        console.log('Offline payment methods array:', offlinePaymentMethods);
+        console.log('Offline payment methods length:', offlinePaymentMethods.length);
+        console.log('First offline payment method:', offlinePaymentMethods[0]);
+    } else {
+        console.log('Payment method type is not offline:', payment_method_type);
+        console.log('Payment method type type:', typeof payment_method_type);
+        console.log('Payment method type value:', payment_method_type);
+    }
+
+    // If no specific payment method is selected, show both options
+    if (!payment_method_type) {
+        console.log('No payment method type specified, showing payment method selection');
+        return (
+            <MainLayout title="Select Payment Method">
+                <div className="min-h-screen bg-gray-50 py-8">
+                    <Head title="Select Payment Method" />
+                    
+                    <div className="mx-auto max-w-4xl px-4">
+                        <div className="mb-8">
+                            <div className="mb-4 flex items-center gap-4">
+                                <Button variant="outline" size="sm" onClick={() => window.history.back()}>
+                                    <ArrowLeft className="mr-2 h-4 w-4" />
+                                    Back
+                                </Button>
+                                <div>
+                                    <h1 className="text-2xl font-bold text-gray-900">Select Payment Method</h1>
+                                    <p className="text-gray-600">
+                                        Order ID: {order_id} | Amount: {formatPrice(total_amount)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                            {/* Online Payment Option */}
+                            <div className="rounded-lg bg-white p-6 shadow-md">
+                                <div className="text-center">
+                                    <CreditCard className="mx-auto mb-4 h-16 w-16 text-blue-400" />
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Online Payment</h2>
+                                    <p className="mb-4 text-gray-600">
+                                        Pay securely online using Chapa payment gateway
+                                    </p>
+                                    <Button 
+                                        onClick={() => window.location.href = route('payment.show', {
+                                            order_id: order_id,
+                                            amount: total_amount,
+                                            currency: currency,
+                                            cart_items: JSON.stringify([])
+                                        })}
+                                        className="w-full"
+                                    >
+                                        Pay Online
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Offline Payment Option */}
+                            <div className="rounded-lg bg-white p-6 shadow-md">
+                                <div className="text-center">
+                                    <Upload className="mx-auto mb-4 h-16 w-16 text-green-400" />
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Offline Payment</h2>
+                                    <p className="mb-4 text-gray-600">
+                                        Pay via bank transfer and upload proof
+                                    </p>
+                                    <Button 
+                                        onClick={() => window.location.href = route('payment.show', {
+                                            order_id: order_id,
+                                            amount: total_amount,
+                                            currency: currency,
+                                            payment_method: 'offline',
+                                            cart_items: JSON.stringify([])
+                                        })}
+                                        className="w-full"
+                                    >
+                                        Pay Offline
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </MainLayout>
+        );
+    }
+
     // Form for regular Chapa payment
     const chapaForm = useForm({
         payment_method: 'telebirr',
@@ -63,33 +163,311 @@ export default function PaymentProcess({
         order_id: order_id,
         amount: total_amount,
         currency: currency,
-        offline_payment_method_id: '',
+        offline_payment_method_id: '', // This will be set before submission
         payment_reference: '',
         payment_notes: '',
         payment_screenshot: null as File | null,
     });
+    
+    // Update the form data when the selected payment method changes
+    React.useEffect(() => {
+        if (selectedOfflineMethod) {
+            offlineForm.setData('offline_payment_method_id', selectedOfflineMethod);
+        }
+    }, [selectedOfflineMethod]);
 
     const handleChapaSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         chapaForm.post(route('payment.process'));
     };
 
-    const handleOfflineSubmit = (e: React.FormEvent) => {
+    const handleOfflineSubmit = async (e: React.FormEvent) => {
+        console.log('=== Form submission started ===');
         e.preventDefault();
-        if (!selectedOfflineMethod) {
-            alert('Please select a payment method');
-            return;
-        }
-        if (!offlineForm.data.payment_screenshot) {
-            alert('Please upload a payment screenshot');
-            return;
-        }
+        console.log('=== Starting offline payment submission ===');
+        console.group('Payment Submission Debug');
+        
+        try {
+            console.log('Form submitted with data:', {
+                selectedOfflineMethod,
+                formData: offlineForm.data,
+                hasFile: !!offlineForm.data.payment_screenshot
+            });
+            // Client-side validation
+            if (!selectedOfflineMethod) {
+                const errorMsg = 'No payment method selected';
+                console.error('Validation Error:', errorMsg);
+                alert('Please select a payment method');
+                return;
+            }
+            if (!offlineForm.data.payment_screenshot) {
+                const errorMsg = 'No payment screenshot uploaded';
+                console.error('Validation Error:', errorMsg);
+                alert('Please upload a payment screenshot');
+                return;
+            }
 
-        offlineForm.data.offline_payment_method_id = selectedOfflineMethod;
-        offlineForm.post(route('payment.offline.submit'));
+            // Get cart items from local storage
+            console.log('Retrieving cart from localStorage...');
+            const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
+            console.log('Cart items from localStorage:', cartItems);
+            
+            // Create form data with all required fields
+            console.log('Preparing form data...');
+            const formData = new FormData();
+            const formFields = {
+                order_id: offlineForm.data.order_id,
+                amount: offlineForm.data.amount.toString(),
+                currency: offlineForm.data.currency,
+                offline_payment_method_id: selectedOfflineMethod,
+                payment_reference: offlineForm.data.payment_reference || '',
+                payment_notes: offlineForm.data.payment_notes || '',
+                _token: document.querySelector('meta[name="csrf-token"]' as string)?.getAttribute('content') || '',
+            };
+
+            // Append all form fields
+            Object.entries(formFields).forEach(([key, value]) => {
+                formData.append(key, value);
+                console.log(`Added to formData: ${key} =`, value);
+            });
+            
+            // Append the payment screenshot file
+            if (offlineForm.data.payment_screenshot) {
+                console.log('Adding screenshot file to formData...');
+                formData.append('payment_screenshot', offlineForm.data.payment_screenshot);
+                const file = offlineForm.data.payment_screenshot as File;
+                console.log('Screenshot file details:', {
+                    name: file.name,
+                    type: file.type,
+                    size: file.size,
+                });
+            }
+            
+            // Append cart items as JSON string if available
+            if (cartItems && cartItems.length > 0) {
+                console.log('Adding cart items to formData...');
+                const cartItemsJson = JSON.stringify(cartItems);
+                formData.append('cart_items', cartItemsJson);
+                console.log('Cart items JSON (first 200 chars):', cartItemsJson.substring(0, 200));
+            }
+
+            // Log form data before submission
+            console.log('Final form data to be submitted:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: [File]`, {
+                        name: value.name,
+                        type: value.type,
+                        size: value.size,
+                    });
+                } else if (key === 'cart_items') {
+                    console.log(`${key}: [Cart Items JSON] (${value.length} chars)`);
+                } else if (key === '_token') {
+                    console.log(`${key}: [CSRF Token] (${value.length} chars)`);
+                } else {
+                    console.log(`${key}:`, value);
+                }
+            }
+
+            // Clear any previous errors
+            offlineForm.clearErrors();
+            
+            const submitUrl = route('payment.offline.submit');
+            console.log('Submitting form to:', submitUrl);
+            
+            // Submit the form using fetch instead of Inertia for better file upload handling
+            console.log('Initiating form submission with fetch...');
+            
+            try {
+                console.log('Sending fetch request to:', submitUrl);
+                const response = await fetch(submitUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': formData.get('_token') as string,
+                    },
+                    credentials: 'same-origin',
+                });
+
+                console.log('Response received. Status:', response.status);
+                
+                // Check if the response is a redirect
+                if (response.redirected) {
+                    console.log('Server redirected to:', response.url);
+                    // Clear the cart after successful submission
+                    localStorage.removeItem('cartItems');
+                    console.log('Cart cleared from localStorage');
+                    window.location.href = response.url;
+                    return;
+                }
+                
+                // Log response headers for debugging
+                console.log('Response headers:');
+                response.headers.forEach((value, key) => {
+                    console.log(`  ${key}: ${value}`);
+                });
+                
+                // Get response content type to handle different response types
+                const contentType = response.headers.get('content-type');
+                let result;
+                
+                try {
+                    if (contentType && contentType.includes('application/json')) {
+                        result = await response.json();
+                        console.log('JSON response:', result);
+                    } else {
+                        const text = await response.text();
+                        console.log('Non-JSON response:', text);
+                        throw new Error(`Unexpected response type: ${contentType}`);
+                    }
+                } catch (error) {
+                    console.error('Error parsing response:', error);
+                    throw new Error('Failed to process server response');
+                }
+                
+                if (response.ok) {
+                    console.log('=== Form submission successful ===');
+                    
+                    if (result.redirect) {
+                        console.log('Redirecting to:', result.redirect);
+                        // Clear the cart after successful submission
+                        localStorage.removeItem('cartItems');
+                        console.log('Cart cleared from localStorage');
+                        window.location.href = result.redirect;
+                        return;
+                    } else if (result.url) {
+                        // Handle case where server returns a URL to redirect to
+                        console.log('Redirecting to URL from response:', result.url);
+                        localStorage.removeItem('cartItems');
+                        window.location.href = result.url;
+                        return;
+                    } else if (window.location.pathname !== '/payment/success') {
+                        // If no redirect but we're not on success page, try to go there
+                        console.log('No redirect URL, navigating to /payment/success');
+                        localStorage.removeItem('cartItems');
+                        window.location.href = '/payment/success';
+                        return;
+                    }
+                } else {
+                    console.error('=== Form submission failed ===');
+                    console.error('Error response:', result);
+                    
+                    if (result.errors) {
+                        console.error('Form errors:', result.errors);
+                        // Update form errors
+                        if (result.errors.payment_reference) {
+                            offlineForm.setError('payment_reference', result.errors.payment_reference[0]);
+                        }
+                        if (result.errors.payment_notes) {
+                            offlineForm.setError('payment_notes', result.errors.payment_notes[0]);
+                        }
+                        if (result.errors.payment_screenshot) {
+                            offlineForm.setError('payment_screenshot', result.errors.payment_screenshot[0]);
+                        }
+                    }
+                    
+                    if (result.message) {
+                        alert(result.message);
+                    } else {
+                        alert('An error occurred while processing your payment. Please try again.');
+                    }
+                }
+            } catch (error) {
+                console.error('=== Error during form submission ===');
+                console.error('Error details:', error);
+                
+                if (error instanceof Error) {
+                    const errorObj = error as any;
+                    if (errorObj.errors) {
+                        // Handle validation errors from the server
+                        const errorMessage = Object.values(errorObj.errors).flat().join('\n');
+                        const fullErrorMsg = `An error occurred while submitting your payment.\n\n${errorMessage}`;
+                        console.error('Validation errors:', fullErrorMsg);
+                        alert(fullErrorMsg);
+                    } else if (errorObj.message) {
+                        // Handle error messages from the server
+                        const errorMsg = `Payment Error: ${errorObj.message}`;
+                        console.error('Payment error:', errorMsg);
+                        alert(errorMsg);
+                    } else {
+                        // Generic error handling
+                        alert(`Error: ${error.message}`);
+                    }
+                } else {
+                    // Fallback for non-Error objects
+                    alert('An unexpected error occurred. Please try again.');
+                }
+            } finally {
+                console.log('=== Form submission finished ===');
+                console.groupEnd();
+            }
+        } catch (error) {
+            console.error('Unexpected error during form submission:', error);
+            alert('An unexpected error occurred. Please check the console for details.');
+            console.groupEnd();
+        }
     };
 
     if (payment_method_type === 'offline') {
+        // Check if offline payment methods are available
+        if (!offlinePaymentMethods || offlinePaymentMethods.length === 0) {
+            console.warn('No offline payment methods available, falling back to online payment form');
+            
+            // Fallback to online payment form if no offline methods are available
+            return (
+                <MainLayout title="Payment Processing">
+                    <div className="min-h-screen bg-gray-50 py-8">
+                        <Head title="Payment Processing" />
+                        
+                        <div className="mx-auto max-w-4xl px-4">
+                            <div className="mb-8">
+                                <div className="mb-4 flex items-center gap-4">
+                                    <Button variant="outline" size="sm" onClick={() => window.history.back()}>
+                                        <ArrowLeft className="mr-2 h-4 w-4" />
+                                        Back
+                                    </Button>
+                                    <div>
+                                        <h1 className="text-2xl font-bold text-gray-900">Payment Processing</h1>
+                                        <p className="text-gray-600">
+                                            Order ID: {order_id} | Amount: {formatPrice(total_amount)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="rounded-lg bg-white p-6 shadow-md">
+                                <div className="text-center">
+                                    <CreditCard className="mx-auto mb-4 h-16 w-16 text-blue-400" />
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Offline Payment Not Available</h2>
+                                    <p className="mb-4 text-gray-600">
+                                        Offline payment methods are not currently available. You can proceed with online payment instead.
+                                    </p>
+                                    <div className="space-y-3">
+                                        <Button 
+                                            onClick={() => window.location.href = route('payment.show', {
+                                                order_id: order_id,
+                                                amount: total_amount,
+                                                currency: currency,
+                                                cart_items: JSON.stringify([])
+                                            })}
+                                            className="w-full"
+                                        >
+                                            Continue with Online Payment
+                                        </Button>
+                                        <Button variant="outline" onClick={() => window.history.back()} className="w-full">
+                                            Go Back
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </MainLayout>
+            );
+        }
+
         // Render offline payment form
         return (
             <MainLayout title="Upload Payment Proof">
@@ -113,7 +491,7 @@ export default function PaymentProcess({
                             </div>
                         </div>
 
-                        <div className="space-y-6">
+                        <form onSubmit={handleOfflineSubmit} className="space-y-6">
                             {/* Payment Method Selection */}
                             <Card>
                                 <CardHeader>
@@ -167,6 +545,13 @@ export default function PaymentProcess({
                                     )}
                                 </CardContent>
                             </Card>
+
+                            {/* Error Display */}
+                            {offlineForm.errors.general && (
+                                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-sm text-red-600">{offlineForm.errors.general}</p>
+                                </div>
+                            )}
 
                             {/* Payment Details Form */}
                             {selectedOfflineMethod && (
@@ -236,9 +621,8 @@ export default function PaymentProcess({
                                     </Card>
 
                                     <Button
-                                        type="button"
-                                        onClick={handleOfflineSubmit}
-                                        className="w-full bg-primary-600 hover:bg-primary-700"
+                                        type="submit"
+                                        className="w-full bg-primary-600 hover:bg-primary-700 mt-6"
                                         disabled={offlineForm.processing}
                                     >
                                         {offlineForm.processing ? (
@@ -252,7 +636,7 @@ export default function PaymentProcess({
                                     </Button>
                                 </>
                             )}
-                        </div>
+                        </form>
                     </div>
                 </div>
             </MainLayout>
