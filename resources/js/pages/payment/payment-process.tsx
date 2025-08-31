@@ -158,15 +158,26 @@ export default function PaymentProcess({
         currency: currency,
     });
 
+    // Define the type for the offline form data
+    type OfflineFormData = {
+        order_id: string;
+        amount: number;
+        currency: string;
+        offline_payment_method_id: string;
+        payment_reference: string;
+        payment_notes: string;
+        payment_screenshot: File | null;
+    };
+
     // Form for offline payment submission
-    const offlineForm = useForm({
+    const offlineForm = useForm<OfflineFormData & { [key: string]: any }>({
         order_id: order_id,
         amount: total_amount,
         currency: currency,
         offline_payment_method_id: '', // This will be set before submission
         payment_reference: '',
         payment_notes: '',
-        payment_screenshot: null as File | null,
+        payment_screenshot: null,
     });
     
     // Update the form data when the selected payment method changes
@@ -547,9 +558,9 @@ export default function PaymentProcess({
                             </Card>
 
                             {/* Error Display */}
-                            {offlineForm.errors.general && (
+                            {offlineForm.errors?.general && (
                                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                                    <p className="text-sm text-red-600">{offlineForm.errors.general}</p>
+                                    <p className="text-sm text-red-600">{offlineForm.errors.general as string}</p>
                                 </div>
                             )}
 

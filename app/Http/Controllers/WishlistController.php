@@ -172,4 +172,117 @@ class WishlistController extends Controller
             ], 500);
         }
     }
+
+
+    /**
+     * Check if a product is in user's wishlist (AJAX).
+     */
+    public function check(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+                
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated',
+                'in_wishlist' => false
+            ], 401);
+        }
+
+        try {
+            $validated = $request->validate([
+                'product_id' => 'required|integer|exists:products,id'
+            ]);
+
+            $productId = $validated['product_id'];
+            $inWishlist = Wishlist::where('user_id', $user->id)
+                ->where('product_id', $productId)
+                ->exists();
+
+            return response()->json([
+                'success' => true,
+                'in_wishlist' => $inWishlist,
+                'product_id' => $productId
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors(),
+                'in_wishlist' => false
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while checking wishlist',
+                'in_wishlist' => false
+            ], 500);
+        }
+    }
+
+    /**
+     * Add product to wishlist (AJAX).
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $user = Auth::user();
+                
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated'
+            ], 401);
+        }
+
+        try {
+            $validated = $request->validate([
+                'product_id' => 'required|integer|exists:products,id'
+            ]);
+
+            $productId = $validated['product_id'];
+            
+            // Check if already in wishlist
+            $existingWishlistItem = Wishlist::where('user_id', $user->id)
+                ->where('product_id', $productId)
+                ->first();
+
+            if ($existingWishlistItem) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Product is already in wishlist',
+                    'in_wishlist' => true
+                ], 409);
+            }
+
+            // Add to wishlist
+            Wishlist::create([
+                'user_id' => $user->id,
+                'product_id' => $productId
+            ]);
+
+            $product = Product::find($productId);
+            return response()->json([
+                'success' => true,
+                'message' => 'Product added to wishlist successfully',
+                'in_wishlist' => true,
+                'product' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                ]
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while adding to wishlist'
+            ], 500);
+        }
+    }
 }

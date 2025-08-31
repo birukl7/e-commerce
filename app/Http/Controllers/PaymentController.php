@@ -62,7 +62,20 @@ class PaymentController extends Controller
 
     public function showPaymentPage(Request $request)
     {
-        Log::error("showing payment page:");
+        // Remove or fix this problematic log line
+        Log::info("=== Payment page display started ===", [
+            'request_url' => $request->fullUrl(),
+            'request_method' => $request->method(),
+            'input_data' => $request->except(['_token'])
+        ]);
+        
+        // Get authenticated user first
+        $user = auth()->user();
+        if (!$user) {
+            Log::error('User not authenticated for payment page');
+            return redirect()->route('login')->with('error', 'Please login to continue with payment');
+        }
+
         try {
             // Get payment data from request
             $orderId = $request->get('order_id');
@@ -71,51 +84,174 @@ class PaymentController extends Controller
             $paymentMethod = $request->get('payment_method'); // 'offline' or null for regular
             $cartItems = $request->get('cart_items');
 
-            // If cart_items is a JSON string, decode it
+            Log::info('Payment page request data', [
+                'order_id' => $orderId,
+                'amount' => $amount,
+                'currency' => $currency,
+                'payment_method' => $paymentMethod,
+                'cart_items_raw' => is_string($cartItems) ? substr($cartItems, 0, 200) . '...' : 'not_string',
+                'user_id' => $user->id
+            ]);
+
+            // Parse cart items if it's a JSON string
             if (is_string($cartItems)) {
-                $cartItems = json_decode($cartItems, true);
+                try {
+                    $decodedItems = json_decode($cartItems, true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        throw new \Exception('Invalid JSON in cart_items: ' . json_last_error_msg());
+                    }
+                    $cartItems = $decodedItems;
+                } catch (\Exception $e) {
+                    Log::error('Failed to decode cart items JSON', [
+                        'error' => $e->getMessage(),
+                        'cart_items' => $cartItems
+                    ]);
+                    return redirect()->route('checkout')->with('error', 'Invalid cart data. Please try again.');
+                }
             }
 
             // Validate required data
             if (!$orderId || !$amount || $amount <= 0) {
+                Log::error('Missing or invalid payment information', [
+                    'order_id' => $orderId,
+                    'amount' => $amount
+                ]);
                 return redirect()->route('checkout')->with('error', 'Missing payment information');
             }
 
-            // Create order if it doesn't exist
-            $existingOrder = Order::where('order_number', $orderId)->first();
-            if (!$existingOrder) {
-                $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems);
-                if (!$order) {
-                    return redirect()->route('checkout')->with('error', 'Failed to create order. Please try again.');
+            // Validate cart items
+            if (empty($cartItems) || !is_array($cartItems)) {
+                Log::error('No cart items provided', [
+                    'cart_items' => $cartItems,
+                    'is_array' => is_array($cartItems),
+                    'count' => is_array($cartItems) ? count($cartItems) : 'N/A'
+                ]);
+                return redirect()->route('checkout')->with('error', 'No items in cart. Please add items before proceeding.');
+            }
+
+            // Start transaction to ensure data consistency
+            DB::beginTransaction();
+
+            try {
+                // Check if order already exists for this user and order_id
+                $existingOrder = Order::where('order_number', $orderId)
+                    ->where('user_id', $user->id)
+                    ->with('items') // Eager load items
+                    ->first();
+                
+                if ($existingOrder) {
+                    Log::info('Found existing order', [
+                        'order_id' => $existingOrder->id,
+                        'order_number' => $existingOrder->order_number,
+                        'items_count' => $existingOrder->items->count(),
+                        'status' => $existingOrder->status,
+                        'payment_status' => $existingOrder->payment_status
+                    ]);
+
+                    // If order has no items, try to add them from cart
+                    if ($existingOrder->items->count() === 0) {
+                        Log::info('Adding items to existing empty order');
+                        $itemsAdded = $this->addItemsToOrder($existingOrder, $cartItems);
+                        if (!$itemsAdded) {
+                            throw new \Exception('Failed to add items to existing order');
+                        }
+                        $existingOrder->refresh(); // Refresh to get updated items
+                    }
+                    
+                    $order = $existingOrder;
+                } else {
+                    // Create new order with items
+                    Log::info('Creating new order with items', [
+                        'order_number' => $orderId,
+                        'cart_items_count' => count($cartItems)
+                    ]);
+                    
+                    $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems);
+                    if (!$order) {
+                        throw new \Exception('Failed to create order from cart');
+                    }
                 }
+                
+                // Ensure we have an order with items
+                $currentItemCount = $order->items()->count();
+                if ($currentItemCount === 0) {
+                    Log::error('Order has no items after creation/update', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'cart_items_count' => count($cartItems)
+                    ]);
+                    throw new \Exception('Cannot proceed with empty order. Please add items to your cart.');
+                }
+
+                // Update order payment details if needed
+                $updateData = [];
+                if ($order->payment_status !== 'pending') {
+                    $updateData['payment_status'] = 'pending';
+                }
+                if ($order->total_amount != $amount) {
+                    $updateData['total_amount'] = $amount;
+                }
+                if ($order->currency !== $currency) {
+                    $updateData['currency'] = $currency;
+                }
+                
+                if (!empty($updateData)) {
+                    $order->update($updateData);
+                    Log::info('Updated order payment details', array_merge(['order_id' => $order->id], $updateData));
+                }
+
+                // Commit the transaction if we got this far
+                DB::commit();
+                
+                Log::info('Order ready for payment', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'items_count' => $currentItemCount,
+                    'total_amount' => $order->total_amount,
+                    'payment_method' => $paymentMethod
+                ]);
+                
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Error during order processing', [
+                    'error' => $e->getMessage(),
+                    'order_id' => $orderId ?? 'N/A',
+                    'user_id' => $user->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+                
+                return redirect()->route('checkout')->with('error', 'An error occurred while processing your order: ' . $e->getMessage());
             }
-            
-            // Get customer info from auth
-            $user = auth()->check() ? auth()->user() : null;
-            if (!$user) {
-                return redirect()->route('login')->with('error', 'Please login to continue with payment');
-            }
-            
+
+            // Get customer info
             $customerEmail = $user->email;
             $customerName = $user->name;
 
             // Get offline payment methods for offline payments
             $offlinePaymentMethods = collect();
             if ($paymentMethod === 'offline') {
-                $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
+                try {
+                    $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
+                    Log::info('Retrieved offline payment methods', [
+                        'count' => $offlinePaymentMethods->count()
+                    ]);
+                } catch (\Exception $e) {
+                    Log::error('Failed to retrieve offline payment methods', [
+                        'error' => $e->getMessage()
+                    ]);
+                    // Continue anyway - the component will handle empty collection
+                }
             }
 
-            // Debug logging
-            Log::info('showPaymentPage called with parameters:', [
+            // Log final data being sent to frontend
+            Log::info('Rendering payment process page', [
                 'order_id' => $orderId,
-                'amount' => $amount,
+                'total_amount' => $amount,
                 'currency' => $currency,
-                'payment_method' => $paymentMethod,
-                'has_cart_items' => !empty($cartItems),
-                'request_all' => $request->all(),
-                'request_query' => $request->query(),
-                'request_url' => $request->fullUrl(),
-                'request_method' => $request->method()
+                'payment_method_type' => $paymentMethod,
+                'offline_methods_count' => $offlinePaymentMethods->count(),
+                'customer_email' => $customerEmail,
+                'customer_name' => $customerName
             ]);
 
             return Inertia::render('payment/payment-process', [
@@ -127,11 +263,16 @@ class PaymentController extends Controller
                 'payment_method_type' => $paymentMethod, // 'offline' or null
                 'offlinePaymentMethods' => $offlinePaymentMethods,
             ]);
+
         } catch (\Exception $e) {
-            Log::error('Payment page display failed: ' . $e->getMessage());
-            return redirect()->route('checkout')->with('error', 'An error occurred. Please try again.');
+            Log::error('Payment page display failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->except(['_token'])
+            ]);
+            return redirect()->route('checkout')->with('error', 'An error occurred while loading the payment page: ' . $e->getMessage());
         }
-    }
+    } 
 
     public function submitOffline(Request $request)
     {
@@ -139,7 +280,13 @@ class PaymentController extends Controller
         $requestId = 'REQ-' . Str::random(8) . '-' . time();
         $logContext = ['request_id' => $requestId];
         
-        \Log::info('=== OFFLINE PAYMENT SUBMISSION STARTED ===', $logContext);
+        \Log::info('=== OFFLINE PAYMENT SUBMISSION STARTED ===', array_merge($logContext, [
+            'user_agent' => $request->userAgent(),
+            'ip' => $request->ip(),
+            'url' => $request->fullUrl(),
+            'method' => $request->method(),
+            'input' => $request->except(['payment_screenshot'])
+        ]));
 
         // Validate request
         try {
@@ -199,45 +346,105 @@ class PaymentController extends Controller
             DB::beginTransaction();
             
             try {
-                // Check if order exists, if not create it
-                $order = Order::where('order_number', $validated['order_id'])->first();
+                $orderNumber = trim($validated['order_id']);
                 
-                if ($order) {
-                    \Log::info('Found existing order', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'status' => $order->status,
-                        'payment_status' => $order->payment_status
-                    ] + $logContext);
-                    
-                    // Update order status
-                    $order->payment_status = 'pending_verification';
-                    $order->payment_method = 'offline';
-                    $order->save();
-                    \Log::info('Order status updated successfully', $logContext);
-                } else {
-                    \Log::info('No existing order found, creating new one', [
-                        'order_number' => $validated['order_id']
-                    ] + $logContext);
-                    
-                    // Get cart items from the request
-                    $cartItems = $request->input('cart_items');
-                    if (is_string($cartItems)) {
-                        $cartItems = json_decode($cartItems, true);
-                    }
-                    
-                    // Always use createOrderFromCart to ensure all required fields are set
-                    $order = $this->createOrderFromCart(
-                        $validated['order_id'],
-                        $validated['amount'],
-                        $validated['currency'],
-                        $cartItems ?? []
-                    );
-                    
+                // First, try to find the most recent pending/processing order for this user
+                $order = Order::with(['items'])
+                    ->where('user_id', $user->id)
+                    ->whereIn('status', ['pending', 'processing'])
+                    ->where('payment_status', 'pending')
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+
+                // If no recent pending order found, try to match by order number
+                if (!$order) {
+                    // Try exact match first
+                    $order = Order::with(['items'])
+                        ->where('order_number', $orderNumber)
+                        ->where('user_id', $user->id)
+                        ->first();
+
+                    // If not found, try case-insensitive search
                     if (!$order) {
-                        throw new \Exception('Failed to create order');
+                        $order = Order::with(['items'])
+                            ->whereRaw('LOWER(order_number) = ?', [strtolower($orderNumber)])
+                            ->where('user_id', $user->id)
+                            ->first();
                     }
                 }
+
+                // If still not found, log all recent orders for debugging
+                if (!$order) {
+                    $recentOrders = Order::where('user_id', $user->id)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(5)
+                        ->get(['id', 'order_number', 'status', 'payment_status', 'created_at']);
+
+                    \Log::error('Order not found for offline payment', [
+                        'requested_order_number' => $orderNumber,
+                        'user_id' => $user->id,
+                        'recent_orders' => $recentOrders->toArray(),
+                        'request_data' => $validated
+                    ] + $logContext);
+
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Order not found. Please ensure you are using the most recent order or try again.',
+                        'order_number' => $orderNumber,
+                        'recent_orders' => $recentOrders
+                    ], 404);
+                }
+
+                if (!$order) {
+                    $errorMsg = 'Order not found for offline payment. Please restart the checkout process.';
+                    
+                    // Get all orders for this user for debugging
+                    $userOrders = Order::where('user_id', $user->id)
+                        ->orderBy('created_at', 'desc')
+                        ->limit(5)
+                        ->get(['id', 'order_number', 'status', 'created_at']);
+                    
+                    \Log::error($errorMsg, [
+                        'requested_order_number' => $orderNumber,
+                        'user_id' => $user->id,
+                        'user_email' => $user->email,
+                        'user_orders' => $userOrders->toArray(),
+                        'request_data' => $request->except(['payment_screenshot']),
+                        'existing_orders' => Order::where('order_number', $orderNumber)
+                            ->orWhere('order_number', 'like', '%' . $orderNumber . '%')
+                            ->select(['id', 'user_id', 'order_number', 'status', 'created_at'])
+                            ->get()
+                            ->toArray(),
+                    ] + $logContext);
+                    
+                    return back()->with('error', $errorMsg)->withInput();
+                }
+                
+                // Ensure order has items
+                if ($order->items->isEmpty()) {
+                    $errorMsg = 'Cannot process payment for an empty order. Please add items to your cart and try again.';
+                    \Log::error($errorMsg, [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                    ] + $logContext);
+                    
+                    throw new \Exception($errorMsg);
+                }
+
+                // Update order status
+                $order->update([
+                    'payment_status' => 'pending',  // Changed from 'pending_verification' to 'pending' to match the database enum
+                    'payment_method' => 'offline',
+                    'status' => 'processing'
+                ]);
+                
+                \Log::info('Order updated for offline payment', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'item_count' => $order->items()->count(),
+                    'payment_status' => $order->payment_status
+                ] + $logContext);
 
                 // Create offline payment submission
                 $submissionData = [
@@ -651,26 +858,84 @@ class PaymentController extends Controller
     }
 
     // FIXED: Improved order creation method with cart items
+    /**
+     * Add items to an existing order
+     */
+    private function addItemsToOrder($order, $items)
+    {
+        try {
+            foreach ($items as $item) {
+                $order->items()->create([
+                    'product_id' => $item['id'],
+                    'product_snapshot' => json_encode([
+                        'id' => $item['id'],
+                        'name' => $item['name'],
+                        'price' => $item['price'],
+                        'image' => $item['image'] ?? null,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString()
+                    ]),
+                    'quantity' => $item['quantity'],
+                    'price' => $item['price'],
+                    'total' => $item['price'] * $item['quantity'],
+                ]);
+            }
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('Failed to add items to order: ' . $e->getMessage(), [
+                'order_id' => $order->id,
+                'items' => $items
+            ]);
+            return false;
+        }
+    }
+
     private function createOrderFromCart($orderId, $amount, $currency, $cartItems = null)
     {
         $user = auth()->user();
         if (!$user) {
+            \Log::error('Cannot create order: No authenticated user');
             return null;
         }
 
-        // Check if order already exists
-        $existingOrder = Order::where('order_number', $orderId)->first();
+        // Generate a consistent order number format
+        $orderNumber = 'ORD-' . strtoupper(Str::random(12));
+        \Log::info('Generating new order', [
+            'user_id' => $user->id,
+            'requested_order_id' => $orderId,
+            'generated_order_number' => $orderNumber,
+            'amount' => $amount,
+            'currency' => $currency
+        ]);
+
+        // Check if order already exists for this user with the same amount (to prevent duplicates)
+        $existingOrder = Order::where('user_id', $user->id)
+            ->where('total_amount', $amount)
+            ->where('currency', $currency)
+            ->where('status', 'processing')
+            ->where('created_at', '>', now()->subHour()) // Within the last hour
+            ->orderBy('created_at', 'desc')
+            ->first();
+            
         if ($existingOrder) {
+            \Log::info('Similar order found, returning existing order', [
+                'order_id' => $existingOrder->id,
+                'order_number' => $existingOrder->order_number,
+                'status' => $existingOrder->status,
+                'payment_status' => $existingOrder->payment_status,
+                'created_at' => $existingOrder->created_at->toDateTimeString(),
+                'user_id' => $user->id
+            ]);
             return $existingOrder;
         }
 
         try {
-            $order = Order::create([
-                'order_number' => $orderId,
+            $orderData = [
+                'order_number' => $orderNumber,
                 'user_id' => $user->id,
                 'status' => 'processing',
                 'payment_status' => 'pending',
-                'payment_method' => 'pending', // Will be updated when payment is processed
+                'payment_method' => 'offline',
                 'currency' => $currency,
                 'subtotal' => $amount,
                 'tax_amount' => 0,
@@ -678,35 +943,84 @@ class PaymentController extends Controller
                 'discount_amount' => 0,
                 'total_amount' => $amount,
                 'shipping_method' => 'standard',
-            ]);
+            ];
+            
+            \Log::info('Creating new order', $orderData);
+            $order = Order::create($orderData);
 
             // Create order items if cart items are provided
             if ($cartItems && is_array($cartItems)) {
+                $itemsCreated = 0;
+                
                 foreach ($cartItems as $item) {
                     try {
-                        OrderItem::create([
+                        if (empty($item['id']) || empty($item['price']) || empty($item['quantity'])) {
+                            \Log::warning('Invalid cart item format', [
+                                'order_id' => $order->id,
+                                'item' => $item
+                            ]);
+                            continue;
+                        }
+                        
+                        $itemData = [
                             'order_id' => $order->id,
                             'product_id' => $item['id'],
-                            'product_snapshot' => json_encode([
+                            'quantity' => $item['quantity'] ?? 1,
+                            'unit_price' => $item['price'],
+                            'total_price' => ($item['price'] * ($item['quantity'] ?? 1)),
+                            'product_snapshot' => [
                                 'id' => $item['id'],
-                                'name' => $item['name'],
+                                'name' => $item['name'] ?? 'Unknown Product',
                                 'price' => $item['price'],
                                 'image' => $item['image'] ?? null,
                                 'created_at' => now()->toDateTimeString(),
                                 'updated_at' => now()->toDateTimeString()
-                            ]),
-                            'quantity' => $item['quantity'],
-                            'price' => $item['price'],
-                            'total' => $item['price'] * $item['quantity'],
+                            ]
+                        ];
+                        
+                        // Log the item being added
+                        \Log::debug('Creating order item', [
+                            'order_id' => $order->id,
+                            'product_id' => $item['id'],
+                            'quantity' => $itemData['quantity'],
+                            'unit_price' => $itemData['unit_price']
                         ]);
+                        
+                        // Create the order item
+                        $orderItem = OrderItem::create([
+                            'order_id' => $itemData['order_id'],
+                            'product_id' => $itemData['product_id'],
+                            'quantity' => $itemData['quantity'],
+                            'price' => $itemData['unit_price'],
+                            'total' => $itemData['total_price'],
+                            'product_snapshot' => json_encode($itemData['product_snapshot'])
+                        ]);
+                        
+                        $itemsCreated++;
                     } catch (\Exception $e) {
                         Log::error('Error creating order item: ' . $e->getMessage(), [
                             'item' => $item,
-                            'order_id' => $order->id
+                            'order_id' => $order->id,
+                            'trace' => $e->getTraceAsString()
                         ]);
                         // Continue with next item instead of failing the whole order
                         continue;
                     }
+                }
+                
+                // If no items were created, update the order status to failed
+                if ($itemsCreated === 0) {
+                    $order->update([
+                        'status' => 'failed',
+                        'notes' => 'Order failed: No valid items could be added to the order.'
+                    ]);
+                    \Log::error('Order created with no items', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'user_id' => $user->id,
+                        'cart_items' => $cartItems
+                    ]);
+                    return null;
                 }
             }
 
