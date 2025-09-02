@@ -326,13 +326,13 @@ class PaymentController extends Controller
             $this->updateTransactionStatus($txRef, 'failed', $data);
             
             return Inertia::render('payment/payment-failed', [
-                'order_id' => $orderId,
-                'error_message' => $data['message'] ?? 'Payment failed',
-                'error_code' => $data['status'] ?? 'unknown_error',
-                'amount' => null,
-                'currency' => 'ETB',
-                'retry_url' => null,
-            ]);
+                'payment' => [
+                    'order_id' => null,
+                    'amount' => 0,
+                    'currency' => 'ETB',
+                    'error' => 'Payment was not successful'
+                ]
+            ]); 
             
         } catch (\Exception $e) {
             Log::error('Payment return error: ' . $e->getMessage());

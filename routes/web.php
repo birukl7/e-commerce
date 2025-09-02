@@ -180,12 +180,12 @@ Route::middleware(['auth', 'verified',])->group(function () {
     Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
     Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
 
-    // Payment flow routes (replace existing payment routes)
+    // Payment flow routes
     Route::prefix('payment')->name('payment.')->group(function () {
-        // Payment method selection (first step after checkout)
-        Route::get('/select', [PaymentController::class, 'selectMethod'])->name('select');
+        // Chapa payment method selection
+        Route::get('/chapa/method', [PaymentController::class, 'showChapaMethodSelect'])->name('chapa.method');
         
-        // Payment processing page (shows Chapa form or offline form based on selection)
+        // Payment processing
         Route::get('/process', [PaymentController::class, 'showPaymentPage'])->name('show');
         Route::post('/process', [PaymentController::class, 'processPayment'])->name('process');
         
@@ -193,13 +193,19 @@ Route::middleware(['auth', 'verified',])->group(function () {
         Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
         Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
         
+        // Test route for debugging callbacks
+        Route::get('/test-callback', [PaymentController::class, 'testCallback'])->name('test.callback');
+        
+        // Payment verification route
+        Route::get('/verify/{tx_ref}', [PaymentController::class, 'verifyPayment'])->name('verify');
+        
         // Offline payment routes
         Route::post('/offline/submit', [PaymentController::class, 'submitOffline'])->name('offline.submit');
         Route::get('/offline/success', [PaymentController::class, 'offlineSubmissionSuccess'])->name('offline.success');
         
         // Generic success/failed pages
-        Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('success');
-        Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('failed');
+        Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('payment.success');
+        Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('payment.failed');
     }); 
     // Wishlist AJAX routes
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');

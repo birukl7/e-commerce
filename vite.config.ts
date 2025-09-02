@@ -19,6 +19,11 @@ export default defineConfig({
     },
     resolve: {
         alias: {
+            '@': resolve(__dirname, 'resources/js'),
+            '@/components': resolve(__dirname, 'resources/js/components'),
+            '@/layouts': resolve(__dirname, 'resources/js/layouts'),
+            '@/contexts': resolve(__dirname, 'resources/js/contexts'),
+            '@/types': resolve(__dirname, 'resources/js/types'),
             'ziggy-js': resolve(__dirname, 'vendor/tightenco/ziggy'),
         },
     },

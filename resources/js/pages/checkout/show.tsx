@@ -1,9 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { CartProvider, useCart } from '@/contexts/cart-context';
-import { Head, Link } from '@inertiajs/react';
-import { Minus, Plus, ShoppingCart, X, CreditCard, Upload } from 'lucide-react';
-import { useState } from 'react';
 import MainLayout from '@/layouts/app/main-layout';
+import { Link } from '@inertiajs/react';
+import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
+import { useState } from 'react';
 
 function CheckoutContent() {
     const { items, getTotalPrice, removeFromCart, updateQuantity, clearCart, getTotalItems } = useCart();
@@ -30,39 +30,49 @@ function CheckoutContent() {
         setShowPaymentMethods(true);
     };
 
-    const handlePaymentMethod = (method: 'online' | 'offline') => {
-        // Prepare payment parameters
-        const orderId = generateOrderId();
-        const amount = getTotalPrice();
-        const currency = 'ETB';
-        
-        // Prepare cart items data
-        const cartItemsData = items.map(item => ({
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity
-        }));
+    // Update the handlePaymentMethod function in your checkout component
+    const handlePaymentMethod = async (method: 'online' | 'offline') => {
+        try {
+            // Prepare payment parameters
+            const orderId = generateOrderId();
+            const amount = getTotalPrice();
+            const currency = 'ETB';
 
-        if (method === 'online') {
-            // Redirect to Chapa payment
-            const params = new URLSearchParams({
-                order_id: orderId,
-                amount: amount.toString(),
-                currency: currency,
-                cart_items: JSON.stringify(cartItemsData)
-            });
-            window.location.href = route('payment.show') + '?' + params.toString();
-        } else {
-            // Redirect to offline payment
-            const params = new URLSearchParams({
-                order_id: orderId,
-                amount: amount.toString(),
-                currency: currency,
-                payment_method: 'offline',
-                cart_items: JSON.stringify(cartItemsData)
-            });
-            window.location.href = route('payment.show') + '?' + params.toString();
+            // Prepare cart items data
+            const cartItemsData = items.map((item) => ({
+                id: item.id,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image || '',
+            }));
+
+            if (method === 'online') {
+                // Redirect to Chapa method selection page
+                const params = new URLSearchParams({
+                    order_id: orderId,
+                    amount: amount.toString(),
+                    currency: currency,
+                    cart_items: JSON.stringify(cartItemsData),
+                });
+                
+                // Redirect to Chapa method selection page
+                window.location.href = route('payment.chapa.method') + '?' + params.toString();
+            } else {
+                // For offline payment, go to the payment page with offline method pre-selected
+                console.log('Redirecting to offline payment form...');
+                const params = new URLSearchParams({
+                    order_id: orderId,
+                    amount: amount.toString(),
+                    currency: currency,
+                    payment_method: 'offline',
+                    cart_items: JSON.stringify(cartItemsData),
+                });
+                window.location.href = route('payment.show') + '?' + params.toString();
+            }
+        } catch (error) {
+            console.error('Payment processing error:', error);
+            alert(`Failed to process payment: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
         }
     };
 
@@ -101,9 +111,7 @@ function CheckoutContent() {
                                                     <h3 className="text-center text-base font-medium text-gray-900 sm:text-left md:text-lg">
                                                         {item.name}
                                                     </h3>
-                                                    <p className="text-center text-sm text-gray-600 sm:text-left">
-                                                        {formatPrice(item.price)} each
-                                                    </p>
+                                                    <p className="text-center text-sm text-gray-600 sm:text-left">{formatPrice(item.price)} each</p>
                                                 </div>
                                                 <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
                                                     <div className="flex items-center rounded-md border border-gray-300">
@@ -169,7 +177,7 @@ function CheckoutContent() {
                             </div>
 
                             {!showPaymentMethods ? (
-                                <Button 
+                                <Button
                                     onClick={handlePayNow}
                                     className="mt-6 w-full py-3 text-base md:mt-8 md:text-lg"
                                     disabled={items.length === 0}
@@ -179,7 +187,7 @@ function CheckoutContent() {
                             ) : (
                                 <div className="mt-6 space-y-4 md:mt-8">
                                     <h3 className="text-lg font-semibold text-gray-900">Choose Payment Method</h3>
-                                    
+
                                     {/* Online Payment with Chapa */}
                                     <button
                                         onClick={() => handlePaymentMethod('online')}
@@ -212,11 +220,7 @@ function CheckoutContent() {
                                         </div>
                                     </button>
 
-                                    <Button 
-                                        variant="outline"
-                                        onClick={() => setShowPaymentMethods(false)}
-                                        className="w-full"
-                                    >
+                                    <Button variant="outline" onClick={() => setShowPaymentMethods(false)} className="w-full">
                                         Back
                                     </Button>
                                 </div>

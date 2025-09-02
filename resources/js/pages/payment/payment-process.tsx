@@ -56,7 +56,7 @@ export default function PaymentProcess({
         customer_name,
         payment_method_type,
         offlinePaymentMethods: offlinePaymentMethods.length,
-        offlinePaymentMethodsData: offlinePaymentMethods
+        offlinePaymentMethodsData: offlinePaymentMethods,
     });
 
     // Additional debugging for offline payment flow
@@ -78,7 +78,7 @@ export default function PaymentProcess({
             <MainLayout title="Select Payment Method">
                 <div className="min-h-screen bg-gray-50 py-8">
                     <Head title="Select Payment Method" />
-                    
+
                     <div className="mx-auto max-w-4xl px-4">
                         <div className="mb-8">
                             <div className="mb-4 flex items-center gap-4">
@@ -101,16 +101,16 @@ export default function PaymentProcess({
                                 <div className="text-center">
                                     <CreditCard className="mx-auto mb-4 h-16 w-16 text-blue-400" />
                                     <h2 className="mb-2 text-xl font-semibold text-gray-900">Online Payment</h2>
-                                    <p className="mb-4 text-gray-600">
-                                        Pay securely online using Chapa payment gateway
-                                    </p>
-                                    <Button 
-                                        onClick={() => window.location.href = route('payment.show', {
-                                            order_id: order_id,
-                                            amount: total_amount,
-                                            currency: currency,
-                                            cart_items: JSON.stringify([])
-                                        })}
+                                    <p className="mb-4 text-gray-600">Pay securely online using Chapa payment gateway</p>
+                                    <Button
+                                        onClick={() =>
+                                            (window.location.href = route('payment.show', {
+                                                order_id: order_id,
+                                                amount: total_amount,
+                                                currency: currency,
+                                                cart_items: JSON.stringify([]),
+                                            }))
+                                        }
                                         className="w-full"
                                     >
                                         Pay Online
@@ -123,17 +123,17 @@ export default function PaymentProcess({
                                 <div className="text-center">
                                     <Upload className="mx-auto mb-4 h-16 w-16 text-green-400" />
                                     <h2 className="mb-2 text-xl font-semibold text-gray-900">Offline Payment</h2>
-                                    <p className="mb-4 text-gray-600">
-                                        Pay via bank transfer and upload proof
-                                    </p>
-                                    <Button 
-                                        onClick={() => window.location.href = route('payment.show', {
-                                            order_id: order_id,
-                                            amount: total_amount,
-                                            currency: currency,
-                                            payment_method: 'offline',
-                                            cart_items: JSON.stringify([])
-                                        })}
+                                    <p className="mb-4 text-gray-600">Pay via bank transfer and upload proof</p>
+                                    <Button
+                                        onClick={() =>
+                                            (window.location.href = route('payment.show', {
+                                                order_id: order_id,
+                                                amount: total_amount,
+                                                currency: currency,
+                                                payment_method: 'offline',
+                                                cart_items: JSON.stringify([]),
+                                            }))
+                                        }
                                         className="w-full"
                                     >
                                         Pay Offline
@@ -179,7 +179,7 @@ export default function PaymentProcess({
         payment_notes: '',
         payment_screenshot: null,
     });
-    
+
     // Update the form data when the selected payment method changes
     React.useEffect(() => {
         if (selectedOfflineMethod) {
@@ -187,9 +187,70 @@ export default function PaymentProcess({
         }
     }, [selectedOfflineMethod]);
 
-    const handleChapaSubmit = (e: React.FormEvent) => {
+    // Replace the handleChapaSubmit function in your payment-process.tsx
+    const handleChapaSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        chapaForm.post(route('payment.process'));
+
+        try {
+            console.log('Submitting Chapa payment form...');
+
+            const formData = {
+                payment_method: chapaForm.data.payment_method,
+                customer_name: chapaForm.data.customer_name,
+                customer_email: chapaForm.data.customer_email,
+                customer_phone: chapaForm.data.customer_phone,
+                order_id: chapaForm.data.order_id,
+                amount: chapaForm.data.amount,
+                currency: chapaForm.data.currency,
+            };
+
+            console.log('Form data:', formData);
+
+            // Mark form as processing manually
+            chapaForm.setDefaults({ ...chapaForm.data }); // keep TS happy
+            // Better: track manually with useState if needed
+
+            const response = await fetch(route('payment.process'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify(formData),
+            });
+
+            console.log('Response received:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Response error:', errorText);
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('Payment result:', result);
+
+            if (result.success && result.redirect_url) {
+                console.log('Redirecting to Chapa checkout URL:', result.redirect_url);
+                window.location.href = result.redirect_url;
+            } else {
+                console.error('Payment failed:', result);
+
+                if (result.errors) {
+                    Object.keys(result.errors).forEach((key) => {
+                        const typedKey = key as keyof typeof chapaForm.data;
+                        chapaForm.setError(typedKey, result.errors[key][0] || result.errors[key]);
+                    });
+                }
+
+                alert(result.message || 'Payment initialization failed. Please try again.');
+            }
+        } catch (error) {
+            console.error('Payment submission error:', error);
+            alert(`Payment error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+        }
     };
 
     const handleOfflineSubmit = async (e: React.FormEvent) => {
@@ -197,12 +258,12 @@ export default function PaymentProcess({
         e.preventDefault();
         console.log('=== Starting offline payment submission ===');
         console.group('Payment Submission Debug');
-        
+
         try {
             console.log('Form submitted with data:', {
                 selectedOfflineMethod,
                 formData: offlineForm.data,
-                hasFile: !!offlineForm.data.payment_screenshot
+                hasFile: !!offlineForm.data.payment_screenshot,
             });
             // Client-side validation
             if (!selectedOfflineMethod) {
@@ -222,7 +283,7 @@ export default function PaymentProcess({
             console.log('Retrieving cart from localStorage...');
             const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
             console.log('Cart items from localStorage:', cartItems);
-            
+
             // Create form data with all required fields
             console.log('Preparing form data...');
             const formData = new FormData();
@@ -241,7 +302,7 @@ export default function PaymentProcess({
                 formData.append(key, value);
                 console.log(`Added to formData: ${key} =`, value);
             });
-            
+
             // Append the payment screenshot file
             if (offlineForm.data.payment_screenshot) {
                 console.log('Adding screenshot file to formData...');
@@ -253,7 +314,7 @@ export default function PaymentProcess({
                     size: file.size,
                 });
             }
-            
+
             // Append cart items as JSON string if available
             if (cartItems && cartItems.length > 0) {
                 console.log('Adding cart items to formData...');
@@ -282,20 +343,20 @@ export default function PaymentProcess({
 
             // Clear any previous errors
             offlineForm.clearErrors();
-            
+
             const submitUrl = route('payment.offline.submit');
             console.log('Submitting form to:', submitUrl);
-            
+
             // Submit the form using fetch instead of Inertia for better file upload handling
             console.log('Initiating form submission with fetch...');
-            
+
             try {
                 console.log('Sending fetch request to:', submitUrl);
                 const response = await fetch(submitUrl, {
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'Accept': 'application/json',
+                        Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': formData.get('_token') as string,
                     },
@@ -303,7 +364,7 @@ export default function PaymentProcess({
                 });
 
                 console.log('Response received. Status:', response.status);
-                
+
                 // Check if the response is a redirect
                 if (response.redirected) {
                     console.log('Server redirected to:', response.url);
@@ -313,17 +374,17 @@ export default function PaymentProcess({
                     window.location.href = response.url;
                     return;
                 }
-                
+
                 // Log response headers for debugging
                 console.log('Response headers:');
                 response.headers.forEach((value, key) => {
                     console.log(`  ${key}: ${value}`);
                 });
-                
+
                 // Get response content type to handle different response types
                 const contentType = response.headers.get('content-type');
                 let result;
-                
+
                 try {
                     if (contentType && contentType.includes('application/json')) {
                         result = await response.json();
@@ -337,10 +398,10 @@ export default function PaymentProcess({
                     console.error('Error parsing response:', error);
                     throw new Error('Failed to process server response');
                 }
-                
+
                 if (response.ok) {
                     console.log('=== Form submission successful ===');
-                    
+
                     if (result.redirect) {
                         console.log('Redirecting to:', result.redirect);
                         // Clear the cart after successful submission
@@ -364,7 +425,7 @@ export default function PaymentProcess({
                 } else {
                     console.error('=== Form submission failed ===');
                     console.error('Error response:', result);
-                    
+
                     if (result.errors) {
                         console.error('Form errors:', result.errors);
                         // Update form errors
@@ -378,7 +439,7 @@ export default function PaymentProcess({
                             offlineForm.setError('payment_screenshot', result.errors.payment_screenshot[0]);
                         }
                     }
-                    
+
                     if (result.message) {
                         alert(result.message);
                     } else {
@@ -388,7 +449,7 @@ export default function PaymentProcess({
             } catch (error) {
                 console.error('=== Error during form submission ===');
                 console.error('Error details:', error);
-                
+
                 if (error instanceof Error) {
                     const errorObj = error as any;
                     if (errorObj.errors) {
@@ -425,13 +486,13 @@ export default function PaymentProcess({
         // Check if offline payment methods are available
         if (!offlinePaymentMethods || offlinePaymentMethods.length === 0) {
             console.warn('No offline payment methods available, falling back to online payment form');
-            
+
             // Fallback to online payment form if no offline methods are available
             return (
                 <MainLayout title="Payment Processing">
                     <div className="min-h-screen bg-gray-50 py-8">
                         <Head title="Payment Processing" />
-                        
+
                         <div className="mx-auto max-w-4xl px-4">
                             <div className="mb-8">
                                 <div className="mb-4 flex items-center gap-4">
@@ -456,13 +517,15 @@ export default function PaymentProcess({
                                         Offline payment methods are not currently available. You can proceed with online payment instead.
                                     </p>
                                     <div className="space-y-3">
-                                        <Button 
-                                            onClick={() => window.location.href = route('payment.show', {
-                                                order_id: order_id,
-                                                amount: total_amount,
-                                                currency: currency,
-                                                cart_items: JSON.stringify([])
-                                            })}
+                                        <Button
+                                            onClick={() =>
+                                                (window.location.href = route('payment.show', {
+                                                    order_id: order_id,
+                                                    amount: total_amount,
+                                                    currency: currency,
+                                                    cart_items: JSON.stringify([]),
+                                                }))
+                                            }
                                             className="w-full"
                                         >
                                             Continue with Online Payment
@@ -559,7 +622,7 @@ export default function PaymentProcess({
 
                             {/* Error Display */}
                             {offlineForm.errors?.general && (
-                                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
                                     <p className="text-sm text-red-600">{offlineForm.errors.general as string}</p>
                                 </div>
                             )}
@@ -633,7 +696,7 @@ export default function PaymentProcess({
 
                                     <Button
                                         type="submit"
-                                        className="w-full bg-primary-600 hover:bg-primary-700 mt-6"
+                                        className="mt-6 w-full bg-primary-600 hover:bg-primary-700"
                                         disabled={offlineForm.processing}
                                     >
                                         {offlineForm.processing ? (
