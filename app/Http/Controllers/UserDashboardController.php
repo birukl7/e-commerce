@@ -153,7 +153,7 @@ class UserDashboardController extends Controller
                 (count($items) > 1 ? ' +' . (count($items) - 1) . ' more' : '') : 
                 'No items';
                 
-            // Get payment method type from payment_method and tx_ref
+            // Get payment method type from payment_method and tx_rehem
             $paymentMethodType = 'Unknown';
             if ($order->payment_method === 'offline') {
                 $paymentMethodType = 'Offline';

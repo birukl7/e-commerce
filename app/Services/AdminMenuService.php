@@ -42,7 +42,7 @@ class AdminMenuService
     private function getSalesMenuItems(): array
     {
         $items = [
-            ['title' => 'Payments', 'href' => '/paymentStats', 'icon' => 'CreditCard'],
+            ['title' => 'Payments', 'href' => '/admin/payment', 'icon' => 'CreditCard'],
             ['title' => 'Orders', 'href' => '/admin/orders', 'icon' => 'ShoppingCart'],
         ];
 

@@ -20,6 +20,12 @@ class AdminPaymentController extends Controller
      */
     public function index(Request $request)
     {
+        \Log::info('AdminPaymentController@index hit', [
+            'path' => $request->path(),
+            'full_url' => $request->fullUrl(),
+            'query' => $request->query(),
+            'intended_component' => 'admin/payment/index',
+        ]);
         $query = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
             ->leftJoin('orders as o', 'pt.order_id', '=', 'o.id')
@@ -113,7 +119,7 @@ class AdminPaymentController extends Controller
                 ->sum('amount'),
         ];
 
-        return Inertia::render('admin/payment/index', [
+        $response = Inertia::render('admin/payment/index', [
             'payments' => $payments,
             'stats' => $stats,
             'filters' => (object) $request->only([
@@ -121,6 +127,15 @@ class AdminPaymentController extends Controller
                 'date_from', 'date_to', 'priority'
             ])
         ]);
+
+        \Log::info('AdminPaymentController@index returning component', [
+            'component' => 'admin/payment/index',
+            'payments_count' => $payments->total(),
+            'response_type' => get_class($response),
+            'response_data' => $response->getData(),
+        ]);
+
+        return $response;
     }
 
     /**

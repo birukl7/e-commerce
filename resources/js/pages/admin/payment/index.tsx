@@ -83,7 +83,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
     {
         title: 'Payment Statistics',
-        href: '/admin/paymentStats',
+        href: '/admin/payment',
     },
 ];
 
@@ -157,7 +157,7 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
         if (dateToFilter) params.append('date_to', dateToFilter);
         if (priorityFilter) params.append('priority', priorityFilter);
 
-        router.get('/admin/paymentStats', Object.fromEntries(params), {
+        router.get('/admin/payment', Object.fromEntries(params), {
             preserveState: true,
             preserveScroll: true,
         });
@@ -171,7 +171,7 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
         setDateFromFilter('');
         setDateToFilter('');
         setPriorityFilter('');
-        router.get('/admin/paymentStats', {}, { preserveState: true, preserveScroll: true });
+        router.get('/admin/payment', {}, { preserveState: true, preserveScroll: true });
     };
 
     const handleExport = () => {
