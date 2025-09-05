@@ -11,7 +11,8 @@ import {
     MessageSquare, 
     ShoppingCart, 
     Settings, 
-    FileImage 
+    FileImage,
+    BarChart3
 } from 'lucide-react';
 
 // Icon mapping for backend menu items
@@ -25,6 +26,7 @@ const iconMap: Record<string, React.ComponentType> = {
     ShoppingCart,
     Settings,
     FileImage,
+    BarChart3,
 };
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {

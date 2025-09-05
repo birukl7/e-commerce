@@ -5,6 +5,7 @@ import type { BreadcrumbItem, NavItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
+    BarChart3,
     CreditCard,
     DollarSign,
     LayoutDashboard,
@@ -57,7 +58,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 export const adminNavItems: NavItem[] = [
     { title: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
     { title: 'Products', href: '/admin/products', icon: Package },
-    { title: 'Payments', href: '/paymentStats', icon: CreditCard },
+    { title: 'Sales Dashboard', href: '/admin/sales', icon: BarChart3 },
     { title: 'Suppliers and Customers', href: '/admin/customers', icon: Users },
     { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
     { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },

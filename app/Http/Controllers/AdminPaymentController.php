@@ -26,6 +26,8 @@ class AdminPaymentController extends Controller
             'query' => $request->query(),
             'intended_component' => 'admin/payment/index',
         ]);
+        
+        try {
         $query = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
             ->leftJoin('orders as o', 'pt.order_id', '=', 'o.id')
@@ -119,23 +121,47 @@ class AdminPaymentController extends Controller
                 ->sum('amount'),
         ];
 
+        // Recent payments lists (match Site Config payments tab UI)
+        $recentChapaPayments = DB::table('payment_transactions')
+            ->where('tx_ref', 'like', 'TX-%')
+            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $recentOfflinePayments = DB::table('payment_transactions')
+            ->where('tx_ref', 'like', 'OFFLINE-%')
+            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
         $response = Inertia::render('admin/payment/index', [
             'payments' => $payments,
             'stats' => $stats,
             'filters' => (object) $request->only([
                 'search', 'gateway_status', 'admin_status', 'payment_method', 
                 'date_from', 'date_to', 'priority'
-            ])
+            ]),
+            // Provide the same props as Site Config payments tab for UI parity
+            'recentChapaPayments' => $recentChapaPayments,
+            'recentOfflinePayments' => $recentOfflinePayments,
         ]);
 
         \Log::info('AdminPaymentController@index returning component', [
             'component' => 'admin/payment/index',
             'payments_count' => $payments->total(),
             'response_type' => get_class($response),
-            'response_data' => $response->getData(),
         ]);
 
         return $response;
+        } catch (\Throwable $e) {
+            \Log::error('AdminPaymentController@index error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
     }
 
     /**

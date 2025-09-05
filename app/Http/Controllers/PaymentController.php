@@ -540,6 +540,13 @@ class PaymentController extends Controller
                 'amount' => (float)$request->amount,
                 'currency' => $request->currency,
                 'cart_items' => $cartItems,
+                'auth' => [
+                    'user' => [
+                        'name' => auth()->user()->name ?? '',
+                        'email' => auth()->user()->email ?? '',
+                        'phone' => auth()->user()->phone ?? '',
+                    ]
+                ]
             ]);
         } catch (\Exception $e) {
             \Log::error('Chapa method select error: ' . $e->getMessage());
@@ -577,6 +584,7 @@ class PaymentController extends Controller
                 'amount' => 'required|numeric|min:1',
                 'currency' => 'required|string|in:ETB,USD',
                 'cart_items' => 'nullable', // Accepts both string and array
+                // Note: Removed customer_phone validation as it's now fetched from user profile
             ]);
             
             // Convert cart_items to array if it's a string
@@ -585,11 +593,15 @@ class PaymentController extends Controller
                 $request->merge(['cart_items' => $cartItems]);
             }
             
-            // Get customer details from request or authenticated user
+            // Get customer details from authenticated user
             $customerName = $user->name ?? 'Customer';
             $customerEmail = $user->email ?? 'no-email@example.com';
-            // Make phone number optional with fallback to user's phone or default
-            $customerPhone = $request->input('customer_phone', $user->phone ?? '0912345678');
+            // Get phone number from user's profile
+            $customerPhone = $user->phone;
+            
+            if (empty($customerPhone)) {
+                throw new \Exception('Phone number is required. Please update your profile with a valid phone number before proceeding with the payment.');
+            }
             
             // Log customer details being used
             \Log::info('Customer details prepared:', [
@@ -599,7 +611,7 @@ class PaymentController extends Controller
                 'source' => [
                     'name_from' => $user->name ? 'user' : 'default',
                     'email_from' => $user->email ? 'user' : 'default',
-                    'phone_from' => $request->has('customer_phone') ? 'request' : ($user->phone ? 'user' : 'default')
+                    'phone_from' => $user->phone ? 'user' : 'not_set'
                 ]
             ] + $logContext);
 

@@ -18,6 +18,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
+use App\Http\Controllers\AdminSalesController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
 use App\Http\Controllers\AdminSiteConfigController;
@@ -95,37 +96,31 @@ Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus
 Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::get('/admin-dashboard',[AdminDashboardController::class, 'index'])->name('admin.dashboard');
 
-    Route::get('admin/categories', [AdminCategoryController::class, 'index'])->name('admin.categories.index');
+    Route::get("/admin/sales", [AdminSalesController::class, 'index'])->name('admin.sales.index');
+    Route::get("/admin/sales/orders/{order}", [AdminSalesController::class, 'showOrder'])->name('admin.sales.orders.show');
 
-    Route::get('admin/categories/create', [AdminCategoryController::class, 'create'])->name('admin.categories.create');
-
-    Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
-
-    Route::get('/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
-    Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
-    
     // Add proper admin/payment route for consistency
     Route::get('/admin/payment', [AdminPaymentController::class, 'index'])->name('admin.payment.index');
-    
-    // Admin actions
     Route::post('/admin/payments/{payment}/approve', [AdminPaymentController::class, 'approve'])->name('admin.payments.approve');
     Route::post('/admin/payments/{payment}/reject', [AdminPaymentController::class, 'reject'])->name('admin.payments.reject');
     Route::post('/admin/payments/{payment}/mark-seen', [AdminPaymentController::class, 'markSeen'])->name('admin.payments.mark_seen');
-    
-    // Bulk actions
     Route::post('/admin/payments/bulk-action', [AdminPaymentController::class, 'bulkAction'])->name('admin.payments.bulk_action');
-    
-    // Export
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
+    Route::get('/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
+    Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    
+    Route::resource('admin/orders', AdminOrderController::class);
+
     Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])
     ->name('admin.offline-payments.index');
 
+    // category routes
+    Route::get('admin/categories', [AdminCategoryController::class, 'index'])->name('admin.categories.index');
+    Route::get('admin/categories/create', [AdminCategoryController::class, 'create'])->name('admin.categories.create');
+    Route::post('admin/categories', [AdminCategoryController::class, 'store'])->name('admin.categories.store');
     Route::get('admin/categories/{category}', [AdminCategoryController::class, 'show'])->name('admin.categories.show');
-
     Route::get('admin/categories/{category}/edit', [AdminCategoryController::class, 'edit'])->name('admin.categories.edit');
-
     Route::put('admin/categories/{category}', [AdminCategoryController::class, 'update'])->name('admin.categories.update');
-
     Route::delete('admin/categories/{category}', [AdminCategoryController::class, 'destroy'])->name('admin.categories.destroy');
 
     Route::resource('admin/brands', AdminBrandController::class);
@@ -133,7 +128,6 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
     Route::resource('admin/products', AdminProductController::class);
     Route::resource('/admin/customers', CustomerController::class);
     Route::get('/admin/suppliers', [CustomerController::class, 'suppliers'])->name('admin.suppliers.index');
-    Route::resource('admin/orders', AdminOrderController::class);
     Route::resource('admin/product-requests', AdminProductRequestController::class);
     
     Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');

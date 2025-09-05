@@ -10,7 +10,7 @@ import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowUpDown, CreditCard, DollarSign, Download, Eye, Filter, Search, TrendingDown, TrendingUp, X, CheckCircle, Clock, AlertTriangle, Ban } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { adminNavItems } from '../dashboard';
 
 interface PaymentTransaction {
@@ -70,10 +70,26 @@ interface PaginatedPayments {
     }>;
 }
 
+interface PaymentRow {
+    id: number;
+    tx_ref: string;
+    order_id: string | null;
+    customer_name: string;
+    customer_email: string;
+    amount: number;
+    currency: string;
+    payment_method: string;
+    gateway_status: 'pending' | 'proof_uploaded' | 'paid' | 'failed' | 'refunded';
+    admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
+    created_at: string;
+}
+
 interface AdminPaymentIndexProps {
     payments: PaginatedPayments;
     stats: PaymentStats;
     filters: PaymentFilters;
+    recentChapaPayments: PaymentRow[];
+    recentOfflinePayments: PaymentRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -87,7 +103,32 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function AdminPaymentIndex({ payments, stats, filters }: AdminPaymentIndexProps) {
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any }>{
+    constructor(props: any) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError(error: any) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error: any, errorInfo: any) {
+        // Log to console to help diagnose client-side crashes
+        console.error('AdminPaymentIndex runtime error:', error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6">
+                    <h2 className="text-red-600 font-semibold mb-2">Something went wrong on this page.</h2>
+                    <p className="text-sm text-muted-foreground">Please reload. If the issue persists, share the browser console error.</p>
+                </div>
+            );
+        }
+        return this.props.children as any;
+    }
+}
+
+export default function AdminPaymentIndex({ payments, stats, filters, recentChapaPayments, recentOfflinePayments }: AdminPaymentIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [gatewayStatusFilter, setGatewayStatusFilter] = useState(filters.gateway_status || 'all');
     const [adminStatusFilter, setAdminStatusFilter] = useState(filters.admin_status || 'all');
@@ -99,6 +140,11 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
     // Bulk actions
     const [selectedPayments, setSelectedPayments] = useState<number[]>([]);
     const [showBulkActions, setShowBulkActions] = useState(false);
+    const [isClient, setIsClient] = useState(false);
+
+    useEffect(() => {
+        setIsClient(true);
+    }, []);
 
     const bulkActionForm = useForm({
         action: '',
@@ -225,8 +271,9 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}> 
             <Head title="Payment Statistics" />
+            <ErrorBoundary>
             <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans w-full max-w-7xl mx-auto">
                 {/* Header Section */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -331,56 +378,72 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
                                 />
                             </div>
 
-                            <Select value={gatewayStatusFilter} onValueChange={setGatewayStatusFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Gateway Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Gateway Status</SelectItem>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="proof_uploaded">Proof Uploaded</SelectItem>
-                                    <SelectItem value="paid">Paid</SelectItem>
-                                    <SelectItem value="failed">Failed</SelectItem>
-                                    <SelectItem value="refunded">Refunded</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {isClient ? (
+                                <Select value={gatewayStatusFilter} onValueChange={setGatewayStatusFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Gateway Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Gateway Status</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="proof_uploaded">Proof Uploaded</SelectItem>
+                                        <SelectItem value="paid">Paid</SelectItem>
+                                        <SelectItem value="failed">Failed</SelectItem>
+                                        <SelectItem value="refunded">Refunded</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="h-10 rounded-md border bg-muted" />
+                            )}
 
-                            <Select value={adminStatusFilter} onValueChange={setAdminStatusFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Admin Status" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Admin Status</SelectItem>
-                                    <SelectItem value="unseen">Unseen</SelectItem>
-                                    <SelectItem value="seen">Seen</SelectItem>
-                                    <SelectItem value="approved">Approved</SelectItem>
-                                    <SelectItem value="rejected">Rejected</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {isClient ? (
+                                <Select value={adminStatusFilter} onValueChange={setAdminStatusFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Admin Status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Admin Status</SelectItem>
+                                        <SelectItem value="unseen">Unseen</SelectItem>
+                                        <SelectItem value="seen">Seen</SelectItem>
+                                        <SelectItem value="approved">Approved</SelectItem>
+                                        <SelectItem value="rejected">Rejected</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="h-10 rounded-md border bg-muted" />
+                            )}
 
-                            <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Payment Method" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Methods</SelectItem>
-                                    <SelectItem value="chapa">Chapa</SelectItem>
-                                    <SelectItem value="telebirr">Telebirr</SelectItem>
-                                    <SelectItem value="cbe">CBE</SelectItem>
-                                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                    <SelectItem value="paypal">PayPal</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {isClient ? (
+                                <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Payment Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Methods</SelectItem>
+                                        <SelectItem value="chapa">Chapa</SelectItem>
+                                        <SelectItem value="telebirr">Telebirr</SelectItem>
+                                        <SelectItem value="cbe">CBE</SelectItem>
+                                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                                        <SelectItem value="paypal">PayPal</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="h-10 rounded-md border bg-muted" />
+                            )}
 
-                            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Priority" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="">All Priorities</SelectItem>
-                                    <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {isClient ? (
+                                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Priority" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">All Priorities</SelectItem>
+                                        <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            ) : (
+                                <div className="h-10 rounded-md border bg-muted" />
+                            )}
 
                             <Input type="date" placeholder="From Date" value={dateFromFilter} onChange={(e) => setDateFromFilter(e.target.value)} />
 
@@ -398,157 +461,131 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
                     </CardContent>
                 </Card>
 
-                {/* Enhanced Payments Table */}
-                <Card className="border-border/50 shadow-sm">
+                {/* Match Site Config Payments Tab: Chapa / Offline subtabs with recent lists */}
+                <Card>
                     <CardHeader>
-                        <CardTitle className="text-lg font-semibold">Payment Transactions</CardTitle>
-                        <CardDescription>
-                            Showing {payments.from} to {payments.to} of {payments.total} transactions
-                            {selectedPayments.length > 0 && (
-                                <span className="ml-2 text-primary">({selectedPayments.length} selected)</span>
-                            )}
-                        </CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                            <CreditCard className="h-5 w-5" />
+                            Payments (Quick Review)
+                        </CardTitle>
+                        <CardDescription>Review and take action on recent Chapa and Offline payments</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-border/50">
-                                        <th className="pb-3 text-left">
-                                            <Checkbox
-                                                checked={selectedPayments.length === payments.data.length && payments.data.length > 0}
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                        setSelectedPayments(payments.data.map(p => p.id));
-                                                    } else {
-                                                        setSelectedPayments([]);
-                                                    }
-                                                }}
-                                            />
-                                        </th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">
-                                            <div className="flex items-center gap-1">
-                                                Transaction
-                                                <ArrowUpDown className="h-3 w-3" />
-                                            </div>
-                                        </th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Customer</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Amount</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Method</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Gateway Status</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Admin Status</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Date</th>
-                                        <th className="pb-3 text-left text-sm font-medium text-muted-foreground">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {payments.data.map((payment) => {
-                                        const priority = getPaymentPriority(payment);
-                                        const gatewayBadge = getGatewayStatusBadge(payment.gateway_status);
-                                        const adminBadge = getAdminStatusBadge(payment.admin_status);
-                                        const GatewayIcon = gatewayBadge.icon;
-                                        const AdminIcon = adminBadge.icon;
-                                        
-                                        return (
-                                            <tr 
-                                                key={payment.id} 
-                                                className={`border-b border-border/30 hover:bg-muted/30 ${
-                                                    priority === 'urgent' ? 'bg-red-50 border-red-200' : 
-                                                    priority === 'high' ? 'bg-orange-50 border-orange-200' : ''
-                                                }`}
-                                            >
-                                                <td className="py-4">
-                                                    <Checkbox
-                                                        checked={selectedPayments.includes(payment.id)}
-                                                        onCheckedChange={() => togglePaymentSelection(payment.id)}
-                                                    />
-                                                </td>
-                                                <td className="py-4">
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-medium text-foreground">#{payment.tx_ref}</p>
-                                                        {payment.order_id && <p className="text-xs text-muted-foreground">Order: {payment.order_id}</p>}
-                                                        {priority === 'urgent' && (
-                                                            <Badge variant="destructive" className="text-xs">URGENT</Badge>
-                                                        )}
+                        <div className="mt-2">
+                            <div className="border-b mb-4" />
+                            <div className="grid grid-cols-2 max-w-xs mb-2">
+                                <Button variant="ghost" className="justify-start" onClick={() => router.reload({ only: ['recentChapaPayments','recentOfflinePayments'] })}>Chapa</Button>
+                                <Button variant="ghost" className="justify-start" onClick={() => router.reload({ only: ['recentChapaPayments','recentOfflinePayments'] })}>Offline</Button>
+                            </div>
+                            {/* Chapa table */}
+                            <div className="overflow-x-auto mt-4">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="text-left py-2">Tx Ref</th>
+                                            <th className="text-left py-2">Order</th>
+                                            <th className="text-left py-2">Customer</th>
+                                            <th className="text-left py-2">Amount</th>
+                                            <th className="text-left py-2">Gateway</th>
+                                            <th className="text-left py-2">Admin</th>
+                                            <th className="text-left py-2">Date</th>
+                                            <th className="text-left py-2">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentChapaPayments.map(p => (
+                                            <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
+                                                <td className="py-2">{p.order_id ?? '-'}</td>
+                                                <td className="py-2">
+                                                    <div className="flex flex-col">
+                                                        <span>{p.customer_name}</span>
+                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
                                                     </div>
                                                 </td>
-                                                <td className="py-4">
-                                                    <div className="space-y-1">
-                                                        <p className="text-sm font-medium text-foreground">{payment.customer_name}</p>
-                                                        <p className="text-xs text-muted-foreground">{payment.customer_email}</p>
+                                                <td className="py-2">{formatCurrency(p.amount, p.currency)}</td>
+                                                <td className="py-2">
+                                                    {p.gateway_status === 'paid' && <Badge className="bg-green-100 text-green-800">paid</Badge>}
+                                                    {p.gateway_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">pending</Badge>}
+                                                    {p.gateway_status === 'failed' && <Badge className="bg-red-100 text-red-800">failed</Badge>}
+                                                </td>
+                                                <td className="py-2">
+                                                    {/* Quick admin status chip mimic */}
+                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
+                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
+                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
+                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
+                                                </td>
+                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
+                                                <td className="py-2">
+                                                    <div className="flex gap-2">
+                                                        <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
+                                                        <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
+                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })}>Reject</Button>
                                                     </div>
-                                                </td>
-                                                <td className="py-4">
-                                                    <p className="text-sm font-medium text-foreground">
-                                                        {formatCurrency(payment.amount, payment.currency)}
-                                                    </p>
-                                                </td>
-                                                <td className="py-4">
-                                                    <p className="text-sm text-foreground capitalize">{payment.payment_method}</p>
-                                                </td>
-                                                <td className="py-4">
-                                                    <Badge className={`${gatewayBadge.class} flex items-center gap-1 w-fit`}>
-                                                        <GatewayIcon className="h-3 w-3" />
-                                                        {payment.gateway_status.replace('_', ' ')}
-                                                    </Badge>
-                                                </td>
-                                                <td className="py-4">
-                                                    <div className="space-y-1">
-                                                        <Badge className={`${adminBadge.class} flex items-center gap-1 w-fit`}>
-                                                            <AdminIcon className="h-3 w-3" />
-                                                            {payment.admin_status}
-                                                        </Badge>
-                                                        {payment.admin_name && (
-                                                            <p className="text-xs text-muted-foreground">by {payment.admin_name}</p>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                                <td className="py-4">
-                                                    <p className="text-sm text-foreground">{formatDate(payment.created_at)}</p>
-                                                </td>
-                                                <td className="py-4">
-                                                    <Link
-                                                        href={`/admin/paymentStats/${payment.id}`}
-                                                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80"
-                                                    >
-                                                        <Eye className="h-3 w-3" />
-                                                        Review
-                                                    </Link>
                                                 </td>
                                             </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Pagination */}
-                        {payments.last_page > 1 && (
-                            <div className="mt-6 flex items-center justify-between">
-                                <p className="text-sm text-muted-foreground">
-                                    Showing {payments.from} to {payments.to} of {payments.total} results
-                                </p>
-                                <div className="flex items-center gap-2">
-                                    {payments.links.map((link, index) => (
-                                        <Link
-                                            key={index}
-                                            href={link.url || '#'}
-                                            className={`rounded px-3 py-1 text-sm ${
-                                                link.active
-                                                    ? 'bg-primary text-primary-foreground'
-                                                    : link.url
-                                                      ? 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                                      : 'cursor-not-allowed bg-muted/50 text-muted-foreground/50'
-                                            }`}
-                                            preserveState
-                                            preserveScroll
-                                        >
-                                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                        </Link>
-                                    ))}
-                                </div>
+                                        ))}
+                                        {recentChapaPayments.length === 0 && (
+                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
-                        )}
+
+                            {/* Offline table */}
+                            <div className="overflow-x-auto mt-8">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="text-left py-2">Tx Ref</th>
+                                            <th className="text-left py-2">Order</th>
+                                            <th className="text-left py-2">Customer</th>
+                                            <th className="text-left py-2">Amount</th>
+                                            <th className="text-left py-2">Gateway</th>
+                                            <th className="text-left py-2">Admin</th>
+                                            <th className="text-left py-2">Date</th>
+                                            <th className="text-left py-2">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentOfflinePayments.map(p => (
+                                            <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
+                                                <td className="py-2">{p.order_id ?? '-'}</td>
+                                                <td className="py-2">
+                                                    <div className="flex flex-col">
+                                                        <span>{p.customer_name}</span>
+                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-2">{formatCurrency(p.amount, p.currency)}</td>
+                                                <td className="py-2">
+                                                    {p.gateway_status === 'proof_uploaded' && <Badge className="bg-blue-100 text-blue-800">proof uploaded</Badge>}
+                                                </td>
+                                                <td className="py-2">
+                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
+                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
+                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
+                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
+                                                </td>
+                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
+                                                <td className="py-2">
+                                                    <div className="flex gap-2">
+                                                        <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
+                                                        <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
+                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })}>Reject</Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {recentOfflinePayments.length === 0 && (
+                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -600,6 +637,7 @@ export default function AdminPaymentIndex({ payments, stats, filters }: AdminPay
                     </div>
                 )}
             </div>
+            </ErrorBoundary>
         </AppLayout>
     );
 }

@@ -152,7 +152,6 @@ export default function PaymentProcess({
         payment_method: 'telebirr',
         customer_name: customer_name,
         customer_email: customer_email,
-        customer_phone: '',
         order_id: order_id,
         amount: total_amount,
         currency: currency,
@@ -198,7 +197,6 @@ export default function PaymentProcess({
                 payment_method: chapaForm.data.payment_method,
                 customer_name: chapaForm.data.customer_name,
                 customer_email: chapaForm.data.customer_email,
-                customer_phone: chapaForm.data.customer_phone,
                 order_id: chapaForm.data.order_id,
                 amount: chapaForm.data.amount,
                 currency: chapaForm.data.currency,
@@ -747,7 +745,7 @@ export default function PaymentProcess({
                                 <CreditCard className="h-5 w-5" />
                                 Payment Information
                             </CardTitle>
-                            <CardDescription>Complete your payment using Chapa secure payment gateway</CardDescription>
+                            <CardDescription> using Chapa secure payment gateway</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
@@ -780,18 +778,6 @@ export default function PaymentProcess({
                                     </div>
                                 </div>
 
-                                <div>
-                                    <Label htmlFor="customer_phone">Phone Number</Label>
-                                    <Input
-                                        id="customer_phone"
-                                        placeholder="+251..."
-                                        value={chapaForm.data.customer_phone}
-                                        onChange={(e) => chapaForm.setData('customer_phone', e.target.value)}
-                                    />
-                                    {chapaForm.errors.customer_phone && (
-                                        <p className="mt-1 text-sm text-red-600">{chapaForm.errors.customer_phone}</p>
-                                    )}
-                                </div>
 
                                 <div>
                                     <Label htmlFor="payment_method">Payment Method *</Label>

@@ -41,17 +41,9 @@ class AdminMenuService
 
     private function getSalesMenuItems(): array
     {
-        $items = [
-            ['title' => 'Payments', 'href' => '/admin/payment', 'icon' => 'CreditCard'],
-            ['title' => 'Orders', 'href' => '/admin/orders', 'icon' => 'ShoppingCart'],
+        return [
+            ['title' => 'Sales Dashboard', 'href' => route('admin.sales.index'), 'icon' => 'BarChart3']
         ];
-
-        // Add manual payments link if enabled
-        if ($this->siteConfig->isManualPaymentEnabled()) {
-            $items[] = ['title' => 'Manual Payments', 'href' => '/admin/offline-payments', 'icon' => 'FileImage'];
-        }
-
-        return $items;
     }
 
     private function filterMenuByPermissions(array $menuGroups): array

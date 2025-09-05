@@ -29,6 +29,7 @@ interface ChapaMethodSelectProps {
     user: {
       name: string
       email: string
+      phone?: string
     }
   }
 }
@@ -84,7 +85,7 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
 
   const { data, setData, processing, errors, clearErrors } = useForm<FormData>({
     payment_method: "telebirr",
-    customer_phone: "",
+    customer_phone: auth?.user?.phone || "",
     customer_name: auth?.user?.name || "",
     customer_email: auth?.user?.email || "",
     order_id: order_id || "",

@@ -623,7 +623,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
                                         </TabsContent>
                                     </Tabs>
                                     <div className="mt-4 text-right">
-                                        <Link href={route('admin.payments.index')} className="text-sm text-primary hover:underline">Go to full payments page →</Link>
+                                        <Link href="/admin/sales" className="text-sm text-primary hover:underline">Go to Sales Dashboard →</Link>
                                     </div>
                                 </CardContent>
                             </Card>
