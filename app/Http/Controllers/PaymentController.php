@@ -367,7 +367,7 @@ class PaymentController extends Controller
                     'user_id' => $user->id,
                     'submission_ref' => $submissionRef,
                     'offline_payment_method_id' => $validated['offline_payment_method_id'],
-                    'order_id' => $validated['order_id'],
+                    'order_id' => $order->id,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'customer_name' => $user->name,
@@ -389,7 +389,7 @@ class PaymentController extends Controller
                 // Create corresponding payment transaction record
                 $transactionData = [
                     'tx_ref' => $submissionRef,
-                    'order_id' => $validated['order_id'],
+                    'order_id' => $order->id,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'customer_email' => $user->email,

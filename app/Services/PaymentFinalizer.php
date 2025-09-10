@@ -7,17 +7,22 @@ use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\NotificationService;
 
 class PaymentFinalizer
 {
+    protected NotificationService $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
     /**
      * Check if payment is eligible for order finalization
      */
     public function canFinalizeOrder(PaymentTransaction $payment): bool
     {
-        // Allow finalization when admin has approved and either:
-        // - Gateway confirms paid (e.g., online processors)
-        // - Proof has been uploaded for offline methods and admin approved it
         return $payment->isAdminApproved() && ($payment->isGatewayPaid() || $payment->hasProofUploaded());
     }
 
@@ -30,28 +35,101 @@ class PaymentFinalizer
             Log::warning('Attempted to finalize order with incomplete payment approval', [
                 'payment_id' => $payment->id,
                 'gateway_status' => $payment->gateway_status,
-                'admin_status' => $payment->admin_status
+                'admin_status' => $payment->admin_status,
+                'order_id' => $payment->order_id,
+                'gateway_payload' => $payment->gateway_payload ?? []
             ]);
             return false;
         }
 
         return DB::transaction(function () use ($payment) {
             try {
+                // First try to get order via relationship
                 $order = $payment->order;
+                
+                // If not found, try to find by order ID directly (numeric id)
+                if (!$order && $payment->order_id) {
+                    $order = Order::find($payment->order_id);
+                    Log::info('Looked up order by ID', [
+                        'payment_id' => $payment->id,
+                        'order_id' => $payment->order_id,
+                        'found' => $order ? 'yes' : 'no'
+                    ]);
+                }
+
+                // If still not found and order_id looks like an order number string, try by order_number
+                if (!$order && is_string($payment->order_id)) {
+                    $order = Order::where('order_number', $payment->order_id)->first();
+                    Log::info('Looked up order by order_number', [
+                        'payment_id' => $payment->id,
+                        'order_number' => $payment->order_id,
+                        'found' => $order ? 'yes' : 'no'
+                    ]);
+                    // If found, normalize payment to store numeric order_id for future lookups
+                    if ($order && $payment->order_id !== $order->id) {
+                        $payment->order_id = $order->id;
+                        $payment->save();
+                        Log::info('Normalized payment.order_id to numeric ID', [
+                            'payment_id' => $payment->id,
+                            'normalized_order_id' => $payment->order_id
+                        ]);
+                    }
+                }
+
+                // If still not found, try to find by order_number in gateway_payload
+                if (!$order && !empty($payment->gateway_payload['order_number'])) {
+                    $order = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
+                    
+                    if ($order) {
+                        // Update the payment with the correct order_id
+                        $payment->order_id = $order->id;
+                        $payment->save();
+                        Log::info('Updated payment with correct order_id from gateway payload', [
+                            'payment_id' => $payment->id,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number
+                        ]);
+                    }
+                }
+
                 if (!$order) {
-                    Log::error('Order not found for payment', ['payment_id' => $payment->id]);
+                    Log::error('Order not found for payment', [
+                        'payment_id' => $payment->id,
+                        'order_id' => $payment->order_id,
+                        'gateway_payload' => $payment->gateway_payload ?? [],
+                        'payment_method' => $payment->payment_method,
+                        'created_at' => $payment->created_at,
+                        'updated_at' => $payment->updated_at
+                    ]);
+                    
+                    // Dump the payment model to see all its attributes
+                    Log::error('Payment model dump', [
+                        'payment_attributes' => $payment->getAttributes(),
+                        'relations' => $payment->getRelations()
+                    ]);
+                    
                     return false;
                 }
 
                 // Update order status to processing/confirmed
                 $order->update([
-                    'status' => 'processing', // or 'confirmed' depending on your order flow
+                    'status' => 'processing',
                     'payment_status' => 'paid',
                 ]);
 
-                // Update inventory, send confirmation emails, etc.
+                // Update inventory
                 $this->processInventoryChanges($order);
-                $this->sendOrderConfirmation($order, $payment);
+                
+                // Send payment confirmation and order confirmation emails
+                $this->notificationService->sendPaymentConfirmation($order, $payment);
+                $this->notificationService->sendOrderConfirmation($order);
+                
+                // Notify user of status change
+                $this->notificationService->sendOrderStatusUpdate(
+                    $order, 
+                    'processing', 
+                    'Your payment has been confirmed and your order is being processed.'
+                );
 
                 Log::info('Order finalized successfully', [
                     'order_id' => $order->id,
@@ -130,20 +208,62 @@ class PaymentFinalizer
         ?string $notes = null
     ): bool {
         if (!$payment->canBeApproved()) {
+            Log::warning('Payment cannot be approved', [
+                'payment_id' => $payment->id,
+                'status' => $payment->status,
+                'admin_status' => $payment->admin_status
+            ]);
             return false;
         }
 
-        $payment->approve($admin, $notes);
+        // Start transaction to ensure data consistency
+        return DB::transaction(function () use ($payment, $admin, $notes) {
+            try {
+                // Approve the payment
+                $payment->approve($admin, $notes);
 
-        Log::info('Payment approved by admin', [
-            'payment_id' => $payment->id,
-            'admin_id' => $admin->id
-        ]);
+                Log::info('Payment approved by admin', [
+                    'payment_id' => $payment->id,
+                    'admin_id' => $admin->id,
+                    'order_id' => $payment->order_id
+                ]);
 
-        // Attempt to finalize order; finalizeOrder internally checks eligibility via canFinalizeOrder()
-        $this->finalizeOrder($payment);
+                // Finalize the order first to ensure status is updated
+                $orderFinalized = $this->finalizeOrder($payment);
+                
+                if (!$orderFinalized) {
+                    Log::error('Failed to finalize order after payment approval', [
+                        'payment_id' => $payment->id,
+                        'order_id' => $payment->order_id
+                    ]);
+                    return false;
+                }
 
-        return true;
+                // Reload the order to get the latest status
+                $order = $payment->order;
+                
+                if ($order) {
+                    // Emails are already sent inside finalizeOrder(). Avoid duplicates here.
+                    Log::info('Order finalized after admin approval; emails dispatched by finalizeOrder()', [
+                        'order_id' => $order->id,
+                        'payment_id' => $payment->id
+                    ]);
+                } else {
+                    Log::error('Order not found after finalization', [
+                        'payment_id' => $payment->id,
+                        'order_id' => $payment->order_id
+                    ]);
+                }
+
+                return true;
+            } catch (\Exception $e) {
+                Log::error('Error in handleAdminApproval: ' . $e->getMessage(), [
+                    'payment_id' => $payment->id,
+                    'exception' => $e
+                ]);
+                return false;
+            }
+        });
     }
 
     /**
@@ -165,6 +285,15 @@ class PaymentFinalizer
             'admin_id' => $admin->id
         ]);
 
+        // Notify user of payment rejection
+        if ($payment->order) {
+            $this->notificationService->sendOrderStatusUpdate(
+                $payment->order, 
+                'payment_failed', 
+                'Your payment was rejected. Reason: ' . ($notes ?? 'Please contact support for more information.')
+            );
+        }
+
         // Handle order cancellation if needed
         $this->handleOrderCancellation($payment);
 
@@ -177,7 +306,7 @@ class PaymentFinalizer
     public function getOrderStatusForPayment(PaymentTransaction $payment): string
     {
         if ($payment->isFullyCompleted()) {
-            return 'processing'; // Ready for fulfillment
+            return 'processing';
         }
 
         if ($payment->isAwaitingAdminApproval()) {
@@ -200,8 +329,6 @@ class PaymentFinalizer
      */
     private function handleGatewayPaid(PaymentTransaction $payment): void
     {
-        // Ensure admin_status is set to 'unseen' for admin review
-        // Only update if not already set to avoid overriding existing admin actions
         if ($payment->admin_status === null || $payment->admin_status === '') {
             $payment->update(['admin_status' => 'unseen']);
             
@@ -211,7 +338,6 @@ class PaymentFinalizer
             ]);
         }
         
-        // Notify admins of pending review
         $this->notifyAdminsOfPendingReview($payment);
     }
 
@@ -221,37 +347,59 @@ class PaymentFinalizer
     private function processInventoryChanges(Order $order): void
     {
         // Implement inventory reduction logic
-        // This would typically involve reducing stock quantities for ordered items
     }
 
     /**
      * Send order confirmation
+     * @deprecated Use NotificationService::sendOrderConfirmation() instead
      */
-    private function sendOrderConfirmation(Order $order, PaymentTransaction $payment): void
+    protected function sendOrderConfirmation(Order $order, PaymentTransaction $payment): void
     {
-        // Queue job to send confirmation email to customer
-        // Could also trigger other notifications (SMS, push notifications, etc.)
+        $this->notificationService->sendOrderConfirmation($order);
     }
 
     /**
      * Notify admins of pending payment review
      */
-    private function notifyAdminsOfPendingReview(PaymentTransaction $payment): void
+    protected function notifyAdminsOfPendingReview(PaymentTransaction $payment): void
     {
-        // Queue job to notify admins of payment needing review
+        $admins = User::role('admin')->where('is_active', true)->get();
+        
+        foreach ($admins as $admin) {
+            $this->notificationService->sendAccountActivity(
+                $admin,
+                'payment_review_required',
+                [
+                    'payment_id' => $payment->id,
+                    'order_id' => $payment->order_id,
+                    'amount' => $payment->amount,
+                    'payment_method' => $payment->payment_method,
+                    'review_url' => route('admin.payments.review', $payment->id)
+                ]
+            );
+        }
     }
 
     /**
      * Handle order cancellation for rejected payments
      */
-    private function handleOrderCancellation(PaymentTransaction $payment): void
+    protected function handleOrderCancellation(PaymentTransaction $payment): void
     {
-        $order = $payment->order;
-        if ($order) {
-            $order->update([
-                'status' => 'cancelled',
-                'payment_status' => 'rejected',
-            ]);
+        if (!$payment->order) {
+            return;
         }
+
+        $cancellationReason = 'Payment rejected: ' . ($payment->admin_notes ?? 'No reason provided');
+        
+        $payment->order->update([
+            'status' => 'cancelled',
+            'cancellation_reason' => $cancellationReason
+        ]);
+        
+        $this->notificationService->sendOrderStatusUpdate(
+            $payment->order,
+            'cancelled',
+            'Your order has been cancelled. Reason: ' . $cancellationReason
+        );
     }
 }

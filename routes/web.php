@@ -224,5 +224,210 @@ Route::middleware(['auth', 'web'])->group(function () {
     Route::get('/api/wishlist/check', [WishlistController::class, 'check'])->name('api.wishlist.check');
 });
 
+// Test email route (only in development)
+// Simple test email route
+Route::get('/test-direct-email', function () {
+    try {
+        $testEmail = 'test@example.com'; // Change this to your test email
+        
+        Mail::raw('This is a test email from Laravel', function($message) use ($testEmail) {
+            $message->to($testEmail)
+                    ->subject('Test Email from Laravel');
+        });
+        
+        return "Test email sent to {$testEmail}. Please check your inbox.";
+    } catch (\Exception $e) {
+        return "Error sending test email: " . $e->getMessage();
+    }
+});
+
+if (app()->environment('local')) {
+    Route::get('/test-email', function () {
+        // Get the latest order and payment transaction for testing
+        $order = \App\Models\Order::with('user')->latest()->first();
+        $payment = \App\Models\PaymentTransaction::latest()->first();
+
+        if (!$order || !$payment || !$order->user) {
+            return "Test data not found. Make sure you have orders with users and payment transactions in the database.";
+        }
+
+        try {
+            // Log the email sending attempt
+            \Log::info('Attempting to send email to: ' . $order->user->email);
+            
+            // Send the email directly to the order's user
+            $result = \Mail::to($order->user->email)
+                ->send(new \App\Mail\PaymentConfirmation($order, $payment));
+            
+            // Log the result
+            \Log::info('Email send result: ' . json_encode($result !== null));
+            
+            // Check if email was actually sent
+            if ($result === null) {
+                return "Email was queued to {$order->user->email} for order #{$order->order_number}";
+            }
+            
+            return "Test email sent to {$order->user->email} for order #{$order->order_number}";
+        } catch (\Exception $e) {
+            return "Error sending email: " . $e->getMessage() . "\n" . $e->getTraceAsString();
+        }
+    })->name('test.email');
+}
+
+// Create test product request
+Route::get('/create-test-request', function () {
+    try {
+        $user = \App\Models\User::first();
+        
+        if (!$user) {
+            return "No users found in the database. Please create a user first.";
+        }
+        
+        $productRequest = \App\Models\ProductRequest::create([
+            'user_id' => $user->id,
+            'product_name' => 'Test Product ' . time(),
+            'description' => 'This is a test product request',
+            'status' => 'pending',
+            'admin_notes' => 'Test request for email notification'
+        ]);
+        
+        return "Created test product request #{$productRequest->id}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
+// Test queue worker with a simple job
+Route::get('/test-queue', function () {
+    \App\Jobs\TestQueueJob::dispatch();
+    return 'Test job dispatched to the queue. Check the queue worker log for output.';
+});
+
+// Test payment confirmation email directly
+Route::get('/test-payment-confirmation', function () {
+    try {
+        $order = \App\Models\Order::with('user')->latest()->first();
+        $transaction = \App\Models\PaymentTransaction::latest()->first();
+        
+        if (!$order || !$transaction) {
+            return "Order or transaction not found. Make sure you have orders and payment transactions in the database.";
+        }
+        
+        // Send email directly (bypassing queue for testing)
+        \Mail::to($order->user->email)
+            ->send(new \App\Mail\PaymentConfirmation($order, $transaction));
+            
+        return "Payment confirmation email sent directly to {$order->user->email} for order #{$order->order_number}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage() . "\n" . $e->getTraceAsString();
+    }
+});
+
+// Test queue worker with email job
+Route::get('/test-queue-email', function () {
+    try {
+        $order = \App\Models\Order::with('user')->latest()->first();
+        
+        if (!$order) {
+            return "No orders found in the database.";
+        }
+        
+        // Dispatch a test email job
+        \App\Jobs\SendEmailJob::dispatch(
+            $order->user->email,
+            'Test Queued Email',
+            'emails.test',
+            ['message' => 'This is a test of the queued email system.']
+        );
+        
+        return "Test email job dispatched to the queue for {$order->user->email}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
+// Test product request notification email
+Route::get('/test-request-email', function () {
+    try {
+        $productRequest = \App\Models\ProductRequest::with('user')->latest()->first();
+        
+        if (!$productRequest) {
+            return "No product requests found in the database.";
+        }
+        
+        // Test different notification types
+        $type = 'status_updated'; // Try 'submitted' or 'admin_notification' as well
+        $admin = \App\Models\User::where('role', 'admin')->first();
+        
+        \Mail::to($productRequest->user->email)
+            ->send(new \App\Mail\ProductRequestNotification(
+                $productRequest,
+                $productRequest->user,
+                $type,
+                $admin
+            ));
+            
+        return "Product request notification sent to {$productRequest->user->email} for request #{$productRequest->id}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
+// Test order status update email
+Route::get('/test-status-email', function () {
+    try {
+        $order = \App\Models\Order::with('user')->latest()->first();
+        
+        if (!$order) {
+            return "No orders found in the database.";
+        }
+        
+        $status = 'shipped';
+        $updateMessage = 'Your order has been shipped and is on its way to you!';
+        
+        \Mail::to($order->user->email)
+            ->send(new \App\Mail\OrderStatusUpdate($order, $status, $updateMessage));
+            
+        return "Order status update email sent to {$order->user->email} for order #{$order->order_number}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
+// Test payment confirmation email
+Route::get('/test-payment-email', function () {
+    try {
+        $order = \App\Models\Order::with('user')->latest()->first();
+        $transaction = \App\Models\PaymentTransaction::latest()->first();
+        
+        if (!$order || !$transaction) {
+            return "Test data not found. Make sure you have orders and payment transactions in the database.";
+        }
+        
+        \Mail::to($order->user->email)
+            ->send(new \App\Mail\PaymentConfirmation($order, $transaction));
+            
+        return "Payment confirmation email sent to {$order->user->email} for order #{$order->order_number}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
+// Test simple email
+Route::get('/test-simple-email', function () {
+    try {
+        $email = 'test@example.com'; // Change this to your test email
+        
+        \Mail::send('emails.test', [], function($message) use ($email) {
+            $message->to($email)
+                   ->subject('Simple Test Email');
+        });
+        
+        return "Simple test email sent to {$email}";
+    } catch (\Exception $e) {
+        return "Error: " . $e->getMessage();
+    }
+});
+
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

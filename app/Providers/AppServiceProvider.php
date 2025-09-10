@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\SiteConfigService;
 use App\Services\AdminMenuService;
+use App\Services\NotificationService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -18,6 +19,9 @@ class AppServiceProvider extends ServiceProvider
         
         // Register AdminMenuService as singleton
         $this->app->singleton(AdminMenuService::class);
+        
+        // Register NotificationService as singleton
+        $this->app->singleton(NotificationService::class);
     }
 
     /**

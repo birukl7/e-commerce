@@ -121,25 +121,43 @@ class OfflinePaymentController extends Controller
                 }
 
                 // Create payment transaction record
-                $payment = PaymentTransaction::create([
+                $paymentData = [
                     'tx_ref' => $txRef,
-                    'order_id' => $request->order_id,
+                    'order_id' => $order->id, // Use the actual order ID
                     'amount' => $request->amount,
                     'currency' => $request->currency,
                     'customer_email' => auth()->user()->email,
                     'customer_name' => auth()->user()->name,
                     'customer_phone' => auth()->user()->phone,
-                    'payment_method' => 'offline_' . $offlineMethod->type,
-                    'gateway_status' => 'proof_uploaded',
-                    'admin_status' => 'unseen',
+                    'payment_method' => 'offline',
+                    'gateway_status' => 'pending',
+                    'admin_status' => 'pending_review',
                     'gateway_payload' => [
-                        'offline_method' => $offlineMethod->toArray(),
+                        'offline_method_id' => $offlineMethod->id,
                         'payment_reference' => $request->payment_reference,
                         'payment_notes' => $request->payment_notes,
                         'screenshot_path' => $screenshotPath,
-                        'submitted_at' => now()->toISOString(),
+                        'submitted_at' => now()->toIso8601String(),
+                        'order_number' => $order->order_number, // Store order number in gateway_payload for reference
+                        'original_order_id' => $request->order_id, // Store the original order ID from request
                     ],
+                ];
+
+                Log::info('Creating payment transaction with data', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_data' => $paymentData
                 ]);
+
+                $payment = PaymentTransaction::create($paymentData);
+
+                // Log the payment creation
+                Log::info('Payment transaction created', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $payment->order_id,
+                    'order_number' => $order->order_number,
+                    'tx_ref' => $txRef
+                ] + $logContext);
 
                 Log::info('Payment transaction created', [
                     'payment_id' => $payment->id,
