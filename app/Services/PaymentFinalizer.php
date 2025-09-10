@@ -175,9 +175,44 @@ class PaymentFinalizer
                 'new_status' => $gatewayStatus
             ]);
 
-            // If gateway shows paid, check if we can finalize
+            // If gateway shows paid, notify admins and send payment confirmation email to user
             if ($gatewayStatus === 'paid') {
                 $this->handleGatewayPaid($payment);
+
+                try {
+                    // Try to resolve order for email context without changing order state
+                    $order = $payment->order;
+                    if (!$order && is_numeric($payment->order_id)) {
+                        $order = Order::find($payment->order_id);
+                    }
+                    if (!$order && is_string($payment->order_id)) {
+                        $order = Order::where('order_number', $payment->order_id)->first();
+                    }
+                    if (!$order && !empty($payment->gateway_payload['order_number'])) {
+                        $order = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
+                    }
+
+                    if ($order) {
+                        Log::info('Sending payment confirmation email after gateway paid', [
+                            'payment_id' => $payment->id,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'payment_method' => $payment->payment_method,
+                        ]);
+                        $this->notificationService->sendPaymentConfirmation($order, $payment);
+                    } else {
+                        Log::warning('Order not resolved for payment confirmation email after gateway paid', [
+                            'payment_id' => $payment->id,
+                            'order_ref' => $payment->order_id,
+                            'gateway_payload_keys' => array_keys($payment->gateway_payload ?? [])
+                        ]);
+                    }
+                } catch (\Throwable $e) {
+                    Log::error('Failed to send payment confirmation email after gateway paid', [
+                        'payment_id' => $payment->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
 

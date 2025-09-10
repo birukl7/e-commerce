@@ -49,7 +49,7 @@ class NotificationService
             'user_email' => $order->user->email ?? null,
         ]);
         SendPaymentConfirmationEmail::dispatch($transaction, $order->user, $order)
-            ->delay(now()->addSeconds(1))
+            ->delay(now()->addSeconds(8))
             ->onQueue('emails');
     }
 
