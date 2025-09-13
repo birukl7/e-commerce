@@ -143,6 +143,29 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 });
 
 // Authenticated routes
+// Product Request Payment Routes
+Route::middleware(['auth', 'verified'])->group(function () {
+    // Show payment form for a product request
+    Route::get('/product-requests/{productRequest}/payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'show'])
+        ->name('product-requests.payment.show');
+    
+    // Process payment for a product request
+    Route::post('/product-requests/{productRequest}/process-payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'process'])
+        ->name('product-requests.payment.process');
+    
+    // Handle payment callback from payment gateway
+    Route::post('/product-requests/{productRequest}/payment/callback', [\App\Http\Controllers\ProductRequestPaymentController::class, 'handleCallback'])
+        ->name('product-requests.payment.callback');
+    
+    // Payment success page
+    Route::get('/product-requests/{productRequest}/payment/success', [\App\Http\Controllers\ProductRequestPaymentController::class, 'success'])
+        ->name('product-requests.payment.success');
+    
+    // Payment failure page
+    Route::get('/product-requests/{productRequest}/payment/failure', [\App\Http\Controllers\ProductRequestPaymentController::class, 'failure'])
+        ->name('product-requests.payment.failure');
+});
+
 Route::middleware(['auth', 'verified',])->group(function () {
     // Main dashboard
     Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
@@ -173,6 +196,12 @@ Route::middleware(['auth', 'verified',])->group(function () {
     Route::put('/request/{productRequest}', [RequestController::class, 'update'])->name('request.update');
     Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
     Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
+    
+    // User product request routes
+    Route::get('/user/product-requests', [RequestController::class, 'index'])->name('user.product-requests.index');
+    Route::get('/user/product-requests/{productRequest}', [RequestController::class, 'show'])->name('user.product-requests.show');
+    Route::get('/user/product-requests/{productRequest}/payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'show'])
+        ->name('user.product-requests.payment');
 
     // Payment flow routes
     Route::prefix('payment')->name('payment.')->group(function () {

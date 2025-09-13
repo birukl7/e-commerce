@@ -21,9 +21,15 @@ interface User {
 interface ProductRequest {
     id: number;
     product_name: string;
+    description: string;
     status: 'pending' | 'reviewed' | 'approved' | 'rejected';
     admin_response?: string;
+    amount?: number | string;
+    currency?: string;
+    payment_status?: string;
     user: User;
+    created_at: string;
+    updated_at: string;
 }
 
 
@@ -35,6 +41,8 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
     const { data, setData, put, processing, errors } = useForm({
         status: product_request.status,
         admin_response: product_request.admin_response || '',
+        amount: product_request.amount || '',
+        currency: product_request.currency || 'ETB',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -85,19 +93,20 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="status" className="text-base font-semibold">Update Status *</Label>
-                                <Select value={data.status} onValueChange={(value) => setData('status', value as any)}>
-                                    <SelectTrigger id="status" className={errors.status ? "border-red-500" : ""}>
-                                        <SelectValue placeholder="Select a status" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="pending">
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-                                                Pending
-                                            </div>
-                                        </SelectItem>
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="status" className="text-base font-semibold">Update Status *</Label>
+                                    <Select value={data.status} onValueChange={(value) => setData('status', value as any)}>
+                                        <SelectTrigger id="status" className={errors.status ? "border-red-500" : ""}>
+                                            <SelectValue placeholder="Select a status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pending">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                                    Pending
+                                                </div>
+                                            </SelectItem>
                                         <SelectItem value="reviewed">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -123,25 +132,70 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                 </p>}
                             </div>
                             
-                            <div className="space-y-2">
-                                <Label htmlFor="admin_response" className="text-base font-semibold">
-                                    Admin Response 
-                                    <span className="text-sm font-normal text-gray-500">(Optional)</span>
-                                </Label>
-                                <Textarea
-                                    id="admin_response"
-                                    value={data.admin_response}
-                                    onChange={(e) => setData('admin_response', e.target.value)}
-                                    placeholder="Provide feedback, reasons for the status change, or additional comments for the user..."
-                                    rows={6}
-                                    className={`resize-none ${errors.admin_response ? "border-red-500" : ""}`}
-                                />
-                                <p className="text-xs text-gray-500">
-                                    {data.admin_response.length}/5000 characters
-                                </p>
-                                {errors.admin_response && <p className="text-sm text-red-500 flex items-center gap-1">
-                                    <span className="font-medium">Error:</span> {errors.admin_response}
-                                </p>}
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="admin_response" className="text-base font-semibold">Admin Response</Label>
+                                    <Textarea
+                                        id="admin_response"
+                                        value={data.admin_response}
+                                        onChange={(e) => setData('admin_response', e.target.value)}
+                                        placeholder="Provide feedback or instructions for the user..."
+                                        className={errors.admin_response ? "border-red-500" : ""}
+                                        rows={4}
+                                    />
+                                    {errors.admin_response && <p className="text-sm text-red-500">{errors.admin_response}</p>}
+                                </div>
+
+                                {data.status === 'approved' && (
+                                    <div className="space-y-4 p-4 bg-muted/20 rounded-lg border">
+                                        <h3 className="font-medium">Payment Information</h3>
+                                        
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="amount" className="font-medium">Amount *</Label>
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                                        {data.currency}
+                                                    </span>
+                                                    <input
+                                                        type="number"
+                                                        id="amount"
+                                                        min="0"
+                                                        step="0.01"
+                                                        value={data.amount}
+                                                        onChange={(e) => setData('amount', e.target.value)}
+                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-16 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                        placeholder="0.00"
+                                                        required={data.status === 'approved'}
+                                                    />
+                                                </div>
+                                                {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}
+                                            </div>
+                                            
+                                            <div className="space-y-2">
+                                                <Label htmlFor="currency" className="font-medium">Currency *</Label>
+                                                <Select 
+                                                    value={data.currency} 
+                                                    onValueChange={(value) => setData('currency', value)}
+                                                >
+                                                    <SelectTrigger id="currency" className="w-full">
+                                                        <SelectValue placeholder="Select currency" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="ETB">ETB - Ethiopian Birr</SelectItem>
+                                                        <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                                        <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                                {errors.currency && <p className="text-sm text-red-500">{errors.currency}</p>}
+                                            </div>
+                                        </div>
+                                        
+                                        <p className="text-sm text-muted-foreground">
+                                            The user will be required to pay this amount to proceed with their request.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </CardContent>
                         <CardFooter className="flex justify-end">

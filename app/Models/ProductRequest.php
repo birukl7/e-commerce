@@ -20,7 +20,60 @@ class ProductRequest extends Model
         'status',
         'admin_response',
         'admin_id',
+        'amount',
+        'currency',
+        'payment_status',
+        'payment_method',
+        'payment_reference',
+        'paid_at',
+        'payment_details'
     ];
+
+    protected $casts = [
+        'amount' => 'decimal:2',
+        'paid_at' => 'datetime',
+        'payment_details' => 'array',
+    ];
+
+    /**
+     * Get the user that owns the product request.
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the admin who processed the request.
+     */
+    public function admin()
+    {
+        return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    /**
+     * Check if the request requires payment.
+     */
+    public function requiresPayment()
+    {
+        return $this->status === 'approved' && $this->payment_status !== 'paid' && $this->amount > 0;
+    }
+
+    /**
+     * Mark the payment as paid.
+     */
+    public function markAsPaid($paymentMethod, $reference, array $details = [])
+    {
+        $this->update([
+            'payment_status' => 'paid',
+            'payment_method' => $paymentMethod,
+            'payment_reference' => $reference,
+            'paid_at' => now(),
+            'payment_details' => $details,
+        ]);
+
+        // You can add additional logic here, like sending notifications
+    }
 
     protected static function booted()
     {
@@ -61,16 +114,6 @@ class ProductRequest extends Model
         });
     }
 
-    // Relationships
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function admin()
-    {
-        return $this->belongsTo(User::class, 'admin_id');
-    }
 
     // Scopes
     public function scopePending($query)
