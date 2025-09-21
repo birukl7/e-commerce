@@ -29,15 +29,21 @@ export default function AdminLogin({ status, canResetPassword }: LoginProps) {
 
   const submit: FormEventHandler = (e) => {
     e.preventDefault()
-
-    post(route("admin.login"), {
-      onFinish: () => reset("password"),
-      onSuccess: () => {
-        // Handle successful login - Inertia will handle redirect automatically
+    
+    console.log('Submitting admin login form...')
+    console.log('Route:', route('admin.login'))
+    
+    post(route('admin.login'), {
+      onFinish: () => {
+        console.log('Login finished')
+        reset("password")
+      },
+      onSuccess: (response) => {
+        console.log('Login successful', response)
+        // Inertia will handle the redirect
       },
       onError: (errors) => {
-        // Handle login errors - errors will be shown via InputError components
-        console.log("Login errors:", errors)
+        console.error('Login errors:', errors)
       },
     })
   }

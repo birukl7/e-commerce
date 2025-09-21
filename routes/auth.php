@@ -11,7 +11,12 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::get('/super-admin', fn()=>Inertia::render('auth/admin-login'));
+Route::get('/super-admin', fn()=>Inertia::render('auth/admin-login'))->name('admin.login.form');
+
+// Admin login route - must be outside the 'guest' middleware to allow authenticated users to access it
+Route::post('admin-login', [AuthenticatedSessionController::class, 'adminStore'])
+    ->middleware('web')
+    ->name('admin.login');
 
 Route::middleware('guest')->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
@@ -23,8 +28,6 @@ Route::middleware('guest')->group(function () {
         ->name('login');
     
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
-
-    Route::post('admin-login', [AuthenticatedSessionController::class, 'adminStore'])->name('admin.login');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

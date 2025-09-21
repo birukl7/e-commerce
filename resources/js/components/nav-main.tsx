@@ -29,36 +29,127 @@ const iconMap: Record<string, React.ComponentType> = {
     BarChart3,
 };
 
-export function NavMain({ items = [] }: { items: NavItem[] }) {
+interface NavItemWithChildren extends NavItem {
+    children?: NavItem[];
+    tabs?: Array<{ title: string; href: string; icon?: string }>;
+}
+
+export function NavMain({ items = [] }: { items: NavItemWithChildren[] }) {
     const page = usePage();
+    
+    const renderNavItem = (item: NavItemWithChildren, level = 0) => {
+        // Handle both function icons (from frontend) and string icons (from backend)
+        let Icon: React.ComponentType | undefined;
+        
+        if (typeof item.icon === 'function') {
+            // Frontend icon (React component)
+            Icon = item.icon;
+        } else if (typeof item.icon === 'string') {
+            // Backend icon (string name)
+            Icon = iconMap[item.icon];
+        }
+        
+        // Check if current URL matches the item's href or any of its children or tabs
+        const isActive = isItemActive(item, page.url);
+        
+        // Check if any tab is active
+        const activeTab = item.tabs?.find(tab => 
+            page.url === tab.href || 
+            (page.url.startsWith(tab.href) && 
+             (page.url[tab.href.length] === '/' || 
+              page.url.length === tab.href.length))
+        );
+        
+        return (
+            <div key={item.href} className={level > 0 ? 'pl-4' : ''}>
+                <SidebarMenuItem>
+                    <SidebarMenuButton 
+                        asChild 
+                        isActive={isActive} 
+                        tooltip={{ children: item.title }}
+                    >
+                        <Link href={item.href} prefetch>
+                            {Icon && <div className="h-5 w-5 flex items-center justify-center"><Icon /></div>}
+                            <span>{item.title}</span>
+                        </Link>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+                
+                {/* Render tabs if they exist */}
+                {item.tabs && item.tabs.length > 0 && (
+                    <div className="ml-8 mt-1 space-y-1">
+                        {item.tabs.map((tab) => {
+                            const isTabActive = page.url === tab.href || 
+                                (page.url.startsWith(tab.href) && 
+                                 (page.url[tab.href.length] === '/' || 
+                                  page.url.length === tab.href.length));
+                            
+                            return (
+                                <SidebarMenuItem key={tab.href}>
+                                    <SidebarMenuButton 
+                                        asChild 
+                                        isActive={isTabActive}
+                                        className="text-sm"
+                                    >
+                                        <Link href={tab.href} prefetch>
+                                            {tab.icon && iconMap[tab.icon] && (
+                                                <div className="h-4 w-4 flex items-center justify-center mr-1 text-muted-foreground">
+                                                    {React.createElement(iconMap[tab.icon], {})}
+                                                </div>
+                                            )}
+                                            <span>{tab.title}</span>
+                                        </Link>
+                                    </SidebarMenuButton>
+                                </SidebarMenuItem>
+                            );
+                        })}
+                    </div>
+                )}
+                
+                {/* Render children if they exist (for backward compatibility) */}
+                {item.children && item.children.length > 0 && !item.tabs && (
+                    <div className="ml-4 mt-1 space-y-1">
+                        {item.children.map(child => renderNavItem(child, level + 1))}
+                    </div>
+                )}
+            </div>
+        );
+    };
+    
     return (
         <SidebarGroup className="px-2 py-0">
             <SidebarGroupLabel>Platform</SidebarGroupLabel>
             <SidebarMenu>
-                {items.map((item) => {
-                    // Handle both function icons (from frontend) and string icons (from backend)
-                    let Icon: React.ComponentType | undefined;
-                    
-                    if (typeof item.icon === 'function') {
-                        // Frontend icon (React component)
-                        Icon = item.icon;
-                    } else if (typeof item.icon === 'string') {
-                        // Backend icon (string name)
-                        Icon = iconMap[item.icon];
-                    }
-                    
-                    return (
-                        <SidebarMenuItem key={item.title}>
-                            <SidebarMenuButton asChild isActive={page.url.startsWith(item.href)} tooltip={{ children: item.title }}>
-                                <Link href={item.href} prefetch>
-                                    {Icon ? <Icon /> : null}
-                                    <span>{item.title}</span>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    );
-                })}
+                {items.map(item => renderNavItem(item))}
             </SidebarMenu>
         </SidebarGroup>
     );
+}
+
+// Helper function to check if an item or any of its children is active
+function isItemActive(item: NavItemWithChildren, currentUrl: string): boolean {
+    // Normalize URLs for comparison
+    const normalizeUrl = (url: string) => url.replace(/\/$/, '');
+    const itemUrl = normalizeUrl(item.href);
+    const normalizedUrl = normalizeUrl(currentUrl);
+    
+    // Check if this item is active
+    if (itemUrl === normalizedUrl || 
+        (normalizedUrl.startsWith(itemUrl) && 
+         (normalizedUrl[itemUrl.length] === '/' || 
+          normalizedUrl.length === itemUrl.length))) {
+        return true;
+    }
+    
+    // Special case for admin dashboard
+    if (item.href === '/admin' && (normalizedUrl === '/admin' || normalizedUrl === '/admin-dashboard')) {
+        return true;
+    }
+    
+    // Check if any child is active
+    if (item.children) {
+        return item.children.some(child => isItemActive(child, currentUrl));
+    }
+    
+    return false;
 }

@@ -28,11 +28,13 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        // First authenticate the user
         $request->authenticate();
-        $request->session()->regenerate();
-
-        // Check if user account is active
+        
+        // Get the authenticated user
         $user = Auth::user();
+        
+        // Check if user account is active
         if ($user->status !== 'active') {
             Auth::logout();
             $request->session()->invalidate();
@@ -54,34 +56,75 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        // Redirect based on user role and intended URL
+        // For admin users, redirect to admin dashboard
         if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
-            // Check if user was trying to access an admin route before login
-            $intended = $request->session()->get('url.intended');
-            if ($intended && (str_contains($intended, '/admin') || str_contains($intended, 'admin-dashboard'))) {
-                return redirect()->intended(route('admin.dashboard'));
+            // Set admin session data
+            $request->session()->put([
+                'is_admin' => true,
+                'admin_access_verified_at' => now()->timestamp,
+                'verified_admin_roles' => $user->getRoleNames()->toArray(),
+                'last_activity' => now()->timestamp,
+                'user_id' => $user->id
+            ]);
+            
+            // Regenerate session to prevent session fixation
+            $request->session()->regenerate();
+            
+            // Explicitly log in the user with the new session
+            Auth::login($user);
+            
+            // Get intended URL or default to admin dashboard
+            $intended = $request->session()->pull('url.intended', route('admin.dashboard'));
+            
+            // Ensure we're redirecting to an admin route
+            if (!str_contains($intended, '/admin') && !str_contains($intended, 'admin-dashboard')) {
+                $intended = route('admin.dashboard');
             }
-            return redirect()->route('admin.dashboard');
+            
+            // Force redirect to admin dashboard
+            return redirect()->to($intended);
         }
 
-        if ($user->hasRole('user')) {
-            return redirect()->intended(route('user.dashboard'));
-        }
-
+        // For regular users, redirect to user dashboard
         return redirect()->intended(route('user.dashboard'));
     }
 
 
-    public function adminStore(LoginRequest $request): RedirectResponse
+    public function adminStore(LoginRequest $request) 
     {
+        // First authenticate the user
         $request->authenticate();
-        $request->session()->regenerate();
-
-        // Check if user account is active
+        
+        // Get the authenticated user
         $user = Auth::user();
+        
+        // Debug logging
+        \Log::info('Admin login attempt', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'is_admin' => $user->hasRole('admin') || $user->hasRole('super_admin'),
+            'intended' => $request->session()->get('url.intended')
+        ]);
+        
+        // Check if user account is active
+        if ($user->status !== 'active') {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
 
-        // Ensure the authenticated user actually has admin access
-        if (! $user || ! $user->can('access admin dashboard')) {
+            $message = match($user->status) {
+                'inactive' => 'Your account is inactive. Please contact support.',
+                'banned' => 'Your account has been suspended. Please contact support.',
+                default => 'Unable to login. Please contact support.'
+            };
+
+            return back()->withErrors([
+                'email' => $message,
+            ]);
+        }
+
+        // Ensure the authenticated user has admin access
+        if (!($user->hasRole('admin') || $user->hasRole('super_admin'))) {
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -95,8 +138,38 @@ class AuthenticatedSessionController extends Controller
             return redirect()->route('verification.notice');
         }
 
-        // Always send admin users directly to the admin dashboard
-        return redirect()->route('admin.dashboard');
+        // Set admin-specific session data
+        $request->session()->put([
+            'is_admin' => true,
+            'admin_access_verified_at' => now()->timestamp,
+            'verified_admin_roles' => $user->getRoleNames()->toArray(),
+            'last_activity' => now()->timestamp,
+            'user_id' => $user->id,
+            'is_admin_session' => true
+        ]);
+        
+        // Regenerate session ID to prevent session fixation
+        $request->session()->regenerate();
+        
+        // Explicitly log in the user with the new session
+        Auth::login($user);
+        
+        // Get the intended URL or default to admin dashboard
+        $intended = $request->session()->pull('url.intended', route('admin.dashboard'));
+        
+        // Ensure we're redirecting to an admin route
+        $adminDashboard = route('admin.dashboard');
+        if (!str_contains($intended, '/admin') && !str_contains($intended, 'admin-dashboard')) {
+            $intended = $adminDashboard;
+        }
+        
+        // Handle Inertia.js requests
+        if ($request->header('X-Inertia')) {
+            return Inertia::location($adminDashboard);
+        }
+        
+        // Standard web request
+        return redirect()->to($adminDashboard);
     }
 
     /**

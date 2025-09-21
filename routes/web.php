@@ -22,6 +22,9 @@ use App\Http\Controllers\AdminSalesController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
 use App\Http\Controllers\AdminSiteConfigController;
+use App\Http\Controllers\Admin\TaxSettingController;
+use App\Http\Controllers\Admin\StockNotificationController;
+use App\Http\Controllers\OutOfStockNotificationController;
 // use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -60,9 +63,16 @@ Route::get('/privacy', function () {
     return Inertia::render('privacy', ['settings' => $settings]);
 })->name('privacy');
 
-Route::resource('categories', CategoryController::class)->parameters([
-    'categories' => 'category:slug',
-]);
+// Web category routes with 'web.' prefix
+Route::prefix('categories')->name('web.categories.')->group(function () {
+    Route::get('/', [CategoryController::class, 'index'])->name('index');
+    Route::post('/', [CategoryController::class, 'store'])->name('store');
+    Route::get('/create', [CategoryController::class, 'create'])->name('create');
+    Route::get('/{category:slug}', [CategoryController::class, 'show'])->name('show');
+    Route::put('/{category:slug}', [CategoryController::class, 'update'])->name('update');
+    Route::delete('/{category:slug}', [CategoryController::class, 'destroy'])->name('destroy');
+    Route::get('/{category:slug}/edit', [CategoryController::class, 'edit'])->name('edit');
+});
 
 // Search routes
 Route::get('/search', [SearchController::class, 'search'])->name('search');
@@ -75,10 +85,16 @@ Route::post('/request', [RequestController::class, 'store']);
 
 Route::get('/search/suggestions', [SearchController::class, 'suggestions'])->name('search.suggestions');
 
-// Product routes
-Route::get('/products/{slug}', [ProductController::class, 'show'])->name('products.show');
+// Product routes with 'web.' prefix
+Route::prefix('products')->name('web.products.')->group(function () {
+    Route::get('/{slug}', [ProductController::class, 'show'])->name('show');
+    Route::get('/{product}/reviews', [ProductController::class, 'getProductReviews'])->name('reviews');
+});
 
-Route::get('/products/{product}/reviews', [ProductController::class, 'getProductReviews'])->name('products.reviews');
+// Out of stock notification routes
+Route::post('/api/products/{product}/notifications/subscribe', [OutOfStockNotificationController::class, 'subscribe'])->name('api.products.notifications.subscribe');
+Route::post('/api/products/{product}/notifications/unsubscribe', [OutOfStockNotificationController::class, 'unsubscribe'])->name('api.products.notifications.unsubscribe');
+Route::post('/api/products/{product}/notifications/check', [OutOfStockNotificationController::class, 'checkSubscription'])->name('api.products.notifications.check');
 
 // PayPal routes
 Route::get('/paypal', [PayPalController::class, 'index'])->name('paypal');
@@ -93,9 +109,9 @@ Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus
 
 
 // Admin routes
-Route::middleware(['auth', 'verified', 'admin'])->group(function () {
+Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session'])->group(function () {
     Route::get('/admin-dashboard',[AdminDashboardController::class, 'index'])->name('admin.dashboard');
-
+    
     Route::get("/admin/sales", [AdminSalesController::class, 'index'])->name('admin.sales.index');
     Route::get("/admin/sales/orders/{order}", [AdminSalesController::class, 'showOrder'])->name('admin.sales.orders.show');
 
@@ -125,13 +141,38 @@ Route::middleware(['auth', 'verified', 'admin'])->group(function () {
 
     Route::resource('admin/brands', AdminBrandController::class);
 
-    Route::resource('admin/products', AdminProductController::class);
+    Route::resource('admin/products', AdminProductController::class)->names([
+        'index' => 'admin.products.index',
+        'create' => 'admin.products.create',
+        'store' => 'admin.products.store',
+        'show' => 'admin.products.show',
+        'edit' => 'admin.products.edit',
+        'update' => 'admin.products.update',
+        'destroy' => 'admin.products.destroy'
+    ]);
     Route::resource('/admin/customers', CustomerController::class);
     Route::get('/admin/suppliers', [CustomerController::class, 'suppliers'])->name('admin.suppliers.index');
     Route::resource('admin/product-requests', AdminProductRequestController::class);
     
     Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
     Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
+    
+    // Stock Management
+    Route::get('/admin/products/stock', [StockNotificationController::class, 'index'])->name('admin.products.stock.index');
+    Route::delete('/admin/stock-notifications/{notification}', [StockNotificationController::class, 'destroy'])->name('admin.stock-notifications.destroy');
+    Route::post('/admin/stock-notifications/products/{product}/trigger', [StockNotificationController::class, 'triggerNotifications'])->name('admin.stock-notifications.trigger');
+    Route::delete('/admin/stock-notifications/{notification}', [StockNotificationController::class, 'destroy'])->name('admin.stock-notifications.destroy');
+    Route::post('/admin/stock-notifications/bulk-delete', [StockNotificationController::class, 'bulkDelete'])->name('admin.stock-notifications.bulk-delete');
+    
+    // Out of stock notification admin routes
+    Route::get('/api/products/{product}/notifications/stats', [OutOfStockNotificationController::class, 'getStats'])->name('admin.products.notifications.stats');
+    Route::get('/api/notifications/pending', [OutOfStockNotificationController::class, 'getProductsWithPendingNotifications'])->name('admin.notifications.pending');
+    
+    // Tax Settings routes
+    Route::get('/admin/tax-settings', [\App\Http\Controllers\Admin\TaxSettingController::class, 'index'])->name('admin.tax-settings.index');
+    Route::patch('/admin/tax-settings/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingController::class, 'update'])->name('admin.tax-settings.update');
+    Route::post('/admin/tax-settings/{taxSetting}/toggle-status', [\App\Http\Controllers\Admin\TaxSettingController::class, 'toggleStatus'])->name('admin.tax-settings.toggle-status');
+    Route::get('/admin/api/tax-settings/active', [\App\Http\Controllers\Admin\TaxSettingController::class, 'getActiveTaxes'])->name('admin.tax-settings.active');
     
     // Offline Payment Methods Management
     Route::post('/admin/offline-payment-methods', [AdminSiteConfigController::class, 'storeOfflinePaymentMethod'])->name('admin.offline-payment-methods.store');
@@ -174,7 +215,14 @@ Route::middleware(['auth', 'verified',])->group(function () {
     // Route::get('/user-dashboard', fn() => Inertia::render('user/dashboard'))->name('user.dashboard');
     
     // Checkout
-    Route::get('/checkout', fn() => Inertia::render('checkout/show'))->name('checkout');
+    Route::get('/checkout', function() {
+        $taxService = app(\App\Services\TaxService::class);
+        $activeTaxes = $taxService->getActiveTaxSettings();
+        
+        return Inertia::render('checkout/show', [
+            'activeTaxes' => $activeTaxes
+        ]);
+    })->name('checkout');
     
     // User-specific pages
     Route::get('/user-wishlist', [WishlistController::class, 'index'])->name('user.wishlist');

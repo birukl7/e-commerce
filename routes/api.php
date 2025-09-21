@@ -10,19 +10,37 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 
-// Move specific routes BEFORE the resource route
-Route::get('categories/tree', [CategoryController::class, 'tree']);
-Route::get('categories/featured', [CategoryController::class, 'featured']);
-Route::get('categories/trending', [CategoryController::class, 'trending']);
-Route::get('categories/showcase', [CategoryController::class, 'showcase']); // Move this up
+// Category API routes with 'api.' prefix
+Route::prefix('categories')->name('api.categories.')->group(function () {
+    Route::get('tree', [CategoryController::class, 'tree'])->name('tree');
+    Route::get('featured', [CategoryController::class, 'featured'])->name('featured');
+    Route::get('trending', [CategoryController::class, 'trending'])->name('trending');
+    Route::get('showcase', [CategoryController::class, 'showcase'])->name('showcase');
+    
+    // Resource routes
+    Route::get('/', [CategoryController::class, 'index'])->name('index');
+    Route::post('/', [CategoryController::class, 'store'])->name('store');
+    Route::get('/create', [CategoryController::class, 'create'])->name('create');
+    Route::get('/{category}', [CategoryController::class, 'show'])->name('show');
+    Route::put('/{category}', [CategoryController::class, 'update'])->name('update');
+    Route::delete('/{category}', [CategoryController::class, 'destroy'])->name('destroy');
+    Route::get('/{category}/edit', [CategoryController::class, 'edit'])->name('edit');
+});
 
-// Resource route should come AFTER specific routes
-Route::resource('categories', CategoryController::class);
-
-// Products routes
-Route::get('products/showcase', [ProductController::class, 'showcase']);
-Route::get('products/featured', [ProductController::class, 'featured']);
-Route::resource('products', ProductController::class);
+// Product API routes with 'api.' prefix
+Route::prefix('products')->name('api.products.')->group(function () {
+    Route::get('showcase', [ProductController::class, 'showcase'])->name('showcase');
+    Route::get('featured', [ProductController::class, 'featured'])->name('featured');
+    
+    // Resource routes
+    Route::get('/', [ProductController::class, 'index'])->name('index');
+    Route::post('/', [ProductController::class, 'store'])->name('store');
+    Route::get('/create', [ProductController::class, 'create'])->name('create');
+    Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+    Route::put('/{product}', [ProductController::class, 'update'])->name('update');
+    Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
+    Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
+});
 
 
 

@@ -14,6 +14,7 @@ use App\Models\OrderItem;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Facades\Storage;
 use App\Services\PaymentFinalizer;
+use App\Services\TaxService;
 
 class PaymentController extends Controller
 {
@@ -21,6 +22,7 @@ class PaymentController extends Controller
     private $chapaPublicKey;
     private $chapaBaseUrl;
     private PaymentFinalizer $paymentFinalizer;
+    private TaxService $taxService;
 
     public function __construct()
     {
@@ -28,6 +30,7 @@ class PaymentController extends Controller
         $this->chapaPublicKey = config('services.chapa.public_key');
         $this->chapaBaseUrl = config('services.chapa.base_url', 'https://api.chapa.co/v1');
         $this->paymentFinalizer = app(PaymentFinalizer::class);
+        $this->taxService = app(TaxService::class);
     }
 
     public function selectMethod(Request $request)
@@ -957,7 +960,10 @@ class PaymentController extends Controller
         }
 
         try {
-            // Create the order
+            // Calculate taxes for the order
+            $taxCalculation = $this->taxService->calculateTaxes($amount);
+            
+            // Create the order with tax calculations
             $order = Order::create([
                 'order_number' => $orderId,
                 'user_id' => $user->id,
@@ -966,10 +972,10 @@ class PaymentController extends Controller
                 'payment_method' => 'pending', // Will be updated when payment is processed
                 'currency' => $currency,
                 'subtotal' => $amount,
-                'tax_amount' => 0,
+                'tax_amount' => $taxCalculation['total_tax_amount'],
                 'shipping_amount' => 0,
                 'discount_amount' => 0,
-                'total_amount' => $amount,
+                'total_amount' => $taxCalculation['total'],
                 'shipping_method' => 'standard',
             ]);
 
@@ -1873,4 +1879,5 @@ class PaymentController extends Controller
             return [];
         }
     }
+
 }

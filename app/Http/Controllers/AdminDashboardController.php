@@ -13,6 +13,8 @@ use App\Models\Order; // Assuming Order model for total orders
 use App\Models\OrderItem; // Assuming OrderItem model for top selling products
 use App\Models\Category; // Assuming Category model for sales by category
 use App\Models\ProductRequest; // Assuming ProductRequest model for summary
+use App\Models\TaxSetting; // For tax settings
+use App\Models\OutOfStockNotification; // For stock notifications
 
 class AdminDashboardController extends Controller
 {
@@ -159,6 +161,23 @@ class AdminDashboardController extends Controller
                                 ->sum('amount'),
         ];
 
+        // Tax Settings Statistics
+        $taxStats = [
+            'total_tax_settings' => TaxSetting::count(),
+            'active_tax_settings' => TaxSetting::where('is_active', true)->count(),
+            'total_tax_revenue' => PaymentTransaction::where('payment_transactions.status', 'completed')
+                ->join('orders', 'payment_transactions.order_id', '=', 'orders.id')
+                ->sum('orders.tax_amount'),
+        ];
+
+        // Stock Notification Statistics
+        $stockNotificationStats = [
+            'total_notifications' => OutOfStockNotification::count(),
+            'pending_notifications' => OutOfStockNotification::where('is_notified', false)->count(),
+            'notified_count' => OutOfStockNotification::where('is_notified', true)->count(),
+            'products_with_notifications' => OutOfStockNotification::distinct('product_id')->count(),
+        ];
+
 
         return Inertia::render('admin/dashboard', [
             'stats' => [
@@ -176,7 +195,9 @@ class AdminDashboardController extends Controller
             'customerRegistrationTrends' => $customerRegistrationTrends,
             'payments' => $payments, // Pass paginated payments
             'paymentStats' => $paymentStats, // Pass payment summary stats
-            'paymentFilters' => $request->only(['payment_search', 'payment_status', 'payment_method', 'payment_date_from', 'payment_date_to']) // Pass filters
+            'paymentFilters' => $request->only(['payment_search', 'payment_status', 'payment_method', 'payment_date_from', 'payment_date_to']), // Pass filters
+            'taxStats' => $taxStats, // Pass tax statistics
+            'stockNotificationStats' => $stockNotificationStats, // Pass stock notification statistics
         ]);
     }
 }

@@ -5,6 +5,11 @@ namespace App\Providers;
 use App\Services\SiteConfigService;
 use App\Services\AdminMenuService;
 use App\Services\NotificationService;
+use App\Models\OutOfStockNotification;
+use App\Models\TaxSetting;
+use App\Policies\OutOfStockNotificationPolicy;
+use App\Policies\TaxSettingPolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -29,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Register policies
+        Gate::policy(OutOfStockNotification::class, OutOfStockNotificationPolicy::class);
+        Gate::policy(TaxSetting::class, TaxSettingPolicy::class);
     }
 }

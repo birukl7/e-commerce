@@ -16,11 +16,19 @@ export interface NavGroup {
     items: NavItem[];
 }
 
+interface NavTab {
+    title: string;
+    href: string;
+    icon?: string;
+}
+
 export interface NavItem {
     title: string;
     href: string;
-    icon?: LucideIcon | null;
+    icon?: LucideIcon | string | null;
     isActive?: boolean;
+    children?: NavItem[];
+    tabs?: NavTab[];
 }
 
 export interface SharedData {

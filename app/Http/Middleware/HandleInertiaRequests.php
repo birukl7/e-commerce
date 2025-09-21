@@ -68,12 +68,22 @@ class HandleInertiaRequests extends Middleware
 
     private function isAdminRoute(Request $request): bool
     {
-        $isAdmin = str_starts_with($request->path(), 'admin') || 
-               str_starts_with($request->path(), 'admin-dashboard') ||
-               str_starts_with($request->path(), 'paymentStats') ||
-               str_starts_with($request->path(), 'site-config');
+        $adminPaths = [
+            'admin',
+            'admin-dashboard',
+            'paymentStats',
+            'site-config',
+            'tax-settings',
+            'stock-notifications'
+        ];
+
+        $path = $request->path();
+        $isAdmin = collect($adminPaths)->contains(function($adminPath) use ($path) {
+            return str_starts_with($path, $adminPath);
+        });
+        
         \Log::debug('HandleInertiaRequests::isAdminRoute', [
-            'path' => $request->path(),
+            'path' => $path,
             'is_admin' => $isAdmin,
         ]);
         return $isAdmin;

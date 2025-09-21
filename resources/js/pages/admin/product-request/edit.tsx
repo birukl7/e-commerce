@@ -56,11 +56,11 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
         { title: 'Edit Request', href: '/admin/product-requests/edit' },
     ];
 
-    return (
+return (
         <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title={`Update Request: ${product_request.product_name}`} />
 
-            <div className=" mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
                 <Link href={`/admin/product-requests/${product_request.id}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:underline">
                     <ArrowLeft className="h-4 w-4" />
                     Back to request details
