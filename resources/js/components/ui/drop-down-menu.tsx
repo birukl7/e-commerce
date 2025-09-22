@@ -12,9 +12,36 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Loader2, Menu } from "lucide-react"
-import type React from "react"
-import { useEffect, useRef, useState } from "react"
-import { CustomLink } from "../link"
+import React, { useRef, useEffect, useState, ErrorInfo } from "react"
+import { Link } from "@inertiajs/react"
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-2 text-red-500 text-sm">
+          Something went wrong. Please try again later.
+          {this.state.error && <div className="text-xs mt-1">{this.state.error.message}</div>}
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 
 interface Category {
@@ -34,7 +61,7 @@ interface CategoryDropdownProps {
   onCategorySelect?: (category: Category) => void
 }
 
-export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
+function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -192,12 +219,11 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
             {categories.map((category) => (
               <div key={category.id}>
                 {category.children && category.children.length > 0 ? (
-                  <DropdownMenuSub>
+                  <DropdownMenuSub key={`sub-${category.id}`}>
                     <DropdownMenuSubTrigger className="flex items-center space-x-3">
-                      <CustomLink
-                        href={route("categories.show", { slug: category.slug })}
-                        className="flex items-center space-x-3 w-full h-auto p-0"
-                        variant="ghost"
+                      <Link
+                        href={`/categories/${category.slug}`}
+                        className="flex items-center space-x-3 w-full h-auto p-0 hover:bg-transparent"
                         onClick={() => onCategorySelect?.(category)}
                       >
                         <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
@@ -214,7 +240,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                           <span className="font-medium">{category.name}</span>
                           <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
                         </div>
-                      </CustomLink>
+                      </Link>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent
@@ -224,10 +250,9 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                       >
                         {category.children.map((child) => (
                           <DropdownMenuItem key={child.id} className="flex items-center space-x-3 cursor-pointer">
-                            <CustomLink
-                              href={route("categories.show", { slug: child.slug })}
-                              className="flex items-center space-x-3 w-full h-auto p-0"
-                              variant="ghost"
+                            <Link
+                              href={`/categories/${child.slug}`}
+                              className="flex items-center space-x-3 w-full h-auto p-0 hover:bg-transparent"
                               onClick={() => onCategorySelect?.(child)}
                             >
                               <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100">
@@ -244,7 +269,7 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                                 <span className="font-medium">{child.name}</span>
                                 <span className="text-xs text-gray-500">{child.product_count || 0} products</span>
                               </div>
-                            </CustomLink>
+                            </Link>
                           </DropdownMenuItem>
                         ))}
                       </DropdownMenuSubContent>
@@ -252,10 +277,9 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                   </DropdownMenuSub>
                 ) : (
                   <DropdownMenuItem className="flex items-center space-x-3 cursor-pointer">
-                    <CustomLink
-                      href={route("categories.show", { slug: category.slug })}
-                      className="flex items-center space-x-3 w-full h-auto p-0"
-                      variant="ghost"
+                    <Link
+                      href={`/categories/${category.slug}`}
+                      className="flex items-center space-x-3 w-full h-auto p-0 hover:bg-transparent"
                       onClick={() => onCategorySelect?.(category)}
                     >
                       <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100">
@@ -272,14 +296,14 @@ export function CategoryDropdown({ onCategorySelect }: CategoryDropdownProps) {
                         <span className="font-medium">{category.name}</span>
                         <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
                       </div>
-                    </CustomLink>
+                    </Link>
                   </DropdownMenuItem>
                 )}
               </div>
             ))}
-            <CustomLink className="mx-auto my-2" href={route("request.index")}>
+            <Link href="/request" className="mx-auto my-2 block text-center">
               Request
-            </CustomLink>
+            </Link>
           </DropdownMenuGroup>
           </>
         )}

@@ -115,14 +115,14 @@ class AdminMenuService
             foreach ($groupItems as $item) {
                 // Add the parent item
                 $flatItem = $item;
-                // Remove children for the flat list to avoid duplication
-                unset($flatItem['children']);
+                // Remove tabs for the flat list to avoid duplication
+                unset($flatItem['tabs']);
                 $flatItems[] = $flatItem;
                 
-                // Add children if they exist
-                if (isset($item['children']) && is_array($item['children'])) {
-                    foreach ($item['children'] as $child) {
-                        $flatItems[] = $child;
+                // Add tab items if they exist
+                if (isset($item['tabs']) && is_array($item['tabs'])) {
+                    foreach ($item['tabs'] as $tab) {
+                        $flatItems[] = $tab;
                     }
                 }
             }

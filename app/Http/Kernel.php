@@ -67,7 +67,8 @@ class Kernel extends HttpKernel
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
         'admin' => \App\Http\Middleware\EnsureUserHasAdminAccess::class,
         'secure.admin' => \App\Http\Middleware\SecureAdminAccess::class,
-        'secure_admin' => \App\Http\Middleware\SecureAdminAccess::class, // Alias with underscore for route compatibility
+        'secure_admin' => \App\Http\Middleware\SecureAdminAccess::class,
         'validate.admin.session' => \App\Http\Middleware\ValidateAdminSession::class,
+        'validate_admin_session' => \App\Http\Middleware\ValidateAdminSession::class,
     ];
 }

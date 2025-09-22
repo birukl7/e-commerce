@@ -48,18 +48,39 @@ Route::controller(SocialiteController::class)->group(function() {
 
 
 Route::get('/', function () {
-    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
-    return Inertia::render('welcome', ['settings' => $settings]);
+    $settings = [
+        'site_name' => config('app.name'),
+        'banner_main_title' => 'Welcome to ' . config('app.name'),
+        'banner_main_subtitle' => 'Discover amazing products at great prices',
+        'footer_content' => '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.',
+        'banner_main_button_text' => 'Shop Now',
+        'banner_main_button_link' => '/products',
+        'banner_main_image' => '/image/image-3.jpg',
+        'banner_secondary_title' => 'New Arrivals',
+        'banner_secondary_button_text' => 'View Collection',
+        'banner_secondary_button_link' => '/new-arrivals',
+        'banner_secondary_image' => '/image/image-4.jpg'
+    ];
+    
+    return Inertia::render('welcome', [
+        'settings' => $settings
+    ]);
 })->name('home');
 
 // Legal pages
 Route::get('/terms', function () {
-    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
+    $settings = [
+        'site_name' => config('app.name'),
+        'terms_content' => config('site.terms_content', 'Terms and conditions content goes here.')
+    ];
     return Inertia::render('terms', ['settings' => $settings]);
 })->name('terms');
 
 Route::get('/privacy', function () {
-    $settings = App\Http\Controllers\AdminSiteConfigController::getAllSettings();
+    $settings = [
+        'site_name' => config('app.name'),
+        'privacy_policy_content' => config('site.privacy_policy_content', 'Privacy policy content goes here.')
+    ];
     return Inertia::render('privacy', ['settings' => $settings]);
 })->name('privacy');
 
@@ -207,7 +228,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('product-requests.payment.failure');
 });
 
-Route::middleware(['auth', 'verified',])->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
     // Main dashboard
     Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
    
@@ -231,7 +252,6 @@ Route::middleware(['auth', 'verified',])->group(function () {
     Route::get('/contact', fn() => Inertia::render('user/orders'))->name('contact'); 
 
     // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
-    // Add these routes to your web.php file in the authenticated middleware group
 
     // Individual order details and tracking
     Route::get('/user/orders/{order}', [UserDashboardController::class, 'showOrder'])->name('user.orders.show');
@@ -276,14 +296,18 @@ Route::middleware(['auth', 'verified',])->group(function () {
         
         // Generic success/failed pages
         Route::get('/success', [PaymentController::class, 'paymentSuccess'])->name('payment.success');
-        Route::get('/failed', [PaymentController::class, 'paymentFailed'])->name('payment.failed');
-    }); 
+    });
+
+    // Payment failure route
+    Route::get('/payment/failed', [PaymentController::class, 'paymentFailed'])->name('payment.failed');
+    
     // Wishlist AJAX routes
     Route::post('/wishlist/toggle', [WishlistController::class, 'toggle'])->name('wishlist.toggle');
     Route::post('/wishlist/add', [WishlistController::class, 'store'])->name('wishlist.store');
     Route::delete('/wishlist/remove', [WishlistController::class, 'destroy'])->name('wishlist.destroy');
     Route::get('/wishlist/check', [WishlistController::class, 'check'])->name('wishlist.check');
 
+    // Review routes
     // Review routes
     Route::post('/reviews', [ReviewController::class, 'store'])->name('reviews.store');
     Route::post('/reviews/{review}/helpful', [ReviewController::class, 'toggleHelpful'])->name('reviews.helpful');

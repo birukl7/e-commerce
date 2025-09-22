@@ -69,7 +69,7 @@ class StockNotificationController extends Controller
         // Get products with pending notifications
         $productsWithPendingNotifications = $this->stockNotificationService->getProductsWithPendingNotifications();
 
-        return Inertia::render('Admin/StockNotifications/Index', [
+        return Inertia::render('admin/stock-notifications/index', [
             'notifications' => $notifications,
             'stats' => $stats,
             'productsWithPendingNotifications' => $productsWithPendingNotifications,
@@ -90,7 +90,7 @@ class StockNotificationController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate(10);
 
-        return Inertia::render('Admin/StockNotifications/ProductStats', [
+        return Inertia::render('admin/stock-notifications/product-stats', [
             'product' => $product,
             'stats' => $stats,
             'notifications' => $notifications,

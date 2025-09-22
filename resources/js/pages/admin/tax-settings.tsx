@@ -27,85 +27,110 @@ const TaxSettings = () => {
         [key: string]: any;
     }
     
-    const { taxSettings: initialTaxSettings } = usePage<PageProps>().props;
+    const { taxSettings: initialTaxSettings = [] } = usePage<PageProps>().props;
     const [taxSettings, setTaxSettings] = useState<TaxSetting[]>(initialTaxSettings);
     const [isSaving, setIsSaving] = useState<Record<number, boolean>>({});
 
     const updateTaxSetting = async (id: number, field: string, value: any) => {
+        // Optimistically update the UI
+        setTaxSettings(prevSettings => 
+            prevSettings.map(setting => 
+                setting.id === id 
+                    ? { ...setting, [field]: value } 
+                    : setting
+            )
+        );
+        
+        setIsSaving(prev => ({ ...prev, [id]: true }));
+        
         try {
-            setIsSaving(prev => ({ ...prev, [id]: true }));
-            
-            await router.patch(route('admin.tax-settings.update', id), {
-                [field]: value,
-                _method: 'PATCH'
-            }, {
-                preserveScroll: true,
-                preserveState: true,
-                onSuccess: (page: any) => {
-                    // Update the tax settings with the new data
-                    const pageProps = page?.props || {};
-                    const taxSettings = Array.isArray(pageProps.taxSettings) ? pageProps.taxSettings : [];
-                    const updatedTax = taxSettings.find((t: TaxSetting) => t.id === id) || 
-                                    pageProps.data || 
-                                    { id, [field]: value };
-                    
-                    setTaxSettings(prev => 
-                        prev.map(tax => 
-                            tax.id === id ? { ...tax, ...updatedTax } : tax
-                        )
-                    );
-                    
-                    const message = pageProps.message || 'Tax setting updated successfully';
-                    toast.success(message as string);
-                },
-                onError: (errors) => {
-                    console.error('Update error:', errors);
-                    const errorMessage = errors?.message || 'Failed to update tax setting';
-                    toast.error(errorMessage);
-                },
-                onFinish: () => {
-                    setIsSaving(prev => ({ ...prev, [id]: false }));
+            await router.patch(
+                route('admin.tax-settings.update', id), 
+                { [field]: value, _method: 'PATCH' },
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        toast.success('Tax setting updated successfully');
+                    },
+                    onError: (errors: any) => {
+                        console.error('Error updating tax setting:', errors);
+                        toast.error('Failed to update tax setting');
+                        // Revert optimistic update on error
+                        setTaxSettings(initialTaxSettings);
+                    },
+                    onFinish: () => {
+                        setIsSaving(prev => ({
+                            ...prev,
+                            [id]: false
+                        }));
+                    }
                 }
-            });
+            );
         } catch (error) {
-            console.error('Error updating tax setting:', error);
-            toast.error('An error occurred while updating tax setting');
+            console.error('Error in updateTaxSetting:', error);
+            toast.error('An error occurred while updating the tax setting');
+            setTaxSettings(initialTaxSettings);
             setIsSaving(prev => ({ ...prev, [id]: false }));
         }
     };
 
     const toggleStatus = async (tax: TaxSetting) => {
+        const originalStatus = tax.is_active;
+        
+        // Optimistically update the UI
+        setTaxSettings(prevSettings => 
+            prevSettings.map(setting => 
+                setting.id === tax.id 
+                    ? { ...setting, is_active: !originalStatus } 
+                    : setting
+            )
+        );
+        
+        setIsSaving(prev => ({ ...prev, [tax.id]: true }));
+        
         try {
             await router.post(
                 route('admin.tax-settings.toggle-status', tax.id),
                 { _method: 'POST' },
                 {
                     preserveScroll: true,
-                    preserveState: true,
-                    onSuccess: (response: any) => {
-                        const pageProps = response?.props || {};
-                        const updatedTax = pageProps.data || { ...tax, is_active: !tax.is_active };
-                        
-                        setTaxSettings(prev =>
-                            prev.map(t =>
-                                t.id === tax.id ? { ...t, ...updatedTax } : t
-                            )
-                        );
-                        
-                        const message = pageProps.message || 
-                                     `${tax.name} is now ${!tax.is_active ? 'active' : 'inactive'}`;
-                        toast.success(message as string);
+                    onSuccess: () => {
+                        const message = `${tax.name} is now ${!originalStatus ? 'active' : 'inactive'}`;
+                        toast.success(message);
                     },
                     onError: (errors: any) => {
-                        console.error('Toggle status error:', errors);
+                        console.error('Error toggling tax status:', errors);
                         const errorMessage = errors?.message || 'Failed to update tax status';
                         toast.error(errorMessage);
+                        // Revert optimistic update on error
+                        setTaxSettings(prevSettings => 
+                            prevSettings.map(setting => 
+                                setting.id === tax.id 
+                                    ? { ...setting, is_active: originalStatus } 
+                                    : setting
+                            )
+                        );
+                    },
+                    onFinish: () => {
+                        setIsSaving(prev => ({
+                            ...prev,
+                            [tax.id]: false
+                        }));
                     }
                 }
             );
         } catch (error) {
-            console.error('Error toggling tax status:', error);
+            console.error('Error in toggleStatus:', error);
             toast.error('An error occurred while updating tax status');
+            // Revert optimistic update on error
+            setTaxSettings(prevSettings => 
+                prevSettings.map(setting => 
+                    setting.id === tax.id 
+                        ? { ...setting, is_active: originalStatus } 
+                        : setting
+                )
+            );
+            setIsSaving(prev => ({ ...prev, [tax.id]: false }));
         }
     };
 

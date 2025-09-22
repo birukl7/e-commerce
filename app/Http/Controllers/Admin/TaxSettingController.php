@@ -22,7 +22,7 @@ class TaxSettingController extends Controller
         
         $taxSettings = TaxSetting::all();
         
-        return Inertia::render('Admin/Tax/Index', [
+        return Inertia::render('admin/tax-settings', [
             'taxSettings' => $taxSettings,
         ]);
     }
