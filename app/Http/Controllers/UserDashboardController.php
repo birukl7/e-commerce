@@ -455,9 +455,23 @@ class UserDashboardController extends Controller
             }
         }
 
+        // Detailed tax breakdown for user view
+        $taxBreakdown = [];
+        try {
+            $taxService = app(\App\Services\TaxService::class);
+            $calc = $taxService->calculateTaxes((float) $firstOrder->subtotal);
+            $taxBreakdown = $calc['taxes'] ?? [];
+        } catch (\Throwable $e) {
+            \Log::warning('Failed to compute tax breakdown for user order', [
+                'order_id' => $firstOrder->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return Inertia::render('user/order-details', [
             'order' => $orderDetails,
             'timeline' => $timeline,
+            'taxBreakdown' => $taxBreakdown,
         ]);
     }
 

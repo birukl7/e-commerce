@@ -109,7 +109,7 @@ export const adminNavItems: NavItem[] = [
     { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
     { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { title: 'Tax Settings', href: '/tax-settings', icon: DollarSign },
+    { title: 'Tax Settings', href: route('admin.tax.settings.index'), icon: DollarSign },
     { title: 'Stock Notifications', href: '/admin/stock-notifications', icon: AlertTriangle },
     { title: 'Site Configuration', href: '/site-config', icon: Settings },
 ];
@@ -501,7 +501,7 @@ const AdminDashboard = ({
                     <CardContent>
                         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                             <Link
-                                href={route('admin.tax-settings.index')}
+                                href={route('admin.tax.settings.index')}
                                 className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
                             >
                                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">

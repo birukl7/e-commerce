@@ -38,9 +38,10 @@ interface Order {
 
 interface OrderDetailsProps {
     order: Order;
+    taxBreakdown?: Array<{ id: number; name: string; type: 'percentage' | 'fixed'; rate: number; amount: number; formatted_rate: string; description?: string }>;
 }
 
-export default function OrderDetails({ order }: OrderDetailsProps) {
+export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsProps) {
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -51,12 +52,15 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
     };
 
     const formatDate = (dateString: string) => {
-        return new Intl.DateTimeFormat('en-US', {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        return new Intl.DateTimeFormat(undefined, {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
+            hour12: true,
+            timeZone: tz,
         }).format(new Date(dateString));
     };
 
@@ -187,6 +191,18 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                     <span>Subtotal:</span>
                                     <span>{formatPrice(order.subtotal)}</span>
                                 </div>
+                                {taxBreakdown && taxBreakdown.length > 0 && (
+                                    <div className="space-y-2">
+                                        <div className="border-t pt-2"></div>
+                                        <h4 className="text-sm font-medium text-gray-600">Taxes & Fees</h4>
+                                        {taxBreakdown.map((tax) => (
+                                            <div key={tax.id} className="flex justify-between text-sm">
+                                                <span>{tax.name} ({tax.formatted_rate})</span>
+                                                <span className="font-medium">{formatPrice(tax.amount)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                                 {order.tax_amount > 0 && (
                                     <div className="flex justify-between text-sm">
                                         <span>Tax:</span>

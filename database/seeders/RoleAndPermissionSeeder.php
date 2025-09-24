@@ -46,6 +46,20 @@ class RoleAndPermissionSeeder extends Seeder
             'edit brands',
             'delete brands',
             
+            // Tax Management
+            'manage tax settings',
+            'create tax settings',
+            'edit tax settings',
+            'delete tax settings',
+            'restore tax settings',
+            'force delete tax settings',
+            'reorder tax settings',
+            'manage tax classes',
+            'create tax classes',
+            'edit tax classes',
+            'delete tax classes',
+            'set default tax class',
+            
             // Order Management
             'view orders',
             'edit orders',

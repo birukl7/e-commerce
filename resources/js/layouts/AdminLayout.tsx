@@ -18,7 +18,7 @@ const defaultNavItems = [
     { title: 'Categories', href: '/admin/categories', icon: Tag },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { title: 'Customers', href: '/admin/customers', icon: Users },
-    { title: 'Tax Settings', href: '/admin/tax-settings', icon: Percent },
+    { title: 'Tax Settings', href: route('admin.tax.settings.index'), icon: Percent },
     { title: 'Settings', href: '/admin/settings', icon: SettingsIcon },
 ];
 

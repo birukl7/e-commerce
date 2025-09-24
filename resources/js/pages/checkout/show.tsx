@@ -1,13 +1,28 @@
 import { Button } from '@/components/ui/button';
 import { CartProvider, useCart } from '@/contexts/cart-context';
 import MainLayout from '@/layouts/app/main-layout';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
 import { useState } from 'react';
+import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import TaxBreakdown from '@/components/TaxBreakdown';
+
+type TaxSetting = {
+    id: number;
+    name: string;
+    type: 'percentage' | 'fixed';
+    rate: number;
+    formatted_rate: string;
+    description: string;
+};
 
 function CheckoutContent() {
     const { items, getTotalPrice, removeFromCart, updateQuantity, clearCart, getTotalItems } = useCart();
     const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+    const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
+
+    const subtotal = getTotalPrice();
+    const taxCalc = useTaxCalculation(subtotal, activeTaxes as TaxSetting[]);
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -35,7 +50,7 @@ function CheckoutContent() {
         try {
             // Prepare payment parameters
             const orderId = generateOrderId();
-            const amount = getTotalPrice();
+            const amount = taxCalc.total; // include taxes in amount
             const currency = 'ETB';
 
             // Prepare cart items data
@@ -160,7 +175,7 @@ function CheckoutContent() {
                             <div className="space-y-3 md:space-y-4">
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
                                     <span>Subtotal ({getTotalItems()} items)</span>
-                                    <span>{formatPrice(getTotalPrice())}</span>
+                                    <span>{formatPrice(subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
                                     <span>Shipping</span>
@@ -168,11 +183,11 @@ function CheckoutContent() {
                                 </div>
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
                                     <span>Tax</span>
-                                    <span>{formatPrice(0)}</span>
+                                    <span>{formatPrice(taxCalc.total_tax_amount)}</span>
                                 </div>
                                 <div className="flex justify-between border-t pt-4 text-lg font-bold md:text-xl">
                                     <span>Total</span>
-                                    <span>{formatPrice(getTotalPrice())}</span>
+                                    <span>{formatPrice(taxCalc.total)}</span>
                                 </div>
                             </div>
 
@@ -223,6 +238,13 @@ function CheckoutContent() {
                                     <Button variant="outline" onClick={() => setShowPaymentMethods(false)} className="w-full">
                                         Back
                                     </Button>
+                                </div>
+                            )}
+
+                            {/* Tax breakdown card for transparency */}
+                            {activeTaxes && activeTaxes.length > 0 && (
+                                <div className="mt-6">
+                                    <TaxBreakdown subtotal={subtotal} activeTaxes={activeTaxes as any} currency="ETB" />
                                 </div>
                             )}
                         </div>

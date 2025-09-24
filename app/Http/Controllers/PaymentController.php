@@ -46,12 +46,6 @@ class PaymentController extends Controller
                 return redirect()->route('checkout')->with('error', 'Invalid amount specified');
             }
 
-            // Create order when user proceeds to payment
-            $order = $this->createOrderFromCart($orderId, $amount, $currency);
-            if (!$order) {
-                return redirect()->route('checkout')->with('error', 'Failed to create order. Please try again.');
-            }
-
             return Inertia::render('admin/payment/select-method', [
                 'order_id' => $orderId,
                 'amount' => floatval($amount),
@@ -960,8 +954,27 @@ class PaymentController extends Controller
         }
 
         try {
-            // Calculate taxes for the order
-            $taxCalculation = $this->taxService->calculateTaxes($amount);
+            // Determine subtotal from cart items when available
+            $computedSubtotal = null;
+            if (is_array($cartItems) && count($cartItems) > 0) {
+                $computedSubtotal = 0.0;
+                foreach ($cartItems as $item) {
+                    if (!isset($item['price']) || !isset($item['quantity'])) {
+                        continue;
+                    }
+                    $price = is_numeric($item['price']) ? (float)$item['price'] : 0.0;
+                    $qty = is_numeric($item['quantity']) ? (int)$item['quantity'] : 0;
+                    if ($qty > 0 && $price >= 0) {
+                        $computedSubtotal += $price * $qty;
+                    }
+                }
+            }
+
+            // Fallback to provided amount if subtotal cannot be computed
+            $subtotalForTax = $computedSubtotal !== null ? $computedSubtotal : (float) $amount;
+
+            // Calculate taxes based on subtotal (pre-tax)
+            $taxCalculation = $this->taxService->calculateTaxes($subtotalForTax);
             
             // Create the order with tax calculations
             $order = Order::create([
@@ -971,7 +984,7 @@ class PaymentController extends Controller
                 'payment_status' => 'pending',
                 'payment_method' => 'pending', // Will be updated when payment is processed
                 'currency' => $currency,
-                'subtotal' => $amount,
+                'subtotal' => $subtotalForTax,
                 'tax_amount' => $taxCalculation['total_tax_amount'],
                 'shipping_amount' => 0,
                 'discount_amount' => 0,

@@ -13,7 +13,7 @@ import SearchBarAdvanced from "./header-search-bar-adv"
 import SearchBar from "./header-search-bar"
 import { CustomLink } from "./link"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { CategoryDropdown } from "./ui/drop-down-menu"
+import { CategoryDropdownContent as CategoryDropdown } from "./ui/drop-down-menu"
 
 const Header = () => {
   const { auth } = usePage<SharedData>().props

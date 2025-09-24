@@ -13,6 +13,7 @@ use App\Notifications\ProductOutOfStock;
 use App\Notifications\ProductLowStock;
 use App\Events\ProductStockUpdated;
 use App\Services\StockNotificationService;
+use App\Models\TaxSetting;
 
 class Product extends Model
 {
@@ -43,6 +44,7 @@ class Product extends Model
         'status',
         'meta_title',
         'meta_description',
+        'tax_setting_id',
     ];
 
     protected $casts = [
@@ -210,6 +212,14 @@ class Product extends Model
     public function brand()
     {
         return $this->belongsTo(Brand::class);
+    }
+    
+    /**
+     * Get the tax setting associated with the product.
+     */
+    public function taxSetting()
+    {
+        return $this->belongsTo(TaxSetting::class);
     }
 
     public function images()

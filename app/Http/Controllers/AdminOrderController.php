@@ -87,9 +87,24 @@ class AdminOrderController extends Controller
             'total_amount' => $order->total_amount,
         ];
 
+        // Detailed tax breakdown (recomputed based on current active taxes)
+        $taxBreakdown = [];
+        try {
+            $taxService = app(\App\Services\TaxService::class);
+            $calc = $taxService->calculateTaxes((float) $order->subtotal);
+            $taxBreakdown = $calc['taxes'] ?? [];
+        } catch (\Throwable $e) {
+            // Swallow errors to avoid breaking admin view
+            \Log::warning('Failed to compute tax breakdown for order', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         return Inertia::render('admin/order/show', [
             'order' => $order,
             'orderSummary' => $orderSummary,
+            'taxBreakdown' => $taxBreakdown,
         ]);
     }
 

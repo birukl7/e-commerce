@@ -76,9 +76,10 @@ interface OrderSummary {
 interface AdminOrderShowProps {
   order: Order
   orderSummary: OrderSummary
+  taxBreakdown?: Array<{ id: number; name: string; type: 'percentage' | 'fixed'; rate: number; amount: number; formatted_rate: string; description?: string }>
 }
 
-export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowProps) {
+export default function AdminOrderShow({ order, orderSummary, taxBreakdown = [] }: AdminOrderShowProps) {
   const [isEditing, setIsEditing] = useState(false)
 
   const { data, setData, put, processing, errors } = useForm({
@@ -123,6 +124,15 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
     return colors[status as keyof typeof colors] || "bg-gray-100 text-gray-800"
   }
 
+  const formatDateTimeLocal = (value: string | Date) => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric', month: 'short', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      timeZone: tz,
+    }).format(new Date(value))
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     put(`/admin/orders/${order.id}`, {
@@ -153,10 +163,7 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
             </Button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-foreground">Order #{order.order_number}</h1>
-              <p className="text-muted-foreground">
-                Placed on {new Date(order.created_at).toLocaleDateString()} at{" "}
-                {new Date(order.created_at).toLocaleTimeString()}
-              </p>
+              <p className="text-muted-foreground">Placed on {formatDateTimeLocal(order.created_at)}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -166,7 +173,7 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {/* Order Details */}
+            {/* Order Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Order Items */}
             <Card>
@@ -299,7 +306,7 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
                     <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                     <div>
                       <p className="font-medium">Order Placed</p>
-                      <p className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleString()}</p>
+                      <p className="text-sm text-muted-foreground">{formatDateTimeLocal(order.created_at)}</p>
                     </div>
                   </div>
                   {order.shipped_at && (
@@ -327,7 +334,8 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Order Summary */}
+            {/* Order Summary */
+            }
             <Card>
               <CardHeader>
                 <CardTitle>Order Summary</CardTitle>
@@ -337,6 +345,21 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
                   <span className="text-muted-foreground">Subtotal</span>
                   <span className="font-medium">{formatCurrency(orderSummary.subtotal)}</span>
                 </div>
+                {taxBreakdown && taxBreakdown.length > 0 && (
+                  <div className="space-y-2">
+                    <Separator />
+                    <h4 className="text-sm font-medium text-muted-foreground">Taxes & Fees</h4>
+                    {taxBreakdown.map(tax => (
+                      <div key={tax.id} className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span>{tax.name}</span>
+                          <Badge variant="outline" className="text-xs">{tax.formatted_rate}</Badge>
+                        </div>
+                        <span className="font-medium">{formatCurrency(tax.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Tax</span>
                   <span className="font-medium">{formatCurrency(orderSummary.tax_amount)}</span>
@@ -467,13 +490,13 @@ export default function AdminOrderShow({ order, orderSummary }: AdminOrderShowPr
                   {order.shipped_at && (
                     <div>
                       <p className="text-sm text-muted-foreground">Shipped Date</p>
-                      <p className="font-medium">{new Date(order.shipped_at).toLocaleDateString()}</p>
+                      <p className="font-medium">{order.shipped_at ? formatDateTimeLocal(order.shipped_at) : ''}</p>
                     </div>
                   )}
                   {order.delivered_at && (
                     <div>
                       <p className="text-sm text-muted-foreground">Delivered Date</p>
-                      <p className="font-medium">{new Date(order.delivered_at).toLocaleDateString()}</p>
+                      <p className="font-medium">{order.delivered_at ? formatDateTimeLocal(order.delivered_at) : ''}</p>
                     </div>
                   )}
                 </div>

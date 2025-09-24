@@ -12,7 +12,8 @@ import {
     ShoppingCart, 
     Settings, 
     FileImage,
-    BarChart3
+    BarChart3,
+    Percent
 } from 'lucide-react';
 
 // Icon mapping for backend menu items
@@ -27,6 +28,7 @@ const iconMap: Record<string, React.ComponentType> = {
     Settings,
     FileImage,
     BarChart3,
+    Percent,
 };
 
 interface NavItemWithChildren extends NavItem {

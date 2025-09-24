@@ -50,17 +50,14 @@ class AdminMenuService
             'Users' => [
                 ['title' => 'Suppliers and Customers', 'href' => '/admin/customers', 'icon' => 'Users'],
             ],
-            'Settings' => [
-                ['title' => 'Site Configuration', 'href' => '/admin/site-config', 'icon' => 'Settings'],
+            'Site Configuration' => [
+                ['title' => 'Site Configuration', 'href' => '/site-config', 'icon' => 'Settings']
+            ],
+            'Tax Settings' => [
                 [
-                    'title' => 'Tax & Financial', 
-                    'href' => '/admin/settings/tax', 
-                    'icon' => 'Percent',
-                    'tabs' => [
-                        ['title' => 'Tax Rates', 'href' => '/admin/settings/tax/rates', 'icon' => 'Percent'],
-                        ['title' => 'Tax Classes', 'href' => '/admin/settings/tax/classes', 'icon' => 'Layers'],
-                        ['title' => 'Tax Rules', 'href' => '/admin/settings/tax/rules', 'icon' => 'FileText']
-                    ]
+                    'title' => 'Tax Management', 
+                    'href' => route('admin.tax.settings.index'), 
+                    'icon' => 'Percent'
                 ]
             ]
         ];
@@ -119,12 +116,7 @@ class AdminMenuService
                 unset($flatItem['tabs']);
                 $flatItems[] = $flatItem;
                 
-                // Add tab items if they exist
-                if (isset($item['tabs']) && is_array($item['tabs'])) {
-                    foreach ($item['tabs'] as $tab) {
-                        $flatItems[] = $tab;
-                    }
-                }
+                // Do not add tabs to the flat list to avoid sidebar duplication
             }
         }
         

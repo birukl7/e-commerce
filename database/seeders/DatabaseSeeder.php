@@ -27,6 +27,8 @@ class DatabaseSeeder extends Seeder
             ProductImageSeeder::class,
             UserSeeder::class,
             OfflinePaymentMethodSeeder::class,
+            TaxClassSeeder::class,
+            TaxSettingSeeder::class,
         ]);
 
         $user = User::factory()->create([

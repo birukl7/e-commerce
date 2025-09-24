@@ -73,7 +73,7 @@ class HandleInertiaRequests extends Middleware
             'admin-dashboard',
             'paymentStats',
             'site-config',
-            'tax-settings',
+            'admin/tax',
             'stock-notifications'
         ];
 

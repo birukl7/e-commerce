@@ -24,6 +24,8 @@ use App\Http\Controllers\AdminOrderController;
 use App\Http\Controllers\AdminSiteConfigController;
 use App\Http\Controllers\Admin\TaxSettingController;
 use App\Http\Controllers\Admin\StockNotificationController;
+use App\Http\Controllers\Admin\AdminTaxController;
+use App\Http\Controllers\Admin\AdminStockController;
 use App\Http\Controllers\OutOfStockNotificationController;
 // use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
@@ -179,21 +181,73 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
     
     // Stock Management
+    Route::get('/admin/stock-notifications', [StockNotificationController::class, 'index'])->name('admin.stock-notifications.index');
     Route::get('/admin/products/stock', [StockNotificationController::class, 'index'])->name('admin.products.stock.index');
     Route::delete('/admin/stock-notifications/{notification}', [StockNotificationController::class, 'destroy'])->name('admin.stock-notifications.destroy');
     Route::post('/admin/stock-notifications/products/{product}/trigger', [StockNotificationController::class, 'triggerNotifications'])->name('admin.stock-notifications.trigger');
-    Route::delete('/admin/stock-notifications/{notification}', [StockNotificationController::class, 'destroy'])->name('admin.stock-notifications.destroy');
     Route::post('/admin/stock-notifications/bulk-delete', [StockNotificationController::class, 'bulkDelete'])->name('admin.stock-notifications.bulk-delete');
     
     // Out of stock notification admin routes
     Route::get('/api/products/{product}/notifications/stats', [OutOfStockNotificationController::class, 'getStats'])->name('admin.products.notifications.stats');
     Route::get('/api/notifications/pending', [OutOfStockNotificationController::class, 'getProductsWithPendingNotifications'])->name('admin.notifications.pending');
     
-    // Tax Settings routes
-    Route::get('/admin/tax-settings', [\App\Http\Controllers\Admin\TaxSettingController::class, 'index'])->name('admin.tax-settings.index');
-    Route::patch('/admin/tax-settings/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingController::class, 'update'])->name('admin.tax-settings.update');
-    Route::post('/admin/tax-settings/{taxSetting}/toggle-status', [\App\Http\Controllers\Admin\TaxSettingController::class, 'toggleStatus'])->name('admin.tax-settings.toggle-status');
-    Route::get('/admin/api/tax-settings/active', [\App\Http\Controllers\Admin\TaxSettingController::class, 'getActiveTaxes'])->name('admin.tax-settings.active');
+    // Tax Settings - Consolidated all tax-related routes under a single group
+    Route::prefix('admin/tax')->name('admin.tax.')->group(function () {
+        // Main tax settings page with tabs
+        Route::get('settings', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'index'])
+            ->name('settings.index');
+            
+        // Tab-specific routes
+        Route::get('settings/{tab}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'index'])
+            ->where('tab', 'classes|rates|settings')
+            ->name('settings.tab');
+        
+        // Tax Classes API endpoints
+        Route::post('classes', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'storeClass'])
+            ->name('classes.store');
+            
+        Route::put('classes/{taxClass}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateClass'])
+            ->name('classes.update');
+            
+        Route::delete('classes/{taxClass}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'destroyClass'])
+            ->name('classes.destroy');
+        
+        // Tax Rates API endpoints
+        Route::post('rates', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'storeRate'])
+            ->name('rates.store');
+            
+        Route::put('rates/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateRate'])
+            ->name('rates.update');
+            
+        Route::delete('rates/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'destroyRate'])
+            ->name('rates.destroy');
+            
+        Route::put('rates/{taxSetting}/toggle-status', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'toggleStatus'])
+            ->name('rates.toggle-status');
+            
+        // Tax Settings API endpoints
+        Route::put('settings/update', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateSettings'])
+            ->name('settings.update');
+            
+        // Tax calculation endpoints
+        Route::post('calculate-preview', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'calculatePreview'])
+            ->name('calculate-preview');
+            
+        // Active taxes API endpoint
+        Route::get('active', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'getActiveTaxes'])
+            ->name('active');
+            
+        // Set default tax class
+        Route::post('classes/{taxClass}/set-as-default', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'setAsDefault'])
+            ->name('classes.set-default');
+    });
+    
+    // Stock Management
+    Route::get('/admin/stock', [AdminStockController::class, 'dashboard'])->name('admin.stock.dashboard');
+    Route::put('/admin/stock/products/{product}', [AdminStockController::class, 'updateStock'])->name('admin.stock.products.update');
+    Route::get('/admin/stock/notifications', [AdminStockController::class, 'getNotifications'])->name('admin.stock.notifications.index');
+    Route::put('/admin/stock/notifications/{notification}/mark-notified', [AdminStockController::class, 'markNotified'])->name('admin.stock.notifications.mark-notified');
+    Route::get('/admin/stock/products/{product}/history', [AdminStockController::class, 'getStockHistory'])->name('admin.stock.products.history');
     
     // Offline Payment Methods Management
     Route::post('/admin/offline-payment-methods', [AdminSiteConfigController::class, 'storeOfflinePaymentMethod'])->name('admin.offline-payment-methods.store');

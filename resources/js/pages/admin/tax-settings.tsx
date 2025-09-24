@@ -45,7 +45,7 @@ const TaxSettings = () => {
         
         try {
             await router.patch(
-                route('admin.tax-settings.update', id), 
+                route('admin.tax.classes.update', id), 
                 { [field]: value, _method: 'PATCH' },
                 {
                     preserveScroll: true,
@@ -90,7 +90,7 @@ const TaxSettings = () => {
         
         try {
             await router.post(
-                route('admin.tax-settings.toggle-status', tax.id),
+                route('admin.tax.rates.toggle-status', tax.id),
                 { _method: 'POST' },
                 {
                     preserveScroll: true,

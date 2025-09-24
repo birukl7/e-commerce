@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\TaxClass;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -42,8 +41,7 @@ class TaxSetting extends Model
      */
     public function products()
     {
-        return $this->belongsToMany(Product::class, 'product_tax')
-            ->withTimestamps();
+        return $this->hasMany(Product::class);
     }
     
     protected static function booted()
@@ -51,8 +49,7 @@ class TaxSetting extends Model
         static::saving(function ($taxSetting) {
             // Ensure priority is set and is a positive integer
             if (empty($taxSetting->priority)) {
-                $maxPriority = static::max('priority');
-                $taxSetting->priority = $maxPriority ? $maxPriority + 1 : 1;
+                $taxSetting->priority = static::max('priority') + 1;
             }
         });
     }
@@ -163,9 +160,25 @@ class TaxSetting extends Model
             return ($amount * $this->rate) / 100;
         }
         
-        return (float) $this->rate; // Fixed amount
+        return $this->rate; // Fixed amount
     }
-
+    
+    /**
+     * Get the tax class that this rate belongs to.
+     */
+    public function taxClass()
+    {
+        return $this->belongsTo(TaxClass::class);
+    }
+    
+    /**
+     * Scope a query to only include rates for a specific tax class.
+     */
+    public function scopeForTaxClass($query, $taxClassId)
+    {
+        return $query->where('tax_class_id', $taxClassId);
+    }
+    
     /**
      * Get the display name with rate and location
      */
@@ -193,5 +206,14 @@ class TaxSetting extends Model
         }
         
         return 'ETB ' . number_format($this->rate, 2);
+    }
+    
+    /**
+     * Get all products that use this tax rate
+     */
+    public function products()
+    {
+        return $this->belongsToMany(Product::class, 'product_tax')
+            ->withTimestamps();
     }
 }
