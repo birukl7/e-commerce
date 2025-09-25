@@ -5,7 +5,6 @@ import { Link, usePage } from '@inertiajs/react';
 import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
-import TaxBreakdown from '@/components/TaxBreakdown';
 
 type TaxSetting = {
     id: number;
@@ -241,10 +240,12 @@ function CheckoutContent() {
                                 </div>
                             )}
 
-                            {/* Tax breakdown card for transparency */}
+                            {/* How tax is calculated - link */}
                             {activeTaxes && activeTaxes.length > 0 && (
-                                <div className="mt-6">
-                                    <TaxBreakdown subtotal={subtotal} activeTaxes={activeTaxes as any} currency="ETB" />
+                                <div className="mt-4 text-xs text-gray-500">
+                                    <Link className="underline hover:text-gray-700" href={route('tax.info')}>
+                                        How we calculate tax
+                                    </Link>
                                 </div>
                             )}
                         </div>

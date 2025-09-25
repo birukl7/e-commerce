@@ -86,6 +86,15 @@ Route::get('/privacy', function () {
     return Inertia::render('privacy', ['settings' => $settings]);
 })->name('privacy');
 
+// Public tax info page
+Route::get('/tax-info', function() {
+    $taxService = app(\App\Services\TaxService::class);
+    $activeTaxes = $taxService->getActiveTaxSettings();
+    return Inertia::render('tax/info', [
+        'activeTaxes' => $activeTaxes,
+    ]);
+})->name('tax.info');
+
 // Web category routes with 'web.' prefix
 Route::prefix('categories')->name('web.categories.')->group(function () {
     Route::get('/', [CategoryController::class, 'index'])->name('index');

@@ -191,22 +191,18 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                                     <span>Subtotal:</span>
                                     <span>{formatPrice(order.subtotal)}</span>
                                 </div>
-                                {taxBreakdown && taxBreakdown.length > 0 && (
-                                    <div className="space-y-2">
-                                        <div className="border-t pt-2"></div>
-                                        <h4 className="text-sm font-medium text-gray-600">Taxes & Fees</h4>
-                                        {taxBreakdown.map((tax) => (
-                                            <div key={tax.id} className="flex justify-between text-sm">
-                                                <span>{tax.name} ({tax.formatted_rate})</span>
-                                                <span className="font-medium">{formatPrice(tax.amount)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Show only total tax to customers; see breakdown link below */}
                                 {order.tax_amount > 0 && (
                                     <div className="flex justify-between text-sm">
                                         <span>Tax:</span>
                                         <span>{formatPrice(order.tax_amount)}</span>
+                                    </div>
+                                )}
+                                {order.tax_amount > 0 && (
+                                    <div className="text-xs text-gray-500">
+                                        <Link className="underline hover:text-gray-700" href={route('tax.info')}>
+                                            How we calculate tax
+                                        </Link>
                                     </div>
                                 )}
                                 {order.shipping_amount > 0 && (
