@@ -13,6 +13,7 @@ import Footer from "@/components/footer"
 
 interface WelcomeProps {
   settings?: Record<string, string>;
+  diagnostics?: { totalProducts: number | null; zeroStock: number | null };
 }
 
 function WelcomeContent({ settings }: WelcomeProps) {
@@ -65,12 +66,12 @@ function WelcomeContent({ settings }: WelcomeProps) {
   )
 }
 
-export default function Welcome({ settings }: WelcomeProps) {
+export default function Welcome({ settings, diagnostics }: WelcomeProps) {
   React.useEffect(() => {
     // type-safe check for Inertia to avoid TS errors at runtime
     const hasInertia = typeof (window as any).Inertia !== 'undefined'
 
-    console.log('[Welcome] Mounted with props:', settings)
+    console.log('[Welcome] Mounted with props:', { settings, diagnostics })
     console.log('[Welcome] document.readyState:', document.readyState)
     console.log('[Welcome] root element:', document.getElementById('app'))
     console.log('[Welcome] Inertia available:', hasInertia)
@@ -87,13 +88,17 @@ export default function Welcome({ settings }: WelcomeProps) {
   }, [])
 
   React.useEffect(() => {
-    console.log('[Welcome] Props updated:', settings)
-  }, [settings])
+    console.log('[Welcome] Props updated:', { settings, diagnostics })
+  }, [settings, diagnostics])
 
   try {
     return (
       <CartProvider>
         <div id="welcome-root" data-testid="welcome-root">
+          {/* Hidden debug snapshot for quick inspection if needed */}
+          <pre style={{ display: 'none' }} id="welcome-debug">
+            {JSON.stringify({ settings, diagnostics }, null, 2)}
+          </pre>
           <WelcomeContent settings={settings} />
         </div>
       </CartProvider>

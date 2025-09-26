@@ -369,18 +369,18 @@ class ProductController extends Controller
             $excludeCategoryIds = $excludeCategories ? explode(',', $excludeCategories) : [];
             
             $status = $request->get('status', 'published');
-            $stockStatus = $request->get('stock_status', 'in_stock');
 
+            // Prefer a simple, robust stock filter to avoid excluding low_stock items
             $query = Product::with(['images', 'category'])
                 ->where('status', $status)
-                ->where('stock_status', $stockStatus);
+                ->where('stock_quantity', '>', 0);
 
             // Exclude specific categories if provided
             if (!empty($excludeCategoryIds)) {
                 $query->whereNotIn('category_id', $excludeCategoryIds);
             }
 
-            // Get random protducts
+            // Get random products
             $products = $query->inRandomOrder()
                 ->limit($count)
                 ->get();
@@ -401,6 +401,11 @@ class ProductController extends Controller
                 unset($product->images);
             });
 
+            
+            \Log::info('Showcase API response', [
+                'count' => $products->count(),
+            ]);
+
             return response()->json([
                 'success' => true,
                 'data' => $products,
@@ -409,6 +414,7 @@ class ProductController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Showcase API failed', [ 'error' => $e->getMessage() ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve showcase products',
@@ -425,7 +431,7 @@ class ProductController extends Controller
             $products = Product::with(['images', 'category'])
                 ->where('status', 'published')
                 ->where('featured', true)
-                ->where('stock_status', 'in_stock')
+                ->where('stock_quantity', '>', 0)
                 ->inRandomOrder()
                 ->limit($count)
                 ->get();
@@ -436,6 +442,7 @@ class ProductController extends Controller
                 unset($product->images);
             });
 
+            \Log::info('Featured API response', [ 'count' => $products->count() ]);
             return response()->json([
                 'success' => true,
                 'data' => $products,
@@ -443,6 +450,7 @@ class ProductController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            \Log::error('Featured API failed', [ 'error' => $e->getMessage() ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to retrieve featured products',

@@ -13,7 +13,12 @@ import {
     Settings, 
     FileImage,
     BarChart3,
-    Percent
+    Percent,
+    PackageCheck,
+    AlertTriangle,
+    PackageMinus,
+    PackageX,
+    History
 } from 'lucide-react';
 
 // Icon mapping for backend menu items
@@ -29,6 +34,11 @@ const iconMap: Record<string, React.ComponentType> = {
     FileImage,
     BarChart3,
     Percent,
+    PackageCheck,
+    AlertTriangle,
+    PackageMinus,
+    PackageX,
+    History,
 };
 
 interface NavItemWithChildren extends NavItem {

@@ -24,6 +24,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 70.00,
                 "stock_quantity" => 50,
                 "manage_stock" => true,
+                "low_stock_threshold" => 10,
                 "stock_status" => "in_stock",
                 "category_id" => 5, 
                 "brand_id" => 1,
@@ -42,6 +43,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 60.00,
                 "stock_quantity" => 75,
                 "manage_stock" => true,
+                "low_stock_threshold" => 15,
                 "stock_status" => "in_stock",
                 "category_id" => 5, 
                 "brand_id" => 1, // Calvin Klein
@@ -60,6 +62,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 90.00,
                 "stock_quantity" => 40,
                 "manage_stock" => true,
+                "low_stock_threshold" => 5,
                 "stock_status" => "in_stock",
                 "category_id" => 3, 
                 "brand_id" => 2, // Under Armour
@@ -78,6 +81,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 25.00,
                 "stock_quantity" => 100,
                 "manage_stock" => true,
+                "low_stock_threshold" => 20,
                 "stock_status" => "in_stock",
                 "category_id" => 4, 
                 "brand_id" => 2, // Under Armour
@@ -96,6 +100,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 1500.00,
                 "stock_quantity" => 20,
                 "manage_stock" => true,
+                "low_stock_threshold" => 3,
                 "stock_status" => "in_stock",
                 "category_id" => 6, 
                 "brand_id" => 3, // Apple
@@ -222,6 +227,7 @@ class ProductSeeder extends Seeder
                 "cost_price" => 300.00,
                 "stock_quantity" => 40,
                 "manage_stock" => true,
+                "low_stock_threshold" => 5,
                 "stock_status" => "in_stock",
                 "category_id" => 7,
                 "brand_id" => 3, // Apple
@@ -232,8 +238,12 @@ class ProductSeeder extends Seeder
             ],
         ];
 
-        foreach ($products as $product) {
-            Product::create($product);
+        // Insert or update products based on SKU
+        foreach ($products as $productData) {
+            Product::updateOrCreate(
+                ['sku' => $productData['sku']],
+                $productData
+            );
         }
     }
 }

@@ -46,12 +46,15 @@ class AdminStockController extends Controller
             ->limit(10)
             ->get();
         
-        return Inertia::render('Admin/Stock/Index', [
-            'activeTab' => request()->get('tab', 'inventory'),
+        $activeTab = request()->string('tab', 'alerts')->toString();
+
+        return Inertia::render('admin/stock/index', [
+            'activeTab' => $activeTab,
             'tabs' => [
-                'inventory' => 'Inventory',
-                'notifications' => 'Stock Notifications',
-                'settings' => 'Stock Settings',
+                'alerts' => 'Stock Alerts',
+                'out_of_stock' => 'Out of Stock',
+                'low_stock' => 'Low Stock',
+                'history' => 'Stock History',
             ],
             'lowStockProducts' => $lowStockProducts,
             'outOfStockProducts' => $outOfStockProducts,

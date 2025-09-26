@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Services\StockService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Order extends Model
 {
@@ -67,13 +69,47 @@ class Order extends Model
         return $query->where('status', $status);
     }
 
-    // Boot method for auto-generating order number
+    // Boot method for auto-generating order number and handling stock
     protected static function boot()
     {
         parent::boot();
         
         static::creating(function ($order) {
             $order->order_number = 'ORD-' . strtoupper(uniqid());
+        });
+
+        // When order is created, decrease stock if payment is completed
+        static::created(function ($order) {
+            if ($order->payment_status === 'completed') {
+                try {
+                    app(StockService::class)->decreaseStockForOrder($order);
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrease stock for order: ' . $e->getMessage());
+                }
+            }
+        });
+
+        // When order payment status changes to completed, decrease stock
+        static::updated(function ($order) {
+            $stockService = app(StockService::class);
+            
+            // If payment was just completed
+            if ($order->wasChanged('payment_status') && $order->payment_status === 'completed') {
+                try {
+                    $stockService->decreaseStockForOrder($order);
+                } catch (\Exception $e) {
+                    Log::error('Failed to decrease stock for order: ' . $e->getMessage());
+                }
+            }
+            
+            // If order was cancelled or refunded, restore stock
+            if ($order->wasChanged('status') && in_array($order->status, ['cancelled', 'refunded'])) {
+                try {
+                    $stockService->restoreStockForOrder($order);
+                } catch (\Exception $e) {
+                    Log::error('Failed to restore stock for order: ' . $e->getMessage());
+                }
+            }
         });
     }
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Api\ProductController as ApiProductController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -36,7 +37,8 @@ Route::prefix('products')->name('api.products.')->group(function () {
     Route::get('/', [ProductController::class, 'index'])->name('index');
     Route::post('/', [ProductController::class, 'store'])->name('store');
     Route::get('/create', [ProductController::class, 'create'])->name('create');
-    Route::get('/{product}', [ProductController::class, 'show'])->name('show');
+    // Use API controller for JSON product details used by cart-context
+    Route::get('/{product}', [ApiProductController::class, 'show'])->name('show');
     Route::put('/{product}', [ProductController::class, 'update'])->name('update');
     Route::delete('/{product}', [ProductController::class, 'destroy'])->name('destroy');
     Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');

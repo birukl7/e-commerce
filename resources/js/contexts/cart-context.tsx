@@ -8,6 +8,9 @@ export interface CartItem {
   price: number
   image: string
   quantity: number
+  maxQuantity: number
+  stockStatus: 'in_stock' | 'out_of_stock' | 'low_stock'
+  manageStock: boolean
 }
 
 interface CartContextType {
@@ -46,25 +49,62 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [items])
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const addToCart = (product: any) => {
-    setItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.id === product.id)
-      if (existingItem) {
-        return prevItems.map((item) => (item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item))
+  // Add to cart with stock validation
+  const addToCart = async (product: any) => {
+    try {
+      // Fetch the latest product data including stock information
+      const response = await fetch(`/api/products/${product.id}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch product data')
       }
-      return [
-        ...prevItems,
-        {
-          id: product.id,
-          name: product.name,
-          price: product.current_price, // Use current_price for cart item price
-          image: product.primary_image, // Use primary_image for cart item image
-          quantity: 1,
-        },
-      ]
-    })
-    openCartDrawer() // Open drawer when item is added
+      
+      const productData = await response.json()
+      const { stock_quantity, stock_status, manage_stock } = productData.data
+      
+      setItems((prevItems) => {
+        const existingItem = prevItems.find((item) => item.id === product.id)
+        const newQuantity = existingItem ? existingItem.quantity + 1 : 1
+        
+        // Check stock availability
+        if (manage_stock && newQuantity > stock_quantity) {
+          alert(`Sorry, only ${stock_quantity} items available in stock.`)
+          return prevItems
+        }
+        
+        if (existingItem) {
+          return prevItems.map((item) => 
+            item.id === product.id 
+              ? { 
+                  ...item, 
+                  quantity: newQuantity,
+                  maxQuantity: stock_quantity,
+                  stockStatus: stock_status,
+                  manageStock: manage_stock
+                } 
+              : item
+          )
+        }
+        
+        return [
+          ...prevItems,
+          {
+            id: product.id,
+            name: product.name,
+            price: product.current_price,
+            image: product.primary_image,
+            quantity: 1,
+            maxQuantity: stock_quantity,
+            stockStatus: stock_status,
+            manageStock: manage_stock
+          },
+        ]
+      })
+      
+      openCartDrawer() // Open drawer when item is added
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      alert('Failed to add item to cart. Please try again.')
+    }
   }
 
   const removeFromCart = (id: number) => {
@@ -76,7 +116,22 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart(id)
       return
     }
-    setItems((prevItems) => prevItems.map((item) => (item.id === id ? { ...item, quantity } : item)))
+    
+    setItems((prevItems) => {
+      const itemToUpdate = prevItems.find(item => item.id === id)
+      
+      // Check if the new quantity exceeds available stock
+      if (itemToUpdate?.manageStock && quantity > itemToUpdate.maxQuantity) {
+        alert(`Sorry, only ${itemToUpdate.maxQuantity} items available in stock.`)
+        return prevItems
+      }
+      
+      return prevItems.map((item) => 
+        item.id === id 
+          ? { ...item, quantity } 
+          : item
+      )
+    })
   }
 
   const getTotalItems = () => {

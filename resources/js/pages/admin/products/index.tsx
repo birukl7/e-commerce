@@ -62,7 +62,7 @@ interface Props {
 
 const tabs = [
     { name: 'All Products', href: '/admin/products', icon: Package },
-    { name: 'Stock Management', href: '/admin/products/stock', icon: PackageCheck },
+    { name: 'Stock Management', href: '/admin/stock?tab=alerts', icon: PackageCheck },
 ];
 
 export default function ProductsPage({ products, categories = [], brands = [], filters = {} }: Props) {

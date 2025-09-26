@@ -25,25 +25,14 @@ class AdminMenuService
                 [
                     'title' => 'Products', 
                     'href' => '/admin/products', 
-                    'icon' => 'Package',
-                    'tabs' => [
-                        ['title' => 'All Products', 'href' => '/admin/products', 'icon' => 'Package']
-                    ]
+                    'icon' => 'Package'
                 ],
                 ['title' => 'Categories and Brands', 'href' => '/admin/categories', 'icon' => 'Tags'],
                 ['title' => 'Product Requests', 'href' => '/admin/product-requests', 'icon' => 'MessageSquare'],
-            ],
-            'Stock Management' => [
                 [
-                    'title' => 'Stock Overview', 
-                    'href' => '/admin/stock', 
-                    'icon' => 'PackageCheck',
-                    'tabs' => [
-                        ['title' => 'Stock Alerts', 'href' => '/admin/stock/alerts', 'icon' => 'AlertTriangle'],
-                        ['title' => 'Out of Stock', 'href' => '/admin/stock/out-of-stock', 'icon' => 'PackageX'],
-                        ['title' => 'Low Stock', 'href' => '/admin/stock/low-stock', 'icon' => 'PackageMinus'],
-                        ['title' => 'Stock History', 'href' => '/admin/stock/history', 'icon' => 'History']
-                    ]
+                    'title' => 'Stock Management',
+                    'href' => '/admin/stock',
+                    'icon' => 'PackageCheck'
                 ]
             ],
             $salesGroup => $this->getSalesMenuItems(),

@@ -6,7 +6,9 @@ use App\Services\SiteConfigService;
 use App\Services\AdminMenuService;
 use App\Services\NotificationService;
 use App\Models\OutOfStockNotification;
+use App\Models\Product;
 use App\Models\TaxSetting;
+use App\Observers\ProductObserver;
 use App\Policies\OutOfStockNotificationPolicy;
 use App\Policies\TaxSettingPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -37,5 +39,8 @@ class AppServiceProvider extends ServiceProvider
         // Register policies
         Gate::policy(OutOfStockNotification::class, OutOfStockNotificationPolicy::class);
         Gate::policy(TaxSetting::class, TaxSettingPolicy::class);
+        
+        // Register observers
+        Product::observe(ProductObserver::class);
     }
 }

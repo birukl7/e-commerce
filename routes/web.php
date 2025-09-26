@@ -31,7 +31,9 @@ use App\Http\Controllers\OutOfStockNotificationController;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Models\Product;
 
 
 /**
@@ -50,8 +52,43 @@ Route::controller(SocialiteController::class)->group(function() {
 
 
 Route::get('/', function () {
+    // Backend diagnostics for welcome page
+    try {
+        $totalProducts = Product::query()->count();
+        $zeroStock = Product::query()->where('stock_quantity', 0)->count();
+        
+        // Get featured products (you can adjust the logic based on your needs)
+        $featuredProducts = Product::query()
+            ->where('featured', true)
+            ->where('status', 'published')
+            ->with(['images', 'brand', 'category'])
+            ->limit(8)
+            ->get();
+            
+        // Get latest products
+        $latestProducts = Product::query()
+            ->where('status', 'published')
+            ->with(['images', 'brand', 'category'])
+            ->latest()
+            ->limit(8)
+            ->get();
+            
+        Log::info('Welcome page diagnostics', [
+            'total_products' => $totalProducts,
+            'zero_stock_products' => $zeroStock,
+        ]);
+    } catch (\Throwable $e) {
+        Log::error('Welcome page diagnostics failed', ['message' => $e->getMessage()]);
+        $totalProducts = null;
+        $zeroStock = null;
+        $featuredProducts = collect();
+        $latestProducts = collect();
+    }
+
     $settings = [
         'site_name' => config('app.name'),
+        'featured_products' => $featuredProducts,
+        'latest_products' => $latestProducts,
         'banner_main_title' => 'Welcome to ' . config('app.name'),
         'banner_main_subtitle' => 'Discover amazing products at great prices',
         'footer_content' => '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.',
@@ -65,7 +102,11 @@ Route::get('/', function () {
     ];
     
     return Inertia::render('welcome', [
-        'settings' => $settings
+        'settings' => $settings,
+        'diagnostics' => [
+            'totalProducts' => $totalProducts,
+            'zeroStock' => $zeroStock,
+        ],
     ]);
 })->name('home');
 

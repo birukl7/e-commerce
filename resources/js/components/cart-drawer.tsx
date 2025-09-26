@@ -13,6 +13,18 @@ interface CartDrawerProps {
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { items, removeFromCart, updateQuantity, getTotalPrice } = useCart()
+  
+  const getStockStatusText = (item: any) => {
+    if (!item.manageStock) return ''
+    
+    if (item.stockStatus === 'out_of_stock') {
+      return 'Out of stock'
+    } else if (item.stockStatus === 'low_stock') {
+      return `Only ${item.maxQuantity} left in stock`
+    } else {
+      return 'In stock'
+    }
+  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -89,28 +101,36 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
                         {/* Quantity Controls and Remove Button */}
                         <div className="flex items-center justify-between mt-3 gap-2">
-                          <div className="flex items-center border border-gray-300 rounded-md">
+                          <div className="flex items-center space-x-2">
                             <Button
                               variant="outline"
-                              size="icon"
-                              className="h-7 w-7 bg-transparent border-0"
+                              size="sm"
+                              className="h-8 w-8 p-0"
                               onClick={() => updateQuantity(item.id, item.quantity - 1)}
                             >
                               <Minus className="h-3 w-3" />
-                              <span className="sr-only">Decrease quantity</span>
                             </Button>
-                            <span className="text-sm font-medium px-2 min-w-[2rem] text-center">{item.quantity}</span>
+                            <span className="w-8 text-center">{item.quantity}</span>
                             <Button
                               variant="outline"
-                              size="icon"
-                              className="h-7 w-7 bg-transparent border-0"
+                              size="sm"
+                              className={`h-8 w-8 p-0 ${
+                                item.manageStock && item.quantity >= item.maxQuantity ? 'opacity-50 cursor-not-allowed' : ''
+                              }`}
+                              disabled={item.manageStock && item.quantity >= item.maxQuantity}
                               onClick={() => updateQuantity(item.id, item.quantity + 1)}
                             >
                               <Plus className="h-3 w-3" />
-                              <span className="sr-only">Increase quantity</span>
                             </Button>
                           </div>
-
+                          {item.manageStock && (
+                            <div className={`text-xs mt-1 ${
+                              item.stockStatus === 'out_of_stock' ? 'text-red-600' : 
+                              item.stockStatus === 'low_stock' ? 'text-amber-600' : 'text-green-600'
+                            }`}>
+                              {getStockStatusText(item)}
+                            </div>
+                          )}
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm whitespace-nowrap">
                               {formatPrice(item.price * item.quantity)}
