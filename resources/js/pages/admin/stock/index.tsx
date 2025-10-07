@@ -25,7 +25,7 @@ export default function StockManagement() {
             key: 'alerts',
             href: buildHref('alerts'),
             icon: AlertTriangle,
-            component: <StockAlerts />,
+            component: <StockAlerts lowStock={lowStockProducts} outOfStock={outOfStockProducts} notifications={recentNotifications} />,
         },
         {
             name: 'Out of Stock',
@@ -125,14 +125,99 @@ export default function StockManagement() {
 }
 
 // Placeholder components for each tab
-function StockAlerts() {
+function StockAlerts({ lowStock = [] as any[], outOfStock = [] as any[], notifications = [] as any[] }) {
+    const pendingNotifications = notifications.filter((n: any) => !n.is_notified)
     return (
-        <div className="rounded-lg border bg-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Stock Alerts</h2>
-            <p className="text-muted-foreground">
-                View and manage all stock alerts and notifications.
-            </p>
-            {/* Stock alerts content will go here */}
+        <div className="rounded-lg border bg-card p-6 space-y-8">
+            <div>
+                <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><PackageX className="h-4 w-4" /> Out of Stock</h2>
+                {outOfStock.length === 0 ? (
+                    <p className="text-muted-foreground">No out of stock products.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-muted-foreground">
+                                    <th className="py-2 pr-4">Product</th>
+                                    <th className="py-2 pr-4">SKU</th>
+                                    <th className="py-2 pr-4">Stock</th>
+                                    <th className="py-2 pr-4">Updated</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {outOfStock.map((p: any) => (
+                                    <tr key={p.id} className="border-t">
+                                        <td className="py-2 pr-4">{p.name}</td>
+                                        <td className="py-2 pr-4">{p.sku}</td>
+                                        <td className="py-2 pr-4 text-red-600">{p.stock_quantity}</td>
+                                        <td className="py-2 pr-4">{new Date(p.updated_at).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><PackageMinus className="h-4 w-4" /> Low Stock</h2>
+                {lowStock.length === 0 ? (
+                    <p className="text-muted-foreground">No low stock products.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-muted-foreground">
+                                    <th className="py-2 pr-4">Product</th>
+                                    <th className="py-2 pr-4">SKU</th>
+                                    <th className="py-2 pr-4">Stock</th>
+                                    <th className="py-2 pr-4">Threshold</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {lowStock.map((p: any) => (
+                                    <tr key={p.id} className="border-t">
+                                        <td className="py-2 pr-4">{p.name}</td>
+                                        <td className="py-2 pr-4">{p.sku}</td>
+                                        <td className="py-2 pr-4 text-amber-600">{p.stock_quantity}</td>
+                                        <td className="py-2 pr-4">{p.low_stock_threshold}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div>
+                <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><Bell className="h-4 w-4" /> Pending Notifications</h2>
+                {pendingNotifications.length === 0 ? (
+                    <p className="text-muted-foreground">No pending notifications.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                            <thead>
+                                <tr className="text-left text-muted-foreground">
+                                    <th className="py-2 pr-4">Product</th>
+                                    <th className="py-2 pr-4">Subscriber</th>
+                                    <th className="py-2 pr-4">Email</th>
+                                    <th className="py-2 pr-4">Requested</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {pendingNotifications.map((n: any) => (
+                                    <tr key={n.id} className="border-t">
+                                        <td className="py-2 pr-4">{n.product?.name ?? '—'}</td>
+                                        <td className="py-2 pr-4">{n.user?.name ?? 'Guest'}</td>
+                                        <td className="py-2 pr-4">{n.email}</td>
+                                        <td className="py-2 pr-4">{new Date(n.created_at).toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
