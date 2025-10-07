@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import MainLayout from "@/layouts/app/main-layout"
-import { Head, Link, useForm } from "@inertiajs/react"
+import { Head, Link, useForm, usePage } from "@inertiajs/react"
 import { CreditCard, Smartphone, AlertCircle, ShoppingCart, User, Mail, Phone } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 
@@ -38,9 +38,9 @@ type PaymentMethod = "telebirr" | "cbe"
 
 type FormData = {
   payment_method: PaymentMethod
-  customer_phone: string
-  customer_name: string
-  customer_email: string
+  phone_number: string
+  name: string
+  email: string
   order_id: string
   amount: number
   currency: string
@@ -82,12 +82,13 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
   const [isLoading, setIsLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string>("")
+  const page = usePage<{ auth?: { user?: { phone?: string } } }>()
 
   const { data, setData, processing, errors, clearErrors } = useForm<FormData>({
     payment_method: "telebirr",
-    customer_phone: auth?.user?.phone || "",
-    customer_name: auth?.user?.name || "",
-    customer_email: auth?.user?.email || "",
+    phone_number: auth?.user?.phone || "",
+    name: auth?.user?.name || "",
+    email: auth?.user?.email || "",
     order_id: order_id || "",
     amount: amount || 0,
     currency: currency || "ETB",
@@ -100,37 +101,51 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
     setSubmitError("")
   }, [data.payment_method, clearErrors])
 
+  // Ensure phone is prefilled when available from auth, even if props arrive slightly later
+  useEffect(() => {
+    if (!data.phone_number && auth?.user?.phone) {
+      setData("phone_number", auth.user.phone)
+    }
+  }, [auth?.user?.phone])
+
+  // Fallback: also try to prefill from usePage props (Inertia shared props)
+  useEffect(() => {
+    if (!data.phone_number && page?.props?.auth?.user?.phone) {
+      setData("phone_number", page.props.auth.user.phone)
+    }
+  }, [page?.props?.auth?.user?.phone])
+
   // Real-time validation
   const validateField = useCallback(
     (field: string, value: string) => {
       const newErrors = { ...validationErrors }
 
       switch (field) {
-        case "customer_phone":
+        case "phone_number":
           if (!value.trim()) {
-            newErrors.customer_phone = "Phone number is required"
+            newErrors.phone_number = "Phone number is required"
           } else if (!validateEthiopianPhone(value)) {
-            newErrors.customer_phone = "Please enter a valid Ethiopian phone number (e.g., +251911223344 or 0911223344)"
+            newErrors.phone_number = "Please enter a valid Ethiopian phone number (e.g., +251911223344 or 0911223344)"
           } else {
-            delete newErrors.customer_phone
+            delete newErrors.phone_number
           }
           break
-        case "customer_email":
+        case "email":
           if (!value.trim()) {
-            newErrors.customer_email = "Email address is required"
+            newErrors.email = "Email address is required"
           } else if (!validateEmail(value)) {
-            newErrors.customer_email = "Please enter a valid email address"
+            newErrors.email = "Please enter a valid email address"
           } else {
-            delete newErrors.customer_email
+            delete newErrors.email
           }
           break
-        case "customer_name":
+        case "name":
           if (!value.trim()) {
-            newErrors.customer_name = "Full name is required"
+            newErrors.name = "Full name is required"
           } else if (value.trim().length < 2) {
-            newErrors.customer_name = "Name must be at least 2 characters long"
+            newErrors.name = "Name must be at least 2 characters long"
           } else {
-            delete newErrors.customer_name
+            delete newErrors.name
           }
           break
       }
@@ -156,22 +171,22 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
       // Final validation
       const finalErrors: Record<string, string> = {}
 
-      if (!data.customer_phone.trim()) {
-        finalErrors.customer_phone = "Phone number is required"
-      } else if (!validateEthiopianPhone(data.customer_phone)) {
-        finalErrors.customer_phone = "Please enter a valid Ethiopian phone number"
+      if (!data.phone_number.trim()) {
+        finalErrors.phone_number = "Phone number is required"
+      } else if (!validateEthiopianPhone(data.phone_number)) {
+        finalErrors.phone_number = "Please enter a valid Ethiopian phone number"
       }
 
-      if (!data.customer_name.trim()) {
-        finalErrors.customer_name = "Full name is required"
-      } else if (data.customer_name.trim().length < 2) {
-        finalErrors.customer_name = "Name must be at least 2 characters long"
+      if (!data.name.trim()) {
+        finalErrors.name = "Full name is required"
+      } else if (data.name.trim().length < 2) {
+        finalErrors.name = "Name must be at least 2 characters long"
       }
 
-      if (!data.customer_email.trim()) {
-        finalErrors.customer_email = "Email address is required"
-      } else if (!validateEmail(data.customer_email)) {
-        finalErrors.customer_email = "Please enter a valid email address"
+      if (!data.email.trim()) {
+        finalErrors.email = "Email address is required"
+      } else if (!validateEmail(data.email)) {
+        finalErrors.email = "Please enter a valid email address"
       }
 
       if (Object.keys(finalErrors).length > 0) {
@@ -185,9 +200,9 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
       try {
         const formData = {
           payment_method: data.payment_method,
-          customer_name: data.customer_name,
-          customer_email: data.customer_email,
-          customer_phone: data.customer_phone,
+          name: data.name,
+          email: data.email,
+          phone_number: data.phone_number,
           order_id: data.order_id,
           amount: data.amount,
           currency: data.currency,
@@ -292,62 +307,63 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
 
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div>
-                    <Label htmlFor="customer_name">Full Name *</Label>
+                    <Label htmlFor="name">Full Name *</Label>
                     <Input
-                      id="customer_name"
+                      id="name"
                       type="text"
-                      value={data.customer_name}
-                      onChange={(e) => handleInputChange("customer_name", e.target.value)}
+                      value={data.name}
+                      onChange={(e) => handleInputChange("name", e.target.value)}
                       required
-                      className={`mt-1 ${validationErrors.customer_name || errors.customer_name ? "border-red-500" : ""}`}
+                      className={`mt-1 ${validationErrors.name || errors.name ? "border-red-500" : ""}`}
                       placeholder="Enter your full name"
                     />
-                    {(validationErrors.customer_name || errors.customer_name) && (
+                    {(validationErrors.name || errors.name) && (
                       <p className="mt-1 text-sm text-red-500">
-                        {validationErrors.customer_name || errors.customer_name}
+                        {validationErrors.name || errors.name}
                       </p>
                     )}
                   </div>
 
                   <div>
-                    <Label htmlFor="customer_email" className="flex items-center gap-1">
+                    <Label htmlFor="email" className="flex items-center gap-1">
                       <Mail className="h-4 w-4" />
                       Email Address *
                     </Label>
                     <Input
-                      id="customer_email"
+                      id="email"
                       type="email"
-                      value={data.customer_email}
-                      onChange={(e) => handleInputChange("customer_email", e.target.value)}
+                      value={data.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
                       required
-                      className={`mt-1 ${validationErrors.customer_email || errors.customer_email ? "border-red-500" : ""}`}
+                      className={`mt-1 ${validationErrors.email || errors.email ? "border-red-500" : ""}`}
                       placeholder="your@email.com"
                     />
-                    {(validationErrors.customer_email || errors.customer_email) && (
+                    {(validationErrors.email || errors.email) && (
                       <p className="mt-1 text-sm text-red-500">
-                        {validationErrors.customer_email || errors.customer_email}
+                        {validationErrors.email || errors.email}
                       </p>
                     )}
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="customer_phone" className="flex items-center gap-1">
+                  <Label htmlFor="phone_number" className="flex items-center gap-1">
                     <Phone className="h-4 w-4" />
                     Phone Number *
                   </Label>
                   <Input
-                    id="customer_phone"
+                    id="phone_number"
                     type="tel"
+                    autoComplete="tel"
                     placeholder="e.g., +251911223344 or 0911223344"
-                    value={data.customer_phone}
-                    onChange={(e) => handleInputChange("customer_phone", e.target.value)}
+                    value={data.phone_number}
+                    onChange={(e) => handleInputChange("phone_number", e.target.value)}
                     required
-                    className={`mt-1 ${validationErrors.customer_phone || errors.customer_phone ? "border-red-500" : ""}`}
+                    className={`mt-1 ${validationErrors.phone_number || errors.phone_number ? "border-red-500" : ""}`}
                   />
-                  {(validationErrors.customer_phone || errors.customer_phone) && (
+                  {(validationErrors.phone_number || errors.phone_number) && (
                     <p className="mt-1 text-sm text-red-500">
-                      {validationErrors.customer_phone || errors.customer_phone}
+                      {validationErrors.phone_number || errors.phone_number}
                     </p>
                   )}
                   <p className="mt-1 text-xs text-gray-500">Ethiopian mobile numbers starting with 07 or 09</p>

@@ -574,14 +574,14 @@ class PaymentController extends Controller
                 throw new \Exception('User not authenticated');
             }
 
-            // Validate required fields
+            // Validate required fields (accept phone_number if provided)
             $validated = $request->validate([
                 'payment_method' => 'required|in:chapa,telebirr,cbe,paypal',
                 'order_id' => 'required|string',
                 'amount' => 'required|numeric|min:1',
                 'currency' => 'required|string|in:ETB,USD',
                 'cart_items' => 'nullable', // Accepts both string and array
-                // Note: Removed customer_phone validation as it's now fetched from user profile
+                'phone_number' => 'nullable|string',
             ]);
             
             // Convert cart_items to array if it's a string
@@ -590,14 +590,26 @@ class PaymentController extends Controller
                 $request->merge(['cart_items' => $cartItems]);
             }
             
-            // Get customer details from authenticated user
+            // Get customer details from authenticated user (allow override from request)
             $customerName = $user->name ?? 'Customer';
             $customerEmail = $user->email ?? 'no-email@example.com';
-            // Get phone number from user's profile
-            $customerPhone = $user->phone;
-            
+            // Prefer phone from request if provided, else fallback to user's profile
+            $customerPhone = $request->input('phone_number');
             if (empty($customerPhone)) {
-                throw new \Exception('Phone number is required. Please update your profile with a valid phone number before proceeding with the payment.');
+                $customerPhone = $user->phone;
+            }
+
+            if (empty($customerPhone)) {
+                $message = 'Phone number is required. Please enter a phone number or update your profile with a valid phone number before proceeding with the payment.';
+                if ($request->header('X-Inertia') || $request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $message,
+                        'request_id' => $requestId,
+                        'errors' => ['phone_number' => $message]
+                    ], 422);
+                }
+                return back()->withErrors(['phone_number' => $message]);
             }
             
             // Log customer details being used
