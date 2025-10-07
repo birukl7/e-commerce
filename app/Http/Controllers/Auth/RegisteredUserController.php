@@ -142,7 +142,7 @@ class RegisteredUserController extends Controller
             Log::error('User registration failed: ' . $e->getMessage());
             
             return back()->withErrors([
-                'email' => 'Registration failed. Please try again.'
+                'general' => 'Registration failed. Please try again.'
             ])->withInput($request->except('password', 'password_confirmation'));
         }
     }

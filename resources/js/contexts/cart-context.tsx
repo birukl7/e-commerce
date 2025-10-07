@@ -63,7 +63,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
       
       setItems((prevItems) => {
         const existingItem = prevItems.find((item) => item.id === product.id)
-        const newQuantity = existingItem ? existingItem.quantity + 1 : 1
+        const requestedQuantity = typeof product.quantity === 'number' && product.quantity > 0 ? product.quantity : 1
+        const newQuantity = existingItem ? existingItem.quantity + requestedQuantity : requestedQuantity
         
         // Check stock availability
         if (manage_stock && newQuantity > stock_quantity) {
@@ -92,7 +93,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             name: product.name,
             price: product.current_price,
             image: product.primary_image,
-            quantity: 1,
+            quantity: requestedQuantity,
             maxQuantity: stock_quantity,
             stockStatus: stock_status,
             manageStock: manage_stock

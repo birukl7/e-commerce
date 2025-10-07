@@ -381,7 +381,24 @@ class PaymentFinalizer
      */
     private function processInventoryChanges(Order $order): void
     {
-        // Implement inventory reduction logic
+        try {
+            // Only decrease inventory when payment is paid
+            if ($order->payment_status !== 'paid') {
+                \Log::info('Skipping inventory decrease: payment not paid', [
+                    'order_id' => $order->id,
+                    'payment_status' => $order->payment_status,
+                ]);
+                return;
+            }
+
+            $stockService = app(\App\Services\StockService::class);
+            $stockService->decreaseStockForOrder($order);
+        } catch (\Throwable $e) {
+            \Log::error('Failed processing inventory changes', [
+                'order_id' => $order->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

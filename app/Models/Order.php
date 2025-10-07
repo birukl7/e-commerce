@@ -78,9 +78,9 @@ class Order extends Model
             $order->order_number = 'ORD-' . strtoupper(uniqid());
         });
 
-        // When order is created, decrease stock if payment is completed
+        // When order is created, decrease stock if payment is paid
         static::created(function ($order) {
-            if ($order->payment_status === 'completed') {
+            if ($order->payment_status === 'paid') {
                 try {
                     app(StockService::class)->decreaseStockForOrder($order);
                 } catch (\Exception $e) {
@@ -89,12 +89,12 @@ class Order extends Model
             }
         });
 
-        // When order payment status changes to completed, decrease stock
+        // When order payment status changes to paid, decrease stock
         static::updated(function ($order) {
             $stockService = app(StockService::class);
             
-            // If payment was just completed
-            if ($order->wasChanged('payment_status') && $order->payment_status === 'completed') {
+            // If payment was just marked as paid
+            if ($order->wasChanged('payment_status') && $order->payment_status === 'paid') {
                 try {
                     $stockService->decreaseStockForOrder($order);
                 } catch (\Exception $e) {

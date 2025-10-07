@@ -98,6 +98,11 @@ export default function Register() {
       }
     >
       <Head title="Register" />
+      {errors.general && (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {errors.general}
+        </div>
+      )}
 
       {step === 1 && (
         <div className="flex flex-col gap-6">

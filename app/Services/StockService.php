@@ -44,6 +44,14 @@ class StockService
         }
 
         $product->decrement('stock_quantity', $quantity);
+
+        // Update stock status and trigger notifications via observer logic
+        $product->refresh();
+        if ($product->stock_quantity <= 0) {
+            // Ensure status reflects out of stock
+            $product->stock_status = 'out_of_stock';
+            $product->saveQuietly();
+        }
         return true;
     }
 
