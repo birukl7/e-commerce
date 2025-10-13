@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProductRequestRequest;
+use App\Http\Requests\UpdateProductRequestRequest;
 use App\Http\Resources\ProductRequestResource;
 use App\Http\Resources\ProductRequestCollection;
 use App\Models\ProductRequest;
@@ -10,7 +12,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 
 class ProductRequestController extends Controller
 {
@@ -20,7 +21,9 @@ class ProductRequestController extends Controller
     public function __construct()
     {
         $this->middleware('auth:api', ['except' => ['index', 'show']]);
-        $this->middleware('admin')->only(['adminIndex', 'updateStatus']);
+        $this->authorizeResource(ProductRequest::class, 'productRequest', [
+            'except' => ['index', 'adminIndex', 'updateStatus']
+        ]);
     }
 
     /**
@@ -28,6 +31,8 @@ class ProductRequestController extends Controller
      */
     public function index()
     {
+        $this->authorize('viewAny', ProductRequest::class);
+        
         $requests = ProductRequest::with(['user', 'admin', 'order'])
             ->where('user_id', Auth::id())
             ->latest()
@@ -41,6 +46,8 @@ class ProductRequestController extends Controller
      */
     public function adminIndex(Request $request)
     {
+        $this->authorize('viewAdminIndex', ProductRequest::class);
+        
         $query = ProductRequest::with(['user', 'admin']);
         
         // Filter by status
@@ -70,26 +77,16 @@ class ProductRequestController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    /**
+     * Store a newly created product request in storage.
+     *
+     * @param  \App\Http\Requests\StoreProductRequestRequest  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(StoreProductRequestRequest $request)
     {
-        $validated = $request->validate([
-            'product_name' => 'required|string|max:255',
-            'product_url' => 'nullable|url|max:1000',
-            'description' => 'required|string',
-            'brand' => 'nullable|string|max:100',
-            'model' => 'nullable|string|max:100',
-            'color' => 'nullable|string|max:50',
-            'size' => 'nullable|string|max:50',
-            'quantity' => 'required|integer|min:1',
-            'max_budget' => 'required|numeric|min:0',
-            'shipping_address' => 'required|string',
-            'shipping_method' => 'nullable|string|max:100',
-            'desired_delivery_date' => 'nullable|date|after:today',
-            'additional_notes' => 'nullable|string',
-            'specifications' => 'nullable|array',
-            'image' => 'nullable|image|max:5120', // 5MB max
-        ]);
-
+        $validated = $request->validated();
+        
         // Handle file upload
         if ($request->hasFile('image')) {
             $path = $request->file('image')->store('product-requests', 'public');
@@ -125,38 +122,19 @@ class ProductRequestController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, ProductRequest $productRequest)
+    /**
+     * Update the specified product request in storage.
+     *
+     * @param  \App\Http\Requests\UpdateProductRequestRequest  $request
+     * @param  \App\Models\ProductRequest  $productRequest
+     * @return \Illuminate\Http\Response
+     */
+    public function update(UpdateProductRequestRequest $request, ProductRequest $productRequest)
     {
-        // Only allow the owner to update their own request if it's still pending
-        if (Auth::id() !== $productRequest->user_id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
-        }
 
-        if ($productRequest->status !== 'pending') {
-            return response()->json([
-                'message' => 'Cannot update request after it has been processed'
-            ], 422);
-        }
+        $validated = $request->validated();
 
-        $validated = $request->validate([
-            'product_name' => 'sometimes|required|string|max:255',
-            'product_url' => 'nullable|url|max:1000',
-            'description' => 'sometimes|required|string',
-            'brand' => 'nullable|string|max:100',
-            'model' => 'nullable|string|max:100',
-            'color' => 'nullable|string|max:50',
-            'size' => 'nullable|string|max:50',
-            'quantity' => 'sometimes|required|integer|min:1',
-            'max_budget' => 'sometimes|required|numeric|min:0',
-            'shipping_address' => 'sometimes|required|string',
-            'shipping_method' => 'nullable|string|max:100',
-            'desired_delivery_date' => 'nullable|date|after:today',
-            'additional_notes' => 'nullable|string',
-            'specifications' => 'nullable|array',
-            'image' => 'nullable|image|max:5120',
-        ]);
-
-        // Handle file upload
+        // Handle file upload if new image is provided
         if ($request->hasFile('image')) {
             // Delete old image if exists
             if ($productRequest->image) {
@@ -176,6 +154,8 @@ class ProductRequestController extends Controller
      */
     public function updateStatus(Request $request, ProductRequest $productRequest)
     {
+        $this->authorize('updateStatus', $productRequest);
+        
         $validated = $request->validate([
             'status' => ['required', Rule::in(['approved', 'rejected', 'pending', 'cancelled'])],
             'admin_response' => 'required_if:status,rejected|string|nullable',

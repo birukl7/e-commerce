@@ -3,13 +3,13 @@
 ## 1. Database & Models (Partially Complete)
 - [x] Create ProductRequest model and migration
 - [x] Add additional fields for product specifications
-- [ ] Create relationship with existing Order/OrderItem models
+- [x] Create relationship with existing Order/OrderItem models
 
-## 2. API Endpoints (Partially Complete)
+## 2. API Endpoints (Complete)
 - [x] Create ProductRequestController with CRUD operations
 - [x] Set up API routes
-- [ ] Implement request validation
-- [ ] Add authorization policies
+- [x] Implement request validation
+- [x] Add authorization policies
 
 ## 3. Frontend Components
 - [ ] Create product request form

@@ -47,6 +47,11 @@ class ProductRequest extends Model
         'tracking_url'
     ];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
     protected $casts = [
         'amount' => 'decimal:2',
         'estimated_price' => 'decimal:2',
@@ -62,9 +67,52 @@ class ProductRequest extends Model
     /**
      * Get the user that owns the product request.
      */
+    /**
+     * Get the user that owns the product request.
+     */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the order associated with the product request.
+     */
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * Create an order from this product request.
+     *
+     * @return \App\Models\Order
+     */
+    public function createOrder()
+    {
+        $order = new Order([
+            'user_id' => $this->user_id,
+            'status' => 'pending',
+            'payment_status' => 'pending',
+            'payment_method' => $this->payment_method,
+            'currency' => $this->currency,
+            'subtotal' => $this->estimated_price,
+            'shipping_amount' => $this->shipping_cost ?? 0,
+            'total_amount' => $this->estimated_price + ($this->shipping_cost ?? 0),
+            'shipping_fullname' => $this->user->name,
+            'shipping_email' => $this->user->email,
+            'shipping_phone' => $this->user->phone,
+            'shipping_address' => $this->shipping_address,
+            'notes' => 'Created from product request #' . $this->id,
+        ]);
+
+        $order->save();
+        
+        // Update the product request with the order ID
+        $this->order_id = $order->id;
+        $this->save();
+
+        return $order;
     }
 
     /**
