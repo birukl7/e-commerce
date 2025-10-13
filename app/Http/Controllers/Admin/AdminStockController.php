@@ -31,7 +31,7 @@ class AdminStockController extends Controller
         $this->authorize('viewAny', OutOfStockNotification::class);
         
         $lowStockProducts = Product::where('stock_quantity', '>', 0)
-            ->where('stock_quantity', '<=', DB::raw('low_stock_threshold'))
+            ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
             ->orderBy('stock_quantity')
             ->limit(10)
             ->get();
@@ -54,7 +54,6 @@ class AdminStockController extends Controller
                 'alerts' => 'Stock Alerts',
                 'out_of_stock' => 'Out of Stock',
                 'low_stock' => 'Low Stock',
-                'history' => 'Stock History',
             ],
             'lowStockProducts' => $lowStockProducts,
             'outOfStockProducts' => $outOfStockProducts,
@@ -62,10 +61,11 @@ class AdminStockController extends Controller
             'stats' => [
                 'totalProducts' => Product::count(),
                 'lowStockCount' => Product::where('stock_quantity', '>', 0)
-                    ->where('stock_quantity', '<=', DB::raw('low_stock_threshold'))
+                    ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
                     ->count(),
                 'outOfStockCount' => Product::where('stock_quantity', '<=', 0)->count(),
                 'pendingNotifications' => OutOfStockNotification::where('is_notified', false)->count(),
+                'pendingAlerts' => Product::where('stock_quantity', '<=', 0)->count() + Product::where('stock_quantity', '>', 0)->whereColumn('stock_quantity', '<=', 'low_stock_threshold')->count(),
             ]
         ]);
     }

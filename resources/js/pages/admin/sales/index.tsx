@@ -354,17 +354,17 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
                                                         </td>
                                                         <td className="py-3 px-2">
                                                             <div className="flex gap-1">
-                                                                {payment.admin_status === 'unseen' && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        onClick={() => handlePaymentAction(payment.id, 'mark-seen')}
-                                                                        className="text-xs"
-                                                                    >
-                                                                        <Eye className="h-3 w-3 mr-1" />
-                                                                        Seen
-                                                                    </Button>
-                                                                )}
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    asChild
+                                                                    className="text-xs"
+                                                                >
+                                                                    <Link href={`/paymentStats/${payment.id}`}>
+                                                                        <ExternalLink className="h-3 w-3 mr-1" />
+                                                                        View Details
+                                                                    </Link>
+                                                                </Button>
                                                                 {payment.admin_status !== 'approved' && (
                                                                     <Button
                                                                         size="sm"

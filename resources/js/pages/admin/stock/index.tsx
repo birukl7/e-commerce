@@ -41,13 +41,7 @@ export default function StockManagement() {
             icon: PackageMinus,
             component: <LowStock products={lowStockProducts} />,
         },
-        {
-            name: 'Stock History',
-            key: 'history',
-            href: buildHref('history'),
-            icon: History,
-            component: <StockHistory />,
-        },
+        // Stock History tab removed per request
     ];
 
     return (
@@ -85,7 +79,12 @@ export default function StockManagement() {
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm font-medium">Pending Notifications</CardTitle>
                         </CardHeader>
-                        <CardContent className="text-2xl font-bold text-blue-600 flex items-center gap-2"><Bell className="h-4 w-4" />{stats?.pendingNotifications ?? 0}</CardContent>
+                        <CardContent className="text-2xl font-bold text-blue-600 flex items-center gap-2">
+                            <Link href={buildHref('alerts')} className="flex items-center gap-2 hover:underline">
+                                <Bell className="h-4 w-4" />{stats?.pendingNotifications ?? 0}
+                            </Link>
+                            <span className="ml-auto text-xs text-muted-foreground">Alerts: {stats?.pendingAlerts ?? 0}</span>
+                        </CardContent>
                     </Card>
                 </div>
                 
@@ -290,14 +289,4 @@ function LowStock({ products = [] as any[] }) {
     );
 }
 
-function StockHistory() {
-    return (
-        <div className="rounded-lg border bg-card p-6">
-            <h2 className="text-lg font-semibold mb-4">Stock History</h2>
-            <p className="text-muted-foreground">
-                View historical stock levels and changes over time.
-            </p>
-            {/* Stock history content will go here */}
-        </div>
-    );
-}
+// StockHistory component removed

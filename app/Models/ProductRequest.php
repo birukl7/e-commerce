@@ -14,25 +14,49 @@ class ProductRequest extends Model
 
     protected $fillable = [
         'user_id',
-        'title',
+        'product_name',
+        'product_url',
         'description',
         'image',
         'status',
         'admin_response',
         'admin_id',
+        'order_id',
         'amount',
+        'estimated_price',
+        'max_budget',
         'currency',
         'payment_status',
         'payment_method',
         'payment_reference',
         'paid_at',
-        'payment_details'
+        'payment_details',
+        'brand',
+        'model',
+        'color',
+        'size',
+        'quantity',
+        'shipping_address',
+        'shipping_method',
+        'shipping_cost',
+        'desired_delivery_date',
+        'additional_notes',
+        'specifications',
+        'fulfillment_status',
+        'tracking_number',
+        'tracking_url'
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'estimated_price' => 'decimal:2',
+        'max_budget' => 'decimal:2',
+        'shipping_cost' => 'decimal:2',
         'paid_at' => 'datetime',
+        'desired_delivery_date' => 'date',
         'payment_details' => 'array',
+        'specifications' => 'array',
+        'quantity' => 'integer'
     ];
 
     /**
@@ -49,6 +73,54 @@ class ProductRequest extends Model
     public function admin()
     {
         return $this->belongsTo(User::class, 'admin_id');
+    }
+
+    /**
+     * Get the order associated with this product request.
+     */
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
+    }
+
+    /**
+     * Scope a query to only include pending requests.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope a query to only include approved requests.
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    /**
+     * Scope a query to only include rejected requests.
+     */
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
+    }
+
+    /**
+     * Scope a query to only include paid requests.
+     */
+    public function scopePaid($query)
+    {
+        return $query->where('payment_status', 'paid');
+    }
+
+    /**
+     * Get the total cost including shipping.
+     */
+    public function getTotalCostAttribute()
+    {
+        return $this->amount + ($this->shipping_cost ?? 0);
     }
 
     /**
@@ -114,13 +186,6 @@ class ProductRequest extends Model
         });
     }
 
-
-    // Scopes
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-    
     // Status Helpers
     public function isPending()
     {

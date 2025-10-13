@@ -44,5 +44,22 @@ Route::prefix('products')->name('api.products.')->group(function () {
     Route::get('/{product}/edit', [ProductController::class, 'edit'])->name('edit');
 });
 
-
-
+// Product Request API routes
+Route::prefix('product-requests')->name('api.product-requests.')->group(function () {
+    // Public routes
+    Route::get('/', [\App\Http\Controllers\ProductRequestController::class, 'index'])->name('index');
+    Route::get('/{productRequest}', [\App\Http\Controllers\ProductRequestController::class, 'show'])->name('show');
+    
+    // Protected routes (require authentication)
+    Route::middleware('auth:api')->group(function () {
+        Route::post('/', [\App\Http\Controllers\ProductRequestController::class, 'store'])->name('store');
+        Route::put('/{productRequest}', [\App\Http\Controllers\ProductRequestController::class, 'update'])->name('update');
+        Route::delete('/{productRequest}', [\App\Http\Controllers\ProductRequestController::class, 'destroy'])->name('destroy');
+        
+        // Admin-only routes
+        Route::middleware('admin')->group(function () {
+            Route::get('admin', [\App\Http\Controllers\ProductRequestController::class, 'adminIndex'])->name('admin.index');
+            Route::post('{productRequest}/status', [\App\Http\Controllers\ProductRequestController::class, 'updateStatus'])->name('status.update');
+        });
+    });
+});

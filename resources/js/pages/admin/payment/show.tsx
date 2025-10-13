@@ -327,6 +327,62 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                     </div>
                                 </div>
 
+                                {/* Offline Proof / Chapa Details */}
+                                {payment.payment_method === 'offline' && payment.gateway_payload && (
+                                    <div className="mt-4 grid gap-4 md:grid-cols-2 border-t pt-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Customer Transaction ID</Label>
+                                            <p className="font-mono text-sm">{payment.gateway_payload.payment_reference || 'N/A'}</p>
+                                        </div>
+                                        {payment.gateway_payload.payment_notes && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Customer Notes</Label>
+                                                <p className="text-sm">{payment.gateway_payload.payment_notes}</p>
+                                            </div>
+                                        )}
+                                        {payment.gateway_payload.screenshot_path && (
+                                            <div className="md:col-span-2 space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Payment Proof</Label>
+                                                <a
+                                                    href={`/storage/${payment.gateway_payload.screenshot_path}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="inline-block"
+                                                >
+                                                    <img
+                                                        src={`/storage/${payment.gateway_payload.screenshot_path}`}
+                                                        alt="Offline payment proof"
+                                                        className="max-h-72 rounded-md border object-contain bg-white"
+                                                    />
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {payment.payment_method === 'chapa' && payment.gateway_payload && (
+                                    <div className="mt-4 grid gap-4 md:grid-cols-2 border-t pt-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Chapa Tx Ref</Label>
+                                            <p className="font-mono text-sm">{payment.tx_ref}</p>
+                                        </div>
+                                        {payment.checkout_url && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Checkout URL</Label>
+                                                <p className="text-sm break-all">
+                                                    <a href={payment.checkout_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">Open checkout</a>
+                                                </p>
+                                            </div>
+                                        )}
+                                        {payment.gateway_payload.tracking_code && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Tracking Code</Label>
+                                                <p className="font-mono text-sm">{payment.gateway_payload.tracking_code}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Admin Notes Display */}
                                 {payment.admin_notes && (
                                     <div className="border-t pt-4">
