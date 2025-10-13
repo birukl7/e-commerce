@@ -24,7 +24,7 @@ class RequestController extends Controller
             ->map(function ($request) {
                 return [
                     'id' => $request->id,
-                    'product_name' => $request->title,
+                    'product_name' => $request->product_name,
                     'description' => $request->description,
                     'status' => $request->status,
                     'image' => $request->image ? asset('storage/' . $request->image) : null,
@@ -56,7 +56,7 @@ class RequestController extends Controller
 
         ProductRequest::create([
             'user_id' => Auth::id(),
-            'title' => $validated['product_name'],
+            'product_name' => $validated['product_name'],
             'description' => $validated['description'],
             'image' => $imagePath,
             'status' => 'pending',
@@ -79,8 +79,8 @@ class RequestController extends Controller
         return Inertia::render('request/show', [
             'request' => [
                 'id' => $productRequest->id,
-                'title' => $productRequest->title,
-                'product_name' => $productRequest->title,
+                'title' => $productRequest->product_name,
+                'product_name' => $productRequest->product_name,
                 'description' => $productRequest->description,
                 'status' => $productRequest->status,
                 'admin_response' => $productRequest->admin_response,
@@ -90,6 +90,7 @@ class RequestController extends Controller
                 'payment_method' => $productRequest->payment_method,
                 'payment_reference' => $productRequest->payment_reference,
                 'paid_at' => $productRequest->paid_at,
+                'price_accepted_at' => $productRequest->price_accepted_at,
                 'image' => $productRequest->image ? asset('storage/' . $productRequest->image) : null,
                 'created_at' => $productRequest->created_at,
                 'updated_at' => $productRequest->updated_at,
@@ -189,13 +190,35 @@ class RequestController extends Controller
         }
 
         $productRequest->update([
-            'title' => $validated['product_name'],
+            'product_name' => $validated['product_name'],
             'description' => $validated['description'],
             'image' => $imagePath,
         ]);
 
         return redirect()->route('request.index')
             ->with('success', 'Product request updated successfully!');
+    }
+
+    /**
+     * Accept the price set by admin for this request.
+     */
+    public function acceptPrice(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if (!$productRequest->amount || !$productRequest->currency) {
+            return redirect()->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Price has not been set by admin yet.');
+        }
+
+        $productRequest->update([
+            'price_accepted_at' => now(),
+        ]);
+
+        return redirect()->route('product-requests.payment.show', $productRequest->id)
+            ->with('success', 'Price accepted. Proceed to payment.');
     }
 
     /**
@@ -238,7 +261,7 @@ class RequestController extends Controller
             ->through(function ($request) {
                 return [
                     'id' => $request->id,
-                    'product_name' => $request->title,
+                    'product_name' => $request->product_name,
                     'description' => $request->description,
                     'status' => $request->status,
                     'image' => $request->image ? asset('storage/' . $request->image) : null,

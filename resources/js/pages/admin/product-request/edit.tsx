@@ -26,6 +26,7 @@ interface ProductRequest {
     amount?: number | string;
     currency?: string;
     payment_status?: string;
+    available?: boolean | null;
     user: User;
     created_at: string;
     updated_at: string;
@@ -41,6 +42,7 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
         admin_response: product_request.admin_response || '',
         amount: product_request.amount || '',
         currency: product_request.currency || 'ETB',
+        available: product_request.available ?? null,
     });
 
     const submit: FormEventHandler = (e) => {
@@ -160,6 +162,22 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                         rows={4}
                                     />
                                     {errors.admin_response && <p className="text-sm text-red-500">{errors.admin_response}</p>}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="available" className="text-base font-semibold">
+                                        Availability
+                                    </Label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            id="available"
+                                            type="checkbox"
+                                            checked={Boolean(data.available)}
+                                            onChange={(e) => setData('available', e.target.checked)}
+                                        />
+                                        <span className="text-sm text-gray-700">Mark as available</span>
+                                    </div>
+                                    {errors.available && <p className="text-sm text-red-500">{errors.available}</p>}
                                 </div>
 
                                 {data.status === 'approved' && (

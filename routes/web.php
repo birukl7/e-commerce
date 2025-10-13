@@ -368,6 +368,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('/request/{productRequest}', [RequestController::class, 'update'])->name('request.update');
     Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
     Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
+    Route::post('/request/{productRequest}/accept-price', [RequestController::class, 'acceptPrice'])->name('request.accept-price');
     
     // User product request routes
     Route::get('/user/product-requests', [RequestController::class, 'index'])->name('user.product-requests.index');

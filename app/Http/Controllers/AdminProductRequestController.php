@@ -13,11 +13,33 @@ class AdminProductRequestController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $product_requests = ProductRequest::with('user')->latest()->get();
+        $query = ProductRequest::with('user')->latest();
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('payment_status')) {
+            $query->where('payment_status', $request->string('payment_status'));
+        }
+
+        if ($request->filled('available')) {
+            $available = filter_var($request->input('available'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if (!is_null($available)) {
+                $query->where('available', $available);
+            }
+        }
+
+        $product_requests = $query->paginate(20)->withQueryString();
         return Inertia::render('admin/product-request/index', [
             'product_requests' => $product_requests,
+            'filters' => [
+                'status' => $request->input('status'),
+                'payment_status' => $request->input('payment_status'),
+                'available' => $request->input('available'),
+            ],
         ]);
     }
 
@@ -53,6 +75,7 @@ class AdminProductRequestController extends Controller
             'admin_response' => ['nullable', 'string', 'max:5000'],
             'amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
+            'available' => ['nullable', 'boolean'],
         ], [
             'status.required' => 'Please select a status for this request.',
             'status.in' => 'The selected status is invalid.',
@@ -68,6 +91,10 @@ class AdminProductRequestController extends Controller
             'admin_id' => Auth::id(),
             'updated_at' => now(),
         ];
+
+        if (array_key_exists('available', $validated)) {
+            $updateData['available'] = (bool) $validated['available'];
+        }
 
         // If status is being changed to approved, set the payment amount if provided
         if ($validated['status'] === 'approved') {

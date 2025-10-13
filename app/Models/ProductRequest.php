@@ -88,27 +88,28 @@ class ProductRequest extends Model
      *
      * @return \App\Models\Order
      */
-    public function createOrder()
+    public function createOrder(bool $markPaid = false)
     {
+        $amount = $this->amount ?? $this->estimated_price ?? 0;
+
         $order = new Order([
             'user_id' => $this->user_id,
-            'status' => 'pending',
-            'payment_status' => 'pending',
+            'status' => $markPaid ? 'processing' : 'pending',
+            'payment_status' => $markPaid ? 'paid' : 'pending',
             'payment_method' => $this->payment_method,
             'currency' => $this->currency,
-            'subtotal' => $this->estimated_price,
+            'subtotal' => $amount,
             'shipping_amount' => $this->shipping_cost ?? 0,
-            'total_amount' => $this->estimated_price + ($this->shipping_cost ?? 0),
-            'shipping_fullname' => $this->user->name,
-            'shipping_email' => $this->user->email,
-            'shipping_phone' => $this->user->phone,
+            'total_amount' => $amount + ($this->shipping_cost ?? 0),
+            'shipping_fullname' => optional($this->user)->name,
+            'shipping_email' => optional($this->user)->email,
+            'shipping_phone' => optional($this->user)->phone,
             'shipping_address' => $this->shipping_address,
             'notes' => 'Created from product request #' . $this->id,
         ]);
 
         $order->save();
-        
-        // Update the product request with the order ID
+
         $this->order_id = $order->id;
         $this->save();
 
@@ -123,13 +124,7 @@ class ProductRequest extends Model
         return $this->belongsTo(User::class, 'admin_id');
     }
 
-    /**
-     * Get the order associated with this product request.
-     */
-    public function order()
-    {
-        return $this->belongsTo(Order::class);
-    }
+    
 
     /**
      * Scope a query to only include pending requests.
@@ -190,6 +185,7 @@ class ProductRequest extends Model
             'payment_reference' => $reference,
             'paid_at' => now(),
             'payment_details' => $details,
+            'fulfillment_status' => $this->fulfillment_status ?: 'processing',
         ]);
 
         // You can add additional logic here, like sending notifications

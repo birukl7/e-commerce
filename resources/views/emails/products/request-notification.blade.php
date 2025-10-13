@@ -147,7 +147,7 @@
                 
                 <div style="margin-top: 20px;">
                     <h3>Request Details</h3>
-                    <p><strong>Title:</strong> {{ $productRequest->title }}</p>
+                    <p><strong>Product:</strong> {{ $productRequest->product_name ?? $productRequest->title }}</p>
                     @if($productRequest->description)
                         <p><strong>Description:</strong> {{ $productRequest->description }}</p>
                     @endif

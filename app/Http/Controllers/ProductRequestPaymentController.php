@@ -34,22 +34,28 @@ class ProductRequestPaymentController extends Controller
                 ->with('error', 'This request does not require payment or has already been paid.');
         }
 
-        return Inertia::render('payment/ProductRequestPayment', [
-            'productRequest' => [
-                'id' => $productRequest->id,
-                'product_name' => $productRequest->title,
-                'amount' => $productRequest->amount,
-                'currency' => $productRequest->currency,
-                'description' => $productRequest->description,
-            ],
-            'paymentMethods' => [
-                'chapa' => [
-                    'name' => 'Chapa',
-                    'description' => 'Pay securely using Chapa',
-                    'fee' => 0, // Add any processing fee if applicable
-                ],
-                // Add other payment methods as needed
-            ]
+        // Enforce acceptance before payment
+        if (empty($productRequest->price_accepted_at)) {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Please accept the set price to proceed to payment.');
+        }
+
+        // Create or reuse an order, then delegate to shared PaymentController flow
+        if (!$productRequest->order_id) {
+            $order = $productRequest->createOrder(markPaid: false);
+        } else {
+            $order = \App\Models\Order::find($productRequest->order_id);
+            if (!$order) {
+                $order = $productRequest->createOrder(markPaid: false);
+            }
+        }
+
+        // Redirect to unified payment page with required params
+        return redirect()->route('payment.show', [
+            'order_id' => $order->order_number,
+            'amount' => $productRequest->amount,
+            'currency' => $productRequest->currency,
         ]);
     }
 
@@ -91,7 +97,7 @@ class ProductRequestPaymentController extends Controller
                 'return_url' => route('product-requests.payment.success', $productRequest->id),
                 'customization' => [
                     'title' => 'Payment for Product Request #' . $productRequest->id,
-                    'description' => $productRequest->title,
+                    'description' => $productRequest->product_name,
                 ],
                 'meta' => [
                     'product_request_id' => $productRequest->id,
@@ -146,6 +152,9 @@ class ProductRequestPaymentController extends Controller
                 $paymentData
             );
 
+            // Create order (processing + paid)
+            $order = $productRequest->createOrder(markPaid: true);
+
             // Send payment confirmation email
             $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
                 $productRequest,
@@ -154,7 +163,9 @@ class ProductRequestPaymentController extends Controller
                 route('user.product-requests.show', $productRequest->id)
             ));
 
-            return response()->json(['status' => 'success']);
+            // Redirect user to their order page for a better UX
+            return redirect()->route('user.orders.show', $order->id)
+                ->with('success', 'Payment successful. Your order has been created.');
         }
 
         // Log failed payment
@@ -179,7 +190,7 @@ class ProductRequestPaymentController extends Controller
         return Inertia::render('payment/PaymentSuccess', [
             'productRequest' => [
                 'id' => $productRequest->id,
-                'product_name' => $productRequest->title,
+                'product_name' => $productRequest->product_name,
                 'amount' => $productRequest->amount,
                 'currency' => $productRequest->currency,
                 'payment_reference' => $productRequest->payment_reference,
@@ -200,7 +211,7 @@ class ProductRequestPaymentController extends Controller
         return Inertia::render('payment/PaymentFailure', [
             'productRequest' => [
                 'id' => $productRequest->id,
-                'product_name' => $productRequest->title,
+                'product_name' => $productRequest->product_name,
                 'amount' => $productRequest->amount,
                 'currency' => $productRequest->currency,
             ],

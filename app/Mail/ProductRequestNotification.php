@@ -41,10 +41,11 @@ class ProductRequestNotification extends Mailable implements ShouldQueue
      */
     public function build()
     {
+        $name = $this->productRequest->product_name ?? $this->productRequest->title ?? 'Requested Product';
         $subject = match($this->type) {
-            'submitted' => 'Product Request Submitted - ' . $this->productRequest->title,
-            'status_updated' => 'Product Request ' . ucfirst($this->productRequest->status) . ' - ' . $this->productRequest->title,
-            default => 'Product Request Update - ' . $this->productRequest->title,
+            'submitted' => 'Product Request Submitted - ' . $name,
+            'status_updated' => 'Product Request ' . ucfirst($this->productRequest->status) . ' - ' . $name,
+            default => 'Product Request Update - ' . $name,
         };
 
         return $this->subject($subject)
