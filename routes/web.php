@@ -18,6 +18,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
+use App\Http\Controllers\Supplier\SupplierController;
 use App\Http\Controllers\AdminSalesController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\Admin\TaxSettingController;
 use App\Http\Controllers\Admin\StockNotificationController;
 use App\Http\Controllers\Admin\AdminTaxController;
 use App\Http\Controllers\Admin\AdminStockController;
+use App\Http\Controllers\Admin\AdminSupplierController;
 use App\Http\Controllers\OutOfStockNotificationController;
 // use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
@@ -249,6 +251,11 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     Route::get('/api/products/{product}/notifications/stats', [OutOfStockNotificationController::class, 'getStats'])->name('admin.products.notifications.stats');
     Route::get('/api/notifications/pending', [OutOfStockNotificationController::class, 'getProductsWithPendingNotifications'])->name('admin.notifications.pending');
     
+    // Admin Supplier Management
+    Route::prefix('admin/suppliers')->name('admin.suppliers.')->group(function () {
+        require __DIR__.'/admin/suppliers.php';
+    });
+
     // Tax Settings - Consolidated all tax-related routes under a single group
     Route::prefix('admin/tax')->name('admin.tax.')->group(function () {
         // Main tax settings page with tabs
@@ -314,6 +321,24 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])->name('admin.offline-payments.index');
     Route::get('/admin/offline-payments/{submission}', [App\Http\Controllers\OfflinePaymentController::class, 'adminShow'])->name('admin.offline-payments.show');
     Route::post('/admin/offline-payments/{submission}/status', [App\Http\Controllers\OfflinePaymentController::class, 'adminUpdateStatus'])->name('admin.offline-payments.update-status');
+});
+
+// Supplier Routes
+Route::middleware(['auth', 'verified'])->prefix('supplier')->name('supplier.')->group(function () {
+    // Registration
+    Route::get('/register', [SupplierController::class, 'showRegistrationForm'])
+         ->name('register')
+         ->middleware('can:supplier.register');
+         
+    Route::post('/register', [SupplierController::class, 'register'])
+         ->name('register.submit')
+         ->middleware('can:supplier.register');
+    
+    // Dashboard and protected routes
+    Route::middleware('role:supplier')->group(function () {
+        Route::get('/dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
+        // Add more supplier routes here as needed
+    });
 });
 
 // Authenticated routes

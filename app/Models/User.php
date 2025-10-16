@@ -10,6 +10,7 @@ use App\Notifications\CustomVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -33,7 +34,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'phone',
         'profile_image',
         'status',
-        'google_id'
+        'google_id',
+        'is_supplier'
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -46,18 +48,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'status' => 'string',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_supplier' => 'boolean',
+        'status' => 'string',
+    ];
     
     // Relationships
     public function addresses()

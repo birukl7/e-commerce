@@ -25,6 +25,7 @@ class AuthServiceProvider extends ServiceProvider
         ProductRequest::class => ProductRequestPolicy::class,
         TaxSetting::class => TaxSettingPolicy::class,
         TaxClass::class => TaxClassPolicy::class,
+        \App\Models\Product::class => \App\Policies\SupplierProductPolicy::class,
     ];
 
     /**
