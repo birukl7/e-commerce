@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ChevronLeft, ChevronRight, Clock, Star, Heart } from "lucide-react"
 import H2 from "../ui/h2"
+import { getImageUrl } from "@/lib/image"
 
 interface Product {
   id: number
@@ -212,13 +213,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   }
 
   const getProductImage = (product: Product) => {
-    if (!product.image) {
-      return createPlaceholderDataUrl(product.name)
-    }
-    if (product.image.startsWith("http")) {
-      return product.image
-    }
-    return `/storage/${product.image}`
+    return getImageUrl(product.image, { bucket: "products", placeholderText: product.name, width: 400, height: 400 })
   }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {

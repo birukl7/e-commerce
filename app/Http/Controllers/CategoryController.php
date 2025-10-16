@@ -113,8 +113,8 @@ class CategoryController extends Controller
         // Get available filters for this category
         $availableFilters = $this->getAvailableFilters($category->id);
 
-        // Fix: Use 'image/' instead of 'storage/image/' for category image
-        $category_image = asset('/image/' . $category->image);
+        // Use /image symlink base
+        $category_image = $category->image ? asset('/image/' . ltrim($category->image, '/')) : null;
 
         // temporary fix: remove "subcategories" sub path for image subcategories
 
@@ -205,8 +205,8 @@ class CategoryController extends Controller
                      ?? $product->images->first();
                             
         $product_image = $primaryImage
-             ? asset('/image/' . $primaryImage->image_path)
-            : asset('/image/placeholder.jpg'); // fallback image
+             ? asset('/image/' . ltrim($primaryImage->image_path, '/'))
+            : asset('/image/placeholder.jpg'); // fallback image (public asset)
 
         return [
             'id' => $product->id,
@@ -220,7 +220,7 @@ class CategoryController extends Controller
             'images' => $product->images->map(function ($image) {
                 return [
                     'id' => $image->id,
-                    'url' => asset('/image/' . $image->image_path),
+                    'url' => asset('/image/' . ltrim($image->image_path, '/')),
                     'alt_text' => $image->alt_text,
                     'is_primary' => $image->is_primary,
                 ];

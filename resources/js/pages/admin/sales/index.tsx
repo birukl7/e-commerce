@@ -376,15 +376,16 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
                                                                     </Button>
                                                                 )}
                                                                 {payment.admin_status !== 'rejected' && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        onClick={() => handlePaymentAction(payment.id, 'reject')}
-                                                                        className="text-xs"
-                                                                    >
-                                                                        <Ban className="h-3 w-3 mr-1" />
-                                                                        Reject
-                                                                    </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="destructive"
+                                                                    onClick={() => handlePaymentAction(payment.id, 'reject')}
+                                                                    className={`text-xs ${payment.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`}
+                                                                    disabled={payment.admin_status === 'approved'}
+                                                                >
+                                                                    <Ban className="h-3 w-3 mr-1" />
+                                                                    Reject
+                                                                </Button>
                                                                 )}
                                                             </div>
                                                         </td>

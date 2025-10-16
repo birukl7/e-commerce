@@ -225,7 +225,15 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     ]);
     Route::resource('/admin/customers', CustomerController::class);
     Route::get('/admin/suppliers', [CustomerController::class, 'suppliers'])->name('admin.suppliers.index');
-    Route::resource('admin/product-requests', AdminProductRequestController::class);
+    Route::resource('admin/product-requests', AdminProductRequestController::class)->names([
+        'index' => 'admin.product-requests.index',
+        'create' => 'admin.product-requests.create',
+        'store' => 'admin.product-requests.store',
+        'show' => 'admin.product-requests.show',
+        'edit' => 'admin.product-requests.edit',
+        'update' => 'admin.product-requests.update',
+        'destroy' => 'admin.product-requests.destroy',
+    ]);
     
     Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
     Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');

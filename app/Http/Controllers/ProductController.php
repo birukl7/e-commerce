@@ -389,7 +389,7 @@ class ProductController extends Controller
             $products->each(function ($product) {
                 // Add primary image URL
                 $primaryImage = $product->images()->where('is_primary', true)->first();
-                $product->image = $primaryImage ? asset('image/' . $primaryImage->image_path) : null;
+                $product->image = $primaryImage ? asset('image/' . ltrim($primaryImage->image_path, '/')) : null;
                 
                 // Format prices
                 $product->formatted_price = 'USD ' . number_format($product->price, 2);

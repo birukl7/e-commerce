@@ -177,7 +177,7 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-4">
                         <Link
-                            href="/admin/paymentStats"
+                            href="/admin/sales?tab=payments"
                             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                         >
                             <ArrowLeft className="h-4 w-4" />
@@ -522,7 +522,8 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                             <Button 
                                                 variant="destructive"
                                                 onClick={() => setActiveAction('reject')} 
-                                                className="w-full"
+                                                className={`w-full ${payment.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`}
+                                                disabled={payment.admin_status === 'approved'}
                                             >
                                                 <XCircle className="mr-2 h-4 w-4" />
                                                 Reject Payment

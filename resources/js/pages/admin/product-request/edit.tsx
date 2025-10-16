@@ -150,6 +150,25 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
 
                             <div className="space-y-4">
                                 <div className="space-y-2">
+                                    <Label htmlFor="available" className="text-base font-semibold">
+                                        Availability
+                                    </Label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            id="available"
+                                            type="checkbox"
+                                            checked={Boolean(data.available)}
+                                            onChange={(e) => setData('available', e.target.checked)}
+                                        />
+                                        <span className="text-sm text-gray-700">Mark as available</span>
+                                    </div>
+                                    {errors.available && <p className="text-sm text-red-500">{errors.available}</p>}
+                                    {data.status === 'approved' && !data.available && (
+                                        <p className="text-xs text-orange-600">To approve, please mark the product as available first.</p>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
                                     <Label htmlFor="admin_response" className="text-base font-semibold">
                                         Admin Response
                                     </Label>
@@ -164,23 +183,7 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                     {errors.admin_response && <p className="text-sm text-red-500">{errors.admin_response}</p>}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="available" className="text-base font-semibold">
-                                        Availability
-                                    </Label>
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            id="available"
-                                            type="checkbox"
-                                            checked={Boolean(data.available)}
-                                            onChange={(e) => setData('available', e.target.checked)}
-                                        />
-                                        <span className="text-sm text-gray-700">Mark as available</span>
-                                    </div>
-                                    {errors.available && <p className="text-sm text-red-500">{errors.available}</p>}
-                                </div>
-
-                                {data.status === 'approved' && (
+                                {data.status === 'approved' && Boolean(data.available) && (
                                     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
                                         <h3 className="font-medium">Payment Information</h3>
 
@@ -202,7 +205,7 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                                         onChange={(e) => setData('amount', e.target.value)}
                                                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-16 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                                         placeholder="0.00"
-                                                        required={data.status === 'approved'}
+                                                        required={data.status === 'approved' && Boolean(data.available)}
                                                     />
                                                 </div>
                                                 {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}

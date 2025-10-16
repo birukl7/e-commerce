@@ -1,4 +1,5 @@
 import { Link } from "@inertiajs/react"
+import { getImageUrl } from "@/lib/image"
 import { Star, Tag } from "lucide-react"
 import type React from "react"
 
@@ -39,16 +40,6 @@ const formatETB = (amount: number) => {
 }
 
 export function ProductCard({ product, index }: ProductCardProps) {
-  const getImageUrl = (imagePath: string) => {
-    // if (!imagePath) {
-    //   return `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(product.name)}`
-    // }
-    if (imagePath.startsWith("http")) {
-      return imagePath
-    }
-    // Image path from controller already includes full URL
-    return `/storage/${imagePath}`
-  }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.currentTarget
@@ -64,7 +55,7 @@ export function ProductCard({ product, index }: ProductCardProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <img
-            src={getImageUrl(product.image) || "/placeholder.svg"}
+            src={getImageUrl(product.image, { placeholderText: product.name, width: 400, height: 400, bucket: "products" })}
             alt={product.images.find((img) => img.is_primary)?.alt_text || product.name}
             className={`h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 ${
               isOutOfStock ? "opacity-50" : ""

@@ -241,7 +241,7 @@ class PaymentController extends Controller
                     'size' => $file->getSize(),
                 ] + $logContext);
                 
-                $path = $file->store('offline-payments', 'public');
+                $path = $file->store('payment-proofs', 'public');
                 \Log::info('File stored successfully', ['path' => $path] + $logContext);
             } catch (\Exception $e) {
                 \Log::error('Failed to store payment screenshot', [

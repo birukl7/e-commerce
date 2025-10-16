@@ -8,6 +8,7 @@ import { BrickWall, ListOrdered, Save, Plus, Clock, CheckCircle, XCircle, Eye, U
 import { useForm, Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 
 interface ProductRequest {
   id: number
@@ -95,7 +96,7 @@ const getStatusIcon = (status: string) => {
 }
 
 export default function RequestDashboard({ requests }: RequestProps) {
-  const [showForm, setShowForm] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
 
   const handleDelete = (requestId: number, productName: string) => {
@@ -133,7 +134,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
       onSuccess: () => {
         reset()
         setImagePreview(null)
-        setShowForm(false)
+        setDialogOpen(false)
       },
     })
   }
@@ -154,110 +155,107 @@ export default function RequestDashboard({ requests }: RequestProps) {
               <h1 className="text-2xl font-bold text-gray-900">Product Requests</h1>
               <p className="text-gray-600">Request products that you'd like to see in our store</p>
             </div>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2  text-white px-4 py-2 rounded-lg  transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              New Request
-            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="flex items-center gap-2  text-white px-4 py-2 rounded-lg  transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Request
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Submit Product Request</DialogTitle>
+                  <DialogDescription>
+                    Describe the product you want us to source. Include details and an optional image.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="product_name" className="block text-sm font-medium text-gray-700 mb-1">
+                      Product Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="product_name"
+                      value={data.product_name}
+                      onChange={(e) => setData("product_name", e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Enter the product name you're looking for"
+                      required
+                    />
+                    {errors.product_name && <p className="text-red-600 text-sm mt-1">{errors.product_name}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                      Description *
+                    </label>
+                    <textarea
+                      id="description"
+                      value={data.description}
+                      onChange={(e) => setData("description", e.target.value)}
+                      rows={5}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder="Describe the product, specs, brand preferences, etc."
+                      required
+                    />
+                    {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
+                  </div>
+
+                  <div>
+                    <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
+                      Product Image (Optional)
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors">
+                        <Upload className="w-4 h-4" />
+                        <span className="text-sm">Choose Image</span>
+                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                      </label>
+                      {imagePreview && (
+                        <div className="relative">
+                          <img
+                            src={imagePreview || "/placeholder.svg"}
+                            alt="Preview"
+                            className="w-16 h-16 object-cover rounded-lg"
+                          />
+                          <button
+                            type="button"
+                            onClick={removeImage}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {errors.image && <p className="text-red-600 text-sm mt-1">{errors.image}</p>}
+                  </div>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        reset()
+                        setImagePreview(null)
+                        setDialogOpen(false)
+                      }}
+                      disabled={processing}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={processing}>
+                      {processing ? "Submitting..." : "Submit Request"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          {/* Request Form */}
-          {showForm && (
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Submit Product Request</h2>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="product_name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="product_name"
-                    value={data.product_name}
-                    onChange={(e) => setData("product_name", e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter the product name you're looking for"
-                    required
-                  />
-                  {errors.product_name && <p className="text-red-600 text-sm mt-1">{errors.product_name}</p>}
-                </div>
-
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                    Description *
-                  </label>
-                  <textarea
-                    id="description"
-                    value={data.description}
-                    onChange={(e) => setData("description", e.target.value)}
-                    rows={4}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    placeholder="Describe the product you're looking for, including specifications, brand preferences, etc."
-                    required
-                  />
-                  {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
-                </div>
-
-                <div>
-                  <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
-                    Product Image (Optional)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors">
-                      <Upload className="w-4 h-4" />
-                      <span className="text-sm">Choose Image</span>
-                      <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                    </label>
-                    {imagePreview && (
-                      <div className="relative">
-                        <img
-                          src={imagePreview || "/placeholder.svg"}
-                          alt="Preview"
-                          className="w-16 h-16 object-cover rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={removeImage}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {errors.image && <p className="text-red-600 text-sm mt-1">{errors.image}</p>}
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className=" text-white px-6 py-2 rounded-lg  transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {processing ? "Submitting..." : "Submit Request"}
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                    className="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            </div>
-          )}
 
           {/* Requests List */}
           {requests.length > 0 ? (

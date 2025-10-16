@@ -521,7 +521,7 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                                     <div className="flex gap-2">
                                                         <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
                                                         <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
-                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })}>Reject</Button>
+                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })} className={`${p.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`} disabled={p.admin_status === 'approved'}>Reject</Button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -574,7 +574,7 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                                     <div className="flex gap-2">
                                                         <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
                                                         <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
-                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })}>Reject</Button>
+                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })} className={`${p.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`} disabled={p.admin_status === 'approved'}>Reject</Button>
                                                     </div>
                                                 </td>
                                             </tr>

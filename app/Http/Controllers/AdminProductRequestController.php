@@ -96,12 +96,20 @@ class AdminProductRequestController extends Controller
             $updateData['available'] = (bool) $validated['available'];
         }
 
-        // If status is being changed to approved, set the payment amount if provided
+        // If status is approved, enforce availability first and then optional payment
         if ($validated['status'] === 'approved') {
+            if (empty($updateData['available'])) {
+                return back()->withErrors(['available' => 'Please mark the product as available before approving.'])->withInput();
+            }
+
             if (isset($validated['amount']) && $validated['amount'] > 0) {
                 $updateData['amount'] = $validated['amount'];
                 $updateData['currency'] = $validated['currency'] ?? 'ETB';
                 $updateData['payment_status'] = 'pending';
+            } else {
+                // Clear payment-related fields if no amount set
+                $updateData['amount'] = null;
+                $updateData['currency'] = null;
             }
         }
 

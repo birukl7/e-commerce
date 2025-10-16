@@ -32,7 +32,7 @@ interface ProductRequest {
 
 
 interface ProductRequestIndexProps {
-    product_requests: ProductRequest[];
+    product_requests: any;
     filters?: {
         status?: string | null;
         payment_status?: string | null;
@@ -46,6 +46,20 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ProductRequestIndex({ product_requests, filters }: ProductRequestIndexProps) {
+    // Normalize data and pagination (supports both array and paginator shapes)
+    const items: ProductRequest[] = Array.isArray(product_requests)
+        ? product_requests as ProductRequest[]
+        : (product_requests?.data ?? []) as ProductRequest[];
+
+    const meta = product_requests?.meta ?? product_requests;
+    const pagination = meta && meta.current_page !== undefined ? {
+        current_page: meta.current_page,
+        last_page: meta.last_page,
+        per_page: meta.per_page,
+        total: meta.total,
+        from: meta.from ?? ((meta.current_page - 1) * meta.per_page + 1),
+        to: meta.to ?? Math.min(meta.current_page * meta.per_page, meta.total),
+    } : undefined;
     // Define table columns
     const columns: TableColumn<ProductRequest>[] = [
         {
@@ -151,12 +165,14 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
                     </div>
                 </div>
                 <DataTable<ProductRequest>
-                    data={product_requests}
+                    data={items}
                     columns={columns}
                     title="Product Requests"
                     description="Manage and review product requests from users"
                     actions={getActions}
                     emptyMessage="No product requests found."
+                    pagination={pagination}
+                    baseUrl="/admin/product-requests"
                 />
             </div>
         </AppLayout>

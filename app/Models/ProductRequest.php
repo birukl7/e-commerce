@@ -202,15 +202,33 @@ class ProductRequest extends Model
                     'submitted'
                 ));
             
-            // Optionally notify admin about new request
-            if ($admin = User::where('role', 'admin')->first()) {
-                Mail::to($admin->email)
-                    ->send(new ProductRequestNotification(
-                        $productRequest,
-                        $admin,
-                        'admin_notification',
-                        $admin
-                    ));
+            // Optionally notify admin about new request (Spatie roles)
+            try {
+                $admin = null;
+                // Try common admin role names
+                foreach (['admin', 'administrator', 'super-admin', 'super admin'] as $roleName) {
+                    $admin = \App\Models\User::role($roleName)->first();
+                    if ($admin) break;
+                }
+
+                // Fallback: any user with a role containing 'admin'
+                if (!$admin) {
+                    $admin = \App\Models\User::whereHas('roles', function($q) {
+                        $q->where('name', 'like', '%admin%');
+                    })->first();
+                }
+
+                if ($admin) {
+                    Mail::to($admin->email)
+                        ->send(new ProductRequestNotification(
+                            $productRequest,
+                            $admin,
+                            'admin_notification',
+                            $admin
+                        ));
+                }
+            } catch (\Throwable $e) {
+                // Silently skip admin notification if roles are not set up
             }
         });
 

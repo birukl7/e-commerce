@@ -107,7 +107,7 @@ class PaymentTransaction extends Model
 
     public function canBeRejected(): bool
     {
-        return !$this->isAdminRejected();
+        return !$this->isAdminRejected() && !$this->isAdminApproved();
     }
 
     // Backward compatibility - maps to gateway_status primarily

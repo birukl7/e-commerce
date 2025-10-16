@@ -8,6 +8,7 @@ import { Heart } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import H2 from '../ui/h2';
+import { getImageUrl } from '@/lib/image';
 
 interface Product {
     id: number;
@@ -334,27 +335,11 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
     };
 
     const getProductImage = (product: Product) => {
-        if (!product.image) {
-            return createPlaceholderDataUrl(product.name);
-        }
-
-        // If already a full URL, just return it
-        if (product.image.startsWith('http')) {
-            return product.image;
-        }
-
-        // Otherwise, serve from /image/
-        return `/image/${product.image}`;
+        return getImageUrl(product.image, { bucket: 'products', placeholderText: product.name, width: 400, height: 400 });
     };
 
     const getCategoryImage = (category: ShowcaseCategory) => {
-        if (!category.image) {
-            return createPlaceholderDataUrl(category.name, 400, 400);
-        }
-        if (category.image.startsWith('http')) {
-            return category.image;
-        }
-        return 'image/' + category.image;
+        return getImageUrl(category.image, { bucket: 'categories', placeholderText: category.name, width: 400, height: 400 });
     };
 
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {

@@ -26,7 +26,9 @@ class CategoryController extends Controller
             // Add product count for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                $category->image = asset('image/' . $category->image);
+                if ($category->image) {
+                    $category->image = asset('image/' . ltrim($category->image, '/'));
+                }
                 
                 if ($category->children) {
                     $category->children->each(function ($child) {
@@ -232,7 +234,7 @@ class CategoryController extends Controller
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
                 if ($category->image) {
-                    $category->image = asset('image/' . $category->image);
+                    $category->image = asset('image/' . ltrim($category->image, '/'));
                 }
             });
 
@@ -290,7 +292,7 @@ class CategoryController extends Controller
                         
                         // Format image URL for children
                         if ($child->image) {
-                            $child->image = asset('image/' . $child->image);
+                            $child->image = asset('image/' . ltrim($child->image, '/'));
                         }
                     });
                 }

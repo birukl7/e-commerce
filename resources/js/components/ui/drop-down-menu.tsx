@@ -14,6 +14,7 @@ import {
 import { Loader2, Menu } from "lucide-react"
 import React, { useRef, useEffect, useState, ErrorInfo } from "react"
 import { Link } from "@inertiajs/react"
+import { getImageUrl } from "@/lib/image"
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -139,15 +140,8 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
     }
   }
 
-  const getImageUrl = (imagePath: string) => {
-    console.log("category image: ", imagePath)
-    if (!imagePath) {
-      return "/placeholder.svg?height=40&width=40"
-    }
-    if (imagePath.startsWith("http")) {
-      return imagePath
-    }
-    return imagePath
+  const resolveCategoryImage = (imagePath: string, size: number) => {
+    return getImageUrl(imagePath, { bucket: "categories", width: size, height: size })
   }
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, categoryName: string, size: string) => {
@@ -230,7 +224,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
                           <img
                             loading="lazy"
                             decoding="async"
-                            src={getImageUrl(category.image) || "/placeholder.svg"}
+                            src={resolveCategoryImage(category.image, 40)}
                             alt={category.name}
                             className="w-full h-full object-cover"
                             onError={(e) => handleImageError(e, category.name, "40")}
@@ -259,7 +253,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
                                 <img
                                   loading="lazy"
                                   decoding="async"
-                                  src={getImageUrl(child.image) || "/placeholder.svg"}
+                                  src={resolveCategoryImage(child.image, 32)}
                                   alt={child.name}
                                   className="w-full h-full object-cover"
                                   onError={(e) => handleImageError(e, child.name, "32")}
@@ -286,7 +280,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
                         <img
                           loading="lazy"
                           decoding="async"
-                          src={getImageUrl(category.image) || "/placeholder.svg"}
+                          src={resolveCategoryImage(category.image, 40)}
                           alt={category.name}
                           className="w-full h-full object-cover"
                           onError={(e) => handleImageError(e, category.name, "40")}
