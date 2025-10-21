@@ -27,9 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        // register this middleware with its alias
+        // Register middleware with their aliases
         $middleware->alias([
             'admin' => EnsureUserHasAdminAccess::class,
+            'supplier' => \App\Http\Middleware\CheckSupplierRole::class,
             'validate.admin.session' => \App\Http\Middleware\ValidateAdminSession::class,
         ]);
     })

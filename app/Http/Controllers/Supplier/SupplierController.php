@@ -140,7 +140,6 @@ class SupplierController extends Controller
     {
         $user->notify(new \App\Notifications\SupplierWelcome($supplierProfile));
     }
-    }
 
     public function dashboard()
     {

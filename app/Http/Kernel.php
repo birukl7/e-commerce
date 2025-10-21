@@ -70,5 +70,6 @@ class Kernel extends HttpKernel
         'secure_admin' => \App\Http\Middleware\SecureAdminAccess::class,
         'validate.admin.session' => \App\Http\Middleware\ValidateAdminSession::class,
         'validate_admin_session' => \App\Http\Middleware\ValidateAdminSession::class,
+        'role' => \App\Http\Middleware\CheckUserRole::class,
     ];
 }
