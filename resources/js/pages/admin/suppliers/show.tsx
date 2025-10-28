@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/inertia-react';
+import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/layouts/admin-layout';
 import { Button } from '@/components/button';
 import { SupplierProfile } from '@/types/supplier';
 import { Dialog } from '@headlessui/react';
-import { XIcon } from '@heroicons/react/outline';
+import { X } from 'lucide-react';
 
 interface Props {
   supplier: SupplierProfile & {
@@ -190,7 +190,7 @@ export default function SupplierShow({ supplier }: Props) {
                 onClick={() => setIsUpdatingStatus(false)}
               >
                 <span className="sr-only">Close</span>
-                <XIcon className="h-6 w-6" aria-hidden="true" />
+                <X className="h-6 w-6" aria-hidden="true" />
               </button>
             </div>
             <div>

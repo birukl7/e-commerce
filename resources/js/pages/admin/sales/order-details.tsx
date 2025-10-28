@@ -21,7 +21,7 @@ import {
     FileText,
     ExternalLink
 } from 'lucide-react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface OrderItem {
     id: number;

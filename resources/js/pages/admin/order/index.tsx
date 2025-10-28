@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import AppLayout from "@/layouts/app-layout"
-import { adminNavItems } from "@/pages/admin/dashboard"
+import { adminNavItems } from "@/constants/adminNavItems"
 import type { BreadcrumbItem } from "@/types"
 import { Head, Link, router } from "@inertiajs/react"
 import {

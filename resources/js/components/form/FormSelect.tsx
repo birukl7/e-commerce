@@ -1,7 +1,7 @@
 import React, { SelectHTMLAttributes, forwardRef } from 'react';
 import { ErrorMessage } from '@hookform/error-message';
 import { FieldErrors } from 'react-hook-form';
-import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { ChevronDown } from 'lucide-react';
 
 type Option = {
   value: string | number;
@@ -92,7 +92,7 @@ export const FormSelect = forwardRef<HTMLSelectElement, SelectProps>(
               ))}
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <ChevronDownIcon className="h-4 w-4" aria-hidden="true" />
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
             </div>
           </div>
         </div>

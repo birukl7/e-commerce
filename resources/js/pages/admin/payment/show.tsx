@@ -10,7 +10,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Calendar, CreditCard, Mail, MapPin, Package, Phone, CheckCircle, XCircle, Eye, Clock, AlertTriangle, Ban, TrendingDown, FileImage, User } from 'lucide-react';
 import { useState } from 'react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface PaymentTransaction {
     id: number;

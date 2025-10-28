@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { usePage } from '@inertiajs/inertia-react';
+import { usePage } from '@inertiajs/react';
 import { get, post, put, del, ApiResult } from '@/utils/api';
 import { 
   SupplierProfile, 

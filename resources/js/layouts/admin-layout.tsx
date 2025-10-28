@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
-import { Link } from '@inertiajs/inertia-react';
-import { Head } from '@inertiajs/inertia-react';
+import { Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -18,13 +18,13 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Link href="/admin" className="text-xl font-bold text-gray-800">
+                <Link href="/admin-dashboard" className="text-xl font-bold text-gray-800">
                   Admin Panel
                 </Link>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
                 <Link 
-                  href="/admin/dashboard" 
+                  href="/admin-dashboard" 
                   className="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium"
                   activeClassName="border-indigo-500"
                 >

@@ -13,7 +13,7 @@ type AdminLayoutProps = {
 
 // Default navigation items for the sidebar
 const defaultNavItems = [
-    { title: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { title: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
     { title: 'Products', href: '/admin/products', icon: Package },
     { title: 'Categories', href: '/admin/categories', icon: Tag },
     { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },

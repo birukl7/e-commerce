@@ -14,7 +14,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import React from 'react';
 import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, CheckCircle, AlertTriangle, Eye, Ban, Plus, X } from 'lucide-react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface OfflinePaymentMethod {
     id: number;

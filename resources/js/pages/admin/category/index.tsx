@@ -12,7 +12,7 @@ import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ImageIcon, PencilIcon, PlusIcon, TrashIcon } from 'lucide-react';
 import { useState } from 'react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface Brand {
     id: number;

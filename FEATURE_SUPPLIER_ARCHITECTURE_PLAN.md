@@ -14,20 +14,26 @@ Enable users to become suppliers and sell products (Etsy-like) while fitting cle
 ---
 
 ## Data Model
+
+### ✅ Architecture Decision: Shared Models (Not Separate)
+**Use existing models with supplier-specific fields rather than creating separate models**
+
 - users (existing; HasRoles)
   - optional convenience: `is_supplier` boolean (policy relies on role)
+  - **MISSING**: `supplierProducts()` relationship method
 - supplier_profiles
   - user_id FK, business_name, business_email, phone, tax_id, address JSON
   - verification_status enum(pending, approved, rejected, banned)
   - verification_notes text, default_commission_rate decimal(5,2)
   - payout_method JSON, created_by_admin_id nullable
-- products (existing)
-  - add `supplier_id` (FK to users.id)
+- **products (existing - SHARED MODEL)**
+  - add `supplier_id` (FK to users.id) - nullable for platform products
   - `moderation_status` enum(draft, pending_review, approved, rejected, suspended)
   - `visibility` enum(private, public)
   - `rejection_reason` text, `listing_fee_applied` boolean
-- orders, order_items (existing)
-  - orders: `marketplace_type` enum(first_party, supplier)
+  - **Uses same category_id as platform products (shared category system)**
+- **orders, order_items (existing - ENHANCED)**
+  - orders: `marketplace_type` enum(first_party, supplier, mixed)
   - order_items: `supplier_id`, `vendor_earnings` decimal, `platform_commission` decimal
 - supplier_earnings_ledger
   - supplier_id, order_id, order_item_id, amount, commission, net_amount
@@ -74,9 +80,22 @@ Indexes:
 ---
 
 ## Supplier UX (Inertia)
-- Dashboard: onboarding status, catalog cards (draft/pending/approved/rejected), orders, earnings.
-- Product Editor: draft → submit for review; clear moderation/rejection messaging.
-- Storefront (phase 2): `/store/{supplier_slug}` with approved/public products.
+
+### ✅ Architecture Decision: Dedicated Supplier Dashboard
+**Separate dashboard for suppliers (not shared with customers)**
+
+- **Dashboard**: onboarding status, catalog cards (draft/pending/approved/rejected), orders, earnings
+- **Product Editor**: draft → submit for review; clear moderation/rejection messaging
+- **Navigation**: Dedicated supplier layout with role-specific menu items
+- **Role Switching**: Multi-role users can switch between customer and supplier views
+- **Storefront** (phase 2): `/store/{supplier_slug}` with approved/public products
+
+### Required Supplier Pages
+- Dashboard Overview (`/supplier/dashboard`)
+- Product Management (`/supplier/products/*`)
+- Order Management (`/supplier/orders/*`)
+- Earnings & Payouts (`/supplier/earnings/*`)
+- Settings (`/supplier/settings`)
 
 ---
 
@@ -116,3 +135,22 @@ Indexes:
 - Works with current Spatie roles, Inertia admin dashboard, and payments approval pipeline.
 - Product Request flow remains separate from supplier product moderation.
 - Extend existing reporting with supplier revenue/commission summaries.
+
+## Key Architecture Decisions Made
+
+### 1. Shared Models Approach ✅
+- **Products**: Use existing Product model with supplier fields (not separate models)
+- **Categories**: Use existing Category system for all products (platform + supplier)
+- **Orders**: Enhance existing Order/OrderItem models with supplier fields
+- **Benefits**: Code reuse, unified search, simplified maintenance, industry standard
+
+### 2. Dedicated Dashboard ✅
+- **Supplier Dashboard**: Separate from customer dashboard
+- **Layout**: Dedicated `SupplierLayout` with supplier-specific navigation
+- **Routes**: All supplier routes under `/supplier/*` prefix
+- **Benefits**: Focused experience, role-specific features, better UX
+
+### 3. Missing Critical Implementation
+- **User Model**: Add missing `supplierProducts()` relationship method
+- **Controllers**: Implement missing `SupplierOrderController`, `AdminSupplierProductController`
+- **Pages**: Complete supplier product creation, editing, and management interfaces

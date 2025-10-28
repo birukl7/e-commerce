@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import AppLayout from "@/layouts/app-layout"
-import { adminNavItems } from "@/pages/admin/dashboard"
+import { adminNavItems } from "@/constants/adminNavItems"
 import type { BreadcrumbItem } from "@/types"
 import { Head, router, useForm } from "@inertiajs/react"
 import { ArrowLeft, Calendar, CreditCard, Mail, Package, Phone, Save, Truck } from "lucide-react"

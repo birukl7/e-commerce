@@ -35,7 +35,7 @@ declare global {
 }
 
 // Extend Inertia's Link component
-declare module '@inertiajs/inertia-react' {
+declare module '@inertiajs/react' {
   interface LinkProps {
     href: string;
     method?: string;

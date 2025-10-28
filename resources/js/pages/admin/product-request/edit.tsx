@@ -8,7 +8,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { FormEventHandler } from 'react';
 import AppLayout from '../../../layouts/app-layout';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 // Type definitions
 interface User {

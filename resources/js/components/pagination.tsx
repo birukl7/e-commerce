@@ -1,5 +1,5 @@
 import React from 'react';
-import { InertiaLink } from '@inertiajs/inertia-react';
+import { Link } from '@inertiajs/react';
 
 interface PaginationProps {
   links: Array<{
@@ -22,7 +22,7 @@ export const Pagination: React.FC<PaginationProps> = ({ links }) => {
         </p>
       </div>
       <div className="flex-1 flex justify-between sm:justify-end">
-        <InertiaLink
+        <Link
           href={links[0].url || '#'}
           className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
             !links[0].url
@@ -33,10 +33,10 @@ export const Pagination: React.FC<PaginationProps> = ({ links }) => {
           preserveState
         >
           Previous
-        </InertiaLink>
+        </Link>
         <div className="hidden md:flex space-x-1">
           {links.slice(1, -1).map((link, index) => (
-            <InertiaLink
+            <Link
               key={index}
               href={link.url || '#'}
               className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
@@ -48,10 +48,10 @@ export const Pagination: React.FC<PaginationProps> = ({ links }) => {
               preserveState
             >
               {link.label}
-            </InertiaLink>
+            </Link>
           ))}
         </div>
-        <InertiaLink
+        <Link
           href={links[links.length - 1].url || '#'}
           className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
             !links[links.length - 1].url
@@ -62,7 +62,7 @@ export const Pagination: React.FC<PaginationProps> = ({ links }) => {
           preserveState
         >
           Next
-        </InertiaLink>
+        </Link>
       </div>
     </nav>
   );

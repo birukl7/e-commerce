@@ -19,7 +19,7 @@ class AdminMenuService
         
         $menuGroups = [
             'Dashboard' => [
-                ['title' => 'Dashboard', 'href' => '/admin', 'icon' => 'LayoutDashboard'],
+                ['title' => 'Dashboard', 'href' => '/admin-dashboard', 'icon' => 'LayoutDashboard'],
             ],
             'Inventory' => [                
                 [

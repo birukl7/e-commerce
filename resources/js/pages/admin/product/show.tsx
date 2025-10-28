@@ -7,7 +7,7 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon, ImageIcon, TagIcon, CalendarIcon,
 import { useState } from "react"
 import ConfirmationDialog from "@/components/confirmation-dialog"
 import ProductDialog from "@/components/product-dialog"
-import { adminNavItems } from "../dashboard"
+import { adminNavItems } from "@/constants/adminNavItems"
 
 interface ProductImage {
   id: number

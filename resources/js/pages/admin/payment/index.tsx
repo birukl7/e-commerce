@@ -11,7 +11,7 @@ import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowUpDown, CreditCard, DollarSign, Download, Eye, Filter, Search, TrendingDown, TrendingUp, X, CheckCircle, Clock, AlertTriangle, Ban } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface PaymentTransaction {
     id: number;

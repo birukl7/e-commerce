@@ -8,7 +8,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import AppLayout from '../../../layouts/app-layout';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 import { Head, Link } from '@inertiajs/react';
 import { MoreHorizontal, Eye, Edit } from 'lucide-react';
 import { BreadcrumbItem } from '@/types';

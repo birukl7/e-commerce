@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
-import { usePage } from '@inertiajs/inertia-react';
+import { usePage } from '@inertiajs/react';
 import { SupplierProfile, SupplierStatusUpdateRequest, PayoutMethodUpdateRequest, CommissionUpdateRequest } from '@/types/supplier';
 import { PaginatedData } from '@/types/common';
 

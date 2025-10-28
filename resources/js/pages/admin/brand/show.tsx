@@ -1,7 +1,7 @@
 import AppLayout from "@/layouts/app-layout"
 import { Head, Link } from "@inertiajs/react"
 import { ArrowLeftIcon, PencilIcon, TrashIcon, ImageIcon, TagIcon, CalendarIcon, ExternalLinkIcon } from "lucide-react"
-import { adminNavItems } from "../dashboard"
+import { adminNavItems } from "@/constants/adminNavItems"
 
 interface Brand {
   id: number

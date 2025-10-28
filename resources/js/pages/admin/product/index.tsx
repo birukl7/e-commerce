@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import Pagination from '@/components/ui/pagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Brand, BreadcrumbItem, Paginated, Product } from '@/types';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface Category {
     id: number;

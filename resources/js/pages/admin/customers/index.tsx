@@ -8,7 +8,7 @@ import type { BreadcrumbItem } from "@/types"
 import { Head, Link, router } from "@inertiajs/react"
 import { Edit, Eye, Plus, Search, Trash2, Users } from 'lucide-react'
 import { useState } from "react"
-import { adminNavItems } from "../dashboard"
+import { adminNavItems } from "@/constants/adminNavItems"
 import H1 from "@/components/ui/h1"
 
 interface Customer {
@@ -46,7 +46,7 @@ interface Props {
 const breadcrumbs: BreadcrumbItem[] = [
   {
     title: "Admin Dashboard",
-    href: "/admin/dashboard",
+    href: "/admin-dashboard",
   },
   {
     title: "Customers",

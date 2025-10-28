@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from 'react';
-import { Head, Link } from '@inertiajs/inertia-react';
-import { usePage } from '@inertiajs/inertia-react';
+import { Head, Link } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 
 interface SupplierLayoutProps {
   children: ReactNode;

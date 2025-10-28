@@ -1,9 +1,9 @@
-import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import AdminLayout from '@/layouts/AdminLayout';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '@/components/ui/chart';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, NavItem } from '@/types';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import {
     AlertTriangle,
     BarChart3,
@@ -19,6 +19,7 @@ import {
     TrendingUp,
     Users,
 } from 'lucide-react';
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from 'recharts';
 
 interface DashboardStats {
     totalSales: number;
@@ -69,19 +70,6 @@ interface PaymentStats {
     today_revenue: number;
 }
 
-interface TaxStats {
-    total_tax_settings: number;
-    active_tax_settings: number;
-    total_tax_revenue: number;
-}
-
-interface StockNotificationStats {
-    total_notifications: number;
-    pending_notifications: number;
-    notified_count: number;
-    products_with_notifications: number;
-}
-
 interface AdminDashboardProps {
     stats: DashboardStats;
     recentOrders: RecentOrder[];
@@ -90,8 +78,6 @@ interface AdminDashboardProps {
     productRequestSummary: ProductRequestSummary;
     customerRegistrationTrends: CustomerRegistrationTrend[];
     paymentStats: PaymentStats;
-    taxStats: TaxStats;
-    stockNotificationStats: StockNotificationStats;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -101,63 +87,32 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export const adminNavItems: NavItem[] = [
-    { title: 'Dashboard', href: '/admin-dashboard', icon: LayoutDashboard },
-    { title: 'Products', href: '/admin/products', icon: Package },
-    { title: 'Sales Dashboard', href: '/admin/sales', icon: BarChart3 },
-    { title: 'Suppliers and Customers', href: '/admin/customers', icon: Users },
-    { title: 'Categories and Brands', href: '/admin/categories', icon: Tags },
-    { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
-    { title: 'Orders', href: '/admin/orders', icon: ShoppingCart },
-    { title: 'Tax Settings', href: route('admin.tax.settings.index'), icon: DollarSign },
-    { title: 'Stock Notifications', href: '/admin/stock-notifications', icon: AlertTriangle },
-    { title: 'Site Configuration', href: '/site-config', icon: Settings },
-];
 
-const AdminDashboard = ({
-    stats = {
-        totalSales: 0,
-        totalOrders: 0,
-        activeCustomers: 0,
-        lowStockProducts: 0,
-        todaySales: 0,
-        salesChange: 0,
-    },
-    recentOrders = [],
-    topSellingProducts = [],
-    salesByCategory = [],
-    productRequestSummary = {
-        pending: 0,
-        reviewed: 0,
-        approved: 0,
-        rejected: 0,
-    },
-    customerRegistrationTrends = [],
-    paymentStats = {
-        total_transactions: 0,
-        successful_payments: 0,
-        failed_payments: 0,
-        pending_payments: 0,
-        total_revenue: 0,
-        today_revenue: 0,
-    },
-    taxStats = {
-        total_tax_settings: 0,
-        active_tax_settings: 0,
-        total_tax_revenue: 0,
-    },
-    stockNotificationStats = {
-        total_notifications: 0,
-        pending_notifications: 0,
-        notified_count: 0,
-        products_with_notifications: 0,
-    },
-}: AdminDashboardProps) => {
+export default function AdminDashboard({
+    stats,
+    recentOrders,
+    topSellingProducts,
+    salesByCategory,
+    productRequestSummary,
+    customerRegistrationTrends,
+    paymentStats,
+}: AdminDashboardProps) {
     const formatCurrency = (amount: number, currency = 'ETB') => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency,
         }).format(amount);
+    };
+
+    // Custom tooltip formatter for charts
+    const formatTooltipValue = (value: number, name: string) => {
+        if (name === 'sales') {
+            return [`ETB ${value}`, 'Sales'];
+        }
+        if (name === 'registrations') {
+            return [`${value} users`, 'Registrations'];
+        }
+        return [value, name];
     };
 
     const categoryChartData = salesByCategory.map((category) => ({
@@ -166,19 +121,53 @@ const AdminDashboard = ({
     }));
 
     const requestStatusData = [
-        { name: 'Pending', value: productRequestSummary.pending, fill: '#f59e0b' },
-        { name: 'Reviewed', value: productRequestSummary.reviewed, fill: '#3b82f6' },
-        { name: 'Approved', value: productRequestSummary.approved, fill: '#10b981' },
-        { name: 'Rejected', value: productRequestSummary.rejected, fill: '#ef4444' },
-    ];
+        { name: 'Pending', value: productRequestSummary?.pending || 0, fill: 'hsl(var(--chart-2))' },
+        { name: 'Reviewed', value: productRequestSummary?.reviewed || 0, fill: 'hsl(var(--chart-3))' },
+        { name: 'Approved', value: productRequestSummary?.approved || 0, fill: 'hsl(var(--chart-4))' },
+        { name: 'Rejected', value: productRequestSummary?.rejected || 0, fill: 'hsl(var(--chart-5))' },
+    ].filter(item => item.value > 0); // Only show segments with data
 
     const registrationTrendData = customerRegistrationTrends.map((trend) => ({
         month: trend.month,
         registrations: trend.count,
     }));
 
+    // Chart configurations with theme-aware colors
+    const categoryChartConfig = {
+        sales: {
+            label: "Sales",
+            color: "hsl(var(--chart-1))",
+        },
+    } satisfies ChartConfig;
+
+    const requestStatusChartConfig = {
+        pending: {
+            label: "Pending",
+            color: "hsl(var(--chart-2))",
+        },
+        reviewed: {
+            label: "Reviewed", 
+            color: "hsl(var(--chart-3))",
+        },
+        approved: {
+            label: "Approved",
+            color: "hsl(var(--chart-4))",
+        },
+        rejected: {
+            label: "Rejected",
+            color: "hsl(var(--chart-5))",
+        },
+    } satisfies ChartConfig;
+
+    const registrationChartConfig = {
+        registrations: {
+            label: "Registrations",
+            color: "hsl(var(--chart-1))",
+        },
+    } satisfies ChartConfig;
+
     return (
-        <AdminLayout title="Admin Dashboard">
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={[]} footerNavItems={[]}>
             <Head title="Admin Dashboard" />
             <div className="flex   flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans max-w-7xl mx-auto w-full">
                 {/* Header Section */}
@@ -293,61 +282,6 @@ const AdminDashboard = ({
                     </Card>
                 </div>
 
-                {/* Tax & Stock Notification Widgets */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Active Tax Settings</CardTitle>
-                            <DollarSign className="h-4 w-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{taxStats.active_tax_settings}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">of {taxStats.total_tax_settings} total</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Tax Revenue</CardTitle>
-                            <TrendingUp className="h-4 w-4 text-green-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-green-600">{formatCurrency(taxStats.total_tax_revenue)}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Total tax collected</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Stock Notifications</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-amber-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-amber-600">{stockNotificationStats.pending_notifications}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Pending notifications</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Notified Users</CardTitle>
-                            <Users className="h-4 w-4 text-blue-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-blue-600">{stockNotificationStats.notified_count}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Successfully notified</span>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
-
                 <div className="grid gap-4 md:grid-cols-3">
                     {/* Sales by Category Chart */}
                     <Card className="border-border/50 shadow-sm">
@@ -356,14 +290,27 @@ const AdminDashboard = ({
                             <CardDescription>Revenue breakdown by product categories</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
-                                {categoryChartData.map((category, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">{category.category}</span>
-                                        <span className="text-sm font-medium">{formatCurrency(category.sales)}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <ChartContainer config={categoryChartConfig} className="h-[200px]">
+                                <BarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <XAxis 
+                                        dataKey="category" 
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                        tickFormatter={(value) => value.length > 8 ? value.slice(0, 8) + '...' : value}
+                                    />
+                                    <YAxis 
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                        tickFormatter={(value) => `ETB ${value}`}
+                                    />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Bar dataKey="sales" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
 
@@ -374,17 +321,37 @@ const AdminDashboard = ({
                             <CardDescription>Status breakdown of product requests</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
-                                {requestStatusData.map((status, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-3 w-3 rounded-full" style={{ backgroundColor: status.fill }} />
-                                            <span className="text-sm text-muted-foreground">{status.name}</span>
-                                        </div>
-                                        <span className="text-sm font-medium">{status.value}</span>
-                                    </div>
-                                ))}
-                            </div>
+                            {requestStatusData.length > 0 ? (
+                                <ChartContainer config={requestStatusChartConfig} className="h-[200px]">
+                                    <PieChart>
+                                        <Pie
+                                            data={requestStatusData}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={60}
+                                            innerRadius={20}
+                                            paddingAngle={2}
+                                            label={false}
+                                        >
+                                            {requestStatusData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <ChartTooltip content={<ChartTooltipContent />} />
+                                        <ChartLegend 
+                                            verticalAlign="bottom" 
+                                            height={36}
+                                            content={<ChartLegendContent />} 
+                                        />
+                                    </PieChart>
+                                </ChartContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                                    <p>No product request data available</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 
@@ -395,14 +362,26 @@ const AdminDashboard = ({
                             <CardDescription>Monthly customer registrations</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="space-y-2">
-                                {registrationTrendData.slice(-6).map((trend, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <span className="text-sm text-muted-foreground">{trend.month}</span>
-                                        <span className="text-sm font-medium">{trend.registrations} users</span>
-                                    </div>
-                                ))}
-                            </div>
+                            <ChartContainer config={registrationChartConfig} className="h-[200px]">
+                                <BarChart data={registrationTrendData.slice(-6)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <XAxis 
+                                        dataKey="month" 
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                        tickFormatter={(value) => value.slice(0, 3)}
+                                    />
+                                    <YAxis 
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tickMargin={8}
+                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                    />
+                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                    <Bar dataKey="registrations" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ChartContainer>
                         </CardContent>
                     </Card>
                 </div>
@@ -491,105 +470,7 @@ const AdminDashboard = ({
                         </CardContent>
                     </Card>
                 </div>
-
-                {/* Quick Actions */}
-                <Card className="border-border/50 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-foreground">Quick Actions</CardTitle>
-                        <CardDescription className="text-muted-foreground">Manage your store settings and notifications</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                            <Link
-                                href={route('admin.tax.settings.index')}
-                                className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-                                    <DollarSign className="h-5 w-5 text-primary" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Tax Settings</p>
-                                    <p className="text-xs text-muted-foreground">Manage tax rates and fees</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                href={route('admin.stock-notifications.index')}
-                                className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
-                                    <AlertTriangle className="h-5 w-5 text-amber-600" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Stock Notifications</p>
-                                    <p className="text-xs text-muted-foreground">Manage out of stock alerts</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                href={route('admin.products.index')}
-                                className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
-                                    <Package className="h-5 w-5 text-blue-600" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Manage Products</p>
-                                    <p className="text-xs text-muted-foreground">Add, edit, or remove products</p>
-                                </div>
-                            </Link>
-
-                            <Link
-                                href={route('admin.site-config.index')}
-                                className="flex items-center space-x-3 rounded-lg border p-4 transition-colors hover:bg-muted/50"
-                            >
-                                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
-                                    <Settings className="h-5 w-5 text-gray-600" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-foreground">Site Configuration</p>
-                                    <p className="text-xs text-muted-foreground">General store settings</p>
-                                </div>
-                            </Link>
-                        </div>
-                    </CardContent>
-                </Card>
             </div>
-        </AdminLayout>
-    );
-};
-
-// Error Boundary Component
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }> {
-    state = { hasError: false, error: null as Error | null };
-
-    static getDerivedStateFromError(error: any) {
-        return { hasError: true, error };
-    }
-
-    componentDidCatch(error: any, errorInfo: any) {
-        console.error('Dashboard Error:', error, errorInfo);
-    }
-
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="p-4 bg-red-50 text-red-700 rounded-lg">
-                    <h3 className="font-bold">Something went wrong</h3>
-                    <p>Please refresh the page or try again later.</p>
-                    <pre className="text-xs mt-2">{this.state.error?.toString()}</pre>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
-}
-
-// Main Page Component
-export default function DashboardPage(props: AdminDashboardProps) {
-    return (
-        <ErrorBoundary>
-            <AdminDashboard {...props} />
-        </ErrorBoundary>
+        </AppLayout>
     );
 }

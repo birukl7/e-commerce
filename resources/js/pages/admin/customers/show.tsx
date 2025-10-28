@@ -6,7 +6,7 @@ import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Calendar, Mail, MapPin, Phone, ShoppingBag, User, Verified } from 'lucide-react';
-import { adminNavItems } from '../dashboard';
+import { adminNavItems } from '@/constants/adminNavItems';
 
 interface Address {
     id: number;
@@ -52,7 +52,7 @@ export default function ShowCustomer({ customer }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: 'Admin Dashboard',
-            href: '/admin/dashboard',
+            href: '/admin-dashboard',
         },
         {
             title: 'Customers',
