@@ -1,5 +1,7 @@
 # Supplier Feature Guidelines & Industry Standards
 
+> **📋 Project Rules**: Please refer to [rules.md](../../rules.md) in the root project directory for general development guidelines and coding standards.
+
 ## Overview
 This document outlines the industry best practices and guidelines for implementing the seller/supplier feature in our marketplace, focusing on role-based access, user experience, and workflow.
 
