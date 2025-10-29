@@ -56,6 +56,8 @@ class ProductRequestPaymentController extends Controller
             'order_id' => $order->order_number,
             'amount' => $productRequest->amount,
             'currency' => $productRequest->currency,
+            'payment_type' => 'product_request',
+            'product_request_id' => $productRequest->id,
         ]);
     }
 
@@ -217,6 +219,331 @@ class ProductRequestPaymentController extends Controller
             ],
             'message' => 'Your payment could not be processed. Please try again.',
             'retryUrl' => route('product-requests.payment.show', $productRequest->id),
+        ]);
+    }
+
+    /**
+     * Show advance payment method selection
+     */
+    public function showAdvancePaymentMethod(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if (!$productRequest->requiresAdvancePayment()) {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Advance payment is not required for this request.');
+        }
+
+        return Inertia::render('payment/advance-payment-method', [
+            'order_id' => 'ADV-' . $productRequest->id . '-' . time(),
+            'amount' => $productRequest->advance_amount,
+            'currency' => $productRequest->currency,
+            'product_name' => $productRequest->product_name,
+            'description' => 'Advance Payment for: ' . $productRequest->product_name,
+            'product_request_id' => $productRequest->id,
+        ]);
+    }
+
+    /**
+     * Process advance payment
+     */
+    public function processAdvancePayment(Request $request, ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if (!$productRequest->requiresAdvancePayment()) {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Advance payment is not required for this request.');
+        }
+
+        $validated = $request->validate([
+            'payment_method' => 'required|in:chapa',
+            'phone_number' => 'required|string|max:20',
+        ]);
+
+        try {
+            // Generate a unique reference for the advance payment
+            $txRef = 'ADV-' . $productRequest->id . '-' . now()->timestamp;
+            
+            // Prepare payment data
+            $paymentData = [
+                'amount' => $productRequest->advance_amount,
+                'currency' => $productRequest->currency,
+                'email' => Auth::user()->email,
+                'first_name' => Auth::user()->first_name,
+                'last_name' => Auth::user()->last_name,
+                'phone_number' => $validated['phone_number'],
+                'tx_ref' => $txRef,
+                'callback_url' => route('product-requests.advance-payment.callback', $productRequest->id),
+                'return_url' => route('product-requests.advance-payment.success', $productRequest->id),
+                'customization' => [
+                    'title' => 'Advance Payment for Product Request #' . $productRequest->id,
+                    'description' => $productRequest->product_name,
+                ],
+                'meta' => [
+                    'product_request_id' => $productRequest->id,
+                    'user_id' => Auth::id(),
+                    'payment_type' => 'advance'
+                ],
+            ];
+
+            // Initialize payment with Chapa
+            $paymentUrl = $this->chapaService->initializePayment($paymentData);
+
+            // Update the product request with payment reference
+            $productRequest->update([
+                'payment_reference' => $txRef,
+                'advance_payment_status' => 'processing',
+            ]);
+
+            // Redirect to payment gateway
+            return response()->json([
+                'success' => true,
+                'redirect_url' => $paymentUrl,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process advance payment: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Show final payment form
+     */
+    public function showFinalPayment(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if (!$productRequest->requiresFinalPayment()) {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Final payment is not required for this request.');
+        }
+
+        // Use unified payment system with final payment parameters
+        return redirect()->route('payment.show', [
+            'order_id' => 'FINAL-' . $productRequest->id . '-' . time(),
+            'amount' => $productRequest->final_amount,
+            'currency' => $productRequest->currency,
+            'payment_type' => 'product_request_final',
+            'product_request_id' => $productRequest->id,
+            'description' => 'Final Payment for: ' . $productRequest->product_name,
+        ]);
+    }
+
+    /**
+     * Process final payment
+     */
+    public function processFinalPayment(Request $request, ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if (!$productRequest->requiresFinalPayment()) {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Final payment is not required for this request.');
+        }
+
+        $validated = $request->validate([
+            'payment_method' => 'required|in:chapa',
+            'phone_number' => 'required|string|max:20',
+        ]);
+
+        try {
+            // Generate a unique reference for the final payment
+            $txRef = 'FINAL-' . $productRequest->id . '-' . now()->timestamp;
+            
+            // Prepare payment data
+            $paymentData = [
+                'amount' => $productRequest->final_amount,
+                'currency' => $productRequest->currency,
+                'email' => Auth::user()->email,
+                'first_name' => Auth::user()->first_name,
+                'last_name' => Auth::user()->last_name,
+                'phone_number' => $validated['phone_number'],
+                'tx_ref' => $txRef,
+                'callback_url' => route('product-requests.final-payment.callback', $productRequest->id),
+                'return_url' => route('product-requests.final-payment.success', $productRequest->id),
+                'customization' => [
+                    'title' => 'Final Payment for Product Request #' . $productRequest->id,
+                    'description' => $productRequest->product_name,
+                ],
+                'meta' => [
+                    'product_request_id' => $productRequest->id,
+                    'user_id' => Auth::id(),
+                    'payment_type' => 'final'
+                ],
+            ];
+
+            // Initialize payment with Chapa
+            $paymentUrl = $this->chapaService->initializePayment($paymentData);
+
+            // Update the product request with payment reference
+            $productRequest->update([
+                'payment_reference' => $txRef,
+                'final_payment_status' => 'processing',
+            ]);
+
+            // Redirect to payment gateway
+            return response()->json([
+                'success' => true,
+                'redirect_url' => $paymentUrl,
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to process final payment: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Handle advance payment callback from Chapa
+     */
+    public function handleAdvancePaymentCallback(Request $request, ProductRequest $productRequest)
+    {
+        // Verify the callback is from Chapa
+        if (!$this->chapaService->verifyWebhookSignature($request)) {
+            Log::error('Invalid advance payment webhook signature', ['request' => $request->all()]);
+            abort(400, 'Invalid signature');
+        }
+
+        $paymentData = $request->all();
+        
+        // Verify the payment
+        $verification = $this->chapaService->verifyPayment($paymentData['tx_ref']);
+        
+        if ($verification['status'] === 'success') {
+            // Mark advance payment as paid
+            $productRequest->markAdvancePaid(
+                'chapa',
+                $paymentData['tx_ref'],
+                $paymentData
+            );
+
+            // Send notification to user
+            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                $productRequest,
+                'Your advance payment for product request #' . $productRequest->id . ' has been received. We will now start procuring your product.',
+                'Advance Payment Received',
+                route('user.product-requests.show', $productRequest->id)
+            ));
+
+            return response()->json(['status' => 'success'], 200);
+        }
+
+        // Log failed payment
+        Log::error('Advance payment verification failed', [
+            'product_request_id' => $productRequest->id,
+            'payment_data' => $paymentData,
+            'verification' => $verification,
+        ]);
+
+        return response()->json(['status' => 'failed'], 400);
+    }
+
+    /**
+     * Show advance payment success page
+     */
+    public function advancePaymentSuccess(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return Inertia::render('payment/AdvancePaymentSuccess', [
+            'productRequest' => [
+                'id' => $productRequest->id,
+                'product_name' => $productRequest->product_name,
+                'advance_amount' => $productRequest->advance_amount,
+                'final_amount' => $productRequest->final_amount,
+                'currency' => $productRequest->currency,
+                'payment_reference' => $productRequest->payment_reference,
+            ],
+            'message' => 'Your advance payment was successful! We will now start procuring your product.',
+        ]);
+    }
+
+    /**
+     * Handle final payment callback from Chapa
+     */
+    public function handleFinalPaymentCallback(Request $request, ProductRequest $productRequest)
+    {
+        // Verify the callback is from Chapa
+        if (!$this->chapaService->verifyWebhookSignature($request)) {
+            Log::error('Invalid final payment webhook signature', ['request' => $request->all()]);
+            abort(400, 'Invalid signature');
+        }
+
+        $paymentData = $request->all();
+        
+        // Verify the payment
+        $verification = $this->chapaService->verifyPayment($paymentData['tx_ref']);
+        
+        if ($verification['status'] === 'success') {
+            // Mark final payment as paid
+            $productRequest->markFinalPaid(
+                'chapa',
+                $paymentData['tx_ref'],
+                $paymentData
+            );
+
+            // Create order (processing + paid)
+            $order = $productRequest->createOrder(markPaid: true);
+
+            // Send notification to user
+            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                $productRequest,
+                'Your final payment for product request #' . $productRequest->id . ' has been received. Your order is now complete!',
+                'Payment Complete',
+                route('user.orders.show', $order->id)
+            ));
+
+            return response()->json(['status' => 'success'], 200);
+        }
+
+        // Log failed payment
+        Log::error('Final payment verification failed', [
+            'product_request_id' => $productRequest->id,
+            'payment_data' => $paymentData,
+            'verification' => $verification,
+        ]);
+
+        return response()->json(['status' => 'failed'], 400);
+    }
+
+    /**
+     * Show final payment success page
+     */
+    public function finalPaymentSuccess(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        return Inertia::render('payment/FinalPaymentSuccess', [
+            'productRequest' => [
+                'id' => $productRequest->id,
+                'product_name' => $productRequest->product_name,
+                'amount' => $productRequest->amount,
+                'currency' => $productRequest->currency,
+                'payment_reference' => $productRequest->payment_reference,
+            ],
+            'message' => 'Your final payment was successful! Your order is now complete.',
         ]);
     }
 }

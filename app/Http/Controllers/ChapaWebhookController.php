@@ -72,31 +72,8 @@ class ChapaWebhookController extends Controller
                     return response()->json(['error' => 'Payment not found'], 404);
                 }
 
-                // Update order status based on payment status
-                if ($payment->order) {
-                    $order = $payment->order;
-                    $oldStatus = $order->payment_status;
-                    
-                    // Update order payment status
-                    $order->payment_status = $gatewayStatus;
-                    $order->payment_method = 'chapa';
-                    
-                    // Update order status based on payment
-                    if ($gatewayStatus === 'paid') {
-                        $order->status = 'processing';
-                    } elseif ($gatewayStatus === 'failed') {
-                        $order->status = 'processing'; // Keep as processing even if payment fails
-                    }
-                    
-                    $order->save();
-                    
-                    Log::info('Order status updated', [
-                        'order_id' => $order->id,
-                        'old_payment_status' => $oldStatus,
-                        'new_payment_status' => $gatewayStatus,
-                        'order_status' => $order->status
-                    ] + $logContext);
-                }
+                // Handle different payment types
+                $this->handlePaymentType($payment, $gatewayStatus, $txRef, $logContext);
 
                 DB::commit();
                 
@@ -177,5 +154,119 @@ class ChapaWebhookController extends Controller
         }
         
         Log::info('Webhook signature verified successfully');
+    }
+
+    /**
+     * Handle different payment types based on transaction reference
+     */
+    private function handlePaymentType($payment, $gatewayStatus, $txRef, $logContext)
+    {
+        // Check if this is a product request payment
+        if (str_starts_with($txRef, 'ADV-') || str_starts_with($txRef, 'FINAL-')) {
+            $this->handleProductRequestPayment($payment, $gatewayStatus, $txRef, $logContext);
+        } else {
+            $this->handleRegularOrderPayment($payment, $gatewayStatus, $txRef, $logContext);
+        }
+    }
+
+    /**
+     * Handle regular order payments
+     */
+    private function handleRegularOrderPayment($payment, $gatewayStatus, $txRef, $logContext)
+    {
+        if ($payment->order) {
+            $order = $payment->order;
+            $oldStatus = $order->payment_status;
+            
+            // Update order payment status
+            $order->payment_status = $gatewayStatus;
+            $order->payment_method = 'chapa';
+            
+            // Update order status based on payment
+            if ($gatewayStatus === 'paid') {
+                $order->status = 'processing';
+            } elseif ($gatewayStatus === 'failed') {
+                $order->status = 'processing'; // Keep as processing even if payment fails
+            }
+            
+            $order->save();
+            
+            Log::info('Order status updated', [
+                'order_id' => $order->id,
+                'old_payment_status' => $oldStatus,
+                'new_payment_status' => $gatewayStatus,
+                'order_status' => $order->status
+            ] + $logContext);
+        }
+    }
+
+    /**
+     * Handle product request payments (advance or final)
+     */
+    private function handleProductRequestPayment($payment, $gatewayStatus, $txRef, $logContext)
+    {
+        // Extract product request ID from transaction reference
+        $parts = explode('-', $txRef);
+        if (count($parts) >= 2) {
+            $productRequestId = $parts[1];
+            $paymentType = $parts[0]; // 'ADV' or 'FINAL'
+            
+            $productRequest = \App\Models\ProductRequest::find($productRequestId);
+            
+            if ($productRequest) {
+                if ($gatewayStatus === 'paid') {
+                    if ($paymentType === 'ADV') {
+                        // Mark advance payment as paid
+                        $productRequest->markAdvancePaid('chapa', $txRef, $payment->gateway_payload ?? []);
+                        
+                        // Send notification
+                        $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                            $productRequest,
+                            'Your advance payment has been received. We will now start procuring your product.',
+                            'Advance Payment Received',
+                            route('user.product-requests.show', $productRequest->id)
+                        ));
+                        
+                        Log::info('Advance payment processed', [
+                            'product_request_id' => $productRequestId,
+                            'tx_ref' => $txRef
+                        ] + $logContext);
+                        
+                    } elseif ($paymentType === 'FINAL') {
+                        // Mark final payment as paid
+                        $productRequest->markFinalPaid('chapa', $txRef, $payment->gateway_payload ?? []);
+                        
+                        // Create order (processing + paid)
+                        $order = $productRequest->createOrder(markPaid: true);
+                        
+                        // Send notification
+                        $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                            $productRequest,
+                            'Your final payment has been received. Your order is now complete!',
+                            'Payment Complete',
+                            route('user.orders.show', $order->id)
+                        ));
+                        
+                        Log::info('Final payment processed', [
+                            'product_request_id' => $productRequestId,
+                            'order_id' => $order->id,
+                            'tx_ref' => $txRef
+                        ] + $logContext);
+                    }
+                } else {
+                    Log::warning('Product request payment failed', [
+                        'product_request_id' => $productRequestId,
+                        'payment_type' => $paymentType,
+                        'gateway_status' => $gatewayStatus,
+                        'tx_ref' => $txRef
+                    ] + $logContext);
+                }
+            } else {
+                Log::warning('Product request not found for payment', [
+                    'product_request_id' => $productRequestId,
+                    'tx_ref' => $txRef
+                ] + $logContext);
+            }
+        }
     }
 }

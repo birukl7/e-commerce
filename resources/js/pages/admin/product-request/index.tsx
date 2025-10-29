@@ -28,6 +28,20 @@ interface ProductRequest {
     user: User;
     amount?: number;
     currency?: string;
+    // Workflow fields
+    advance_amount?: number;
+    final_amount?: number;
+    advance_payment_status?: string;
+    final_payment_status?: string;
+    advance_paid_at?: string;
+    final_paid_at?: string;
+    customer_willing_to_buy?: boolean;
+    willingness_confirmed_at?: string;
+    procurement_status?: string;
+    procurement_started_at?: string;
+    procurement_completed_at?: string;
+    product_arrived_at?: string;
+    workflow_status?: string;
 }
 
 
@@ -73,6 +87,38 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
             render: (value: User) => value.name
         },
         createStatusColumn<ProductRequest>('status', 'Status'),
+        {
+            key: 'workflow_status',
+            title: 'Workflow Status',
+            render: (value, item) => {
+                if (item.status !== 'approved') return <span className="text-gray-400">-</span>;
+                
+                const getWorkflowBadge = (status: string) => {
+                    switch (status) {
+                        case 'awaiting_willingness':
+                            return <Badge variant="secondary">Awaiting Willingness</Badge>;
+                        case 'awaiting_advance_payment':
+                            return <Badge variant="secondary">Awaiting Advance Payment</Badge>;
+                        case 'advance_paid':
+                            return <Badge variant="default">Advance Paid</Badge>;
+                        case 'procurement_in_progress':
+                            return <Badge variant="secondary">Procurement In Progress</Badge>;
+                        case 'procurement_completed':
+                            return <Badge variant="default">Procurement Completed</Badge>;
+                        case 'awaiting_final_payment':
+                            return <Badge variant="secondary">Awaiting Final Payment</Badge>;
+                        case 'final_paid':
+                            return <Badge variant="default">Final Paid</Badge>;
+                        case 'completed':
+                            return <Badge variant="default">Completed</Badge>;
+                        default:
+                            return <Badge variant="outline">Unknown</Badge>;
+                    }
+                };
+                
+                return getWorkflowBadge(value || 'unknown');
+            }
+        },
         createDateColumn<ProductRequest>('created_at', 'Date', {
             year: 'numeric',
             month: 'short',

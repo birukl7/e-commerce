@@ -66,6 +66,36 @@ export default function RequestShow({ request }: Props) {
               <p className="text-sm text-gray-800 whitespace-pre-line">{request.description}</p>
             </div>
 
+            {/* Price Information */}
+            {request.status === 'approved' && request.amount && request.currency && (
+              <div className="pt-4 border-t">
+                <h2 className="font-medium mb-3">Price Information</h2>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Price Set by Admin</p>
+                      <p className="text-2xl font-bold text-green-900">
+                        {request.currency} {request.amount?.toLocaleString()}
+                      </p>
+                      {request.payment_status && (
+                        <p className="text-sm text-green-700 mt-1">
+                          Payment Status: {request.payment_status.charAt(0).toUpperCase() + request.payment_status.slice(1)}
+                        </p>
+                      )}
+                    </div>
+                    {request.payment_status === 'paid' && (
+                      <div className="text-center">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-2">
+                          <span className="text-green-600 text-xl">✓</span>
+                        </div>
+                        <p className="text-sm text-green-700 font-medium">Payment Complete</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="pt-4 border-t">
               <h2 className="font-medium mb-2">Status timeline</h2>
               <ul className="text-sm text-gray-700 list-disc pl-5 space-y-1">

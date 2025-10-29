@@ -14,6 +14,7 @@ class PaymentTransaction extends Model
     protected $fillable = [
         'tx_ref',
         'order_id',
+        'product_request_id',
         'amount',
         'currency',
         'customer_email',
@@ -45,6 +46,11 @@ class PaymentTransaction extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'order_id', 'id');
+    }
+
+    public function productRequest(): BelongsTo
+    {
+        return $this->belongsTo(ProductRequest::class);
     }
 
     // Gateway Status Helpers

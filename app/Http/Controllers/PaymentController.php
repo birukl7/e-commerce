@@ -120,8 +120,11 @@ class PaymentController extends Controller
                     $existingOrder = $order;
                 }
                 
-                // Ensure we have an order with items
-                if ($existingOrder->items()->count() === 0) {
+                // Ensure we have an order with items (skip check for product request payments)
+                $paymentType = $request->get('payment_type', 'regular');
+                $isProductRequestPayment = in_array($paymentType, ['product_request_advance', 'product_request_final']);
+                
+                if ($existingOrder->items()->count() === 0 && !$isProductRequestPayment) {
                     DB::rollBack();
                     Log::error('Order created without items', [
                         'order_id' => $orderId,
@@ -154,6 +157,9 @@ class PaymentController extends Controller
                         'customer_name' => $customerName,
                         'payment_method_type' => 'offline',
                         'offlinePaymentMethods' => $offlinePaymentMethods,
+                        'payment_type' => $request->get('payment_type', 'regular'),
+                        'product_request_id' => $request->get('product_request_id'),
+                        'description' => $request->get('description'),
                     ]);
                 } else {
                     // For Chapa payment (default), render Chapa payment form
@@ -167,6 +173,9 @@ class PaymentController extends Controller
                         'customer_name' => $customerName,
                         'payment_method_type' => null, // This tells the React component to show Chapa form
                         'offlinePaymentMethods' => collect(), // Empty collection
+                        'payment_type' => $request->get('payment_type', 'regular'),
+                        'product_request_id' => $request->get('product_request_id'),
+                        'description' => $request->get('description'),
                     ]);
                 }
 
@@ -211,6 +220,8 @@ class PaymentController extends Controller
                 'payment_reference' => 'nullable|string|max:255',
                 'payment_notes' => 'nullable|string|max:5000',
                 'payment_screenshot' => 'required|image|max:5120', // 5MB
+                'payment_type' => 'nullable|string',
+                'product_request_id' => 'nullable|integer',
             ]);
             \Log::info('Validation passed', $logContext);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -260,111 +271,179 @@ class PaymentController extends Controller
             
             try {
                 $orderNumber = trim($validated['order_id']);
+                $paymentType = $validated['payment_type'] ?? 'regular';
+                $productRequestId = $validated['product_request_id'] ?? null;
                 
-                // First, try to find the most recent pending/processing order for this user
-                $order = Order::with(['items'])
-                    ->where('user_id', $user->id)
-                    ->whereIn('status', ['pending', 'processing'])
-                    ->where('payment_status', 'pending')
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-
-                // If no recent pending order found, try to match by order number
-                if (!$order) {
-                    // Try exact match first
+                $order = null;
+                $productRequest = null;
+                
+                // Handle advance payments differently
+                if ($paymentType === 'product_request_advance' && $productRequestId) {
+                    \Log::info('Processing advance payment offline', [
+                        'product_request_id' => $productRequestId,
+                        'order_id' => $orderNumber
+                    ] + $logContext);
+                    
+                    // Find the product request
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    
+                    if (!$productRequest) {
+                        \Log::error('Product request not found for advance payment', [
+                            'product_request_id' => $productRequestId,
+                            'user_id' => $user->id
+                        ] + $logContext);
+                        
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Product request not found. Please try again.',
+                        ], 404);
+                    }
+                    
+                    // Verify the product request belongs to the user
+                    if ($productRequest->user_id !== $user->id) {
+                        \Log::error('Product request does not belong to user', [
+                            'product_request_id' => $productRequestId,
+                            'user_id' => $user->id,
+                            'product_request_user_id' => $productRequest->user_id
+                        ] + $logContext);
+                        
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Unauthorized access to product request.',
+                        ], 403);
+                    }
+                    
+                    // Check if advance payment is still pending
+                    if ($productRequest->advance_payment_status !== 'pending') {
+                        \Log::error('Advance payment already processed', [
+                            'product_request_id' => $productRequestId,
+                            'advance_payment_status' => $productRequest->advance_payment_status
+                        ] + $logContext);
+                        
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Advance payment has already been processed for this request.',
+                        ], 400);
+                    }
+                    
+                } else {
+                    // Regular order processing
+                    \Log::info('Processing regular order offline payment', [
+                        'order_id' => $orderNumber,
+                        'user_id' => $user->id
+                    ] + $logContext);
+                    
+                    // First, try to find the most recent pending/processing order for this user
                     $order = Order::with(['items'])
-                        ->where('order_number', $orderNumber)
                         ->where('user_id', $user->id)
+                        ->whereIn('status', ['pending', 'processing'])
+                        ->where('payment_status', 'pending')
+                        ->orderBy('created_at', 'desc')
                         ->first();
 
-                    // If not found, try case-insensitive search
+                    // If no recent pending order found, try to match by order number
                     if (!$order) {
+                        // Try exact match first
                         $order = Order::with(['items'])
-                            ->whereRaw('LOWER(order_number) = ?', [strtolower($orderNumber)])
+                            ->where('order_number', $orderNumber)
                             ->where('user_id', $user->id)
                             ->first();
+
+                        // If not found, try case-insensitive search
+                        if (!$order) {
+                            $order = Order::with(['items'])
+                                ->whereRaw('LOWER(order_number) = ?', [strtolower($orderNumber)])
+                                ->where('user_id', $user->id)
+                                ->first();
+                        }
+                    }
+
+                    // If still not found, log all recent orders for debugging
+                    if (!$order) {
+                        $recentOrders = Order::where('user_id', $user->id)
+                            ->orderBy('created_at', 'desc')
+                            ->limit(5)
+                            ->get(['id', 'order_number', 'status', 'payment_status', 'created_at']);
+
+                        \Log::error('Order not found for offline payment', [
+                            'requested_order_number' => $orderNumber,
+                            'user_id' => $user->id,
+                            'recent_orders' => $recentOrders->toArray(),
+                            'request_data' => $validated
+                        ] + $logContext);
+
+                        DB::rollBack();
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Order not found. Please ensure you are using the most recent order or try again.',
+                            'order_number' => $orderNumber,
+                            'recent_orders' => $recentOrders
+                        ], 404);
+                    }
+                    
+                    // Ensure order has items (only for regular orders)
+                    if ($order->items->isEmpty()) {
+                        $errorMsg = 'Cannot process payment for an empty order. Please add items to your cart and try again.';
+                        \Log::error($errorMsg, [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ] + $logContext);
+                        
+                        throw new \Exception($errorMsg);
                     }
                 }
 
-                // If still not found, log all recent orders for debugging
-                if (!$order) {
-                    $recentOrders = Order::where('user_id', $user->id)
-                        ->orderBy('created_at', 'desc')
-                        ->limit(5)
-                        ->get(['id', 'order_number', 'status', 'payment_status', 'created_at']);
-
-                    \Log::error('Order not found for offline payment', [
-                        'requested_order_number' => $orderNumber,
-                        'user_id' => $user->id,
-                        'recent_orders' => $recentOrders->toArray(),
-                        'request_data' => $validated
-                    ] + $logContext);
-
-                    DB::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Order not found. Please ensure you are using the most recent order or try again.',
-                        'order_number' => $orderNumber,
-                        'recent_orders' => $recentOrders
-                    ], 404);
-                }
-
-                if (!$order) {
-                    $errorMsg = 'Order not found for offline payment. Please restart the checkout process.';
+                // Handle order/product request updates based on payment type
+                if ($paymentType === 'product_request_advance' && $productRequest) {
+                    // Mark advance payment as paid immediately for offline payments
+                    $productRequest->markAdvancePaid('offline', $submissionRef, [
+                        'offline_method_id' => $validated['offline_payment_method_id'],
+                        'payment_reference' => $validated['payment_reference'],
+                        'payment_notes' => $validated['payment_notes'],
+                        'screenshot_path' => $path,
+                        'submitted_at' => now()->toISOString(),
+                    ]);
                     
-                    // Get all orders for this user for debugging
-                    $userOrders = Order::where('user_id', $user->id)
-                        ->orderBy('created_at', 'desc')
-                        ->limit(5)
-                        ->get(['id', 'order_number', 'status', 'created_at']);
-                    
-                    \Log::error($errorMsg, [
-                        'requested_order_number' => $orderNumber,
-                        'user_id' => $user->id,
-                        'user_email' => $user->email,
-                        'user_orders' => $userOrders->toArray(),
-                        'request_data' => $request->except(['payment_screenshot']),
-                        'existing_orders' => Order::where('order_number', $orderNumber)
-                            ->orWhere('order_number', 'like', '%' . $orderNumber . '%')
-                            ->select(['id', 'user_id', 'order_number', 'status', 'created_at'])
-                            ->get()
-                            ->toArray(),
+                    \Log::info('Product request advance payment marked as paid', [
+                        'product_request_id' => $productRequest->id,
+                        'advance_payment_status' => $productRequest->advance_payment_status,
+                        'advance_paid_at' => $productRequest->advance_paid_at
                     ] + $logContext);
                     
-                    return back()->with('error', $errorMsg)->withInput();
-                }
-                
-                // Ensure order has items
-                if ($order->items->isEmpty()) {
-                    $errorMsg = 'Cannot process payment for an empty order. Please add items to your cart and try again.';
-                    \Log::error($errorMsg, [
+                    // Send notification to user
+                    $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                        $productRequest,
+                        'Your advance payment has been received. We will now start procuring your product.',
+                        'Advance Payment Received',
+                        route('user.product-requests.show', $productRequest->id)
+                    ));
+                    
+                } else {
+                    // Update regular order status
+                    $order->update([
+                        'payment_status' => 'pending',  // Changed from 'pending_verification' to 'pending' to match the database enum
+                        'payment_method' => 'offline',
+                        'status' => 'processing'
+                    ]);
+                    
+                    \Log::info('Order updated for offline payment', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
+                        'item_count' => $order->items()->count(),
+                        'payment_status' => $order->payment_status
                     ] + $logContext);
-                    
-                    throw new \Exception($errorMsg);
                 }
-
-                // Update order status
-                $order->update([
-                    'payment_status' => 'pending',  // Changed from 'pending_verification' to 'pending' to match the database enum
-                    'payment_method' => 'offline',
-                    'status' => 'processing'
-                ]);
-                
-                \Log::info('Order updated for offline payment', [
-                    'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'item_count' => $order->items()->count(),
-                    'payment_status' => $order->payment_status
-                ] + $logContext);
 
                 // Create offline payment submission
                 $submissionData = [
                     'user_id' => $user->id,
                     'submission_ref' => $submissionRef,
                     'offline_payment_method_id' => $validated['offline_payment_method_id'],
-                    'order_id' => $order->id,
+                    'order_id' => $paymentType === 'product_request_advance' ? null : $order->id,
+                    'product_request_id' => $paymentType === 'product_request_advance' ? $productRequest->id : null,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'customer_name' => $user->name,
@@ -386,7 +465,8 @@ class PaymentController extends Controller
                 // Create corresponding payment transaction record
                 $transactionData = [
                     'tx_ref' => $submissionRef,
-                    'order_id' => $order->id,
+                    'order_id' => $paymentType === 'product_request_advance' ? null : $order->id,
+                    'product_request_id' => $paymentType === 'product_request_advance' ? $productRequest->id : null,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'customer_email' => $user->email,
@@ -434,6 +514,8 @@ class PaymentController extends Controller
                 'amount' => $validated['amount'],
                 'currency' => $validated['currency'],
                 'payment_method' => $paymentMethodName,
+                'payment_type' => $paymentType,
+                'product_request_id' => $productRequestId,
             ];
 
             \Log::info('Offline payment submission successful', [
@@ -524,6 +606,9 @@ class PaymentController extends Controller
                 'amount' => 'required|numeric|min:1',
                 'currency' => 'required|string|in:ETB,USD',
                 'cart_items' => 'nullable',
+                'payment_type' => 'nullable|string',
+                'product_request_id' => 'nullable|integer',
+                'description' => 'nullable|string',
             ]);
 
             // If cart_items is a JSON string, decode it for the frontend
@@ -532,11 +617,22 @@ class PaymentController extends Controller
                 $cartItems = json_decode($cartItems, true) ?? [];
             }
 
+            // Get product name for advance payments
+            $productName = null;
+            if ($request->payment_type === 'product_request_advance' && $request->product_request_id) {
+                $productRequest = \App\Models\ProductRequest::find($request->product_request_id);
+                $productName = $productRequest ? $productRequest->product_name : 'Product Request';
+            }
+
             return Inertia::render('payment/chapa-method-select', [
                 'order_id' => $request->order_id,
                 'amount' => (float)$request->amount,
                 'currency' => $request->currency,
                 'cart_items' => $cartItems,
+                'payment_type' => $request->payment_type,
+                'product_request_id' => $request->product_request_id,
+                'product_name' => $productName,
+                'description' => $request->description,
                 'auth' => [
                     'user' => [
                         'name' => auth()->user()->name ?? '',
@@ -565,6 +661,9 @@ class PaymentController extends Controller
             'currency' => $request->currency,
             'has_cart_items' => !empty($request->cart_items),
             'phone_number' => $request->has('phone_number') ? 'provided' : 'not provided',
+            'payment_type' => $request->input('payment_type'),
+            'product_request_id' => $request->input('product_request_id'),
+            'description' => $request->input('description'),
         ] + $logContext);
 
         try {
@@ -582,6 +681,9 @@ class PaymentController extends Controller
                 'currency' => 'required|string|in:ETB,USD',
                 'cart_items' => 'nullable', // Accepts both string and array
                 'phone_number' => 'nullable|string',
+                'payment_type' => 'nullable|string|in:regular,product_request_advance,product_request_final',
+                'product_request_id' => 'nullable|integer|exists:product_requests,id',
+                'description' => 'nullable|string',
             ]);
             
             // Convert cart_items to array if it's a string
@@ -689,7 +791,20 @@ class PaymentController extends Controller
                 // Prepare Chapa payment data
                 $firstName = explode(' ', $customerName)[0];
                 $lastName = explode(' ', $customerName . ' ')[1] ?? '';
-                $description = 'Payment for Order: ' . $order->order_number;
+                
+                // Set description based on payment type
+                $paymentType = $request->input('payment_type', 'regular');
+                $customDescription = $request->input('description');
+                
+                if ($customDescription) {
+                    $description = $customDescription;
+                } elseif ($paymentType === 'product_request_advance') {
+                    $description = 'Advance Payment for Product Request';
+                } elseif ($paymentType === 'product_request_final') {
+                    $description = 'Final Payment for Product Request';
+                } else {
+                    $description = 'Payment for Order: ' . $order->order_number;
+                }
                 
                 $paymentData = [
                     'amount' => $request->amount,
@@ -709,6 +824,8 @@ class PaymentController extends Controller
                     'meta' => [
                         'order_id' => $order->order_number, // Use the actual order number from database
                         'payment_method' => $request->payment_method,
+                        'payment_type' => $paymentType,
+                        'product_request_id' => $request->input('product_request_id'),
                     ],
                 ];
 
@@ -1729,12 +1846,27 @@ class PaymentController extends Controller
             
             if ($gatewayStatus === 'paid') {
                 // Payment was successful
+                // Check if this is an advance payment
+                $isAdvancePayment = str_starts_with($transaction->tx_ref, 'ADV-');
+                $productRequestId = null;
+                
+                if ($isAdvancePayment) {
+                    // Extract product request ID from transaction reference
+                    $parts = explode('-', $transaction->tx_ref);
+                    if (count($parts) >= 2) {
+                        $productRequestId = $parts[1];
+                    }
+                }
+                
                 return Inertia::render('payment/payment-success', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'payment_method' => 'Chapa',
                     'transaction_id' => $transaction->tx_ref,
+                    'is_advance_payment' => $isAdvancePayment,
+                    'product_request_id' => $productRequestId,
+                    'payment_type' => $isAdvancePayment ? 'product_request_advance' : 'regular',
                 ]);
             } elseif ($gatewayStatus === 'pending') {
                 // Payment is still pending - show pending page

@@ -47,15 +47,6 @@ class DatabaseSeeder extends Seeder
             'country' => 'USA',
         ]);
 
-       $admin =  User::factory()->create([
-            'name' => 'Admin',
-            'email' => 'admin@admin.com',
-            'password' => Hash::make('admin4321')
-        ]);
-
-        $userRole = Role::where('name', 'super_admin')->first();
-        $admin->assignRole($userRole);
-        $userRole2 = Role::where('name', 'admin')->first();
-        $admin->assignRole($userRole2);
+        // Admin user is now created in UserSeeder with admin1@email.com
     }
 }

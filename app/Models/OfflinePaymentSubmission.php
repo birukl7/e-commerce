@@ -13,6 +13,7 @@ class OfflinePaymentSubmission extends Model
         'submission_ref',
         'offline_payment_method_id',
         'order_id',
+        'product_request_id',
         'amount',
         'currency',
         'customer_name',
@@ -45,6 +46,16 @@ class OfflinePaymentSubmission extends Model
     public function verifiedBy()
     {
         return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function productRequest()
+    {
+        return $this->belongsTo(ProductRequest::class);
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 
     public function scopePending($query)

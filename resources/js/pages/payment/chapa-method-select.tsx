@@ -32,6 +32,11 @@ interface ChapaMethodSelectProps {
       phone?: string
     }
   }
+  // Advance payment props
+  payment_type?: string
+  product_request_id?: number
+  product_name?: string
+  description?: string
 }
 
 type PaymentMethod = "telebirr" | "cbe"
@@ -45,6 +50,9 @@ type FormData = {
   amount: number
   currency: string
   cart_items: string // JSON string
+  payment_type?: string
+  product_request_id?: number
+  description?: string
 } & Record<string, any> // ensures Inertia compatibility
 
 const formatPrice = (price: number, currency: string) => {
@@ -78,7 +86,17 @@ const validateEmail = (email: string): boolean => {
   return emailPattern.test(email)
 }
 
-export default function ChapaMethodSelect({ order_id, amount, currency, cart_items, auth }: ChapaMethodSelectProps) {
+export default function ChapaMethodSelect({ 
+  order_id, 
+  amount, 
+  currency, 
+  cart_items, 
+  auth, 
+  payment_type, 
+  product_request_id, 
+  product_name, 
+  description 
+}: ChapaMethodSelectProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState<string>("")
@@ -93,6 +111,9 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
     amount: amount || 0,
     currency: currency || "ETB",
     cart_items: JSON.stringify(cart_items || []),
+    payment_type: payment_type || "",
+    product_request_id: product_request_id || undefined,
+    description: description || "",
   })
 
   useEffect(() => {
@@ -207,6 +228,9 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
           amount: data.amount,
           currency: data.currency,
           cart_items: data.cart_items,
+          payment_type: data.payment_type,
+          product_request_id: data.product_request_id,
+          description: data.description,
         }
 
         const response = await fetch(route("payment.process"), {
@@ -417,12 +441,21 @@ export default function ChapaMethodSelect({ order_id, amount, currency, cart_ite
 
               {/* Actions */}
               <div className="flex items-center justify-between border-t pt-6">
-                <Link
-                  href={route("checkout")}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                >
-                  ← Back to Checkout
-                </Link>
+                {payment_type === 'product_request_advance' && product_request_id ? (
+                  <Link
+                    href={route("user.product-requests.show", product_request_id)}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                  >
+                    ← Back to Product Request
+                  </Link>
+                ) : (
+                  <Link
+                    href={route("checkout")}
+                    className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                  >
+                    ← Back to Checkout
+                  </Link>
+                )}
                 <Button type="submit" disabled={!canSubmit} className="min-w-[140px]">
                   {isLoading || processing ? (
                     <div className="flex items-center gap-2">

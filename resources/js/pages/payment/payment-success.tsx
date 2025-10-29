@@ -23,6 +23,10 @@ interface PaymentSuccessProps {
         image?: string;
     }>;
     awaiting_admin_approval?: boolean;
+    // Advance payment context
+    payment_type?: string;
+    product_request_id?: number;
+    is_advance_payment?: boolean;
 }
 
 function PaymentSuccessContent({
@@ -35,6 +39,9 @@ function PaymentSuccessContent({
     customer_email,
     order_items = [],
     awaiting_admin_approval = false,
+    payment_type,
+    product_request_id,
+    is_advance_payment = false,
 }: PaymentSuccessProps) {
     // Clear cart when payment is successful
     useEffect(() => {
@@ -217,24 +224,51 @@ Thank you for your purchase!
                                 </div>
 
                                 <div className="space-y-3 border-t pt-4">
-                                    <Button className="w-full" asChild>
-                                        <Link href={route('user.orders')}>
-                                            <Package className="mr-2 h-4 w-4" />
-                                            View Order Details
-                                        </Link>
-                                    </Button>
+                                    {is_advance_payment ? (
+                                        // Advance payment navigation
+                                        <>
+                                            <Button className="w-full" asChild>
+                                                <Link href={route('user.product-requests.show', product_request_id)}>
+                                                    <Package className="mr-2 h-4 w-4" />
+                                                    Back to Product Request
+                                                </Link>
+                                            </Button>
 
-                                    <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
-                                        <Download className="mr-2 h-4 w-4" />
-                                        Download Receipt
-                                    </Button>
+                                            <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download Receipt
+                                            </Button>
 
-                                    <Button variant="ghost" className="w-full" asChild>
-                                        <Link href={route('home')}>
-                                            Continue Shopping
-                                            <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Link>
-                                    </Button>
+                                            <Button variant="ghost" className="w-full" asChild>
+                                                <Link href={route('request.index')}>
+                                                    View All Requests
+                                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        // Regular order navigation
+                                        <>
+                                            <Button className="w-full" asChild>
+                                                <Link href={route('user.orders')}>
+                                                    <Package className="mr-2 h-4 w-4" />
+                                                    View Order Details
+                                                </Link>
+                                            </Button>
+
+                                            <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
+                                                <Download className="mr-2 h-4 w-4" />
+                                                Download Receipt
+                                            </Button>
+
+                                            <Button variant="ghost" className="w-full" asChild>
+                                                <Link href={route('home')}>
+                                                    Continue Shopping
+                                                    <ArrowRight className="ml-2 h-4 w-4" />
+                                                </Link>
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>

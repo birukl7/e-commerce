@@ -30,6 +30,30 @@ class RequestController extends Controller
                     'image' => $request->image ? asset('storage/' . $request->image) : null,
                     'created_at' => $request->created_at,
                     'admin_response' => $request->admin_response,
+                    'amount' => $request->amount,
+                    'currency' => $request->currency,
+                    'payment_status' => $request->payment_status,
+                    'payment_method' => $request->payment_method,
+                    'payment_reference' => $request->payment_reference,
+                    'paid_at' => $request->paid_at,
+                    'price_accepted_at' => $request->price_accepted_at,
+                    'requires_payment' => $request->requiresPayment(),
+                    'available' => $request->available,
+                    // New procurement fields
+                    'advance_amount' => $request->advance_amount,
+                    'final_amount' => $request->final_amount,
+                    'advance_payment_status' => $request->advance_payment_status,
+                    'final_payment_status' => $request->final_payment_status,
+                    'advance_paid_at' => $request->advance_paid_at,
+                    'final_paid_at' => $request->final_paid_at,
+                    'procurement_status' => $request->procurement_status,
+                    'procurement_notes' => $request->procurement_notes,
+                    'procurement_started_at' => $request->procurement_started_at,
+                    'procurement_completed_at' => $request->procurement_completed_at,
+                    'product_arrived_at' => $request->product_arrived_at,
+                    'customer_willing_to_buy' => $request->customer_willing_to_buy,
+                    'willingness_confirmed_at' => $request->willingness_confirmed_at,
+                    'workflow_status' => $request->getWorkflowStatus(),
                 ];
             });
 
@@ -217,8 +241,65 @@ class RequestController extends Controller
             'price_accepted_at' => now(),
         ]);
 
-        return redirect()->route('product-requests.payment.show', $productRequest->id)
-            ->with('success', 'Price accepted. Proceed to payment.');
+        // Check if this is the new advance payment workflow
+        if ($productRequest->advance_amount && $productRequest->final_amount) {
+            // New workflow: redirect to advance payment method selection
+            return redirect()->route('product-requests.advance-payment.show', $productRequest->id)
+                ->with('success', 'Price accepted. Please choose advance payment method.');
+        } else {
+            // Old workflow: redirect to single payment
+            return redirect()->route('product-requests.payment.show', $productRequest->id)
+                ->with('success', 'Price accepted. Proceed to payment.');
+        }
+    }
+
+    /**
+     * Show customer willingness to buy the product.
+     */
+    public function showWillingness(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($productRequest->status !== 'approved') {
+            return redirect()->route('request.index')
+                ->with('error', 'This request has not been approved yet.');
+        }
+
+        return Inertia::render('request/willingness', [
+            'request' => [
+                'id' => $productRequest->id,
+                'product_name' => $productRequest->product_name,
+                'description' => $productRequest->description,
+                'amount' => $productRequest->amount,
+                'advance_amount' => $productRequest->advance_amount,
+                'final_amount' => $productRequest->final_amount,
+                'currency' => $productRequest->currency,
+                'admin_response' => $productRequest->admin_response,
+                'image' => $productRequest->image ? asset('storage/' . $productRequest->image) : null,
+            ]
+        ]);
+    }
+
+    /**
+     * Confirm customer willingness to buy.
+     */
+    public function confirmWillingness(ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($productRequest->status !== 'approved') {
+            return redirect()->route('request.index')
+                ->with('error', 'This request has not been approved yet.');
+        }
+
+        $productRequest->markCustomerWillingness();
+
+        return redirect()->route('product-requests.advance-payment.show', $productRequest->id)
+            ->with('success', 'Thank you for confirming your willingness to buy. Please proceed with advance payment.');
     }
 
     /**
@@ -267,6 +348,30 @@ class RequestController extends Controller
                     'image' => $request->image ? asset('storage/' . $request->image) : null,
                     'created_at' => $request->created_at,
                     'admin_response' => $request->admin_response,
+                    'amount' => $request->amount,
+                    'currency' => $request->currency,
+                    'payment_status' => $request->payment_status,
+                    'payment_method' => $request->payment_method,
+                    'payment_reference' => $request->payment_reference,
+                    'paid_at' => $request->paid_at,
+                    'price_accepted_at' => $request->price_accepted_at,
+                    'requires_payment' => $request->requiresPayment(),
+                    'available' => $request->available,
+                    // New procurement fields
+                    'advance_amount' => $request->advance_amount,
+                    'final_amount' => $request->final_amount,
+                    'advance_payment_status' => $request->advance_payment_status,
+                    'final_payment_status' => $request->final_payment_status,
+                    'advance_paid_at' => $request->advance_paid_at,
+                    'final_paid_at' => $request->final_paid_at,
+                    'procurement_status' => $request->procurement_status,
+                    'procurement_notes' => $request->procurement_notes,
+                    'procurement_started_at' => $request->procurement_started_at,
+                    'procurement_completed_at' => $request->procurement_completed_at,
+                    'product_arrived_at' => $request->product_arrived_at,
+                    'customer_willing_to_buy' => $request->customer_willing_to_buy,
+                    'willingness_confirmed_at' => $request->willingness_confirmed_at,
+                    'workflow_status' => $request->getWorkflowStatus(),
                 ];
             });
 

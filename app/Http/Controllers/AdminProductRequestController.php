@@ -33,6 +33,13 @@ class AdminProductRequestController extends Controller
         }
 
         $product_requests = $query->paginate(20)->withQueryString();
+        
+        // Add workflow status to each product request
+        $product_requests->getCollection()->transform(function ($productRequest) {
+            $productRequest->workflow_status = $productRequest->getWorkflowStatus();
+            return $productRequest;
+        });
+        
         return Inertia::render('admin/product-request/index', [
             'product_requests' => $product_requests,
             'filters' => [
@@ -49,6 +56,10 @@ class AdminProductRequestController extends Controller
     public function show(ProductRequest $productRequest)
     {
         $productRequest->load(['user', 'admin']);
+        
+        // Add workflow status and payment information
+        $productRequest->workflow_status = $productRequest->getWorkflowStatus();
+        
         return Inertia::render('admin/product-request/show', [
             'product_request' => $productRequest,
         ]);
@@ -96,19 +107,30 @@ class AdminProductRequestController extends Controller
             $updateData['available'] = (bool) $validated['available'];
         }
 
-        // If status is approved, enforce availability first and then optional payment
+        // If status is approved, enforce availability first and then set up payment structure
         if ($validated['status'] === 'approved') {
             if (empty($updateData['available'])) {
                 return back()->withErrors(['available' => 'Please mark the product as available before approving.'])->withInput();
             }
 
             if (isset($validated['amount']) && $validated['amount'] > 0) {
-                $updateData['amount'] = $validated['amount'];
+                $totalAmount = $validated['amount'];
+                $advancePercentage = 0.3; // 30% advance payment
+                $advanceAmount = $totalAmount * $advancePercentage;
+                $finalAmount = $totalAmount - $advanceAmount;
+
+                $updateData['amount'] = $totalAmount;
+                $updateData['advance_amount'] = $advanceAmount;
+                $updateData['final_amount'] = $finalAmount;
                 $updateData['currency'] = $validated['currency'] ?? 'ETB';
+                $updateData['advance_payment_status'] = 'pending';
+                $updateData['final_payment_status'] = 'pending';
                 $updateData['payment_status'] = 'pending';
             } else {
                 // Clear payment-related fields if no amount set
                 $updateData['amount'] = null;
+                $updateData['advance_amount'] = null;
+                $updateData['final_amount'] = null;
                 $updateData['currency'] = null;
             }
         }

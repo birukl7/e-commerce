@@ -70,12 +70,20 @@ class UserSeeder extends Seeder
         $userRole = Role::where('name', 'user')->first();
         $customerRole = Role::where('name', 'customer')->first();
         $supplierRole = Role::where('name', 'supplier')->first();
+        $adminRole = Role::where('name', 'admin')->first();
+        $superAdminRole = Role::where('name', 'super_admin')->first();
 
         for ($i = 0; $i < 20; $i++) {
             $name = $ethiopianNames[$i];
             $address = $ethiopianAddresses[$i];
             $fullName = $name['first'] . ' ' . $name['last'];
             $email = strtolower($name['first'] . '.' . $name['last']) . '@email.com';
+            
+            // Check if user already exists
+            $existingUser = User::where('email', $email)->first();
+            if ($existingUser) {
+                continue; // Skip if user already exists
+            }
             
             // Generate Ethiopian phone number
             $phoneNumber = $phonePrefix[array_rand($phonePrefix)] . rand(100000, 999999);
@@ -122,10 +130,55 @@ class UserSeeder extends Seeder
             ]);
         }
 
+        // Create admin user (check if already exists)
+        $adminUser = User::where('email', 'admin1@email.com')->first();
+        if (!$adminUser) {
+            $adminUser = User::create([
+                'name' => 'Admin User',
+                'email' => 'admin1@email.com',
+                'password' => Hash::make('admin123'),
+                'phone' => '0911000000',
+                'status' => 'active',
+                'email_verified_at' => Carbon::now(), // Pre-verified for immediate login
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
+
+            // Assign admin roles
+            if ($userRole) {
+                $adminUser->assignRole($userRole);
+            }
+            if ($adminRole) {
+                $adminUser->assignRole($adminRole);
+            }
+            if ($superAdminRole) {
+                $adminUser->assignRole($superAdminRole);
+            }
+
+            // Create address for admin user
+            $adminUser->addresses()->create([
+                'type' => 'home',
+                'address_line_1' => 'Admin Office, Bole Road',
+                'address_line_2' => 'Building No. 1',
+                'city' => 'Addis Ababa',
+                'state' => 'Addis Ababa',
+                'postal_code' => '1000',
+                'country' => 'Ethiopia',
+                'phone' => '0911000000',
+                'is_default' => true,
+            ]);
+        }
+
         $this->command->info('Successfully created 20 Ethiopian users with addresses!');
         $this->command->info('- 10 users with customer role');
         $this->command->info('- 10 users with supplier role');
         $this->command->info('- All users have "user" role as base');
         $this->command->info('- All passwords are: 12345678');
+        $this->command->info('');
+        $this->command->info('Admin user created:');
+        $this->command->info('- Email: admin1@email.com');
+        $this->command->info('- Password: admin123');
+        $this->command->info('- Roles: user, admin, super_admin');
+        $this->command->info('- Email verified: Yes (can login immediately)');
     }
 }

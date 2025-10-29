@@ -12,9 +12,11 @@ interface OfflineSubmissionSuccessProps {
     amount: number;
     currency: string;
     payment_method: string;
+    payment_type?: string;
+    product_request_id?: number;
 }
 
-export default function OfflineSubmissionSuccess({ submission_ref, order_id, amount, currency, payment_method }: OfflineSubmissionSuccessProps) {
+export default function OfflineSubmissionSuccess({ submission_ref, order_id, amount, currency, payment_method, payment_type, product_request_id }: OfflineSubmissionSuccessProps) {
     // Clear cart when offline payment is successfully submitted
     useEffect(() => {
         // Clear cart from localStorage since payment was successful
@@ -72,8 +74,15 @@ export default function OfflineSubmissionSuccess({ submission_ref, order_id, amo
                     </div>
 
                     {/* Success Message */}
-                    <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment Submitted Successfully!</h1>
-                    <p className="mb-8 text-lg text-gray-600">Your payment proof has been submitted and is pending verification by our team.</p>
+                    <h1 className="mb-2 text-3xl font-bold text-gray-900">
+                        {payment_type === 'product_request_advance' ? 'Advance Payment Received!' : 'Payment Submitted Successfully!'}
+                    </h1>
+                    <p className="mb-8 text-lg text-gray-600">
+                        {payment_type === 'product_request_advance' 
+                            ? 'Your advance payment has been received. We will now start procuring your product.'
+                            : 'Your payment proof has been submitted and is pending verification by our team.'
+                        }
+                    </p>
 
                     {/* Submission Details Card */}
                     <Card className="mx-auto mb-8 max-w-md border-primary-200 bg-primary-50">
@@ -110,53 +119,107 @@ export default function OfflineSubmissionSuccess({ submission_ref, order_id, amo
                     <div className="mb-8">
                         <h2 className="mb-4 text-xl font-semibold text-gray-900">What happens next?</h2>
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div className="rounded-lg bg-white p-4 shadow-sm">
-                                <div className="mb-2 flex justify-center">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
-                                        <FileImage className="h-5 w-5 text-blue-600" />
+                            {payment_type === 'product_request_advance' ? (
+                                <>
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">1. Payment Received</h3>
+                                        <p className="text-sm text-gray-600">Your advance payment has been confirmed</p>
                                     </div>
-                                </div>
-                                <h3 className="mb-1 font-medium text-gray-900">1. Review</h3>
-                                <p className="text-sm text-gray-600">Our team will review your payment screenshot</p>
-                            </div>
 
-                            <div className="rounded-lg bg-white p-4 shadow-sm">
-                                <div className="mb-2 flex justify-center">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
-                                        <Clock className="h-5 w-5 text-yellow-600" />
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                                                <Clock className="h-5 w-5 text-blue-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">2. Procurement</h3>
+                                        <p className="text-sm text-gray-600">We will start procuring your product</p>
                                     </div>
-                                </div>
-                                <h3 className="mb-1 font-medium text-gray-900">2. Verification</h3>
-                                <p className="text-sm text-gray-600">Payment verification usually takes 2-24 hours</p>
-                            </div>
 
-                            <div className="rounded-lg bg-white p-4 shadow-sm">
-                                <div className="mb-2 flex justify-center">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+                                                <FileImage className="h-5 w-5 text-yellow-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">3. Final Payment</h3>
+                                        <p className="text-sm text-gray-600">Pay remaining 70% when product arrives</p>
                                     </div>
-                                </div>
-                                <h3 className="mb-1 font-medium text-gray-900">3. Confirmation</h3>
-                                <p className="text-sm text-gray-600">You'll receive an email once payment is verified</p>
-                            </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                                                <FileImage className="h-5 w-5 text-blue-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">1. Review</h3>
+                                        <p className="text-sm text-gray-600">Our team will review your payment screenshot</p>
+                                    </div>
+
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100">
+                                                <Clock className="h-5 w-5 text-yellow-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">2. Verification</h3>
+                                        <p className="text-sm text-gray-600">Payment verification usually takes 2-24 hours</p>
+                                    </div>
+
+                                    <div className="rounded-lg bg-white p-4 shadow-sm">
+                                        <div className="mb-2 flex justify-center">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                                                <CheckCircle className="h-5 w-5 text-green-600" />
+                                            </div>
+                                        </div>
+                                        <h3 className="mb-1 font-medium text-gray-900">3. Confirmation</h3>
+                                        <p className="text-sm text-gray-600">You'll receive an email once payment is verified</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
 
                     {/* Action Buttons */}
                     <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-                        <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={{ backgroundColor: '#ef4e2a' }}>
-                            <Link href="/" className="flex items-center gap-2">
-                                <Home className="h-4 w-4" />
-                                Continue Shopping
-                            </Link>
-                        </Button>
-
-                        <Button asChild variant="outline">
-                            <Link href="/user-order" className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                View My Orders
-                            </Link>
-                        </Button>
+                        {payment_type === 'product_request_advance' && product_request_id ? (
+                            <>
+                                <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={{ backgroundColor: '#ef4e2a' }}>
+                                    <Link href={route('user.product-requests.show', product_request_id)} className="flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        View Product Request
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="outline">
+                                    <Link href={route('user.product-requests.index')} className="flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        View All Requests
+                                    </Link>
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90" style={{ backgroundColor: '#ef4e2a' }}>
+                                    <Link href="/" className="flex items-center gap-2">
+                                        <Home className="h-4 w-4" />
+                                        Continue Shopping
+                                    </Link>
+                                </Button>
+                                <Button asChild variant="outline">
+                                    <Link href="/user-order" className="flex items-center gap-2">
+                                        <User className="h-4 w-4" />
+                                        View My Orders
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
                     </div>
 
                     {/* Additional Information */}

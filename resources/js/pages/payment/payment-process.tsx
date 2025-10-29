@@ -17,6 +17,9 @@ interface PaymentProcessProps {
     customer_email: string;
     customer_name: string;
     payment_method_type?: string; // 'offline' or null
+    payment_type?: string; // 'regular', 'product_request_advance', 'product_request_final'
+    product_request_id?: number;
+    description?: string;
     offlinePaymentMethods?: Array<{
         id: number;
         name: string;
@@ -34,6 +37,9 @@ export default function PaymentProcess({
     customer_email,
     customer_name,
     payment_method_type,
+    payment_type = 'regular',
+    product_request_id,
+    description,
     offlinePaymentMethods = [],
 }: PaymentProcessProps) {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -55,6 +61,10 @@ export default function PaymentProcess({
     // Modal handlers
     const handleBankSelection = (methodId: string) => {
         setSelectedOfflineMethod(methodId);
+        // Clear form state when opening modal for security
+        setModalPaymentReference('');
+        setModalPaymentNotes('');
+        setModalPaymentScreenshot(null);
         setIsPaymentModalOpen(true);
     };
 
@@ -72,6 +82,15 @@ export default function PaymentProcess({
         offlineForm.setData('payment_notes', modalPaymentNotes);
         offlineForm.setData('payment_screenshot', modalPaymentScreenshot);
         
+        // Debug: Log the form data after setting
+        console.log('Modal confirm - Form data after setting:', {
+            payment_reference: offlineForm.data.payment_reference,
+            payment_notes: offlineForm.data.payment_notes,
+            payment_screenshot: offlineForm.data.payment_screenshot,
+            hasFile: !!offlineForm.data.payment_screenshot,
+            fileType: offlineForm.data.payment_screenshot?.constructor?.name,
+        });
+        
         // Close modal and submit
         setIsPaymentModalOpen(false);
         handleOfflineSubmit(new Event('submit') as any);
@@ -85,6 +104,9 @@ export default function PaymentProcess({
         customer_email,
         customer_name,
         payment_method_type,
+        payment_type,
+        product_request_id,
+        description,
         offlinePaymentMethods: offlinePaymentMethods.length,
         offlinePaymentMethodsData: offlinePaymentMethods,
     });
@@ -230,14 +252,22 @@ export default function PaymentProcess({
                 order_id: chapaForm.data.order_id,
                 amount: chapaForm.data.amount,
                 currency: chapaForm.data.currency,
+                payment_type: payment_type,
+                product_request_id: product_request_id,
+                description: description,
             };
 
             console.log('Form data:', formData);
+            console.log('Payment type:', payment_type);
+            console.log('Product request ID:', product_request_id);
+            console.log('Description:', description);
 
             // Mark form as processing manually
             chapaForm.setDefaults({ ...chapaForm.data }); // keep TS happy
             // Better: track manually with useState if needed
 
+            console.log('Making request to:', route('payment.process'));
+            
             const response = await fetch(route('payment.process'), {
                 method: 'POST',
                 headers: {
@@ -254,6 +284,8 @@ export default function PaymentProcess({
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Response error:', errorText);
+                console.error('Response status:', response.status);
+                console.error('Response headers:', Object.fromEntries(response.headers.entries()));
                 throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
 
@@ -277,6 +309,10 @@ export default function PaymentProcess({
             }
         } catch (error) {
             console.error('Payment submission error:', error);
+            console.error('Error details:', {
+                message: error instanceof Error ? error.message : 'Unknown error',
+                stack: error instanceof Error ? error.stack : undefined,
+            });
             alert(`Payment error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
         }
     };
@@ -292,6 +328,10 @@ export default function PaymentProcess({
                 selectedOfflineMethod,
                 formData: offlineForm.data,
                 hasFile: !!offlineForm.data.payment_screenshot,
+                fileObject: offlineForm.data.payment_screenshot,
+                fileType: offlineForm.data.payment_screenshot?.constructor?.name,
+                modalFile: modalPaymentScreenshot,
+                modalFileType: modalPaymentScreenshot?.constructor?.name,
             });
             // Client-side validation
             if (!selectedOfflineMethod) {
@@ -300,12 +340,22 @@ export default function PaymentProcess({
                 alert('Please select a payment method');
                 return;
             }
-            if (!offlineForm.data.payment_screenshot) {
+            
+            // Use modal file directly if form file is not available
+            const paymentScreenshot = offlineForm.data.payment_screenshot || modalPaymentScreenshot;
+            if (!paymentScreenshot) {
                 const errorMsg = 'No payment screenshot uploaded';
                 console.error('Validation Error:', errorMsg);
                 alert('Please upload a payment screenshot');
                 return;
             }
+            
+            console.log('Using payment screenshot:', {
+                source: offlineForm.data.payment_screenshot ? 'form' : 'modal',
+                file: paymentScreenshot,
+                fileType: paymentScreenshot?.constructor?.name,
+                hasFile: !!paymentScreenshot,
+            });
 
             // Get cart items from local storage
             console.log('Retrieving cart from localStorage...');
@@ -320,8 +370,11 @@ export default function PaymentProcess({
                 amount: offlineForm.data.amount.toString(),
                 currency: offlineForm.data.currency,
                 offline_payment_method_id: selectedOfflineMethod,
-                payment_reference: offlineForm.data.payment_reference || '',
-                payment_notes: offlineForm.data.payment_notes || '',
+                payment_reference: modalPaymentReference || offlineForm.data.payment_reference || '',
+                payment_notes: modalPaymentNotes || offlineForm.data.payment_notes || '',
+                payment_type: payment_type || 'regular',
+                product_request_id: product_request_id?.toString() || '',
+                description: description || '',
                 _token: document.querySelector('meta[name="csrf-token"]' as string)?.getAttribute('content') || '',
             };
 
@@ -332,10 +385,10 @@ export default function PaymentProcess({
             });
 
             // Append the payment screenshot file
-            if (offlineForm.data.payment_screenshot) {
+            if (paymentScreenshot) {
                 console.log('Adding screenshot file to formData...');
-                formData.append('payment_screenshot', offlineForm.data.payment_screenshot);
-                const file = offlineForm.data.payment_screenshot as File;
+                formData.append('payment_screenshot', paymentScreenshot);
+                const file = paymentScreenshot as File;
                 console.log('Screenshot file details:', {
                     name: file.name,
                     type: file.type,

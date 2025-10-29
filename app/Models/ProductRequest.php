@@ -44,7 +44,21 @@ class ProductRequest extends Model
         'specifications',
         'fulfillment_status',
         'tracking_number',
-        'tracking_url'
+        'tracking_url',
+        // New procurement fields
+        'advance_amount',
+        'final_amount',
+        'advance_payment_status',
+        'final_payment_status',
+        'advance_paid_at',
+        'final_paid_at',
+        'procurement_status',
+        'procurement_notes',
+        'procurement_started_at',
+        'procurement_completed_at',
+        'product_arrived_at',
+        'customer_willing_to_buy',
+        'willingness_confirmed_at'
     ];
 
     /**
@@ -61,7 +75,17 @@ class ProductRequest extends Model
         'desired_delivery_date' => 'date',
         'payment_details' => 'array',
         'specifications' => 'array',
-        'quantity' => 'integer'
+        'quantity' => 'integer',
+        // New procurement field casts
+        'advance_amount' => 'decimal:2',
+        'final_amount' => 'decimal:2',
+        'advance_paid_at' => 'datetime',
+        'final_paid_at' => 'datetime',
+        'procurement_started_at' => 'datetime',
+        'procurement_completed_at' => 'datetime',
+        'product_arrived_at' => 'datetime',
+        'willingness_confirmed_at' => 'datetime',
+        'customer_willing_to_buy' => 'boolean'
     ];
 
     /**
@@ -172,6 +196,127 @@ class ProductRequest extends Model
     public function requiresPayment()
     {
         return $this->status === 'approved' && $this->payment_status !== 'paid' && $this->amount > 0;
+    }
+
+    /**
+     * Check if advance payment is required.
+     */
+    public function requiresAdvancePayment()
+    {
+        return $this->status === 'approved' && 
+               $this->advance_payment_status !== 'paid' && 
+               $this->advance_amount > 0 &&
+               $this->customer_willing_to_buy;
+    }
+
+    /**
+     * Check if final payment is required.
+     */
+    public function requiresFinalPayment()
+    {
+        return $this->procurement_status === 'completed' && 
+               $this->product_arrived_at !== null &&
+               $this->final_payment_status !== 'paid' && 
+               $this->final_amount > 0;
+    }
+
+    /**
+     * Check if customer has shown willingness to buy.
+     */
+    public function hasCustomerWillingness()
+    {
+        return $this->customer_willing_to_buy && $this->willingness_confirmed_at !== null;
+    }
+
+    /**
+     * Mark customer willingness to buy.
+     */
+    public function markCustomerWillingness()
+    {
+        $this->update([
+            'customer_willing_to_buy' => true,
+            'willingness_confirmed_at' => now()
+        ]);
+    }
+
+    /**
+     * Mark advance payment as paid.
+     */
+    public function markAdvancePaid($paymentMethod, $reference, array $details = [])
+    {
+        $this->update([
+            'advance_payment_status' => 'paid',
+            'advance_paid_at' => now(),
+            'payment_method' => $paymentMethod,
+            'payment_reference' => $reference,
+            'payment_details' => $details,
+        ]);
+    }
+
+    /**
+     * Mark final payment as paid.
+     */
+    public function markFinalPaid($paymentMethod, $reference, array $details = [])
+    {
+        $this->update([
+            'final_payment_status' => 'paid',
+            'final_paid_at' => now(),
+            'payment_method' => $paymentMethod,
+            'payment_reference' => $reference,
+            'payment_details' => $details,
+        ]);
+    }
+
+    /**
+     * Start procurement process.
+     */
+    public function startProcurement($notes = null)
+    {
+        $this->update([
+            'procurement_status' => 'in_progress',
+            'procurement_started_at' => now(),
+            'procurement_notes' => $notes
+        ]);
+    }
+
+    /**
+     * Complete procurement process.
+     */
+    public function completeProcurement($notes = null)
+    {
+        $this->update([
+            'procurement_status' => 'completed',
+            'procurement_completed_at' => now(),
+            'procurement_notes' => $notes
+        ]);
+    }
+
+    /**
+     * Mark product as arrived.
+     */
+    public function markProductArrived()
+    {
+        $this->update([
+            'product_arrived_at' => now()
+        ]);
+    }
+
+    /**
+     * Get the current workflow status.
+     */
+    public function getWorkflowStatus()
+    {
+        if ($this->status === 'pending') return 'pending_approval';
+        if ($this->status === 'rejected') return 'rejected';
+        if ($this->status === 'approved' && !$this->customer_willing_to_buy) return 'awaiting_customer_willingness';
+        if ($this->customer_willing_to_buy && $this->advance_payment_status !== 'paid') return 'awaiting_advance_payment';
+        if ($this->advance_payment_status === 'paid' && $this->procurement_status === 'not_started') return 'awaiting_procurement';
+        if ($this->procurement_status === 'in_progress') return 'procurement_in_progress';
+        if ($this->procurement_status === 'completed' && !$this->product_arrived_at) return 'awaiting_delivery';
+        if ($this->product_arrived_at && $this->final_payment_status !== 'paid') return 'awaiting_final_payment';
+        if ($this->final_payment_status === 'paid') return 'completed';
+        
+        return 'unknown';
     }
 
     /**

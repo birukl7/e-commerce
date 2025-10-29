@@ -18,6 +18,30 @@ interface ProductRequest {
   image?: string | null
   created_at: string
   admin_response?: string
+  amount?: number | null
+  currency?: string | null
+  payment_status?: string | null
+  payment_method?: string | null
+  payment_reference?: string | null
+  paid_at?: string | null
+  price_accepted_at?: string | null
+  requires_payment?: boolean
+  available?: boolean | null
+  // New procurement fields
+  advance_amount?: number | null
+  final_amount?: number | null
+  advance_payment_status?: string | null
+  final_payment_status?: string | null
+  advance_paid_at?: string | null
+  final_paid_at?: string | null
+  procurement_status?: string | null
+  procurement_notes?: string | null
+  procurement_started_at?: string | null
+  procurement_completed_at?: string | null
+  product_arrived_at?: string | null
+  customer_willing_to_buy?: boolean
+  willingness_confirmed_at?: string | null
+  workflow_status?: string
 }
 
 interface RequestProps {
@@ -92,6 +116,72 @@ const getStatusIcon = (status: string) => {
       return <Eye className="h-4 w-4" />
     default:
       return <Clock className="h-4 w-4" />
+  }
+}
+
+// Helper function to get workflow status display
+const getWorkflowStatusDisplay = (request: ProductRequest) => {
+  const workflowStatus = request.workflow_status || 'unknown'
+  
+  switch (workflowStatus) {
+    case 'pending_approval':
+      return { text: 'Pending Admin Approval', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
+    case 'rejected':
+      return { text: 'Rejected', color: 'bg-red-100 text-red-800 border-red-200' }
+    case 'awaiting_customer_willingness':
+      return { text: 'Awaiting Your Confirmation', color: 'bg-blue-100 text-blue-800 border-blue-200' }
+    case 'awaiting_advance_payment':
+      return { text: 'Awaiting Advance Payment', color: 'bg-orange-100 text-orange-800 border-orange-200' }
+    case 'awaiting_procurement':
+      return { text: 'Awaiting Procurement', color: 'bg-purple-100 text-purple-800 border-purple-200' }
+    case 'procurement_in_progress':
+      return { text: 'Procurement in Progress', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' }
+    case 'awaiting_delivery':
+      return { text: 'Awaiting Delivery', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
+    case 'awaiting_final_payment':
+      return { text: 'Awaiting Final Payment', color: 'bg-amber-100 text-amber-800 border-amber-200' }
+    case 'completed':
+      return { text: 'Completed', color: 'bg-green-100 text-green-800 border-green-200' }
+    default:
+      return { text: 'Unknown Status', color: 'bg-gray-100 text-gray-800 border-gray-200' }
+  }
+}
+
+// Helper function to get action button for request
+const getActionButton = (request: ProductRequest) => {
+  const workflowStatus = request.workflow_status || 'unknown'
+  
+  switch (workflowStatus) {
+    case 'awaiting_customer_willingness':
+      return {
+        text: 'Confirm Willingness',
+        href: route('request.willingness', request.id),
+        className: 'bg-blue-600 hover:bg-blue-700'
+      }
+    case 'awaiting_advance_payment':
+      return {
+        text: 'Pay Advance',
+        href: route('user.product-requests.show', request.id),
+        className: 'bg-orange-600 hover:bg-orange-700'
+      }
+    case 'awaiting_final_payment':
+      return {
+        text: 'Pay Final Amount',
+        href: route('user.product-requests.show', request.id),
+        className: 'bg-amber-600 hover:bg-amber-700'
+      }
+    case 'completed':
+      return {
+        text: 'View Details',
+        href: route('user.product-requests.show', request.id),
+        className: 'bg-green-600 hover:bg-green-700'
+      }
+    default:
+      return {
+        text: 'View Details',
+        href: route('user.product-requests.show', request.id),
+        className: 'bg-gray-600 hover:bg-gray-700'
+      }
   }
 }
 
@@ -274,8 +364,51 @@ export default function RequestDashboard({ requests }: RequestProps) {
                           {getStatusIcon(request.status)}
                           {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                         </span>
+                        {request.workflow_status && (
+                          <span
+                            className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${getWorkflowStatusDisplay(request).color}`}
+                          >
+                            {getWorkflowStatusDisplay(request).text}
+                          </span>
+                        )}
                       </div>
                       <p className="text-gray-600 mb-3">{request.description}</p>
+                      
+                      {/* Price Information */}
+                      {request.status === 'approved' && request.amount && request.currency && (
+                        <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-green-800">Price Set by Admin</p>
+                              <div className="flex items-center gap-4">
+                                <p className="text-lg font-bold text-green-900">
+                                  Total: {request.currency} {request.amount?.toLocaleString()}
+                                </p>
+                                {request.advance_amount && (
+                                  <p className="text-sm text-green-700">
+                                    Advance: {request.currency} {request.advance_amount?.toLocaleString()}
+                                  </p>
+                                )}
+                                {request.final_amount && (
+                                  <p className="text-sm text-green-700">
+                                    Final: {request.currency} {request.final_amount?.toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getActionButton(request) && (
+                                <Link href={getActionButton(request).href}>
+                                  <Button size="sm" className={getActionButton(request).className}>
+                                    {getActionButton(request).text}
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4 text-sm text-gray-500">
                           <span>Submitted: {new Date(request.created_at).toLocaleDateString()}</span>

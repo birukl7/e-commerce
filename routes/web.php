@@ -409,11 +409,35 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
     Route::post('/request/{productRequest}/accept-price', [RequestController::class, 'acceptPrice'])->name('request.accept-price');
     
+    // Enhanced workflow routes
+    Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
+    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
+    
     // User product request routes
     Route::get('/user/product-requests', [RequestController::class, 'index'])->name('user.product-requests.index');
     Route::get('/user/product-requests/{productRequest}', [RequestController::class, 'show'])->name('user.product-requests.show');
     Route::get('/user/product-requests/{productRequest}/payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'show'])
         ->name('user.product-requests.payment');
+    
+    // Advance payment routes
+    Route::get('/product-requests/{productRequest}/advance-payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'showAdvancePaymentMethod'])
+        ->name('product-requests.advance-payment.show');
+    Route::post('/product-requests/{productRequest}/advance-payment/process', [\App\Http\Controllers\ProductRequestPaymentController::class, 'processAdvancePayment'])
+        ->name('product-requests.advance-payment.process');
+    Route::post('/product-requests/{productRequest}/advance-payment/callback', [\App\Http\Controllers\ProductRequestPaymentController::class, 'handleAdvancePaymentCallback'])
+        ->name('product-requests.advance-payment.callback');
+    Route::get('/product-requests/{productRequest}/advance-payment/success', [\App\Http\Controllers\ProductRequestPaymentController::class, 'advancePaymentSuccess'])
+        ->name('product-requests.advance-payment.success');
+    
+    // Final payment routes
+    Route::get('/product-requests/{productRequest}/final-payment', [\App\Http\Controllers\ProductRequestPaymentController::class, 'showFinalPayment'])
+        ->name('product-requests.final-payment.show');
+    Route::post('/product-requests/{productRequest}/final-payment/process', [\App\Http\Controllers\ProductRequestPaymentController::class, 'processFinalPayment'])
+        ->name('product-requests.final-payment.process');
+    Route::post('/product-requests/{productRequest}/final-payment/callback', [\App\Http\Controllers\ProductRequestPaymentController::class, 'handleFinalPaymentCallback'])
+        ->name('product-requests.final-payment.callback');
+    Route::get('/product-requests/{productRequest}/final-payment/success', [\App\Http\Controllers\ProductRequestPaymentController::class, 'finalPaymentSuccess'])
+        ->name('product-requests.final-payment.success');
 
     // Payment flow routes
     Route::prefix('payment')->name('payment.')->group(function () {
