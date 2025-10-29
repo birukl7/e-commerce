@@ -11,97 +11,58 @@ class SupplierProductPolicy
     use HandlesAuthorization;
 
     /**
-     * Determine whether the user can view any models.
+     * Determine whether the user can view any products.
      */
     public function viewAny(User $user): bool
     {
-        return $user->hasRole('supplier') || $user->hasRole('admin');
+        return $user->isSupplier();
     }
 
     /**
-     * Determine whether the user can view the model.
+     * Determine whether the user can view the product.
      */
     public function view(User $user, Product $product): bool
     {
-        // Admin can view any product
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        // Supplier can only view their own products
         return $user->isSupplier() && $product->supplier_id === $user->id;
     }
 
     /**
-     * Determine whether the user can create models.
+     * Determine whether the user can create products.
      */
     public function create(User $user): bool
     {
-        // Only approved suppliers can create products
-        return $user->isSupplierApproved();
+        return $user->isSupplier();
     }
 
     /**
-     * Determine whether the user can update the model.
+     * Determine whether the user can update the product.
      */
     public function update(User $user, Product $product): bool
     {
-        // Admin can update any product
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        // Supplier can only update their own draft or rejected products
-        return $user->isSupplierApproved() && 
-               $product->supplier_id === $user->id &&
-               in_array($product->moderation_status, ['draft', 'rejected']);
+        return $user->isSupplier() && $product->supplier_id === $user->id;
     }
 
     /**
-     * Determine whether the user can delete the model.
+     * Determine whether the user can delete the product.
      */
     public function delete(User $user, Product $product): bool
     {
-        // Admin can delete any product
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        // Supplier can only delete their own draft or rejected products
-        return $user->isSupplierApproved() && 
-               $product->supplier_id === $user->id &&
-               in_array($product->moderation_status, ['draft', 'rejected']);
+        return $user->isSupplier() && $product->supplier_id === $user->id;
     }
 
     /**
-     * Determine whether the user can submit the product for review.
-     */
-    public function submitForReview(User $user, Product $product): bool
-    {
-        // Admin doesn't need to submit for review
-        if ($user->hasRole('admin')) {
-            return false;
-        }
-
-        // Supplier can only submit their own draft or rejected products
-        return $user->isSupplierApproved() && 
-               $product->supplier_id === $user->id &&
-               in_array($product->moderation_status, ['draft', 'rejected']);
-    }
-
-    /**
-     * Determine whether the user can restore the model.
+     * Determine whether the user can restore the product.
      */
     public function restore(User $user, Product $product): bool
     {
-        return $user->hasRole('admin');
+        return $user->isSupplier() && $product->supplier_id === $user->id;
     }
 
     /**
-     * Determine whether the user can permanently delete the model.
+     * Determine whether the user can permanently delete the product.
      */
     public function forceDelete(User $user, Product $product): bool
     {
-        return $user->hasRole('admin');
+        return $user->isSupplier() && $product->supplier_id === $user->id;
     }
 }

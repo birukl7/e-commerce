@@ -139,4 +139,20 @@ class User extends Authenticatable implements MustVerifyEmailContract
    {
        return $this->wishlists()->where('product_id', $productId)->exists();
    }
+
+   /**
+    * Get the products created by this supplier.
+    */
+   public function supplierProducts(): HasMany
+   {
+       return $this->hasMany(Product::class, 'supplier_id');
+   }
+
+   /**
+    * Check if user is a supplier.
+    */
+   public function isSupplier(): bool
+   {
+       return $this->hasRole('supplier');
+   }
 }

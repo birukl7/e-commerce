@@ -150,9 +150,45 @@ class SupplierController extends Controller
             return redirect()->route('supplier.register');
         }
 
-        return view('supplier.dashboard', [
-            'supplier' => $supplierProfile,
-            'isApproved' => $supplierProfile->isApproved(),
+        // Get supplier statistics
+        $stats = [
+            'total_products' => $user->supplierProducts()->count(),
+            'approved_products' => $user->supplierProducts()->where('moderation_status', 'approved')->count(),
+            'pending_products' => $user->supplierProducts()->where('moderation_status', 'pending_review')->count(),
+            'rejected_products' => $user->supplierProducts()->where('moderation_status', 'rejected')->count(),
+            'total_orders' => 0, // TODO: Implement order counting
+            'total_earnings' => 0, // TODO: Implement earnings calculation
+            'monthly_earnings' => 0, // TODO: Implement monthly earnings
+            'pending_orders' => 0, // TODO: Implement pending orders
+        ];
+
+        // Get recent products
+        $recentProducts = $user->supplierProducts()
+            ->with(['category', 'brand'])
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        // Get products by status
+        $productsByStatus = [
+            'draft' => $user->supplierProducts()->where('moderation_status', 'draft')->count(),
+            'pending_review' => $user->supplierProducts()->where('moderation_status', 'pending_review')->count(),
+            'approved' => $user->supplierProducts()->where('moderation_status', 'approved')->count(),
+            'rejected' => $user->supplierProducts()->where('moderation_status', 'rejected')->count(),
+            'suspended' => $user->supplierProducts()->where('moderation_status', 'suspended')->count(),
+        ];
+
+        // TODO: Get recent orders when order management is implemented
+        $recentOrders = [];
+
+        return Inertia::render('Supplier/Dashboard', [
+            'data' => [
+                'supplier' => $supplierProfile,
+                'stats' => $stats,
+                'recent_products' => $recentProducts,
+                'recent_orders' => $recentOrders,
+                'products_by_status' => $productsByStatus,
+            ],
         ]);
     }
 }

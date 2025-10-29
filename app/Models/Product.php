@@ -45,6 +45,12 @@ class Product extends Model
         'meta_title',
         'meta_description',
         'tax_setting_id',
+        // Supplier fields
+        'supplier_id',
+        'moderation_status',
+        'visibility',
+        'rejection_reason',
+        'listing_fee_applied',
     ];
 
     protected $casts = [
@@ -220,6 +226,11 @@ class Product extends Model
     public function taxSetting()
     {
         return $this->belongsTo(TaxSetting::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(User::class, 'supplier_id');
     }
 
     public function images()

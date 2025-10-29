@@ -10,6 +10,7 @@ use App\Policies\OutOfStockNotificationPolicy;
 use App\Policies\ProductRequestPolicy;
 use App\Policies\TaxSettingPolicy;
 use App\Policies\TaxClassPolicy;
+use App\Policies\SupplierProductPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -25,7 +26,7 @@ class AuthServiceProvider extends ServiceProvider
         ProductRequest::class => ProductRequestPolicy::class,
         TaxSetting::class => TaxSettingPolicy::class,
         TaxClass::class => TaxClassPolicy::class,
-        \App\Models\Product::class => \App\Policies\SupplierProductPolicy::class,
+        \App\Models\Product::class => SupplierProductPolicy::class,
     ];
 
     /**

@@ -19,6 +19,7 @@ use App\Http\Controllers\UserDashboardController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\AdminPaymentController;
 use App\Http\Controllers\Supplier\SupplierController;
+use App\Http\Controllers\Supplier\SupplierProductController;
 use App\Http\Controllers\AdminSalesController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminOrderController;
@@ -337,7 +338,12 @@ Route::middleware(['auth', 'verified'])->prefix('supplier')->name('supplier.')->
     // Dashboard and protected routes
     Route::middleware('role:supplier')->group(function () {
         Route::get('/dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
-        // Add more supplier routes here as needed
+        
+        // Product management routes
+        Route::resource('products', SupplierProductController::class);
+        Route::post('/products/{product}/submit', [SupplierProductController::class, 'submitForReview'])->name('products.submit');
+        
+        // TODO: Add more supplier routes (orders, earnings, settings, etc.)
     });
 });
 

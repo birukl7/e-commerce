@@ -75,6 +75,17 @@ class SupplierProductController extends Controller
             ->with('success', 'Product created successfully. You can now add more details.');
     }
 
+    public function show(Product $product)
+    {
+        $this->authorize('view', $product);
+
+        $product->load(['category', 'brand', 'images', 'reviews']);
+
+        return Inertia::render('Supplier/Products/Show', [
+            'product' => $product,
+        ]);
+    }
+
     public function edit(Product $product)
     {
         $this->authorize('update', $product);
@@ -93,50 +104,30 @@ class SupplierProductController extends Controller
         $this->authorize('update', $product);
 
         $data = $request->validated();
-        
-        // Only update slug if name has changed
-        if ($product->name !== $data['name']) {
-            $data['slug'] = $this->createSlug($data['name'], $product->id);
-        }
+        $data['slug'] = $this->createSlug($data['name'], $product->id);
 
-        if ($request->hasFile('image')) {
-            // Delete old image if exists
-            if ($product->image) {
-                Storage::disk('public')->delete($product->image);
-            }
-            $data['image'] = $request->file('image')->store('products', 'public');
+        // Handle image uploads
+        if ($request->hasFile('images')) {
+            $this->uploadProductImages($product, $request->file('images'));
         }
 
         $product->update($data);
 
-        // Handle additional images
-        if (isset($data['images']) && is_array($data['images'])) {
-            $this->uploadProductImages($product, $data['images']);
-        }
-
-        return back()->with('success', 'Product updated successfully.');
-    }
-
-    public function submitForReview(Product $product)
-    {
-        $this->authorize('submitForReview', $product);
-
-        $product->update([
-            'moderation_status' => 'pending_review',
-            'submitted_for_review_at' => now(),
-        ]);
-
-        // Notify admin about the submission
-        // event(new ProductSubmittedForReview($product));
-
-        return back()->with('success', 'Product submitted for review. It will be visible after approval.');
+        return redirect()
+            ->route('supplier.products.index')
+            ->with('success', 'Product updated successfully.');
     }
 
     public function destroy(Product $product)
     {
         $this->authorize('delete', $product);
 
-        // Soft delete the product
+        // Delete associated images
+        foreach ($product->images as $image) {
+            Storage::disk('public')->delete($image->image_path);
+        }
+        $product->images()->delete();
+
         $product->delete();
 
         return redirect()
@@ -144,39 +135,53 @@ class SupplierProductController extends Controller
             ->with('success', 'Product deleted successfully.');
     }
 
-    protected function createSlug($title, $id = 0)
+    public function submitForReview(Product $product)
     {
-        $slug = Str::slug($title);
-        
-        $allSlugs = $this->getRelatedSlugs($slug, $id);
-        
-        if (! $allSlugs->contains('slug', $slug)){
-            return $slug;
+        $this->authorize('update', $product);
+
+        if ($product->moderation_status !== 'draft') {
+            return redirect()
+                ->route('supplier.products.index')
+                ->with('error', 'Only draft products can be submitted for review.');
         }
-        
-        for ($i = 1; $i <= 10; $i++) {
-            $newSlug = $slug.'-'.$i;
-            if (! $allSlugs->contains('slug', $newSlug)) {
-                return $newSlug;
-            }
+
+        $product->update([
+            'moderation_status' => 'pending_review',
+            'visibility' => 'public',
+        ]);
+
+        return redirect()
+            ->route('supplier.products.index')
+            ->with('success', 'Product submitted for review successfully.');
+    }
+
+    /**
+     * Create a unique slug for the product
+     */
+    protected function createSlug(string $name, ?int $excludeId = null): string
+    {
+        $slug = Str::slug($name);
+        $originalSlug = $slug;
+        $counter = 1;
+
+        while (Product::where('slug', $slug)->when($excludeId, function ($query) use ($excludeId) {
+            return $query->where('id', '!=', $excludeId);
+        })->exists()) {
+            $slug = $originalSlug . '-' . $counter;
+            $counter++;
         }
-        
-        return $slug.'-'.time();
+
+        return $slug;
     }
-    
-    protected function getRelatedSlugs($slug, $id = 0)
+
+    /**
+     * Upload product images
+     */
+    protected function uploadProductImages(Product $product, array $images): void
     {
-        return Product::select('slug')
-            ->where('slug', 'like', $slug.'%')
-            ->where('id', '<>', $id)
-            ->get();
-    }
-    
-    protected function uploadProductImages($product, $images)
-    {
-        foreach ($images as $image) {
-            if (is_file($image)) {
-                $path = $image->store('products/' . $product->id, 'public');
+        foreach ($images as $index => $image) {
+            if ($image->isValid()) {
+                $path = $image->store('products', 'public');
                 $product->images()->create([
                     'image_path' => $path,
                     'is_primary' => false,

@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
+import PaymentDetailsModal from '@/components/payment-details-modal';
 import MainLayout from '@/layouts/app/main-layout';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building, CreditCard, Smartphone, Upload } from 'lucide-react';
@@ -37,6 +38,10 @@ export default function PaymentProcess({
 }: PaymentProcessProps) {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [selectedOfflineMethod, setSelectedOfflineMethod] = useState('');
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [modalPaymentReference, setModalPaymentReference] = useState('');
+    const [modalPaymentNotes, setModalPaymentNotes] = useState('');
+    const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -45,6 +50,31 @@ export default function PaymentProcess({
         })
             .format(price)
             .replace('$', currency + ' ');
+    };
+
+    // Modal handlers
+    const handleBankSelection = (methodId: string) => {
+        setSelectedOfflineMethod(methodId);
+        setIsPaymentModalOpen(true);
+    };
+
+    const handleModalClose = () => {
+        setIsPaymentModalOpen(false);
+        setSelectedOfflineMethod('');
+        setModalPaymentReference('');
+        setModalPaymentNotes('');
+        setModalPaymentScreenshot(null);
+    };
+
+    const handleModalConfirm = () => {
+        // Update the form data with modal values
+        offlineForm.setData('payment_reference', modalPaymentReference);
+        offlineForm.setData('payment_notes', modalPaymentNotes);
+        offlineForm.setData('payment_screenshot', modalPaymentScreenshot);
+        
+        // Close modal and submit
+        setIsPaymentModalOpen(false);
+        handleOfflineSubmit(new Event('submit') as any);
     };
 
     // Debug logging
@@ -563,7 +593,7 @@ export default function PaymentProcess({
                             </div>
                         </div>
 
-                        <form onSubmit={handleOfflineSubmit} className="space-y-6">
+                        <div className="space-y-6">
                             {/* Payment Method Selection */}
                             <Card>
                                 <CardHeader>
@@ -575,7 +605,10 @@ export default function PaymentProcess({
                                         {offlinePaymentMethods.map((method) => (
                                             <div key={method.id} className="space-y-3">
                                                 <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem value={method.id.toString()} id={`method-${method.id}`} />
+                                                    <RadioGroupItem 
+                                                        value={method.id.toString()} 
+                                                        id={`method-${method.id}`}
+                                                    />
                                                     <Label htmlFor={`method-${method.id}`} className="cursor-pointer">
                                                         <div className="flex items-center gap-3">
                                                             {method.type === 'bank' ? (
@@ -607,6 +640,15 @@ export default function PaymentProcess({
                                                                 ))}
                                                             </div>
                                                         </div>
+                                                        
+                                                        <div className="mt-4">
+                                                            <Button 
+                                                                onClick={() => handleBankSelection(method.id.toString())}
+                                                                className="w-full bg-primary-600 hover:bg-primary-700"
+                                                            >
+                                                                Continue with {method.name}
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -625,90 +667,30 @@ export default function PaymentProcess({
                                 </div>
                             )}
 
-                            {/* Payment Details Form */}
-                            {selectedOfflineMethod && (
-                                <>
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Payment Details</CardTitle>
-                                            <CardDescription>Provide details about your payment</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div>
-                                                <Label htmlFor="payment_reference">Payment Reference (Optional)</Label>
-                                                <Input
-                                                    id="payment_reference"
-                                                    placeholder="Transaction ID, reference number, etc."
-                                                    value={offlineForm.data.payment_reference}
-                                                    onChange={(e) => offlineForm.setData('payment_reference', e.target.value)}
-                                                />
-                                                {offlineForm.errors.payment_reference && (
-                                                    <p className="mt-1 text-sm text-red-600">{offlineForm.errors.payment_reference}</p>
-                                                )}
-                                            </div>
+                        </div>
 
-                                            <div>
-                                                <Label htmlFor="payment_notes">Additional Notes (Optional)</Label>
-                                                <Textarea
-                                                    id="payment_notes"
-                                                    placeholder="Any additional information about your payment..."
-                                                    rows={3}
-                                                    value={offlineForm.data.payment_notes}
-                                                    onChange={(e) => offlineForm.setData('payment_notes', e.target.value)}
-                                                />
-                                                {offlineForm.errors.payment_notes && (
-                                                    <p className="mt-1 text-sm text-red-600">{offlineForm.errors.payment_notes}</p>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle>Upload Payment Screenshot</CardTitle>
-                                            <CardDescription>Upload a clear screenshot of your payment confirmation (Max 5MB)</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div>
-                                                <Label htmlFor="payment_screenshot">Payment Screenshot *</Label>
-                                                <Input
-                                                    id="payment_screenshot"
-                                                    type="file"
-                                                    accept="image/*"
-                                                    required
-                                                    onChange={(e) => {
-                                                        const file = e.target.files?.[0];
-                                                        if (file) {
-                                                            offlineForm.setData('payment_screenshot', file);
-                                                        }
-                                                    }}
-                                                    className="mt-1"
-                                                />
-                                                {offlineForm.errors.payment_screenshot && (
-                                                    <p className="mt-1 text-sm text-red-600">{offlineForm.errors.payment_screenshot}</p>
-                                                )}
-                                                <p className="mt-2 text-sm text-gray-600">Accepted formats: JPG, PNG, GIF. Maximum size: 5MB</p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Button
-                                        type="submit"
-                                        className="mt-6 w-full bg-primary-600 hover:bg-primary-700"
-                                        disabled={offlineForm.processing}
-                                    >
-                                        {offlineForm.processing ? (
-                                            'Submitting...'
-                                        ) : (
-                                            <>
-                                                <Upload className="mr-2 h-4 w-4" />
-                                                Submit Payment Proof
-                                            </>
-                                        )}
-                                    </Button>
-                                </>
-                            )}
-                        </form>
+                        {/* Payment Details Modal */}
+                        <PaymentDetailsModal
+                            isOpen={isPaymentModalOpen}
+                            onClose={handleModalClose}
+                            onConfirm={handleModalConfirm}
+                            selectedMethod={offlinePaymentMethods.find(m => m.id.toString() === selectedOfflineMethod) || null}
+                            paymentReference={modalPaymentReference}
+                            onPaymentReferenceChange={setModalPaymentReference}
+                            paymentNotes={modalPaymentNotes}
+                            onPaymentNotesChange={setModalPaymentNotes}
+                            paymentScreenshot={modalPaymentScreenshot}
+                            onPaymentScreenshotChange={setModalPaymentScreenshot}
+                            errors={{
+                                payment_reference: offlineForm.errors.payment_reference,
+                                payment_notes: offlineForm.errors.payment_notes,
+                                payment_screenshot: offlineForm.errors.payment_screenshot,
+                            }}
+                            isProcessing={offlineForm.processing}
+                            formatPrice={formatPrice}
+                            totalAmount={total_amount}
+                            currency={currency}
+                        />
                     </div>
                 </div>
             </MainLayout>
