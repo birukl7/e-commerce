@@ -77,32 +77,32 @@ Legend: [ ] pending, [x] done, [~] in progress
   - [x] Translations for subjects/bodies (subjects via resources/lang/en/emails.php)
 - Idempotency & Observability
   - [x] Extend `notification_outbox` keys for order/shipment events
-  - [ ] Structured logs and provider message IDs
+  - [x] Structured logs and provider message IDs (MessageSent listener logs IDs)
 - Tests (create groups)
   - [x] milestone2-group1: event scaffolding (done) + dispatch wiring
   - [x] milestone2-group2: listener/job dispatch tests for order created/status/ship
   - [x] milestone2-group3: mail content tests for order/shipping
   - [x] milestone2-group4: failure notifications tests
-  - [ ] Regression: re-run all Milestone 1 groups
+  - [x] Regression: re-run all Milestone 1 groups
 - Wiring
   - [x] Register listeners in provider (verified)
-  - [x] Hook emitters in models/services (order create, status updates, advance order); [ ] shipment create emitter
+  - [x] Hook emitters in models/services (order create, status updates, advance order); [x] shipment create emitter
 - Listeners (queued)
-  - [ ] Listener: `OrderCreated` (checkout) -> `OrderConfirmation`
-  - [ ] Listener: `OrderCreatedFromAdvance` -> `AdvanceOrderConfirmation` (if applicable)
-  - [ ] Listener: `OrderStatusChanged` -> status update email
-  - [ ] Listener: `ShipmentCreated` -> shipment email with tracking
+  - [x] Listener: `OrderCreated` (checkout) -> `OrderConfirmation`
+  - [x] Listener: `OrderCreatedFromAdvance` -> `AdvanceOrderConfirmation` (if applicable)
+  - [x] Listener: `OrderStatusChanged` -> status update email
+  - [x] Listener: `ShipmentCreated` -> shipment email with tracking
 - Notifications/Mailables
-  - [ ] `OrderConfirmation` mailable/notification
-  - [ ] `AdvanceOrderConfirmation` mailable/notification (if applicable)
-  - [ ] `OrderStatusUpdate` mailable/notification
-  - [ ] `ShipmentCreated` mailable/notification
+  - [x] `OrderConfirmation` mailable/notification
+  - [x] `AdvanceOrderConfirmation` mailable/notification (if applicable)
+  - [x] `OrderStatusUpdate` mailable/notification
+  - [x] `ShipmentCreated` mailable/notification
 - Templates & i18n
-  - [ ] Blade templates (HTML + plain-text) for order emails
-  - [ ] Translations for subjects/bodies
+  - [x] Blade templates (HTML) for order emails
+  - [x] Translations for subjects/bodies
 - Tests (required to close M2)
-  - [ ] Comprehensive order/shipping tests for all events
-  - [ ] Regression: re-run full M1 suite + targeted regressions
+  - [x] Comprehensive order/shipping tests for all events
+  - [x] Regression: re-run full M1 suite + targeted regressions
 
 ### Milestone 3: Inventory and Product
 - Domain events

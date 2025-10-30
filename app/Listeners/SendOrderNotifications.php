@@ -25,6 +25,7 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
+                \Log::info('[SendOrderNotifications] Queue OrderConfirmation', ['order_id' => $order->id]);
                 Queue::push(new SendOrderConfirmationEmail($order));
             }
             return;
@@ -37,6 +38,7 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
+                \Log::info('[SendOrderNotifications] Queue OrderStatusUpdate', ['order_id' => $order->id, 'new_status' => $event->newStatus]);
                 Queue::push(new SendOrderStatusUpdateEmail($order, $event->newStatus, 'Your order status has been updated.'));
             }
             return;
@@ -49,6 +51,7 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
+                \Log::info('[SendOrderNotifications] Queue ShipmentCreated', ['order_id' => $order->id, 'tracking' => $event->trackingNumber]);
                 Queue::push(new SendShipmentCreatedEmail($order, $user, $event->trackingNumber));
             }
             return;
@@ -61,6 +64,7 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
+                \Log::info('[SendOrderNotifications] Queue AdvanceOrderConfirmation', ['order_id' => $order->id]);
                 Queue::push(new SendAdvanceOrderConfirmationEmail($order, $user));
             }
             return;

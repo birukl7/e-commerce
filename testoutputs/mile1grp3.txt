@@ -1,8 +1,8 @@
 
    PASS  Tests\Feature\Notifications\MailContentTest
-  ✓ it renders PaymentApproved email with key details                    1.51s  
+  ✓ it renders PaymentApproved email with key details                    1.49s  
   ✓ it renders AdvancePaymentApproved email with key details             0.02s  
 
   Tests:    2 passed (6 assertions)
-  Duration: 1.59s
+  Duration: 1.57s
 

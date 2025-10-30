@@ -1,6 +1,6 @@
 
    PASS  Tests\Unit\Notifications\NotificationOutboxTest
-  ✓ it reserves outbox key once to ensure idempotency                    1.44s  
+  ✓ it reserves outbox key once to ensure idempotency                    1.46s  
 
    PASS  Tests\Feature\Notifications\PaymentEventDispatchTest
   ✓ it does not dispatch customer email on gateway payment completed (awaits admin approval) 0.04s  
@@ -9,5 +9,5 @@
   ✓ it dispatches advance approved job on admin approval                 0.02s  
 
   Tests:    5 passed (6 assertions)
-  Duration: 1.60s
+  Duration: 1.62s
 
