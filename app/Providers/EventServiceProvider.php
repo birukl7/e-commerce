@@ -4,11 +4,13 @@ namespace App\Providers;
 
 use App\Events\PaymentApproved;
 use App\Events\PaymentCompleted;
+use App\Events\PaymentFailed;
 use App\Listeners\SendPaymentNotifications;
 use App\Events\OrderCreated;
 use App\Events\OrderStatusChanged;
 use App\Events\ShipmentCreated;
 use App\Listeners\SendOrderNotifications;
+use App\Events\OrderCreatedFromAdvance;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
 class EventServiceProvider extends ServiceProvider
@@ -20,6 +22,9 @@ class EventServiceProvider extends ServiceProvider
         PaymentApproved::class => [
             SendPaymentNotifications::class,
         ],
+        PaymentFailed::class => [
+            SendPaymentNotifications::class,
+        ],
         OrderCreated::class => [
             SendOrderNotifications::class,
         ],
@@ -27,6 +32,9 @@ class EventServiceProvider extends ServiceProvider
             SendOrderNotifications::class,
         ],
         ShipmentCreated::class => [
+            SendOrderNotifications::class,
+        ],
+        OrderCreatedFromAdvance::class => [
             SendOrderNotifications::class,
         ],
     ];

@@ -20,12 +20,12 @@ Legend: [ ] pending, [x] done, [~] in progress
   - [x] Emit advance completion from `ChapaWebhookController` with `context=advance`
   - [x] Emit admin approval (checkout/advance) from approval actions
 - Listeners (queued)
-  - [x] On checkout completion -> queue `PaymentConfirmation`
-  - [x] On advance completion -> queue `AdvancePaymentConfirmation`
+  - [x] On checkout completion -> no customer email (await admin approval)
+  - [x] On advance completion -> no customer email (await admin approval)
   - [x] On checkout approval -> queue `PaymentApproved`
   - [x] On advance approval -> queue `AdvancePaymentApproved`
 - Notifications/Mailables
-  - [ ] Skip customer-facing send on gateway completion; final emails go out on admin approval
+  - [x] Skip customer-facing send on gateway completion; final emails go out on admin approval
   - [x] `PaymentApproved`
   - [x] `AdvancePaymentApproved`
   - [ ] `PaymentFailed` (shared)
@@ -36,11 +36,10 @@ Legend: [ ] pending, [x] done, [~] in progress
   - [x] HTML templates for approved and advance emails
   - [ ] Add plain-text parts and translations
 - Tests (required to close M1)
-  - [ ] Unit: outbox idempotency reservation; listener routing by context
-  - [ ] Feature: webhook (checkout) -> event -> queued notification
-  - [ ] Feature: webhook (advance) -> event -> queued notification
-  - [ ] Feature: admin approval (checkout/advance) -> event -> queued notification
-  - [ ] Regression baseline (pre-M1): ensure prior code paths remain intact
+  - [x] Unit: outbox idempotency reservation; listener routing by context
+  - [x] Feature: gateway completion -> no customer email (both flows)
+  - [x] Feature: admin approval (checkout/advance) -> queued jobs
+  - [x] Regression baseline (pre-M1): ensure prior code paths unaffected
 
 ### Test Guidelines (Laravel 12)
 - Use `Queue::fake()` / `Queue::assertPushed` for `ShouldQueue` jobs.
@@ -51,17 +50,43 @@ Legend: [ ] pending, [x] done, [~] in progress
 
 ### Milestone 2: Orders (includes Shipping)
 - Domain events
-  - [ ] Define `OrderCreated` (checkout) event
-  - [ ] Define `OrderCreatedFromAdvance` (if advance converts to order)
-  - [ ] Define `OrderStatusChanged` event
-  - [ ] Define/emit `ShipmentCreated` (optional if shipping exists)
+  - [x] Define `OrderCreated` (checkout) event
+  - [x] Define `OrderCreatedFromAdvance` (if advance converts to order)
+  - [x] Define `OrderStatusChanged` event
+  - [x] Define/emit `ShipmentCreated` (optional if shipping exists)
 - Failure handling (moved from M1)
-  - [ ] Add failure/rejection notifications (e.g., `PaymentFailed` or admin rejection flow)
-  - [ ] Decide recipients and content for failure cases
+  - [x] Add failure notifications via `PaymentFailed` event and email
+  - [x] Decide recipients and content for failure cases
 - Emitters
-  - [ ] Emit events in checkout order creation/status update code paths
-  - [ ] Emit event when advance payment converts/links to an order
-  - [ ] Emit shipment event when tracking is created
+  - [x] Emit events in checkout order creation/status update code paths
+  - [x] Emit event when advance payment converts/links to an order
+  - [x] Emit shipment event when order status becomes shipped
+- Listeners (queued)
+  - [x] Listener: `OrderCreated` -> queue `OrderConfirmation`
+  - [x] Listener: `OrderCreatedFromAdvance` -> queue `AdvanceOrderConfirmation` (if applicable)
+  - [x] Listener: `OrderStatusChanged` -> queue `OrderStatusUpdate`
+  - [x] Listener: `ShipmentCreated` -> queue `ShipmentCreated` email with tracking
+- Notifications/Mailables
+  - [x] `OrderConfirmation` mailable/notification (existing)
+  - [x] `AdvanceOrderConfirmation` mailable/notification (if applicable)
+  - [x] `OrderStatusUpdate` mailable/notification (existing)
+  - [x] `ShipmentCreated` mailable/notification
+  - [x] `PaymentFailed` notification
+- Templates & i18n
+  - [x] Blade templates (HTML) for order/shipping/failure emails
+  - [x] Translations for subjects/bodies (subjects via resources/lang/en/emails.php)
+- Idempotency & Observability
+  - [x] Extend `notification_outbox` keys for order/shipment events
+  - [ ] Structured logs and provider message IDs
+- Tests (create groups)
+  - [x] milestone2-group1: event scaffolding (done) + dispatch wiring
+  - [x] milestone2-group2: listener/job dispatch tests for order created/status/ship
+  - [x] milestone2-group3: mail content tests for order/shipping
+  - [x] milestone2-group4: failure notifications tests
+  - [ ] Regression: re-run all Milestone 1 groups
+- Wiring
+  - [x] Register listeners in provider (verified)
+  - [x] Hook emitters in models/services (order create, status updates, advance order); [ ] shipment create emitter
 - Listeners (queued)
   - [ ] Listener: `OrderCreated` (checkout) -> `OrderConfirmation`
   - [ ] Listener: `OrderCreatedFromAdvance` -> `AdvanceOrderConfirmation` (if applicable)

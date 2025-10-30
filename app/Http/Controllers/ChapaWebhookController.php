@@ -6,6 +6,7 @@ use App\Models\PaymentTransaction;
 use App\Models\Order;
 use App\Services\PaymentFinalizer;
 use App\Events\PaymentCompleted;
+use App\Events\PaymentFailed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -82,6 +83,11 @@ class ChapaWebhookController extends Controller
                         ? 'advance'
                         : 'checkout';
                     event(new PaymentCompleted($payment, $context));
+                } elseif ($gatewayStatus === 'failed') {
+                    $context = (str_starts_with($txRef, 'ADV-') || str_starts_with($txRef, 'FINAL-'))
+                        ? 'advance'
+                        : 'checkout';
+                    event(new PaymentFailed($payment, $context));
                 }
 
                 DB::commit();

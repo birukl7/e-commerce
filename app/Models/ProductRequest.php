@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
+use App\Events\OrderCreatedFromAdvance;
 
 class ProductRequest extends Model
 {
@@ -133,6 +134,13 @@ class ProductRequest extends Model
         ]);
 
         $order->save();
+
+        // Emit advance-created order event
+        try {
+            event(new OrderCreatedFromAdvance($order));
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
         $this->order_id = $order->id;
         $this->save();

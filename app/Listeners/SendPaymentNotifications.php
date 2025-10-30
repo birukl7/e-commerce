@@ -4,10 +4,12 @@ namespace App\Listeners;
 
 use App\Events\PaymentApproved;
 use App\Events\PaymentCompleted;
+use App\Events\PaymentFailed;
 use App\Jobs\SendPaymentConfirmationEmail;
 use App\Jobs\SendPaymentApprovedEmail;
 use App\Jobs\SendAdvancePaymentConfirmationEmail;
 use App\Jobs\SendAdvancePaymentApprovedEmail;
+use App\Jobs\SendPaymentFailedEmail;
 use App\Models\NotificationOutbox;
 use Illuminate\Contracts\Queue\ShouldQueue;
 
@@ -41,6 +43,14 @@ class SendPaymentNotifications implements ShouldQueue
                 \Log::info('[SendPaymentNotifications] Handling PaymentApproved', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
             }
             $this->onPaymentApproved($payment, $context);
+            return;
+        }
+
+        if ($event instanceof PaymentFailed) {
+            if (app()->environment('testing')) {
+                \Log::info('[SendPaymentNotifications] Handling PaymentFailed', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
+            }
+            $this->onPaymentFailed($payment, $context);
             return;
         }
     }
@@ -96,6 +106,20 @@ class SendPaymentNotifications implements ShouldQueue
                 dispatch(new SendAdvancePaymentApprovedEmail($payment, $user, $productRequest));
             }
             return;
+        }
+    }
+
+    private function onPaymentFailed($payment, string $context): void
+    {
+        $user = null;
+        if ($context === 'checkout') {
+            $user = $payment->order?->user;
+        } elseif ($context === 'advance') {
+            $user = $payment->productRequest?->user;
+        }
+
+        if ($user) {
+            dispatch(new SendPaymentFailedEmail($payment, $user));
         }
     }
 

@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Services\StockService;
+use App\Events\OrderCreated;
+use App\Events\OrderStatusChanged;
+use App\Events\ShipmentCreated;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
@@ -80,6 +83,7 @@ class Order extends Model
 
         // When order is created, decrease stock if payment is paid
         static::created(function ($order) {
+            event(new OrderCreated($order));
             if ($order->payment_status === 'paid') {
                 try {
                     app(StockService::class)->decreaseStockForOrder($order);
@@ -108,6 +112,21 @@ class Order extends Model
                     $stockService->restoreStockForOrder($order);
                 } catch (\Exception $e) {
                     Log::error('Failed to restore stock for order: ' . $e->getMessage());
+                }
+            }
+
+            if ($order->wasChanged('status')) {
+                try {
+                    event(new OrderStatusChanged($order, $order->getOriginal('status'), $order->status));
+                } catch (\Throwable $e) {
+                    Log::warning('OrderStatusChanged event dispatch failed: ' . $e->getMessage());
+                }
+                if ($order->status === 'shipped') {
+                    try {
+                        event(new ShipmentCreated($order));
+                    } catch (\Throwable $e) {
+                        Log::warning('ShipmentCreated event dispatch failed: ' . $e->getMessage());
+                    }
                 }
             }
         });

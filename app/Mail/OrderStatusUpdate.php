@@ -46,7 +46,7 @@ class OrderStatusUpdate extends Mailable
 
     public function build()
     {
-        $subject = "Order #{$this->order->order_number} - Status Updated to " . ucfirst($this->status);
+        $subject = trans('emails.order_status_update', ['id' => $this->order->id]);
         
         return $this->subject($subject)
                     ->view('emails.orders.status-update')
