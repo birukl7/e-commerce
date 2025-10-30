@@ -55,6 +55,9 @@ Legend: [ ] pending, [x] done, [~] in progress
   - [ ] Define `OrderCreatedFromAdvance` (if advance converts to order)
   - [ ] Define `OrderStatusChanged` event
   - [ ] Define/emit `ShipmentCreated` (optional if shipping exists)
+- Failure handling (moved from M1)
+  - [ ] Add failure/rejection notifications (e.g., `PaymentFailed` or admin rejection flow)
+  - [ ] Decide recipients and content for failure cases
 - Emitters
   - [ ] Emit events in checkout order creation/status update code paths
   - [ ] Emit event when advance payment converts/links to an order

@@ -184,6 +184,7 @@ Note: We will evolve this list with product stakeholders and map notifications t
   - Events: `OrderCreated` (checkout), `OrderCreatedFromAdvance` (if applicable), `OrderStatusChanged`, `ShipmentCreated`.
   - Notifications/Mailables: `OrderConfirmation`, `AdvanceOrderConfirmation` (if applicable), `OrderStatusUpdate`, `ShipmentCreated`.
   - Templates (HTML + plain-text), translations.
+  - Failure handling moved here: user/admin notifications for payment failure/rejection (`PaymentFailed` or admin rejection) aligned with business rules.
 - Tests
   - Comprehensive tests for new order/shipping notifications.
   - Regression: re-run M1 tests + dedicated regressions to ensure payments flow unchanged.
