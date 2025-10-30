@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PaymentTransaction;
+use App\Events\PaymentApproved;
 use App\Services\PaymentFinalizer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -255,6 +256,9 @@ class AdminPaymentController extends Controller
             ]);
 
             if ($success) {
+                // Dispatch domain event for admin approval
+                $context = ($payment->product_request_id !== null) ? 'advance' : 'checkout';
+                event(new PaymentApproved($payment->fresh(), $context));
                 return back()->with('success', 'Payment approved successfully.');
             }
 

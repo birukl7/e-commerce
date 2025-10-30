@@ -12,6 +12,10 @@ use App\Observers\ProductObserver;
 use App\Policies\OutOfStockNotificationPolicy;
 use App\Policies\TaxSettingPolicy;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Event;
+use App\Events\PaymentCompleted;
+use App\Events\PaymentApproved;
+use App\Listeners\SendPaymentNotifications;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -42,5 +46,9 @@ class AppServiceProvider extends ServiceProvider
         
         // Register observers
         Product::observe(ProductObserver::class);
+
+        // Event listeners
+        Event::listen(PaymentCompleted::class, [SendPaymentNotifications::class, 'handle']);
+        Event::listen(PaymentApproved::class, [SendPaymentNotifications::class, 'handle']);
     }
 }

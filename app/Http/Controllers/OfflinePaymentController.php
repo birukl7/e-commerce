@@ -9,6 +9,7 @@ use App\Services\PaymentFinalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use App\Events\PaymentApproved;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -317,6 +318,20 @@ class OfflinePaymentController extends Controller
                         'order_id' => $order->id,
                         'new_status' => $order->payment_status,
                         'admin_id' => auth()->id()
+                    ]);
+                }
+
+                // Dispatch domain event for admin approval (offline)
+                try {
+                    $context = ($submission->product_request_id !== null) ? 'advance' : 'checkout';
+                    // Coerce to PaymentTransaction model type if needed
+                    if ($submission instanceof \App\Models\PaymentTransaction) {
+                        event(new PaymentApproved($submission->fresh(), $context));
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to dispatch PaymentApproved event for offline submission', [
+                        'error' => $e->getMessage(),
+                        'submission_id' => $submission->id
                     ]);
                 }
 

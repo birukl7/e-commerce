@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PaymentTransaction;
 use App\Models\Order;
 use App\Services\PaymentFinalizer;
+use App\Events\PaymentCompleted;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -74,6 +75,14 @@ class ChapaWebhookController extends Controller
 
                 // Handle different payment types
                 $this->handlePaymentType($payment, $gatewayStatus, $txRef, $logContext);
+
+                // Dispatch domain event when gateway indicates paid
+                if ($gatewayStatus === 'paid') {
+                    $context = (str_starts_with($txRef, 'ADV-') || str_starts_with($txRef, 'FINAL-'))
+                        ? 'advance'
+                        : 'checkout';
+                    event(new PaymentCompleted($payment, $context));
+                }
 
                 DB::commit();
                 

@@ -16,12 +16,29 @@ return new class extends Migration
             if (!Schema::hasColumn('tax_classes', 'is_default')) {
                 $table->boolean('is_default')->default(false)->after('is_active');
             }
-            
-            // Add index for better performance on the is_default column if it doesn't exist
-            if (!collect(DB::select('SHOW INDEX FROM tax_classes'))->pluck('Key_name')->contains('tax_classes_is_default_index')) {
-                $table->index('is_default');
-            }
         });
+
+        // Add index only if missing (MySQL/MariaDB safe)
+        try {
+            $connection = Schema::getConnection();
+            $driver = $connection->getDriverName();
+
+            if (in_array($driver, ['mysql'])) {
+                $existing = collect(\DB::select("SHOW INDEX FROM tax_classes WHERE Key_name = 'tax_classes_is_default_index'"));
+                if ($existing->isEmpty()) {
+                    Schema::table('tax_classes', function (Blueprint $table) {
+                        $table->index('is_default', 'tax_classes_is_default_index');
+                    });
+                }
+            } else {
+                // Other drivers: best-effort create
+                Schema::table('tax_classes', function (Blueprint $table) {
+                    $table->index('is_default', 'tax_classes_is_default_index');
+                });
+            }
+        } catch (\Throwable $e) {
+            // If index already exists, ignore
+        }
         
         // Set the first tax class as default if none exists
         if (\App\Models\TaxClass::count() > 0) {

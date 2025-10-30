@@ -1,3 +1,10 @@
+## Framework Version
+- This is a Laravel 12 application. When there is any ambiguity or anomaly, consult the official Laravel 12 documentation first.
+
+## Testing & Queues (Laravel 12)
+- For queued jobs (implementing `ShouldQueue`), prefer `Queue::fake()` and `Queue::assertPushed()`.
+- For domain events, use `Event::fake()` and `Event::assertDispatched()`.
+- Register listeners in `App\Providers\EventServiceProvider` and ensure the provider is listed in `bootstrap/providers.php`.
 - you must follow these rules when you implement code in this codebase
 - this is a strictly laravel+react+inertia project, with typescript. 
 - the ui views are found in resources/js, and its sub directories.
