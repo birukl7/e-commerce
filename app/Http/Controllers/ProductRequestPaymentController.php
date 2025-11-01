@@ -237,9 +237,18 @@ class ProductRequestPaymentController extends Controller
                 ->with('error', 'Advance payment is not required for this request.');
         }
 
+        // Calculate tax for advance payment
+        $taxService = app(\App\Services\TaxService::class);
+        $advanceSubtotal = (float) $productRequest->advance_amount;
+        $advanceTaxCalculation = $taxService->calculateTaxes($advanceSubtotal);
+        $advanceTotalWithTax = $advanceTaxCalculation['total'];
+
         return Inertia::render('payment/advance-payment-method', [
             'order_id' => 'ADV-' . $productRequest->id . '-' . time(),
-            'amount' => $productRequest->advance_amount,
+            'amount' => $advanceTotalWithTax, // Amount including tax
+            'subtotal' => $advanceSubtotal,
+            'tax_amount' => $advanceTaxCalculation['total_tax_amount'],
+            'tax_breakdown' => $advanceTaxCalculation['taxes'],
             'currency' => $productRequest->currency,
             'product_name' => $productRequest->product_name,
             'description' => 'Advance Payment for: ' . $productRequest->product_name,
@@ -268,12 +277,18 @@ class ProductRequestPaymentController extends Controller
         ]);
 
         try {
+            // Calculate tax for advance payment
+            $taxService = app(\App\Services\TaxService::class);
+            $advanceSubtotal = (float) $productRequest->advance_amount;
+            $advanceTaxCalculation = $taxService->calculateTaxes($advanceSubtotal);
+            $advanceTotalWithTax = $advanceTaxCalculation['total'];
+
             // Generate a unique reference for the advance payment
             $txRef = 'ADV-' . $productRequest->id . '-' . now()->timestamp;
             
-            // Prepare payment data
+            // Prepare payment data - use total amount including tax
             $paymentData = [
-                'amount' => $productRequest->advance_amount,
+                'amount' => $advanceTotalWithTax,
                 'currency' => $productRequest->currency,
                 'email' => Auth::user()->email,
                 'first_name' => Auth::user()->first_name,
@@ -295,6 +310,27 @@ class ProductRequestPaymentController extends Controller
 
             // Initialize payment with Chapa
             $paymentUrl = $this->chapaService->initializePayment($paymentData);
+
+            // Create PaymentTransaction record for tracking
+            \App\Models\PaymentTransaction::create([
+                'tx_ref' => $txRef,
+                'order_id' => null, // No order yet for advance payment
+                'product_request_id' => $productRequest->id,
+                'amount' => $advanceTotalWithTax,
+                'currency' => $productRequest->currency,
+                'customer_email' => Auth::user()->email,
+                'customer_name' => Auth::user()->name,
+                'customer_phone' => Auth::user()->phone,
+                'payment_method' => 'chapa',
+                'gateway_status' => 'pending',
+                'admin_status' => 'unseen',
+                'gateway_payload' => [
+                    'payment_type' => 'advance',
+                    'subtotal' => $advanceSubtotal,
+                    'tax_amount' => $advanceTaxCalculation['total_tax_amount'],
+                    'taxes' => $advanceTaxCalculation['taxes'],
+                ],
+            ]);
 
             // Update the product request with payment reference
             $productRequest->update([
@@ -357,18 +393,31 @@ class ProductRequestPaymentController extends Controller
                 ->with('error', 'Final payment is not required for this request.');
         }
 
+        // Validate that advance payment is paid first
+        if ($productRequest->advance_payment_status !== 'paid') {
+            return redirect()
+                ->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'Advance payment must be completed before processing final payment.');
+        }
+
         $validated = $request->validate([
             'payment_method' => 'required|in:chapa',
             'phone_number' => 'required|string|max:20',
         ]);
 
         try {
+            // Calculate tax for final payment
+            $taxService = app(\App\Services\TaxService::class);
+            $finalSubtotal = (float) $productRequest->final_amount;
+            $finalTaxCalculation = $taxService->calculateTaxes($finalSubtotal);
+            $finalTotalWithTax = $finalTaxCalculation['total'];
+
             // Generate a unique reference for the final payment
             $txRef = 'FINAL-' . $productRequest->id . '-' . now()->timestamp;
             
-            // Prepare payment data
+            // Prepare payment data - use total amount including tax
             $paymentData = [
-                'amount' => $productRequest->final_amount,
+                'amount' => $finalTotalWithTax,
                 'currency' => $productRequest->currency,
                 'email' => Auth::user()->email,
                 'first_name' => Auth::user()->first_name,
@@ -390,6 +439,27 @@ class ProductRequestPaymentController extends Controller
 
             // Initialize payment with Chapa
             $paymentUrl = $this->chapaService->initializePayment($paymentData);
+
+            // Create PaymentTransaction record for tracking
+            \App\Models\PaymentTransaction::create([
+                'tx_ref' => $txRef,
+                'order_id' => null, // No order yet until payment is complete
+                'product_request_id' => $productRequest->id,
+                'amount' => $finalTotalWithTax,
+                'currency' => $productRequest->currency,
+                'customer_email' => Auth::user()->email,
+                'customer_name' => Auth::user()->name,
+                'customer_phone' => Auth::user()->phone,
+                'payment_method' => 'chapa',
+                'gateway_status' => 'pending',
+                'admin_status' => 'unseen',
+                'gateway_payload' => [
+                    'payment_type' => 'final',
+                    'subtotal' => $finalSubtotal,
+                    'tax_amount' => $finalTaxCalculation['total_tax_amount'],
+                    'taxes' => $finalTaxCalculation['taxes'],
+                ],
+            ]);
 
             // Update the product request with payment reference
             $productRequest->update([
@@ -424,24 +494,24 @@ class ProductRequestPaymentController extends Controller
 
         $paymentData = $request->all();
         
-        // Verify the payment
+        // Verify the payment - but webhook should have already handled this
+        // This callback is mainly for confirming the return URL
         $verification = $this->chapaService->verifyPayment($paymentData['tx_ref']);
         
-        if ($verification['status'] === 'success') {
-            // Mark advance payment as paid
-            $productRequest->markAdvancePaid(
-                'chapa',
-                $paymentData['tx_ref'],
-                $paymentData
-            );
-
-            // Send notification to user
-            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                $productRequest,
-                'Your advance payment for product request #' . $productRequest->id . ' has been received. We will now start procuring your product.',
-                'Advance Payment Received',
-                route('user.product-requests.show', $productRequest->id)
-            ));
+        // Reload product request to get latest status (webhook may have already updated it)
+        $productRequest->refresh();
+        
+        if ($verification['status'] === 'success' || $productRequest->advance_payment_status === 'paid') {
+            // Double-check payment is marked as paid (in case webhook hasn't processed yet)
+            if ($productRequest->advance_payment_status !== 'paid') {
+                $result = $productRequest->markAdvancePaid(
+                    'chapa',
+                    $paymentData['tx_ref'],
+                    $paymentData
+                );
+                // Result may be false if already paid (race condition), which is fine
+                $productRequest->refresh();
+            }
 
             return response()->json(['status' => 'success'], 200);
         }
@@ -465,6 +535,9 @@ class ProductRequestPaymentController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Refresh the product request to get latest payment status
+        $productRequest->refresh();
+
         return Inertia::render('payment/AdvancePaymentSuccess', [
             'productRequest' => [
                 'id' => $productRequest->id,
@@ -473,6 +546,8 @@ class ProductRequestPaymentController extends Controller
                 'final_amount' => $productRequest->final_amount,
                 'currency' => $productRequest->currency,
                 'payment_reference' => $productRequest->payment_reference,
+                'advance_payment_status' => $productRequest->advance_payment_status,
+                'advance_paid_at' => $productRequest->advance_paid_at,
             ],
             'message' => 'Your advance payment was successful! We will now start procuring your product.',
         ]);
@@ -491,27 +566,36 @@ class ProductRequestPaymentController extends Controller
 
         $paymentData = $request->all();
         
-        // Verify the payment
+        // Verify the payment - but webhook should have already handled this
+        // This callback is mainly for confirming the return URL
         $verification = $this->chapaService->verifyPayment($paymentData['tx_ref']);
         
-        if ($verification['status'] === 'success') {
-            // Mark final payment as paid
-            $productRequest->markFinalPaid(
-                'chapa',
-                $paymentData['tx_ref'],
-                $paymentData
-            );
-
-            // Create order (processing + paid)
-            $order = $productRequest->createOrder(markPaid: true);
-
-            // Send notification to user
-            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                $productRequest,
-                'Your final payment for product request #' . $productRequest->id . ' has been received. Your order is now complete!',
-                'Payment Complete',
-                route('user.orders.show', $order->id)
-            ));
+        // Reload product request to get latest status (webhook may have already updated it)
+        $productRequest->refresh();
+        
+        if ($verification['status'] === 'success' || $productRequest->final_payment_status === 'paid') {
+            // Double-check payment is marked as paid (in case webhook hasn't processed yet)
+            if ($productRequest->final_payment_status !== 'paid') {
+                try {
+                    $result = $productRequest->markFinalPaid(
+                        'chapa',
+                        $paymentData['tx_ref'],
+                        $paymentData
+                    );
+                    
+                    // Create order if it doesn't exist yet and payment was newly marked
+                    if ($result && !$productRequest->order_id) {
+                        $productRequest->createOrder(markPaid: true);
+                    }
+                    $productRequest->refresh();
+                } catch (\Exception $e) {
+                    \Log::error('Failed to mark final payment as paid in callback', [
+                        'product_request_id' => $productRequest->id,
+                        'error' => $e->getMessage(),
+                        'tx_ref' => $paymentData['tx_ref'] ?? null,
+                    ]);
+                }
+            }
 
             return response()->json(['status' => 'success'], 200);
         }

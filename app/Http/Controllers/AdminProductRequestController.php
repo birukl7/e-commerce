@@ -57,11 +57,17 @@ class AdminProductRequestController extends Controller
     {
         $productRequest->load(['user', 'admin']);
         
+        // Load payment transactions for this product request
+        $paymentTransactions = \App\Models\PaymentTransaction::where('product_request_id', $productRequest->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
         // Add workflow status and payment information
         $productRequest->workflow_status = $productRequest->getWorkflowStatus();
         
         return Inertia::render('admin/product-request/show', [
             'product_request' => $productRequest,
+            'payment_transactions' => $paymentTransactions,
         ]);
     }
 
@@ -74,6 +80,83 @@ class AdminProductRequestController extends Controller
         return Inertia::render('admin/product-request/edit', [
             'product_request' => $productRequest,
         ]);
+    }
+
+    /**
+     * Start procurement for a product request.
+     */
+    public function startProcurement(Request $request, ProductRequest $productRequest)
+    {
+        $validated = $request->validate([
+            'procurement_expected_completion_date' => ['required', 'date', 'after:today'],
+            'procurement_notes' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'procurement_expected_completion_date.required' => 'Please set an expected completion date.',
+            'procurement_expected_completion_date.date' => 'The expected completion date must be a valid date.',
+            'procurement_expected_completion_date.after' => 'The expected completion date must be in the future.',
+        ]);
+
+        if ($productRequest->advance_payment_status !== 'paid') {
+            return back()->withErrors(['error' => 'Advance payment must be completed before starting procurement.'])->withInput();
+        }
+
+        $productRequest->startProcurement(
+            $validated['procurement_expected_completion_date'],
+            $validated['procurement_notes'] ?? null
+        );
+
+        // Calculate days until arrival
+        $arrivalDate = \Carbon\Carbon::parse($validated['procurement_expected_completion_date']);
+        $daysUntilArrival = now()->diffInDays($arrivalDate);
+        
+        // Send notification to customer
+        $productRequest->user->notify(new ProductRequestStatusUpdated(
+            $productRequest,
+            sprintf(
+                'Great news! We have started getting the product for you. It will arrive in %d %s (by %s).',
+                $daysUntilArrival,
+                $daysUntilArrival === 1 ? 'day' : 'days',
+                $arrivalDate->format('F j, Y')
+            ),
+            'We\'re Getting Your Product',
+            route('user.product-requests.show', $productRequest->id)
+        ));
+
+        return redirect()->route('admin.product-requests.show', $productRequest->id)
+                         ->with('success', 'Started getting the product. Customer has been notified.');
+    }
+
+    /**
+     * Complete procurement for a product request.
+     */
+    public function completeProcurement(Request $request, ProductRequest $productRequest)
+    {
+        $validated = $request->validate([
+            'procurement_notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+
+        if ($productRequest->procurement_status !== 'in_progress') {
+            return back()->withErrors(['error' => 'Procurement must be in progress before it can be completed.'])->withInput();
+        }
+
+        // Ensure procurement was started (additional validation)
+        if (!$productRequest->procurement_started_at) {
+            return back()->withErrors(['error' => 'Procurement has not been started yet.'])->withInput();
+        }
+
+        $productRequest->completeProcurement($validated['procurement_notes'] ?? null);
+        $productRequest->markProductArrived();
+
+        // Send notification to customer
+        $productRequest->user->notify(new ProductRequestStatusUpdated(
+            $productRequest,
+            'Your product has arrived! Please complete the final payment to proceed with delivery. You can now pay the remaining amount.',
+            'Product Arrived - Payment Required',
+            route('user.product-requests.show', $productRequest->id)
+        ));
+
+        return redirect()->route('admin.product-requests.show', $productRequest->id)
+                         ->with('success', 'Product marked as arrived. Customer has been notified to pay the remaining amount.');
     }
 
     /**

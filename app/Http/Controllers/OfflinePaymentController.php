@@ -308,17 +308,35 @@ class OfflinePaymentController extends Controller
                     'admin_action_at' => now(),
                 ]);
 
-                // Update order status
-                if ($submission->order) {
-                    $order = $submission->order;
-                    $order->payment_status = $request->admin_status === 'approved' ? 'paid' : 'failed';
-                    $order->save();
+                // Use PaymentFinalizer to handle the approval and update product request/order status
+                // This will properly handle both regular orders and product request payments
+                if ($request->admin_status === 'approved') {
+                    $finalized = $this->paymentFinalizer->finalizeOrder($submission->fresh());
                     
-                    Log::info('Order payment status updated by admin', [
-                        'order_id' => $order->id,
-                        'new_status' => $order->payment_status,
-                        'admin_id' => auth()->id()
-                    ]);
+                    if ($finalized) {
+                        Log::info('Payment finalized successfully via PaymentFinalizer', [
+                            'payment_id' => $submission->id,
+                            'product_request_id' => $submission->product_request_id,
+                            'order_id' => $submission->order_id
+                        ]);
+                    } else {
+                        Log::warning('PaymentFinalizer returned false', [
+                            'payment_id' => $submission->id,
+                            'can_finalize' => $this->paymentFinalizer->canFinalizeOrder($submission->fresh())
+                        ]);
+                    }
+                } else {
+                    // If rejected, update order status directly
+                    if ($submission->order) {
+                        $order = $submission->order;
+                        $order->payment_status = 'failed';
+                        $order->save();
+                        
+                        Log::info('Order payment status updated to failed by admin', [
+                            'order_id' => $order->id,
+                            'admin_id' => auth()->id()
+                        ]);
+                    }
                 }
 
                 // Dispatch domain event for admin approval (offline)

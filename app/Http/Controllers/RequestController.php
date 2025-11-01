@@ -100,6 +100,19 @@ class RequestController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Calculate tax for advance and final amounts if needed
+        $taxService = app(\App\Services\TaxService::class);
+        $advanceTaxCalculation = null;
+        $finalTaxCalculation = null;
+        
+        if ($productRequest->advance_amount) {
+            $advanceTaxCalculation = $taxService->calculateTaxes((float) $productRequest->advance_amount);
+        }
+        
+        if ($productRequest->final_amount) {
+            $finalTaxCalculation = $taxService->calculateTaxes((float) $productRequest->final_amount);
+        }
+
         return Inertia::render('request/show', [
             'request' => [
                 'id' => $productRequest->id,
@@ -119,6 +132,31 @@ class RequestController extends Controller
                 'created_at' => $productRequest->created_at,
                 'updated_at' => $productRequest->updated_at,
                 'requires_payment' => $productRequest->requiresPayment(),
+                // Procurement and payment workflow fields
+                'advance_amount' => $productRequest->advance_amount,
+                'final_amount' => $productRequest->final_amount,
+                'advance_payment_status' => $productRequest->advance_payment_status,
+                'final_payment_status' => $productRequest->final_payment_status,
+                'advance_paid_at' => $productRequest->advance_paid_at,
+                'final_paid_at' => $productRequest->final_paid_at,
+                'customer_willing_to_buy' => $productRequest->customer_willing_to_buy,
+                'willingness_confirmed_at' => $productRequest->willingness_confirmed_at,
+                'procurement_status' => $productRequest->procurement_status,
+                'procurement_started_at' => $productRequest->procurement_started_at,
+                'procurement_expected_completion_date' => $productRequest->procurement_expected_completion_date,
+                'procurement_completed_at' => $productRequest->procurement_completed_at,
+                'procurement_notes' => $productRequest->procurement_notes,
+                'product_arrived_at' => $productRequest->product_arrived_at,
+                'workflow_status' => $productRequest->getWorkflowStatus(),
+                // Refresh payment status from database BEFORE calculating requires flags
+                'advance_payment_status' => $productRequest->fresh()->advance_payment_status,
+                'final_payment_status' => $productRequest->fresh()->final_payment_status,
+                // Calculate requires flags after refreshing payment status
+                'requires_advance_payment' => $productRequest->fresh()->requiresAdvancePayment(),
+                'requires_final_payment' => $productRequest->fresh()->requiresFinalPayment(),
+                // Tax calculations
+                'advance_tax_breakdown' => $advanceTaxCalculation,
+                'final_tax_breakdown' => $finalTaxCalculation,
             ]
         ]);
     }

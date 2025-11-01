@@ -10,6 +10,12 @@ import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building, CreditCard, Smartphone, Upload } from 'lucide-react';
 import React, { useState } from 'react';
 
+interface TaxBreakdownItem {
+    name: string;
+    amount: number;
+    rate: number;
+}
+
 interface PaymentProcessProps {
     order_id: string;
     total_amount: number;
@@ -20,6 +26,9 @@ interface PaymentProcessProps {
     payment_type?: string; // 'regular', 'product_request_advance', 'product_request_final'
     product_request_id?: number;
     description?: string;
+    subtotal?: number;
+    tax_amount?: number;
+    tax_breakdown?: TaxBreakdownItem[];
     offlinePaymentMethods?: Array<{
         id: number;
         name: string;
@@ -40,6 +49,9 @@ export default function PaymentProcess({
     payment_type = 'regular',
     product_request_id,
     description,
+    subtotal,
+    tax_amount,
+    tax_breakdown,
     offlinePaymentMethods = [],
 }: PaymentProcessProps) {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -639,9 +651,37 @@ export default function PaymentProcess({
                                 </Button>
                                 <div>
                                     <h1 className="text-2xl font-bold text-gray-900">Upload Payment Proof</h1>
-                                    <p className="text-gray-600">
-                                        Order ID: {order_id} | Amount: {formatPrice(total_amount)}
-                                    </p>
+                                    <div className="space-y-1">
+                                        <p className="text-gray-600">
+                                            {payment_type === 'product_request_advance' ? 'Advance Payment' : 
+                                             payment_type === 'product_request_final' ? 'Final Payment' : 
+                                             `Order ID: ${order_id}`}
+                                        </p>
+                                        {subtotal && tax_breakdown ? (
+                                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+                                                <div className="space-y-1 text-sm">
+                                                    <div className="flex justify-between">
+                                                        <span>Subtotal:</span>
+                                                        <span className="font-medium">{formatPrice(subtotal)}</span>
+                                                    </div>
+                                                    {tax_breakdown.map((tax, idx) => (
+                                                        <div key={idx} className="flex justify-between text-gray-600">
+                                                            <span>{tax.name} ({tax.rate}%):</span>
+                                                            <span>{formatPrice(tax.amount)}</span>
+                                                        </div>
+                                                    ))}
+                                                    <div className="flex justify-between border-t pt-1 font-semibold">
+                                                        <span>Total to Pay:</span>
+                                                        <span className="text-blue-700">{formatPrice(total_amount)}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-gray-600">
+                                                Amount: {formatPrice(total_amount)}
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         </div>

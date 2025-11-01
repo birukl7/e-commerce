@@ -1,11 +1,16 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '../../../layouts/app-layout';
 import { adminNavItems } from '@/constants/adminNavItems';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import { BreadcrumbItem } from '@/types';
+import { useState } from 'react';
 
 // Type definitions
 interface User {
@@ -38,9 +43,11 @@ interface ProductRequest {
     willingness_confirmed_at?: string;
     procurement_status?: string;
     procurement_started_at?: string;
+    procurement_expected_completion_date?: string;
     procurement_completed_at?: string;
     product_arrived_at?: string;
     workflow_status?: string;
+    procurement_notes?: string;
 }
 
 
@@ -49,6 +56,18 @@ interface ProductRequestShowProps {
 }
 
 export default function ProductRequestShow({ product_request }: ProductRequestShowProps) {
+    const [startProcurementDialogOpen, setStartProcurementDialogOpen] = useState(false);
+    const [completeProcurementDialogOpen, setCompleteProcurementDialogOpen] = useState(false);
+
+    const startProcurementForm = useForm({
+        procurement_expected_completion_date: '',
+        procurement_notes: '',
+    });
+
+    const completeProcurementForm = useForm({
+        procurement_notes: '',
+    });
+
     const getStatusBadge = (status: string) => {
         switch (status) {
             case 'pending':
@@ -71,6 +90,34 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
+        });
+    };
+
+    const formatDateOnly = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+    };
+
+    const handleStartProcurement = (e: React.FormEvent) => {
+        e.preventDefault();
+        startProcurementForm.post(route('admin.product-requests.start-procurement', product_request.id), {
+            onSuccess: () => {
+                setStartProcurementDialogOpen(false);
+                startProcurementForm.reset();
+            },
+        });
+    };
+
+    const handleCompleteProcurement = (e: React.FormEvent) => {
+        e.preventDefault();
+        completeProcurementForm.post(route('admin.product-requests.complete-procurement', product_request.id), {
+            onSuccess: () => {
+                setCompleteProcurementDialogOpen(false);
+                completeProcurementForm.reset();
+            },
         });
     };
 
@@ -184,7 +231,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                             product_request.procurement_status === 'completed' ? 'bg-green-500' : 
                                             product_request.procurement_status === 'in_progress' ? 'bg-yellow-500' : 'bg-gray-300'
                                         }`}></div>
-                                        <span className="font-medium">Procurement</span>
+                                        <span className="font-medium">Getting Product</span>
                                         <Badge variant={
                                             product_request.procurement_status === 'completed' ? 'default' : 
                                             product_request.procurement_status === 'in_progress' ? 'secondary' : 'outline'
@@ -195,9 +242,17 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                     {product_request.procurement_started_at && (
                                         <p className="text-sm text-gray-600 ml-5">
                                             Started on {formatDate(product_request.procurement_started_at)}
+                                            {product_request.procurement_expected_completion_date && (
+                                                <span> - Expected arrival: {formatDateOnly(product_request.procurement_expected_completion_date)}</span>
+                                            )}
                                             {product_request.procurement_completed_at && (
                                                 <span> - Completed on {formatDate(product_request.procurement_completed_at)}</span>
                                             )}
+                                        </p>
+                                    )}
+                                    {product_request.procurement_notes && (
+                                        <p className="text-sm text-gray-500 italic ml-5 mt-1">
+                                            Notes: {product_request.procurement_notes}
                                         </p>
                                     )}
                                 </div>
@@ -255,7 +310,113 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                             </div>
                         )}
                     </CardContent>
-                    <CardFooter className="flex justify-end">
+                    <CardFooter className="flex justify-between">
+                        <div className="flex gap-2">
+                            {product_request.status === 'approved' && 
+                             product_request.advance_payment_status === 'paid' && 
+                             product_request.procurement_status !== 'in_progress' && 
+                             product_request.procurement_status !== 'completed' && (
+                                <Dialog open={startProcurementDialogOpen} onOpenChange={setStartProcurementDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="default">Start Getting Product</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Start Getting the Product</DialogTitle>
+                                            <DialogDescription>
+                                                Set when the product is expected to arrive. The customer will be notified that you've started getting their product.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleStartProcurement}>
+                                            <div className="space-y-4 py-4">
+                                                <div>
+                                                    <Label htmlFor="procurement_expected_completion_date">
+                                                        Expected Arrival Date *
+                                                    </Label>
+                                                    <Input
+                                                        id="procurement_expected_completion_date"
+                                                        type="date"
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        value={startProcurementForm.data.procurement_expected_completion_date}
+                                                        onChange={(e) => startProcurementForm.setData('procurement_expected_completion_date', e.target.value)}
+                                                        required
+                                                    />
+                                                    {startProcurementForm.errors.procurement_expected_completion_date && (
+                                                        <p className="text-sm text-red-500 mt-1">
+                                                            {startProcurementForm.errors.procurement_expected_completion_date}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="procurement_notes">Notes (Optional)</Label>
+                                                    <Textarea
+                                                        id="procurement_notes"
+                                                        value={startProcurementForm.data.procurement_notes}
+                                                        onChange={(e) => startProcurementForm.setData('procurement_notes', e.target.value)}
+                                                        rows={3}
+                                                        placeholder="Add any notes about getting the product..."
+                                                    />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setStartProcurementDialogOpen(false)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button type="submit" disabled={startProcurementForm.processing}>
+                                                    {startProcurementForm.processing ? 'Starting...' : 'Start Getting Product'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                            
+                            {product_request.procurement_status === 'in_progress' && (
+                                <Dialog open={completeProcurementDialogOpen} onOpenChange={setCompleteProcurementDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button variant="default">Mark Product as Arrived</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Mark Product as Arrived</DialogTitle>
+                                            <DialogDescription>
+                                                Mark the product as arrived. This will notify the customer that their product has arrived and they can now pay the remaining amount.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <form onSubmit={handleCompleteProcurement}>
+                                            <div className="space-y-4 py-4">
+                                                <div>
+                                                    <Label htmlFor="complete_procurement_notes">Notes (Optional)</Label>
+                                                    <Textarea
+                                                        id="complete_procurement_notes"
+                                                        value={completeProcurementForm.data.procurement_notes}
+                                                        onChange={(e) => completeProcurementForm.setData('procurement_notes', e.target.value)}
+                                                        rows={3}
+                                                        placeholder="Add any notes about product arrival..."
+                                                    />
+                                                </div>
+                                            </div>
+                                            <DialogFooter>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => setCompleteProcurementDialogOpen(false)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                                <Button type="submit" disabled={completeProcurementForm.processing}>
+                                                    {completeProcurementForm.processing ? 'Marking...' : 'Mark Product as Arrived'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
+                            )}
+                        </div>
                         <Button asChild>
                             <Link href={`/admin/product-requests/${product_request.id}/edit`}>Update Status</Link>
                         </Button>

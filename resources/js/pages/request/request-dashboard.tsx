@@ -133,9 +133,9 @@ const getWorkflowStatusDisplay = (request: ProductRequest) => {
     case 'awaiting_advance_payment':
       return { text: 'Awaiting Advance Payment', color: 'bg-orange-100 text-orange-800 border-orange-200' }
     case 'awaiting_procurement':
-      return { text: 'Awaiting Procurement', color: 'bg-purple-100 text-purple-800 border-purple-200' }
+      return { text: 'We\'re Getting Your Product Ready', color: 'bg-purple-100 text-purple-800 border-purple-200' }
     case 'procurement_in_progress':
-      return { text: 'Procurement in Progress', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' }
+      return { text: 'Getting Your Product', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' }
     case 'awaiting_delivery':
       return { text: 'Awaiting Delivery', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
     case 'awaiting_final_payment':

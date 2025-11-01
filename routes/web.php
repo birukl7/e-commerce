@@ -238,6 +238,11 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
         'destroy' => 'admin.product-requests.destroy',
     ]);
     
+    Route::post('admin/product-requests/{productRequest}/start-procurement', [AdminProductRequestController::class, 'startProcurement'])
+        ->name('admin.product-requests.start-procurement');
+    Route::post('admin/product-requests/{productRequest}/complete-procurement', [AdminProductRequestController::class, 'completeProcurement'])
+        ->name('admin.product-requests.complete-procurement');
+    
     Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
     Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');
     

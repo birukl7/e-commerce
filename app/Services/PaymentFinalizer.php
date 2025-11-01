@@ -23,6 +23,12 @@ class PaymentFinalizer
      */
     public function canFinalizeOrder(PaymentTransaction $payment): bool
     {
+        // For product request payments, only need admin approval
+        if ($payment->product_request_id) {
+            return $payment->isAdminApproved();
+        }
+        
+        // For regular orders, need both gateway payment and admin approval
         return $payment->isAdminApproved() && ($payment->isGatewayPaid() || $payment->hasProofUploaded());
     }
 
@@ -90,6 +96,128 @@ class PaymentFinalizer
                             'order_number' => $order->order_number
                         ]);
                     }
+                }
+
+                // Handle product request payments
+                if ($payment->product_request_id) {
+                    $productRequest = \App\Models\ProductRequest::find($payment->product_request_id);
+                    
+                    if (!$productRequest) {
+                        Log::error('Product request not found for payment', [
+                            'payment_id' => $payment->id,
+                            'product_request_id' => $payment->product_request_id,
+                            'gateway_payload' => $payment->gateway_payload ?? []
+                        ]);
+                        return false;
+                    }
+                    
+                    // Determine payment type from gateway payload or tx_ref
+                    $paymentType = $payment->gateway_payload['payment_type'] ?? null;
+                    if (!$paymentType) {
+                        // Try to determine from tx_ref pattern
+                        if (str_starts_with($payment->tx_ref, 'ADV-')) {
+                            $paymentType = 'advance';
+                        } elseif (str_starts_with($payment->tx_ref, 'FINAL-')) {
+                            $paymentType = 'final';
+                        }
+                    }
+                    
+                    if ($paymentType === 'advance' || $paymentType === 'product_request_advance') {
+                        // Mark advance payment as paid (returns false if already paid)
+                        $result = $productRequest->markAdvancePaid(
+                            'offline',
+                            $payment->tx_ref,
+                            $payment->gateway_payload ?? []
+                        );
+                        
+                        // Only send notification if payment was newly marked as paid
+                        if ($result) {
+                            // Send notification to user
+                            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                                $productRequest,
+                                'Your advance payment has been approved. We will now start getting the product for you.',
+                                'Advance Payment Approved',
+                                route('user.product-requests.show', $productRequest->id)
+                            ));
+                            
+                            Log::info('Product request advance payment finalized', [
+                                'product_request_id' => $productRequest->id,
+                                'payment_id' => $payment->id
+                            ]);
+                        } else {
+                            Log::info('Product request advance payment already marked as paid', [
+                                'product_request_id' => $productRequest->id,
+                                'payment_id' => $payment->id
+                            ]);
+                        }
+                        
+                        return true;
+                        
+                    } elseif ($paymentType === 'final' || $paymentType === 'product_request_final') {
+                        try {
+                            // Mark final payment as paid (returns false if already paid, throws if advance not paid)
+                            $result = $productRequest->markFinalPaid(
+                                'offline',
+                                $payment->tx_ref,
+                                $payment->gateway_payload ?? []
+                            );
+                            
+                            // Create order if it doesn't exist and payment was newly marked
+                            if ($result && !$productRequest->order_id) {
+                                $order = $productRequest->createOrder(markPaid: true);
+                                
+                                // Update payment transaction with order_id
+                                $payment->update(['order_id' => $order->id]);
+                            } else {
+                                $productRequest->refresh();
+                                $order = $productRequest->order;
+                                if ($order) {
+                                    $order->update([
+                                        'payment_status' => 'paid',
+                                        'status' => 'processing',
+                                    ]);
+                                }
+                            }
+                            
+                            // Only send notification if payment was newly marked as paid
+                            if ($result) {
+                                // Send notification to user
+                                $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                                    $productRequest,
+                                    'Your final payment has been approved. Your order is now complete!',
+                                    'Final Payment Approved',
+                                    $order ? route('user.orders.show', $order->id) : route('user.product-requests.show', $productRequest->id)
+                                ));
+                                
+                                Log::info('Product request final payment finalized', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $order->id ?? null,
+                                    'payment_id' => $payment->id
+                                ]);
+                            } else {
+                                Log::info('Product request final payment already marked as paid', [
+                                    'product_request_id' => $productRequest->id,
+                                    'payment_id' => $payment->id
+                                ]);
+                            }
+                            
+                            return true;
+                        } catch (\Exception $e) {
+                            Log::error('Failed to process final payment', [
+                                'product_request_id' => $productRequest->id,
+                                'payment_id' => $payment->id,
+                                'error' => $e->getMessage()
+                            ]);
+                            return false;
+                        }
+                    }
+                    
+                    Log::warning('Unknown product request payment type', [
+                        'payment_id' => $payment->id,
+                        'product_request_id' => $productRequest->id,
+                        'payment_type' => $paymentType
+                    ]);
+                    return false;
                 }
 
                 if (!$order) {

@@ -145,20 +145,48 @@ class PaymentController extends Controller
                     // For offline payment, get offline payment methods and render offline form
                     $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
                     
+                    $paymentType = $request->get('payment_type', 'regular');
+                    $productRequestId = $request->get('product_request_id');
+                    
+                    // Calculate tax for product request payments
+                    $taxService = app(\App\Services\TaxService::class);
+                    $taxCalculation = null;
+                    $subtotal = null;
+                    
+                    if (in_array($paymentType, ['product_request_advance', 'product_request_final']) && $productRequestId) {
+                        $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                        if ($productRequest) {
+                            if ($paymentType === 'product_request_advance') {
+                                $subtotal = (float) $productRequest->advance_amount;
+                                $taxCalculation = $taxService->calculateTaxes($subtotal);
+                                $amount = $taxCalculation['total']; // Update amount to include tax
+                            } elseif ($paymentType === 'product_request_final') {
+                                $subtotal = (float) $productRequest->final_amount;
+                                $taxCalculation = $taxService->calculateTaxes($subtotal);
+                                $amount = $taxCalculation['total']; // Update amount to include tax
+                            }
+                        }
+                    }
+                    
                     Log::info('Rendering offline payment form', [
-                        'offline_methods_count' => $offlinePaymentMethods->count()
+                        'offline_methods_count' => $offlinePaymentMethods->count(),
+                        'payment_type' => $paymentType,
+                        'has_tax' => $taxCalculation !== null
                     ]);
 
                     return Inertia::render('payment/payment-process', [
                         'order_id' => $orderId,
                         'total_amount' => floatval($amount),
+                        'subtotal' => $subtotal,
+                        'tax_amount' => $taxCalculation ? $taxCalculation['total_tax_amount'] : null,
+                        'tax_breakdown' => $taxCalculation ? $taxCalculation['taxes'] : null,
                         'currency' => $currency,
                         'customer_email' => $customerEmail,
                         'customer_name' => $customerName,
                         'payment_method_type' => 'offline',
                         'offlinePaymentMethods' => $offlinePaymentMethods,
-                        'payment_type' => $request->get('payment_type', 'regular'),
-                        'product_request_id' => $request->get('product_request_id'),
+                        'payment_type' => $paymentType,
+                        'product_request_id' => $productRequestId,
                         'description' => $request->get('description'),
                     ]);
                 } else {
@@ -277,10 +305,11 @@ class PaymentController extends Controller
                 $order = null;
                 $productRequest = null;
                 
-                // Handle advance payments differently
-                if ($paymentType === 'product_request_advance' && $productRequestId) {
-                    \Log::info('Processing advance payment offline', [
+                // Handle product request payments (advance or final) differently
+                if (in_array($paymentType, ['product_request_advance', 'product_request_final']) && $productRequestId) {
+                    \Log::info('Processing product request payment offline', [
                         'product_request_id' => $productRequestId,
+                        'payment_type' => $paymentType,
                         'order_id' => $orderNumber
                     ] + $logContext);
                     
@@ -288,9 +317,10 @@ class PaymentController extends Controller
                     $productRequest = \App\Models\ProductRequest::find($productRequestId);
                     
                     if (!$productRequest) {
-                        \Log::error('Product request not found for advance payment', [
+                        \Log::error('Product request not found for payment', [
                             'product_request_id' => $productRequestId,
-                            'user_id' => $user->id
+                            'user_id' => $user->id,
+                            'payment_type' => $paymentType
                         ] + $logContext);
                         
                         DB::rollBack();
@@ -315,18 +345,47 @@ class PaymentController extends Controller
                         ], 403);
                     }
                     
-                    // Check if advance payment is still pending
-                    if ($productRequest->advance_payment_status !== 'pending') {
-                        \Log::error('Advance payment already processed', [
-                            'product_request_id' => $productRequestId,
-                            'advance_payment_status' => $productRequest->advance_payment_status
-                        ] + $logContext);
+                    // Validate payment status based on payment type
+                    if ($paymentType === 'product_request_advance') {
+                        // Check if advance payment is still pending
+                        if ($productRequest->advance_payment_status !== 'pending') {
+                            \Log::error('Advance payment already processed', [
+                                'product_request_id' => $productRequestId,
+                                'advance_payment_status' => $productRequest->advance_payment_status
+                            ] + $logContext);
+                            
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Advance payment has already been processed for this request.',
+                            ], 400);
+                        }
+                    } elseif ($paymentType === 'product_request_final') {
+                        // Check if final payment is still pending and product has arrived
+                        if ($productRequest->final_payment_status !== 'pending') {
+                            \Log::error('Final payment already processed', [
+                                'product_request_id' => $productRequestId,
+                                'final_payment_status' => $productRequest->final_payment_status
+                            ] + $logContext);
+                            
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Final payment has already been processed for this request.',
+                            ], 400);
+                        }
                         
-                        DB::rollBack();
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Advance payment has already been processed for this request.',
-                        ], 400);
+                        if (!$productRequest->product_arrived_at) {
+                            \Log::error('Product has not arrived yet', [
+                                'product_request_id' => $productRequestId,
+                            ] + $logContext);
+                            
+                            DB::rollBack();
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Product has not arrived yet. Final payment cannot be processed.',
+                            ], 400);
+                        }
                     }
                     
                 } else {
@@ -396,30 +455,49 @@ class PaymentController extends Controller
                     }
                 }
 
+                // Calculate tax for product request payments
+                $taxService = app(\App\Services\TaxService::class);
+                $taxCalculation = null;
+                $subtotal = null;
+                
+                if ($paymentType === 'product_request_advance' && $productRequest) {
+                    $subtotal = (float) $productRequest->advance_amount;
+                    $taxCalculation = $taxService->calculateTaxes($subtotal);
+                } elseif ($paymentType === 'product_request_final' && $productRequest) {
+                    $subtotal = (float) $productRequest->final_amount;
+                    $taxCalculation = $taxService->calculateTaxes($subtotal);
+                }
+                
                 // Handle order/product request updates based on payment type
                 if ($paymentType === 'product_request_advance' && $productRequest) {
-                    // Mark advance payment as paid immediately for offline payments
-                    $productRequest->markAdvancePaid('offline', $submissionRef, [
-                        'offline_method_id' => $validated['offline_payment_method_id'],
-                        'payment_reference' => $validated['payment_reference'],
-                        'payment_notes' => $validated['payment_notes'],
-                        'screenshot_path' => $path,
-                        'submitted_at' => now()->toISOString(),
+                    // Don't mark as paid immediately - wait for admin approval
+                    // Just set status to processing (proof uploaded)
+                    $productRequest->update([
+                        'advance_payment_status' => 'processing',
+                        'payment_reference' => $submissionRef,
+                        'payment_method' => 'offline',
                     ]);
                     
-                    \Log::info('Product request advance payment marked as paid', [
+                    \Log::info('Product request advance payment proof uploaded', [
                         'product_request_id' => $productRequest->id,
                         'advance_payment_status' => $productRequest->advance_payment_status,
-                        'advance_paid_at' => $productRequest->advance_paid_at
+                        'tx_ref' => $submissionRef
                     ] + $logContext);
                     
-                    // Send notification to user
-                    $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                        $productRequest,
-                        'Your advance payment has been received. We will now start procuring your product.',
-                        'Advance Payment Received',
-                        route('user.product-requests.show', $productRequest->id)
-                    ));
+                } elseif ($paymentType === 'product_request_final' && $productRequest) {
+                    // Don't mark as paid immediately - wait for admin approval
+                    // Just set status to processing (proof uploaded)
+                    $productRequest->update([
+                        'final_payment_status' => 'processing',
+                        'payment_reference' => $submissionRef,
+                        'payment_method' => 'offline',
+                    ]);
+                    
+                    \Log::info('Product request final payment proof uploaded', [
+                        'product_request_id' => $productRequest->id,
+                        'final_payment_status' => $productRequest->final_payment_status,
+                        'tx_ref' => $submissionRef
+                    ] + $logContext);
                     
                 } else {
                     // Update regular order status
@@ -442,8 +520,8 @@ class PaymentController extends Controller
                     'user_id' => $user->id,
                     'submission_ref' => $submissionRef,
                     'offline_payment_method_id' => $validated['offline_payment_method_id'],
-                    'order_id' => $paymentType === 'product_request_advance' ? null : $order->id,
-                    'product_request_id' => $paymentType === 'product_request_advance' ? $productRequest->id : null,
+                    'order_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? null : $order->id,
+                    'product_request_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? $productRequest->id : null,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
                     'customer_name' => $user->name,
@@ -462,12 +540,15 @@ class PaymentController extends Controller
                     'status' => $submission->status
                 ] + $logContext);
 
+                // Use tax-calculated total amount for transaction
+                $totalAmount = $taxCalculation ? $taxCalculation['total'] : $validated['amount'];
+                
                 // Create corresponding payment transaction record
                 $transactionData = [
                     'tx_ref' => $submissionRef,
-                    'order_id' => $paymentType === 'product_request_advance' ? null : $order->id,
-                    'product_request_id' => $paymentType === 'product_request_advance' ? $productRequest->id : null,
-                    'amount' => $validated['amount'],
+                    'order_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? null : $order->id,
+                    'product_request_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? $productRequest->id : null,
+                    'amount' => $totalAmount, // Include tax in the amount
                     'currency' => $validated['currency'],
                     'customer_email' => $user->email,
                     'customer_name' => $user->name,
@@ -475,13 +556,18 @@ class PaymentController extends Controller
                     'payment_method' => 'offline',
                     'gateway_status' => 'proof_uploaded',
                     'admin_status' => 'unseen',
-                    'gateway_payload' => [
+                    'gateway_payload' => array_merge([
                         'offline_method_id' => $validated['offline_payment_method_id'],
                         'payment_reference' => $validated['payment_reference'],
                         'payment_notes' => $validated['payment_notes'],
                         'screenshot_path' => $path,
                         'submitted_at' => now()->toISOString(),
-                    ],
+                        'payment_type' => $paymentType,
+                    ], $taxCalculation ? [
+                        'subtotal' => $subtotal,
+                        'tax_amount' => $taxCalculation['total_tax_amount'],
+                        'taxes' => $taxCalculation['taxes'],
+                    ] : []),
                 ];
                 \Log::info('Creating payment transaction', $transactionData + $logContext);
                 
@@ -889,10 +975,21 @@ class PaymentController extends Controller
                 ] + $logContext);
 
                 if ($response->successful() && ($responseData['status'] ?? '') === 'success') {
+                    // Determine payment type and product request ID
+                    $paymentType = $request->input('payment_type', 'regular');
+                    $productRequestId = $request->input('product_request_id');
+                    
+                    // For product request payments, use null for order_id or set appropriately
+                    $orderIdForTransaction = null;
+                    if ($paymentType === 'regular' && isset($order)) {
+                        $orderIdForTransaction = $order->order_number;
+                    }
+                    
                     // Store transaction details in database
                     $transactionData = [
                         'tx_ref' => $txRef,
-                        'order_id' => $order->order_number, // Use the actual order number from database
+                        'order_id' => $orderIdForTransaction,
+                        'product_request_id' => $productRequestId, // Include product_request_id for advance/final payments
                         'amount' => $request->amount,
                         'currency' => $request->currency,
                         'customer_email' => $customerEmail,
@@ -902,7 +999,9 @@ class PaymentController extends Controller
                         'gateway_status' => 'pending',
                         'admin_status' => 'unseen',
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null,
-                        'gateway_payload' => $responseData['data'] ?? [],
+                        'gateway_payload' => array_merge($responseData['data'] ?? [], [
+                            'payment_type' => $paymentType,
+                        ]),
                     ];
                     
                     PaymentTransaction::create($transactionData);
@@ -1811,7 +1910,75 @@ class PaymentController extends Controller
                 ]);
             }
             
-            // If we get here, we have an order
+            // Check if this is a product request payment (before checking order)
+            $isAdvancePayment = str_starts_with($transaction->tx_ref, 'ADV-');
+            $isFinalPayment = str_starts_with($transaction->tx_ref, 'FINAL-');
+            $productRequestId = $transaction->product_request_id ?? null;
+            
+            // If we don't have product_request_id but have ADV-/FINAL- prefix, extract it
+            if (!$productRequestId && ($isAdvancePayment || $isFinalPayment)) {
+                $parts = explode('-', $transaction->tx_ref);
+                if (count($parts) >= 2) {
+                    $productRequestId = $parts[1];
+                }
+            }
+            
+            // Handle product request payments first (no order needed)
+            if ($productRequestId && ($isAdvancePayment || $isFinalPayment)) {
+                \Log::info('=== PRODUCT REQUEST PAYMENT RETURN ===', [
+                    'tx_ref' => $txRef,
+                    'product_request_id' => $productRequestId,
+                    'payment_type' => $isAdvancePayment ? 'advance' : 'final',
+                    'transaction_gateway_status' => $transaction->gateway_status,
+                    'transaction_payment_method' => $transaction->payment_method,
+                ]);
+                
+                $gatewayStatus = $transaction->gateway_status;
+                
+                if ($gatewayStatus === 'paid') {
+                    // Refresh product request to get latest status
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        // Redirect to appropriate success page
+                        if ($isAdvancePayment) {
+                            return redirect()->route('product-requests.advance-payment.success', $productRequestId)
+                                ->with('success', 'Your advance payment was successful!');
+                        } else {
+                            return redirect()->route('product-requests.final-payment.success', $productRequestId)
+                                ->with('success', 'Your final payment was successful!');
+                        }
+                    } else {
+                        \Log::warning('Product request not found or unauthorized', [
+                            'product_request_id' => $productRequestId,
+                            'user_id' => auth()->id(),
+                            'tx_ref' => $txRef
+                        ]);
+                    }
+                } else {
+                    // Payment pending or failed
+                    return Inertia::render('payment/payment-pending', [
+                        'tx_ref' => $txRef,
+                        'product_request_id' => $productRequestId,
+                        'payment_type' => $isAdvancePayment ? 'advance' : 'final',
+                    ]);
+                }
+            }
+            
+            // If we get here, we have an order (regular payment)
+            if (!$order) {
+                \Log::warning('No order found and not a product request payment', [
+                    'tx_ref' => $txRef,
+                    'transaction_order_id' => $transaction->order_id
+                ]);
+                return Inertia::render('payment/payment-failed', [
+                    'error' => 'Order not found',
+                    'order_id' => null,
+                    'amount' => $transaction->amount ?? 0,
+                    'currency' => $transaction->currency ?? 'ETB',
+                    'transaction_id' => $txRef,
+                ]);
+            }
+            
             \Log::info('=== PAYMENT RETURN DECISION POINT ===', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
@@ -1846,11 +2013,13 @@ class PaymentController extends Controller
             
             if ($gatewayStatus === 'paid') {
                 // Payment was successful
-                // Check if this is an advance payment
+                // Check if this is a product request payment
                 $isAdvancePayment = str_starts_with($transaction->tx_ref, 'ADV-');
-                $productRequestId = null;
+                $isFinalPayment = str_starts_with($transaction->tx_ref, 'FINAL-');
+                $productRequestId = $transaction->product_request_id ?? null;
                 
-                if ($isAdvancePayment) {
+                // If we have product_request_id on transaction, use it
+                if (!$productRequestId && ($isAdvancePayment || $isFinalPayment)) {
                     // Extract product request ID from transaction reference
                     $parts = explode('-', $transaction->tx_ref);
                     if (count($parts) >= 2) {
@@ -1858,15 +2027,31 @@ class PaymentController extends Controller
                     }
                 }
                 
+                // Redirect to product request specific success pages
+                if ($productRequestId && $isAdvancePayment) {
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        return redirect()->route('product-requests.advance-payment.success', $productRequestId)
+                            ->with('success', 'Your advance payment was successful!');
+                    }
+                } elseif ($productRequestId && $isFinalPayment) {
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        return redirect()->route('product-requests.final-payment.success', $productRequestId)
+                            ->with('success', 'Your final payment was successful!');
+                    }
+                }
+                
+                // Regular order payment success page
                 return Inertia::render('payment/payment-success', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'payment_method' => 'Chapa',
                     'transaction_id' => $transaction->tx_ref,
-                    'is_advance_payment' => $isAdvancePayment,
-                    'product_request_id' => $productRequestId,
-                    'payment_type' => $isAdvancePayment ? 'product_request_advance' : 'regular',
+                    'is_advance_payment' => false,
+                    'product_request_id' => null,
+                    'payment_type' => 'regular',
                 ]);
             } elseif ($gatewayStatus === 'pending') {
                 // Payment is still pending - show pending page
