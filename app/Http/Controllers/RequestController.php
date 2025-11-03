@@ -350,6 +350,12 @@ class RequestController extends Controller
 
         // Refresh to get latest status before marking willingness
         $productRequest->refresh();
+
+        // Prevent workflow updates if request is terminated
+        if ($productRequest->isTerminated()) {
+            return redirect()->route('request.index')
+                ->with('error', 'Cannot confirm willingness: This request has been terminated.');
+        }
         
         $productRequest->markCustomerWillingness();
         

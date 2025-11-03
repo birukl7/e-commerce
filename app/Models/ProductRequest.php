@@ -256,10 +256,37 @@ class ProductRequest extends Model
     }
 
     /**
+     * Check if the product request is terminated (rejected or customer lost interest).
+     * Terminated requests should not allow further workflow updates.
+     */
+    public function isTerminated(): bool
+    {
+        return $this->status === 'rejected' || $this->lost_interest_at !== null;
+    }
+
+    /**
+     * Check if the product request is active and can continue workflow.
+     */
+    public function isActive(): bool
+    {
+        return !$this->isTerminated();
+    }
+
+    /**
      * Mark customer willingness to buy.
      */
     public function markCustomerWillingness()
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to mark customer willingness on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+            ]);
+            throw new \Exception('Cannot update willingness: Product request is terminated.');
+        }
+
         $this->update([
             'customer_willing_to_buy' => true,
             'willingness_confirmed_at' => now()
@@ -271,6 +298,17 @@ class ProductRequest extends Model
      */
     public function markAdvancePaid($paymentMethod, $reference, array $details = [])
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to mark advance payment as paid on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+                'new_reference' => $reference,
+            ]);
+            return false;
+        }
+
         // Prevent duplicate payments - check if already paid
         if ($this->advance_payment_status === 'paid') {
             \Log::warning('Attempted to mark advance payment as paid when already paid', [
@@ -297,6 +335,17 @@ class ProductRequest extends Model
      */
     public function markFinalPaid($paymentMethod, $reference, array $details = [])
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to mark final payment as paid on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+                'new_reference' => $reference,
+            ]);
+            return false;
+        }
+
         // Prevent duplicate payments - check if already paid
         if ($this->final_payment_status === 'paid') {
             \Log::warning('Attempted to mark final payment as paid when already paid', [
@@ -332,6 +381,16 @@ class ProductRequest extends Model
      */
     public function startProcurement($expectedCompletionDate = null, $notes = null)
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to start procurement on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+            ]);
+            throw new \Exception('Cannot start procurement: Product request is terminated.');
+        }
+
         $this->update([
             'procurement_status' => 'in_progress',
             'procurement_started_at' => now(),
@@ -345,6 +404,16 @@ class ProductRequest extends Model
      */
     public function completeProcurement($notes = null)
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to complete procurement on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+            ]);
+            throw new \Exception('Cannot complete procurement: Product request is terminated.');
+        }
+
         $this->update([
             'procurement_status' => 'completed',
             'procurement_completed_at' => now(),
@@ -357,6 +426,16 @@ class ProductRequest extends Model
      */
     public function markProductArrived()
     {
+        // Prevent workflow updates if request is terminated
+        if ($this->isTerminated()) {
+            \Log::warning('Attempted to mark product as arrived on terminated request', [
+                'product_request_id' => $this->id,
+                'status' => $this->status,
+                'lost_interest_at' => $this->lost_interest_at,
+            ]);
+            throw new \Exception('Cannot mark product as arrived: Product request is terminated.');
+        }
+
         $this->update([
             'product_arrived_at' => now()
         ]);

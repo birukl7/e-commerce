@@ -125,6 +125,17 @@ class PaymentFinalizer
                     }
                     
                     if ($paymentType === 'advance' || $paymentType === 'product_request_advance') {
+                        // Prevent finalization if request is terminated
+                        if ($productRequest->isTerminated()) {
+                            Log::warning('Attempted to finalize advance payment for terminated request', [
+                                'product_request_id' => $productRequest->id,
+                                'status' => $productRequest->status,
+                                'lost_interest_at' => $productRequest->lost_interest_at,
+                                'payment_id' => $payment->id,
+                            ]);
+                            return false;
+                        }
+
                         // Mark advance payment as paid (returns false if already paid)
                         // Use the actual payment method from the transaction (chapa, offline, etc.)
                         $paymentMethod = $payment->payment_method ?? 'chapa';
@@ -158,6 +169,17 @@ class PaymentFinalizer
                         return true;
                         
                     } elseif ($paymentType === 'final' || $paymentType === 'product_request_final') {
+                        // Prevent finalization if request is terminated
+                        if ($productRequest->isTerminated()) {
+                            Log::warning('Attempted to finalize final payment for terminated request', [
+                                'product_request_id' => $productRequest->id,
+                                'status' => $productRequest->status,
+                                'lost_interest_at' => $productRequest->lost_interest_at,
+                                'payment_id' => $payment->id,
+                            ]);
+                            return false;
+                        }
+
                         try {
                             // Mark final payment as paid (returns false if already paid, throws if advance not paid)
                             // Use the actual payment method from the transaction (chapa, offline, etc.)

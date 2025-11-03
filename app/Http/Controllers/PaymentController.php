@@ -470,6 +470,16 @@ class PaymentController extends Controller
                 
                 // Handle order/product request updates based on payment type
                 if ($paymentType === 'product_request_advance' && $productRequest) {
+                    // Prevent payment processing if request is terminated
+                    if ($productRequest->isTerminated()) {
+                        \Log::warning('Attempted to process advance payment for terminated request', [
+                            'product_request_id' => $productRequest->id,
+                            'status' => $productRequest->status,
+                            'lost_interest_at' => $productRequest->lost_interest_at,
+                        ]);
+                        return back()->withErrors(['error' => 'Cannot process payment: This request has been terminated.'])->withInput();
+                    }
+
                     // Don't mark as paid immediately - wait for admin approval
                     // Just set status to processing (proof uploaded)
                     $productRequest->update([
@@ -485,6 +495,16 @@ class PaymentController extends Controller
                     ] + $logContext);
                     
                 } elseif ($paymentType === 'product_request_final' && $productRequest) {
+                    // Prevent payment processing if request is terminated
+                    if ($productRequest->isTerminated()) {
+                        \Log::warning('Attempted to process final payment for terminated request', [
+                            'product_request_id' => $productRequest->id,
+                            'status' => $productRequest->status,
+                            'lost_interest_at' => $productRequest->lost_interest_at,
+                        ]);
+                        return back()->withErrors(['error' => 'Cannot process payment: This request has been terminated.'])->withInput();
+                    }
+
                     // Don't mark as paid immediately - wait for admin approval
                     // Just set status to processing (proof uploaded)
                     $productRequest->update([
@@ -1086,6 +1106,17 @@ class PaymentController extends Controller
                     if ($paymentType === 'product_request_advance' && $productRequestId) {
                         $productRequest = \App\Models\ProductRequest::find($productRequestId);
                         if ($productRequest && $productRequest->user_id === $user->id) {
+                            // Prevent payment processing if request is terminated
+                            if ($productRequest->isTerminated()) {
+                                \Log::warning('Attempted to process advance payment for terminated request', [
+                                    'product_request_id' => $productRequestId,
+                                    'status' => $productRequest->status,
+                                    'lost_interest_at' => $productRequest->lost_interest_at,
+                                ]);
+                                return redirect()->route('request.index')
+                                    ->with('error', 'Cannot process payment: This request has been terminated.');
+                            }
+
                             // Only update if not already processing or paid
                             if ($productRequest->advance_payment_status !== 'processing' && $productRequest->advance_payment_status !== 'paid') {
                                 $productRequest->update([
@@ -1102,6 +1133,17 @@ class PaymentController extends Controller
                     } elseif ($paymentType === 'product_request_final' && $productRequestId) {
                         $productRequest = \App\Models\ProductRequest::find($productRequestId);
                         if ($productRequest && $productRequest->user_id === $user->id) {
+                            // Prevent payment processing if request is terminated
+                            if ($productRequest->isTerminated()) {
+                                \Log::warning('Attempted to process final payment for terminated request', [
+                                    'product_request_id' => $productRequestId,
+                                    'status' => $productRequest->status,
+                                    'lost_interest_at' => $productRequest->lost_interest_at,
+                                ]);
+                                return redirect()->route('request.index')
+                                    ->with('error', 'Cannot process payment: This request has been terminated.');
+                            }
+
                             // Only update if not already processing or paid
                             if ($productRequest->final_payment_status !== 'processing' && $productRequest->final_payment_status !== 'paid') {
                                 $productRequest->update([
@@ -2050,6 +2092,20 @@ class PaymentController extends Controller
                         // This ensures consistency even if webhook is delayed or hasn't run
                         $needsUpdate = false;
                         if ($isAdvancePayment) {
+                            // Prevent payment processing if request is terminated
+                            if ($productRequest->isTerminated()) {
+                                \Log::warning('Attempted to process advance payment return for terminated request', [
+                                    'product_request_id' => $productRequestId,
+                                    'status' => $productRequest->status,
+                                    'lost_interest_at' => $productRequest->lost_interest_at,
+                                ]);
+                                // Return to product request failure page
+                                return Inertia::render('product-requests/advance-payment-failure', [
+                                    'productRequest' => $productRequest,
+                                    'message' => 'This request has been terminated. Payment cannot be processed.',
+                                ]);
+                            }
+
                             // Update to 'processing' if not already 'processing' or 'paid'
                             // This handles cases where status might be null, 'pending', or something else
                             if ($productRequest->advance_payment_status !== 'processing' && $productRequest->advance_payment_status !== 'paid') {
@@ -2068,6 +2124,20 @@ class PaymentController extends Controller
                             }
                         } else {
                             // Final payment
+                            // Prevent payment processing if request is terminated
+                            if ($productRequest->isTerminated()) {
+                                \Log::warning('Attempted to process final payment return for terminated request', [
+                                    'product_request_id' => $productRequestId,
+                                    'status' => $productRequest->status,
+                                    'lost_interest_at' => $productRequest->lost_interest_at,
+                                ]);
+                                // Return to product request failure page
+                                return Inertia::render('product-requests/final-payment-failure', [
+                                    'productRequest' => $productRequest,
+                                    'message' => 'This request has been terminated. Payment cannot be processed.',
+                                ]);
+                            }
+
                             if ($productRequest->final_payment_status !== 'processing' && $productRequest->final_payment_status !== 'paid') {
                                 \Log::info('Updating final payment status in paymentReturn', [
                                     'product_request_id' => $productRequestId,

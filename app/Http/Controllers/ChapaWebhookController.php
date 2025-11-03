@@ -342,6 +342,17 @@ class ChapaWebhookController extends Controller
                 // For product request payments, require admin approval
                 // Set status to 'processing' and mark admin_status as 'unseen'
                 if ($paymentType === 'ADV') {
+                    // Prevent workflow updates if request is terminated
+                    if ($productRequest->isTerminated()) {
+                        Log::warning('Attempted to process advance payment webhook for terminated request', [
+                            'product_request_id' => $productRequestId,
+                            'status' => $productRequest->status,
+                            'lost_interest_at' => $productRequest->lost_interest_at,
+                            'tx_ref' => $txRef,
+                        ] + $logContext);
+                        return response()->json(['status' => 'ignored', 'message' => 'Request terminated'], 200);
+                    }
+
                     // Update product request to 'processing' status (awaiting payment approval)
                     $productRequest->update([
                         'advance_payment_status' => 'processing',
@@ -377,6 +388,17 @@ class ChapaWebhookController extends Controller
                     ] + $logContext);
                     
                 } elseif ($paymentType === 'FINAL') {
+                    // Prevent workflow updates if request is terminated
+                    if ($productRequest->isTerminated()) {
+                        Log::warning('Attempted to process final payment webhook for terminated request', [
+                            'product_request_id' => $productRequestId,
+                            'status' => $productRequest->status,
+                            'lost_interest_at' => $productRequest->lost_interest_at,
+                            'tx_ref' => $txRef,
+                        ] + $logContext);
+                        return response()->json(['status' => 'ignored', 'message' => 'Request terminated'], 200);
+                    }
+
                     // Update product request to 'processing' status (awaiting payment approval)
                     $productRequest->update([
                         'final_payment_status' => 'processing',

@@ -103,6 +103,11 @@ class AdminProductRequestController extends Controller
         // Refresh to get latest payment status
         $productRequest->refresh();
         
+        // Prevent workflow updates if request is terminated
+        if ($productRequest->isTerminated()) {
+            return back()->withErrors(['error' => 'Cannot start procurement: Product request is terminated (rejected or customer lost interest).'])->withInput();
+        }
+        
         // Allow starting procurement if payment is either 'paid' or 'processing' (admin can approve and start procurement)
         // But for now, we require 'paid' status for procurement (admin should approve payment first)
         if ($productRequest->advance_payment_status !== 'paid') {
@@ -143,6 +148,14 @@ class AdminProductRequestController extends Controller
         $validated = $request->validate([
             'procurement_notes' => ['nullable', 'string', 'max:5000'],
         ]);
+
+        // Refresh to get latest status
+        $productRequest->refresh();
+
+        // Prevent workflow updates if request is terminated
+        if ($productRequest->isTerminated()) {
+            return back()->withErrors(['error' => 'Cannot complete procurement: Product request is terminated (rejected or customer lost interest).'])->withInput();
+        }
 
         if ($productRequest->procurement_status !== 'in_progress') {
             return back()->withErrors(['error' => 'Procurement must be in progress before it can be completed.'])->withInput();

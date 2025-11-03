@@ -393,6 +393,15 @@ class ProductRequestPaymentController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Refresh to ensure latest status
+        $productRequest->refresh();
+
+        // Prevent payment processing if request is terminated
+        if ($productRequest->isTerminated()) {
+            return redirect()->route('request.index')
+                ->with('error', 'Cannot process payment: This request has been terminated.');
+        }
+
         if (!$productRequest->requiresFinalPayment()) {
             return redirect()
                 ->route('user.product-requests.show', $productRequest->id)
