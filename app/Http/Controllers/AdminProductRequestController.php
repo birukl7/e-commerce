@@ -55,6 +55,9 @@ class AdminProductRequestController extends Controller
      */
     public function show(ProductRequest $productRequest)
     {
+        // Refresh the model to get latest payment status from database
+        $productRequest->refresh();
+        
         $productRequest->load(['user', 'admin']);
         
         // Load payment transactions for this product request
@@ -62,7 +65,8 @@ class AdminProductRequestController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         
-        // Add workflow status and payment information
+        // Add workflow status and payment information AFTER refreshing
+        // This ensures we calculate workflow_status based on the latest payment status
         $productRequest->workflow_status = $productRequest->getWorkflowStatus();
         
         return Inertia::render('admin/product-request/show', [
@@ -96,8 +100,13 @@ class AdminProductRequestController extends Controller
             'procurement_expected_completion_date.after' => 'The expected completion date must be in the future.',
         ]);
 
+        // Refresh to get latest payment status
+        $productRequest->refresh();
+        
+        // Allow starting procurement if payment is either 'paid' or 'processing' (admin can approve and start procurement)
+        // But for now, we require 'paid' status for procurement (admin should approve payment first)
         if ($productRequest->advance_payment_status !== 'paid') {
-            return back()->withErrors(['error' => 'Advance payment must be completed before starting procurement.'])->withInput();
+            return back()->withErrors(['error' => 'Advance payment must be approved before starting procurement.'])->withInput();
         }
 
         $productRequest->startProcurement(

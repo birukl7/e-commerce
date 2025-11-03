@@ -53,6 +53,28 @@ interface OrderItem {
     total: number;
 }
 
+interface ProductRequest {
+    id: number;
+    product_name: string;
+    product_url?: string;
+    description?: string;
+    image?: string;
+    amount?: number;
+    estimated_price?: number;
+    advance_amount?: number;
+    final_amount?: number;
+    currency?: string;
+    advance_payment_status?: string;
+    final_payment_status?: string;
+    procurement_status?: string;
+    workflow_status?: string;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+    };
+}
+
 interface Props {
     payment: PaymentTransaction;
     orderItems: OrderItem[];
@@ -60,9 +82,12 @@ interface Props {
     canApprove: boolean;
     canReject: boolean;
     orderStatus: string;
+    isProductRequestPayment?: boolean;
+    paymentType?: 'advance' | 'final' | null;
+    productRequest?: ProductRequest | null;
 }
 
-export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus }: Props) {
+export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null }: Props) {
     const [activeAction, setActiveAction] = useState<'approve' | 'reject' | null>(null);
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -185,9 +210,16 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                         </Link>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Badge className={orderStatusDisplay.class}>
-                            Order: {orderStatusDisplay.text}
-                        </Badge>
+                        {isProductRequestPayment && (
+                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-300">
+                                PRODUCT REQUEST {paymentType?.toUpperCase() || 'PAYMENT'}
+                            </Badge>
+                        )}
+                        {!isProductRequestPayment && (
+                            <Badge className={orderStatusDisplay.class}>
+                                Order: {orderStatusDisplay.text}
+                            </Badge>
+                        )}
                         {isAwaitingApproval && (
                             <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-300">
                                 NEEDS REVIEW
@@ -306,9 +338,21 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                         <p className="font-mono text-sm">{payment.tx_ref}</p>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-sm font-medium text-muted-foreground">Order ID</Label>
-                                        <p className="font-mono text-sm">{payment.order_id || 'N/A'}</p>
+                                        <Label className="text-sm font-medium text-muted-foreground">
+                                            {isProductRequestPayment ? 'Product Request ID' : 'Order ID'}
+                                        </Label>
+                                        <p className="font-mono text-sm">
+                                            {isProductRequestPayment && productRequest ? `#${productRequest.id}` : (payment.order_id || 'N/A')}
+                                        </p>
                                     </div>
+                                    {isProductRequestPayment && paymentType && (
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Payment Type</Label>
+                                            <Badge className={paymentType === 'advance' ? 'bg-orange-100 text-orange-800' : 'bg-blue-100 text-blue-800'}>
+                                                {paymentType === 'advance' ? 'Advance Payment' : 'Final Payment'}
+                                            </Badge>
+                                        </div>
+                                    )}
                                     <div className="space-y-2">
                                         <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
                                         <p className="text-lg font-semibold">{formatCurrency(payment.amount, payment.currency)}</p>
@@ -395,6 +439,135 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                             </CardContent>
                         </Card>
 
+                        {/* Product Request Details */}
+                        {isProductRequestPayment && productRequest && (
+                            <Card className="border-border/50 shadow-sm">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Package className="h-5 w-5" />
+                                        Product Request Details
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Payment for Product Request #{productRequest.id}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Product Name</Label>
+                                            <p className="text-sm font-medium">{productRequest.product_name}</p>
+                                        </div>
+                                        {productRequest.product_url && (
+                                            <div className="space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Product URL</Label>
+                                                <p className="text-sm">
+                                                    <a href={productRequest.product_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
+                                                        {productRequest.product_url}
+                                                    </a>
+                                                </p>
+                                            </div>
+                                        )}
+                                        {productRequest.description && (
+                                            <div className="md:col-span-2 space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Description</Label>
+                                                <p className="text-sm text-muted-foreground">{productRequest.description}</p>
+                                            </div>
+                                        )}
+                                        {productRequest.image && (
+                                            <div className="md:col-span-2 space-y-2">
+                                                <Label className="text-sm font-medium text-muted-foreground">Product Image</Label>
+                                                <img
+                                                    src={`/storage/${productRequest.image}`}
+                                                    alt={productRequest.product_name}
+                                                    className="max-h-48 rounded-md border object-contain bg-white"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    {paymentType === 'advance' && (
+                                        <div className="border-t pt-4 space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Advance Payment Details</Label>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                {productRequest.advance_amount && (
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-muted-foreground">Advance Amount</Label>
+                                                        <p className="text-sm font-medium">{formatCurrency(productRequest.advance_amount, productRequest.currency || payment.currency)}</p>
+                                                    </div>
+                                                )}
+                                                {productRequest.advance_payment_status && (
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-muted-foreground">Payment Status</Label>
+                                                        <Badge className={
+                                                            productRequest.advance_payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                                                            productRequest.advance_payment_status === 'processing' ? 'bg-orange-100 text-orange-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }>
+                                                            {productRequest.advance_payment_status}
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    {paymentType === 'final' && (
+                                        <div className="border-t pt-4 space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Final Payment Details</Label>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                {productRequest.final_amount && (
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-muted-foreground">Final Amount</Label>
+                                                        <p className="text-sm font-medium">{formatCurrency(productRequest.final_amount, productRequest.currency || payment.currency)}</p>
+                                                    </div>
+                                                )}
+                                                {productRequest.final_payment_status && (
+                                                    <div className="space-y-2">
+                                                        <Label className="text-xs text-muted-foreground">Payment Status</Label>
+                                                        <Badge className={
+                                                            productRequest.final_payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                                                            productRequest.final_payment_status === 'processing' ? 'bg-orange-100 text-orange-800' :
+                                                            'bg-gray-100 text-gray-800'
+                                                        }>
+                                                            {productRequest.final_payment_status}
+                                                        </Badge>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {productRequest.workflow_status && (
+                                        <div className="border-t pt-4 space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Workflow Status</Label>
+                                            <Badge className="bg-blue-100 text-blue-800">
+                                                {productRequest.workflow_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                            </Badge>
+                                        </div>
+                                    )}
+
+                                    {productRequest.procurement_status && (
+                                        <div className="border-t pt-4 space-y-2">
+                                            <Label className="text-sm font-medium text-muted-foreground">Procurement Status</Label>
+                                            <Badge className="bg-purple-100 text-purple-800">
+                                                {productRequest.procurement_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                            </Badge>
+                                        </div>
+                                    )}
+
+                                    <div className="border-t pt-4">
+                                        <Link
+                                            href={`/admin/product-requests/${productRequest.id}`}
+                                            className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800"
+                                        >
+                                            View Full Product Request Details
+                                            <ArrowLeft className="h-4 w-4 rotate-180" />
+                                        </Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         {/* Customer Information */}
                         <Card className="border-border/50 shadow-sm">
                             <CardHeader>
@@ -458,7 +631,7 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                         </Card>
 
                         {/* Order Items */}
-                        {orderItems.length > 0 && (
+                        {!isProductRequestPayment && orderItems.length > 0 && (
                             <Card className="border-border/50 shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">

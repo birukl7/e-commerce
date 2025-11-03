@@ -18,10 +18,14 @@ class RequestController extends Controller
     {
         $user = Auth::user();
         
+        // Get requests and refresh each one to ensure we have latest payment status
         $requests = ProductRequest::where('user_id', $user->id)
             ->latest()
             ->get()
             ->map(function ($request) {
+                // Refresh to get latest payment status from database
+                $request->refresh();
+                
                 return [
                     'id' => $request->id,
                     'product_name' => $request->product_name,
@@ -53,6 +57,7 @@ class RequestController extends Controller
                     'product_arrived_at' => $request->product_arrived_at,
                     'customer_willing_to_buy' => $request->customer_willing_to_buy,
                     'willingness_confirmed_at' => $request->willingness_confirmed_at,
+                    // Calculate workflow status AFTER refreshing the model
                     'workflow_status' => $request->getWorkflowStatus(),
                 ];
             });
@@ -113,6 +118,9 @@ class RequestController extends Controller
             $finalTaxCalculation = $taxService->calculateTaxes((float) $productRequest->final_amount);
         }
 
+        // Refresh the model to get latest payment status from database
+        $productRequest->refresh();
+
         return Inertia::render('request/show', [
             'request' => [
                 'id' => $productRequest->id,
@@ -147,13 +155,11 @@ class RequestController extends Controller
                 'procurement_completed_at' => $productRequest->procurement_completed_at,
                 'procurement_notes' => $productRequest->procurement_notes,
                 'product_arrived_at' => $productRequest->product_arrived_at,
+                // Calculate workflow status AFTER refreshing the model
                 'workflow_status' => $productRequest->getWorkflowStatus(),
-                // Refresh payment status from database BEFORE calculating requires flags
-                'advance_payment_status' => $productRequest->fresh()->advance_payment_status,
-                'final_payment_status' => $productRequest->fresh()->final_payment_status,
-                // Calculate requires flags after refreshing payment status
-                'requires_advance_payment' => $productRequest->fresh()->requiresAdvancePayment(),
-                'requires_final_payment' => $productRequest->fresh()->requiresFinalPayment(),
+                // Calculate requires flags AFTER refreshing payment status
+                'requires_advance_payment' => $productRequest->requiresAdvancePayment(),
+                'requires_final_payment' => $productRequest->requiresFinalPayment(),
                 // Tax calculations
                 'advance_tax_breakdown' => $advanceTaxCalculation,
                 'final_tax_breakdown' => $finalTaxCalculation,
@@ -334,7 +340,13 @@ class RequestController extends Controller
                 ->with('error', 'This request has not been approved yet.');
         }
 
+        // Refresh to get latest status before marking willingness
+        $productRequest->refresh();
+        
         $productRequest->markCustomerWillingness();
+        
+        // Refresh again to get updated willingness status
+        $productRequest->refresh();
 
         return redirect()->route('product-requests.advance-payment.show', $productRequest->id)
             ->with('success', 'Thank you for confirming your willingness to buy. Please proceed with advance payment.');

@@ -339,100 +339,91 @@ class ChapaWebhookController extends Controller
                     }
                 }
                 
+                // For product request payments, require admin approval
+                // Set status to 'processing' and mark admin_status as 'unseen'
                 if ($paymentType === 'ADV') {
-                        // Mark advance payment as paid (returns false if already paid)
-                        $result = $productRequest->markAdvancePaid('chapa', $txRef, $payment->gateway_payload ?? []);
-                        
-                        // Ensure PaymentTransaction is linked and updated
-                        if ($payment && !$payment->product_request_id) {
+                    // Update product request to 'processing' status (awaiting admin approval)
+                    $productRequest->update([
+                        'advance_payment_status' => 'processing',
+                        'payment_reference' => $txRef,
+                        'payment_method' => 'chapa',
+                    ]);
+                    
+                    // Ensure PaymentTransaction is linked and has correct admin_status
+                    if ($payment) {
+                        if (!$payment->product_request_id) {
                             $payment->update(['product_request_id' => $productRequestId]);
                         }
-                        
-                        // Only send notification if payment was newly marked as paid
-                        if ($result) {
-                            // Send notification
-                            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                                $productRequest,
-                                'Your advance payment has been received. We will now start getting the product for you.',
-                                'Advance Payment Received',
-                                route('user.product-requests.show', $productRequest->id)
-                            ));
-                            
-                            Log::info('Advance payment processed', [
-                                'product_request_id' => $productRequestId,
-                                'payment_transaction_id' => $payment->id ?? null,
-                                'tx_ref' => $txRef
-                            ] + $logContext);
+                        // Ensure admin_status is 'unseen' so it appears in admin panel
+                        if ($payment->admin_status === 'approved') {
+                            // If somehow already approved, don't change it
                         } else {
-                            Log::info('Advance payment already marked as paid, skipping notification', [
-                                'product_request_id' => $productRequestId,
-                                'tx_ref' => $txRef
-                            ] + $logContext);
-                        }
-                        
-                    } elseif ($paymentType === 'FINAL') {
-                        try {
-                            // Mark final payment as paid (returns false if already paid, throws if advance not paid)
-                            $result = $productRequest->markFinalPaid('chapa', $txRef, $payment->gateway_payload ?? []);
-                            
-                            // Create order (processing + paid) only if payment was newly marked
-                            if ($result && !$productRequest->order_id) {
-                                $order = $productRequest->createOrder(markPaid: true);
-                            } else {
-                                $order = $productRequest->order;
-                            }
-                        
-                            // Update PaymentTransaction with order_id if available
-                            if ($payment && $order) {
-                                $payment->update([
-                                    'order_id' => $order->id,
-                                    'product_request_id' => $productRequestId,
-                                ]);
-                            }
-                            
-                            // Only send notification if payment was newly marked as paid
-                            if ($result) {
-                                // Send notification
-                                $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                                    $productRequest,
-                                    'Your final payment has been received. Your order is now complete!',
-                                    'Payment Complete',
-                                    $order ? route('user.orders.show', $order->id) : route('user.product-requests.show', $productRequest->id)
-                                ));
-                                
-                                Log::info('Final payment processed', [
-                                    'product_request_id' => $productRequestId,
-                                    'order_id' => $order->id ?? null,
-                                    'payment_transaction_id' => $payment->id ?? null,
-                                    'tx_ref' => $txRef
-                                ] + $logContext);
-                            } else {
-                                Log::info('Final payment already marked as paid, skipping notification', [
-                                    'product_request_id' => $productRequestId,
-                                    'tx_ref' => $txRef
-                                ] + $logContext);
-                            }
-                        } catch (\Exception $e) {
-                            Log::error('Failed to process final payment in webhook', [
-                                'product_request_id' => $productRequestId,
-                                'error' => $e->getMessage(),
-                                'tx_ref' => $txRef
-                            ] + $logContext);
+                            $payment->update(['admin_status' => 'unseen']);
                         }
                     }
-                } else {
-                    Log::warning('Product request payment failed', [
+                    
+                    // Send notification that payment is pending approval
+                    $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                        $productRequest,
+                        'Your advance payment has been received and is pending admin approval.',
+                        'Advance Payment Pending Approval',
+                        route('user.product-requests.show', $productRequest->id)
+                    ));
+                    
+                    Log::info('Advance payment received, awaiting admin approval', [
                         'product_request_id' => $productRequestId,
-                        'payment_type' => $paymentType,
-                        'gateway_status' => $gatewayStatus,
+                        'payment_transaction_id' => $payment->id ?? null,
+                        'tx_ref' => $txRef
+                    ] + $logContext);
+                    
+                } elseif ($paymentType === 'FINAL') {
+                    // Update product request to 'processing' status (awaiting admin approval)
+                    $productRequest->update([
+                        'final_payment_status' => 'processing',
+                        'payment_reference' => $txRef,
+                        'payment_method' => 'chapa',
+                    ]);
+                    
+                    // Ensure PaymentTransaction is linked and has correct admin_status
+                    if ($payment) {
+                        if (!$payment->product_request_id) {
+                            $payment->update(['product_request_id' => $productRequestId]);
+                        }
+                        // Ensure admin_status is 'unseen' so it appears in admin panel
+                        if ($payment->admin_status === 'approved') {
+                            // If somehow already approved, don't change it
+                        } else {
+                            $payment->update(['admin_status' => 'unseen']);
+                        }
+                    }
+                    
+                    // Send notification that payment is pending approval
+                    $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                        $productRequest,
+                        'Your final payment has been received and is pending admin approval.',
+                        'Final Payment Pending Approval',
+                        route('user.product-requests.show', $productRequest->id)
+                    ));
+                    
+                    Log::info('Final payment received, awaiting admin approval', [
+                        'product_request_id' => $productRequestId,
+                        'payment_transaction_id' => $payment->id ?? null,
                         'tx_ref' => $txRef
                     ] + $logContext);
                 }
             } else {
-                Log::warning('Product request not found for payment', [
+                Log::warning('Product request payment failed', [
                     'product_request_id' => $productRequestId,
+                    'payment_type' => $paymentType,
+                    'gateway_status' => $gatewayStatus,
                     'tx_ref' => $txRef
                 ] + $logContext);
             }
+        } else {
+            Log::warning('Product request not found for payment', [
+                'product_request_id' => $productRequestId,
+                'tx_ref' => $txRef
+            ] + $logContext);
         }
     }
+}

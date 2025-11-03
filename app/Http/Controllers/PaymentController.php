@@ -594,6 +594,71 @@ class PaymentController extends Controller
                 $paymentMethodName = 'Telebirr Mobile Money';
             }
 
+            \Log::info('Offline payment submission successful', [
+                'submission_ref' => $submissionRef,
+                'order_id' => $validated['order_id'],
+                'is_inertia' => $request->header('X-Inertia') === 'true',
+                'payment_type' => $paymentType,
+                'product_request_id' => $productRequestId,
+            ] + $logContext);
+
+            // Handle product request offline payments - redirect to specific success pages
+            if ($productRequestId && ($paymentType === 'product_request_advance' || $paymentType === 'product_request_final')) {
+                $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                if ($productRequest && $productRequest->user_id === auth()->id()) {
+                    $productRequest->refresh();
+                    
+                    if ($paymentType === 'product_request_advance') {
+                        // Render advance payment offline success page
+                        // Always return Inertia for product request payments if X-Inertia header is present
+                        if ($request->header('X-Inertia')) {
+                            return Inertia::render('product-requests/advance-payment-success-offline', [
+                                'productRequest' => [
+                                    'id' => $productRequest->id,
+                                    'product_name' => $productRequest->product_name,
+                                    'advance_amount' => $productRequest->advance_amount,
+                                    'final_amount' => $productRequest->final_amount,
+                                    'currency' => $productRequest->currency,
+                                    'payment_reference' => $productRequest->payment_reference,
+                                    'advance_payment_status' => $productRequest->advance_payment_status,
+                                    'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                                ],
+                                'submission_ref' => $submissionRef,
+                                'amount' => $validated['amount'],
+                                'payment_method' => $paymentMethodName,
+                            ]);
+                        }
+                        // If no X-Inertia header, redirect to success route (for browser navigation)
+                        return redirect()->route('product-requests.advance-payment.success', $productRequest->id)
+                            ->with('success', 'Offline payment submitted successfully!');
+                    } elseif ($paymentType === 'product_request_final') {
+                        // Render final payment offline success page
+                        // Always return Inertia for product request payments if X-Inertia header is present
+                        if ($request->header('X-Inertia')) {
+                            return Inertia::render('product-requests/final-payment-success-offline', [
+                                'productRequest' => [
+                                    'id' => $productRequest->id,
+                                    'product_name' => $productRequest->product_name,
+                                    'final_amount' => $productRequest->final_amount,
+                                    'currency' => $productRequest->currency,
+                                    'payment_reference' => $productRequest->payment_reference,
+                                    'final_payment_status' => $productRequest->final_payment_status,
+                                    'order_id' => $productRequest->order_id,
+                                    'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                                ],
+                                'submission_ref' => $submissionRef,
+                                'amount' => $validated['amount'],
+                                'payment_method' => $paymentMethodName,
+                            ]);
+                        }
+                        // If no X-Inertia header, redirect to success route (for browser navigation)
+                        return redirect()->route('product-requests.final-payment.success', $productRequest->id)
+                            ->with('success', 'Offline payment submitted successfully!');
+                    }
+                }
+            }
+
+            // Regular order offline payment success
             $successData = [
                 'submission_ref' => $submissionRef,
                 'order_id' => $validated['order_id'],
@@ -603,12 +668,6 @@ class PaymentController extends Controller
                 'payment_type' => $paymentType,
                 'product_request_id' => $productRequestId,
             ];
-
-            \Log::info('Offline payment submission successful', [
-                'submission_ref' => $submissionRef,
-                'order_id' => $validated['order_id'],
-                'is_inertia' => $request->header('X-Inertia') === 'true',
-            ] + $logContext);
 
             if ($request->header('X-Inertia')) {
                 return Inertia::render('payment/offline-submission-success', $successData);
@@ -651,9 +710,13 @@ class PaymentController extends Controller
             
             return response()->json($errorResponse, 500);
         } finally {
+            $duration = defined('LARAVEL_START') 
+                ? round((microtime(true) - LARAVEL_START) * 1000, 2)
+                : null;
+            
             \Log::info('=== OFFLINE PAYMENT SUBMISSION COMPLETED ===', [
                 'request_id' => $requestId,
-                'duration_ms' => round((microtime(true) - LARAVEL_START) * 1000, 2)
+                'duration_ms' => $duration
             ]);
         }
     }
@@ -831,8 +894,18 @@ class PaymentController extends Controller
                 \Log::info('Processing cart items:', ['items' => $logItems] + $logContext);
             }
 
-            // Generate transaction reference
-            $txRef = 'TX-' . Str::random(10) . '-' . time();
+            // Generate transaction reference based on payment type
+            $paymentType = $request->input('payment_type', 'regular');
+            $productRequestId = $request->input('product_request_id');
+            
+            // Use appropriate prefix for product request payments
+            if ($paymentType === 'product_request_advance' && $productRequestId) {
+                $txRef = 'ADV-' . $productRequestId . '-' . now()->timestamp;
+            } elseif ($paymentType === 'product_request_final' && $productRequestId) {
+                $txRef = 'FINAL-' . $productRequestId . '-' . now()->timestamp;
+            } else {
+                $txRef = 'TX-' . Str::random(10) . '-' . time();
+            }
             
             // Start database transaction
             DB::beginTransaction();
@@ -975,9 +1048,7 @@ class PaymentController extends Controller
                 ] + $logContext);
 
                 if ($response->successful() && ($responseData['status'] ?? '') === 'success') {
-                    // Determine payment type and product request ID
-                    $paymentType = $request->input('payment_type', 'regular');
-                    $productRequestId = $request->input('product_request_id');
+                    // Payment type and product request ID already determined above
                     
                     // For product request payments, use null for order_id or set appropriately
                     $orderIdForTransaction = null;
@@ -1009,6 +1080,42 @@ class PaymentController extends Controller
                         'tx_ref' => $txRef,
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null
                     ] + $logContext);
+
+                    // For product request payments, update the status to 'processing' (awaiting admin approval)
+                    // This ensures status is set BEFORE redirecting to Chapa
+                    if ($paymentType === 'product_request_advance' && $productRequestId) {
+                        $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                        if ($productRequest && $productRequest->user_id === $user->id) {
+                            // Only update if not already processing or paid
+                            if ($productRequest->advance_payment_status !== 'processing' && $productRequest->advance_payment_status !== 'paid') {
+                                $productRequest->update([
+                                    'advance_payment_status' => 'processing',
+                                    'payment_reference' => $txRef,
+                                    'payment_method' => 'chapa',
+                                ]);
+                                \Log::info('Product request advance payment status set to processing', [
+                                    'product_request_id' => $productRequestId,
+                                    'tx_ref' => $txRef,
+                                ] + $logContext);
+                            }
+                        }
+                    } elseif ($paymentType === 'product_request_final' && $productRequestId) {
+                        $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                        if ($productRequest && $productRequest->user_id === $user->id) {
+                            // Only update if not already processing or paid
+                            if ($productRequest->final_payment_status !== 'processing' && $productRequest->final_payment_status !== 'paid') {
+                                $productRequest->update([
+                                    'final_payment_status' => 'processing',
+                                    'payment_reference' => $txRef,
+                                    'payment_method' => 'chapa',
+                                ]);
+                                \Log::info('Product request final payment status set to processing', [
+                                    'product_request_id' => $productRequestId,
+                                    'tx_ref' => $txRef,
+                                ] + $logContext);
+                            }
+                        }
+                    }
 
                     DB::commit();
                     \Log::info('Database transaction committed successfully', $logContext);
@@ -1884,33 +1991,8 @@ class PaymentController extends Controller
                 }
             }
             
-            // If we still don't have an order, return error
-            if (!$order) {
-                $errorContext = [
-                    'tx_ref' => $txRef, 
-                    'order_reference' => $transaction->order_id,
-                    'user_id' => $transaction->user_id ?? null,
-                    'attempted_methods' => $searchMethods ?? [],
-                    'search_time' => now()->subMinutes(5)->toDateTimeString(),
-                    'transaction_data' => $transaction->toArray()
-                ];
-                
-                \Log::warning('Order not found for payment return', $errorContext);
-                
-                return Inertia::render('payment/payment-failed', [
-                    'error' => 'We encountered an issue locating your order. Please contact support with reference: ' . $txRef,
-                    'order_id' => $transaction->order_id,
-                    'amount' => $transaction->amount ?? 0,
-                    'currency' => $transaction->currency ?? 'ETB',
-                    'transaction_id' => $txRef,
-                    'error_code' => 'order_not_found',
-                    'show_contact_support' => true,
-                    'support_reference' => $txRef,
-                    'debug_info' => config('app.debug') ? $errorContext : null
-                ]);
-            }
-            
-            // Check if this is a product request payment (before checking order)
+            // Check if this is a product request payment FIRST (before checking order)
+            // Product request payments don't require orders, so handle them before order lookup
             $isAdvancePayment = str_starts_with($transaction->tx_ref, 'ADV-');
             $isFinalPayment = str_starts_with($transaction->tx_ref, 'FINAL-');
             $productRequestId = $transaction->product_request_id ?? null;
@@ -1923,8 +2005,25 @@ class PaymentController extends Controller
                 }
             }
             
+            // Also check gateway_payload for product_request_id if not found yet
+            if (!$productRequestId && $transaction->gateway_payload) {
+                $payload = is_string($transaction->gateway_payload) 
+                    ? json_decode($transaction->gateway_payload, true) 
+                    : $transaction->gateway_payload;
+                
+                if (isset($payload['meta']['product_request_id'])) {
+                    $productRequestId = $payload['meta']['product_request_id'];
+                    \Log::info('Found product_request_id in gateway_payload', [
+                        'product_request_id' => $productRequestId,
+                        'tx_ref' => $txRef,
+                    ]);
+                }
+            }
+            
             // Handle product request payments first (no order needed)
-            if ($productRequestId && ($isAdvancePayment || $isFinalPayment)) {
+            // Handle ALL statuses for product request payments (paid, failed, pending)
+            // Check by product_request_id OR by prefix
+            if ($productRequestId || ($isAdvancePayment || $isFinalPayment)) {
                 \Log::info('=== PRODUCT REQUEST PAYMENT RETURN ===', [
                     'tx_ref' => $txRef,
                     'product_request_id' => $productRequestId,
@@ -1935,17 +2034,106 @@ class PaymentController extends Controller
                 
                 $gatewayStatus = $transaction->gateway_status;
                 
-                if ($gatewayStatus === 'paid') {
+                // For product request payments, also check if status is 'processing' or 'pending'
+                // because webhook might not have updated it yet, but payment was successful
+                // We'll update the status to 'processing' regardless of gateway_status
+                if ($gatewayStatus === 'paid' || $gatewayStatus === 'pending' || $gatewayStatus === 'processing') {
                     // Refresh product request to get latest status
                     $productRequest = \App\Models\ProductRequest::find($productRequestId);
                     if ($productRequest && $productRequest->user_id === auth()->id()) {
-                        // Redirect to appropriate success page
+                        $productRequest->refresh();
+                        
+                        // Get the payment transaction for details
+                        $paymentTransaction = PaymentTransaction::where('tx_ref', $txRef)->first();
+                        
+                        // Ensure payment status is updated to 'processing' (awaiting admin approval)
+                        // This ensures consistency even if webhook is delayed or hasn't run
+                        $needsUpdate = false;
                         if ($isAdvancePayment) {
-                            return redirect()->route('product-requests.advance-payment.success', $productRequestId)
-                                ->with('success', 'Your advance payment was successful!');
+                            // Update to 'processing' if not already 'processing' or 'paid'
+                            // This handles cases where status might be null, 'pending', or something else
+                            if ($productRequest->advance_payment_status !== 'processing' && $productRequest->advance_payment_status !== 'paid') {
+                                \Log::info('Updating advance payment status in paymentReturn', [
+                                    'product_request_id' => $productRequestId,
+                                    'tx_ref' => $txRef,
+                                    'current_status' => $productRequest->advance_payment_status,
+                                    'updating_to' => 'processing',
+                                ]);
+                                $productRequest->update([
+                                    'advance_payment_status' => 'processing',
+                                    'payment_reference' => $txRef,
+                                    'payment_method' => 'chapa',
+                                ]);
+                                $needsUpdate = true;
+                            }
                         } else {
-                            return redirect()->route('product-requests.final-payment.success', $productRequestId)
-                                ->with('success', 'Your final payment was successful!');
+                            // Final payment
+                            if ($productRequest->final_payment_status !== 'processing' && $productRequest->final_payment_status !== 'paid') {
+                                \Log::info('Updating final payment status in paymentReturn', [
+                                    'product_request_id' => $productRequestId,
+                                    'tx_ref' => $txRef,
+                                    'current_status' => $productRequest->final_payment_status,
+                                    'updating_to' => 'processing',
+                                ]);
+                                $productRequest->update([
+                                    'final_payment_status' => 'processing',
+                                    'payment_reference' => $txRef,
+                                    'payment_method' => 'chapa',
+                                ]);
+                                $needsUpdate = true;
+                            }
+                        }
+                        
+                        // Ensure payment transaction is linked regardless of status update
+                        if ($paymentTransaction) {
+                            if (!$paymentTransaction->product_request_id) {
+                                $paymentTransaction->update(['product_request_id' => $productRequestId]);
+                            }
+                            if ($paymentTransaction->admin_status !== 'approved') {
+                                $paymentTransaction->update(['admin_status' => 'unseen']);
+                            }
+                        }
+                        
+                        // Always refresh to get latest status from database
+                        $productRequest->refresh();
+                        
+                        // Render appropriate success page directly (don't redirect)
+                        if ($isAdvancePayment) {
+                            return Inertia::render('product-requests/advance-payment-success-chapa', [
+                                'productRequest' => [
+                                    'id' => $productRequest->id,
+                                    'product_name' => $productRequest->product_name,
+                                    'advance_amount' => $productRequest->advance_amount,
+                                    'final_amount' => $productRequest->final_amount,
+                                    'currency' => $productRequest->currency,
+                                    'payment_reference' => $productRequest->payment_reference,
+                                    'advance_payment_status' => $productRequest->advance_payment_status,
+                                    'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                                ],
+                                'transaction_id' => $paymentTransaction?->tx_ref,
+                                'amount' => $paymentTransaction?->amount ?? $productRequest->advance_amount,
+                                'message' => $productRequest->advance_payment_status === 'processing' 
+                                    ? 'Your advance payment was successful! The payment is now pending admin approval.'
+                                    : 'Your advance payment was successful! We will now start procuring your product.',
+                            ]);
+                        } else {
+                            return Inertia::render('product-requests/final-payment-success-chapa', [
+                                'productRequest' => [
+                                    'id' => $productRequest->id,
+                                    'product_name' => $productRequest->product_name,
+                                    'final_amount' => $productRequest->final_amount,
+                                    'currency' => $productRequest->currency,
+                                    'payment_reference' => $productRequest->payment_reference,
+                                    'final_payment_status' => $productRequest->final_payment_status,
+                                    'order_id' => $productRequest->order_id,
+                                    'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                                ],
+                                'transaction_id' => $paymentTransaction?->tx_ref,
+                                'amount' => $paymentTransaction?->amount ?? $productRequest->final_amount,
+                                'message' => $productRequest->final_payment_status === 'processing'
+                                    ? 'Your final payment was successful! The payment is now pending admin approval.'
+                                    : 'Your final payment was successful! Your order is now complete.',
+                            ]);
                         }
                     } else {
                         \Log::warning('Product request not found or unauthorized', [
@@ -1953,9 +2141,41 @@ class PaymentController extends Controller
                             'user_id' => auth()->id(),
                             'tx_ref' => $txRef
                         ]);
+                        // Return error page for product request payments when not found
+                        return Inertia::render('payment/payment-failed', [
+                            'error' => 'Product request not found or unauthorized',
+                            'order_id' => null,
+                            'amount' => $transaction->amount ?? 0,
+                            'currency' => $transaction->currency ?? 'ETB',
+                            'transaction_id' => $txRef,
+                            'error_code' => 'product_request_not_found',
+                        ]);
+                    }
+                } elseif ($gatewayStatus === 'failed') {
+                    // Payment failed - show product request failure page
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        $failurePage = $isAdvancePayment 
+                            ? 'product-requests/advance-payment-failure'
+                            : 'product-requests/final-payment-failure';
+                        
+                        return Inertia::render($failurePage, [
+                            'productRequest' => [
+                                'id' => $productRequest->id,
+                                'product_name' => $productRequest->product_name,
+                                'advance_amount' => $productRequest->advance_amount,
+                                'final_amount' => $productRequest->final_amount,
+                                'currency' => $productRequest->currency,
+                            ],
+                            'error_message' => 'Payment was not successful. Please try again.',
+                            'payment_method' => 'chapa',
+                            'retry_url' => $isAdvancePayment 
+                                ? route('payment.show', ['order_id' => 'ADV-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->advance_amount, 'payment_type' => 'product_request_advance', 'product_request_id' => $productRequest->id])
+                                : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
+                        ]);
                     }
                 } else {
-                    // Payment pending or failed
+                    // Payment pending
                     return Inertia::render('payment/payment-pending', [
                         'tx_ref' => $txRef,
                         'product_request_id' => $productRequestId,
@@ -1964,7 +2184,8 @@ class PaymentController extends Controller
                 }
             }
             
-            // If we get here, we have an order (regular payment)
+            // If we still don't have an order, return error (but only for regular payments)
+            // Product request payments are already handled above
             if (!$order) {
                 \Log::warning('No order found and not a product request payment', [
                     'tx_ref' => $txRef,
@@ -2031,14 +2252,50 @@ class PaymentController extends Controller
                 if ($productRequestId && $isAdvancePayment) {
                     $productRequest = \App\Models\ProductRequest::find($productRequestId);
                     if ($productRequest && $productRequest->user_id === auth()->id()) {
-                        return redirect()->route('product-requests.advance-payment.success', $productRequestId)
-                            ->with('success', 'Your advance payment was successful!');
+                        // Refresh product request to get latest status
+                        $productRequest->refresh();
+                        // Use Chapa success page for online payments
+                        return Inertia::render('product-requests/advance-payment-success-chapa', [
+                            'productRequest' => [
+                                'id' => $productRequest->id,
+                                'product_name' => $productRequest->product_name,
+                                'advance_amount' => $productRequest->advance_amount,
+                                'final_amount' => $productRequest->final_amount,
+                                'currency' => $productRequest->currency,
+                                'payment_reference' => $productRequest->payment_reference,
+                                'advance_payment_status' => $productRequest->advance_payment_status,
+                                'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                            ],
+                            'transaction_id' => $transaction->tx_ref,
+                            'amount' => $transaction->amount,
+                            'message' => $productRequest->advance_payment_status === 'processing' 
+                                ? 'Your advance payment was successful! The payment is now pending admin approval.'
+                                : 'Your advance payment was successful! We will now start procuring your product.',
+                        ]);
                     }
                 } elseif ($productRequestId && $isFinalPayment) {
                     $productRequest = \App\Models\ProductRequest::find($productRequestId);
                     if ($productRequest && $productRequest->user_id === auth()->id()) {
-                        return redirect()->route('product-requests.final-payment.success', $productRequestId)
-                            ->with('success', 'Your final payment was successful!');
+                        // Refresh product request to get latest status
+                        $productRequest->refresh();
+                        // Use Chapa success page for online payments
+                        return Inertia::render('product-requests/final-payment-success-chapa', [
+                            'productRequest' => [
+                                'id' => $productRequest->id,
+                                'product_name' => $productRequest->product_name,
+                                'final_amount' => $productRequest->final_amount,
+                                'currency' => $productRequest->currency,
+                                'payment_reference' => $productRequest->payment_reference,
+                                'final_payment_status' => $productRequest->final_payment_status,
+                                'order_id' => $productRequest->order_id,
+                                'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
+                            ],
+                            'transaction_id' => $transaction->tx_ref,
+                            'amount' => $transaction->amount,
+                            'message' => $productRequest->final_payment_status === 'processing'
+                                ? 'Your final payment was successful! The payment is now pending admin approval.'
+                                : 'Your final payment was successful! Your order is now complete.',
+                        ]);
                     }
                 }
                 
@@ -2081,6 +2338,43 @@ class PaymentController extends Controller
                     'transaction_status' => $transaction->status
                 ]);
                 
+                // Check if this is a product request payment failure
+                $isAdvancePayment = str_starts_with($transaction->tx_ref, 'ADV-');
+                $isFinalPayment = str_starts_with($transaction->tx_ref, 'FINAL-');
+                $productRequestId = $transaction->product_request_id ?? null;
+                
+                if (!$productRequestId && ($isAdvancePayment || $isFinalPayment)) {
+                    $parts = explode('-', $transaction->tx_ref);
+                    if (count($parts) >= 2) {
+                        $productRequestId = $parts[1];
+                    }
+                }
+                
+                if ($productRequestId) {
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        $failurePage = $isAdvancePayment 
+                            ? 'product-requests/advance-payment-failure'
+                            : 'product-requests/final-payment-failure';
+                        
+                        return Inertia::render($failurePage, [
+                            'productRequest' => [
+                                'id' => $productRequest->id,
+                                'product_name' => $productRequest->product_name,
+                                'advance_amount' => $productRequest->advance_amount,
+                                'final_amount' => $productRequest->final_amount,
+                                'currency' => $productRequest->currency,
+                            ],
+                            'error_message' => 'Payment was not successful. Please try again.',
+                            'payment_method' => 'chapa',
+                            'retry_url' => $isAdvancePayment 
+                                ? route('payment.show', ['order_id' => 'ADV-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->advance_amount, 'payment_type' => 'product_request_advance', 'product_request_id' => $productRequest->id])
+                                : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
+                        ]);
+                    }
+                }
+                
+                // Regular order payment failure page
                 return Inertia::render('payment/payment-failed', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,

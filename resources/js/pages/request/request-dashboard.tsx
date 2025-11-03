@@ -132,6 +132,8 @@ const getWorkflowStatusDisplay = (request: ProductRequest) => {
       return { text: 'Awaiting Your Confirmation', color: 'bg-blue-100 text-blue-800 border-blue-200' }
     case 'awaiting_advance_payment':
       return { text: 'Awaiting Advance Payment', color: 'bg-orange-100 text-orange-800 border-orange-200' }
+    case 'awaiting_admin_approval':
+      return { text: 'Awaiting Admin Approval', color: 'bg-blue-100 text-blue-800 border-blue-200' }
     case 'awaiting_procurement':
       return { text: 'We\'re Getting Your Product Ready', color: 'bg-purple-100 text-purple-800 border-purple-200' }
     case 'procurement_in_progress':
@@ -163,6 +165,13 @@ const getActionButton = (request: ProductRequest) => {
         text: 'Pay Advance',
         href: route('user.product-requests.show', request.id),
         className: 'bg-orange-600 hover:bg-orange-700'
+      }
+    case 'awaiting_admin_approval':
+      // When payment is processing, don't show action button or show "View Details"
+      return {
+        text: 'View Details',
+        href: route('user.product-requests.show', request.id),
+        className: 'bg-blue-600 hover:bg-blue-700'
       }
     case 'awaiting_final_payment':
       return {

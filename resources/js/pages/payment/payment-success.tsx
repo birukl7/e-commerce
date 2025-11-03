@@ -250,7 +250,7 @@ Thank you for your purchase!
                                         // Regular order navigation
                                         <>
                                             <Button className="w-full" asChild>
-                                                <Link href={route('user.orders')}>
+                                                <Link href={route('user.orders.show', order_id)}>
                                                     <Package className="mr-2 h-4 w-4" />
                                                     View Order Details
                                                 </Link>

@@ -197,6 +197,21 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                             Confirmed on {formatDate(product_request.willingness_confirmed_at)}
                                         </p>
                                     )}
+                                    
+                                    {/* Show distinction between confirmed only vs confirmed + paid */}
+                                    {product_request.customer_willing_to_buy && (
+                                        <div className="mt-2 ml-5">
+                                            {product_request.advance_payment_status === 'paid' || product_request.advance_payment_status === 'processing' ? (
+                                                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                                                    ✓ Willingness confirmed + Advance Payment {product_request.advance_payment_status === 'processing' ? 'Pending' : 'Paid'}
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                                    ⚠ Willingness confirmed but advance payment NOT yet paid
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Advance Payment */}
@@ -204,14 +219,17 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                     <div className="flex items-center gap-2 mb-2">
                                         <div className={`w-3 h-3 rounded-full ${
                                             product_request.advance_payment_status === 'paid' ? 'bg-green-500' : 
+                                            product_request.advance_payment_status === 'processing' ? 'bg-orange-500' :
                                             product_request.advance_payment_status === 'pending' ? 'bg-yellow-500' : 'bg-gray-300'
                                         }`}></div>
                                         <span className="font-medium">Advance Payment</span>
                                         <Badge variant={
                                             product_request.advance_payment_status === 'paid' ? 'default' : 
+                                            product_request.advance_payment_status === 'processing' ? 'secondary' :
                                             product_request.advance_payment_status === 'pending' ? 'secondary' : 'outline'
                                         }>
-                                            {product_request.advance_payment_status || 'Not Required'}
+                                            {product_request.advance_payment_status === 'processing' ? 'Pending Admin Approval' :
+                                             product_request.advance_payment_status || 'Not Required'}
                                         </Badge>
                                     </div>
                                     {product_request.advance_amount && (
@@ -219,6 +237,9 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                             Amount: {product_request.currency} {product_request.advance_amount}
                                             {product_request.advance_paid_at && (
                                                 <span> - Paid on {formatDate(product_request.advance_paid_at)}</span>
+                                            )}
+                                            {product_request.advance_payment_status === 'processing' && (
+                                                <span className="text-orange-600 font-medium"> - Awaiting your approval</span>
                                             )}
                                         </p>
                                     )}
@@ -301,8 +322,22 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                     <div className="mt-4 pt-4 border-t border-blue-200">
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold text-blue-900">Overall Status:</span>
-                                            <Badge variant="outline" className="bg-blue-100 text-blue-800">
-                                                {product_request.workflow_status}
+                                            <Badge variant="outline" className={
+                                                product_request.workflow_status === 'awaiting_admin_approval' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                                                product_request.workflow_status === 'awaiting_advance_payment' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                                product_request.workflow_status === 'awaiting_procurement' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                                product_request.workflow_status === 'procurement_in_progress' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
+                                                product_request.workflow_status === 'awaiting_final_payment' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                                                product_request.workflow_status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
+                                                'bg-blue-100 text-blue-800'
+                                            }>
+                                                {product_request.workflow_status === 'awaiting_admin_approval' ? 'Awaiting Admin Approval' :
+                                                 product_request.workflow_status === 'awaiting_advance_payment' ? 'Awaiting Advance Payment' :
+                                                 product_request.workflow_status === 'awaiting_procurement' ? 'Awaiting Procurement' :
+                                                 product_request.workflow_status === 'procurement_in_progress' ? 'Procurement In Progress' :
+                                                 product_request.workflow_status === 'awaiting_final_payment' ? 'Awaiting Final Payment' :
+                                                 product_request.workflow_status === 'completed' ? 'Completed' :
+                                                 product_request.workflow_status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                             </Badge>
                                         </div>
                                     </div>

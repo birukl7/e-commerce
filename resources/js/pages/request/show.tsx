@@ -89,6 +89,8 @@ export default function RequestShow({ request }: Props) {
         return { text: 'Awaiting Your Confirmation', variant: 'default' as const }
       case 'awaiting_advance_payment':
         return { text: 'Awaiting Advance Payment', variant: 'default' as const }
+      case 'awaiting_admin_approval':
+        return { text: 'Awaiting Admin Approval', variant: 'secondary' as const }
       case 'awaiting_procurement':
         return { text: 'We\'re Getting Your Product Ready', variant: 'default' as const }
       case 'procurement_in_progress':
@@ -190,7 +192,7 @@ export default function RequestShow({ request }: Props) {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      {request.requires_advance_payment && request.advance_payment_status !== 'paid' && (
+                      {request.requires_advance_payment && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
                         <div className="space-y-3">
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <h4 className="font-medium mb-3">Payment Breakdown (with tax)</h4>
@@ -223,6 +225,21 @@ export default function RequestShow({ request }: Props) {
                           >
                             Pay Advance Amount
                           </Button>
+                        </div>
+                      )}
+                      {request.advance_payment_status === 'processing' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Clock className="h-5 w-5 text-blue-600" />
+                            <p className="font-medium text-blue-800">Payment Pending Approval</p>
+                          </div>
+                          <p className="text-sm text-blue-700">
+                            Your payment proof has been uploaded and is awaiting admin approval. 
+                            You'll be notified once it's approved.
+                          </p>
+                          {request.payment_reference && (
+                            <p className="text-xs text-blue-600 mt-2">Reference: {request.payment_reference}</p>
+                          )}
                         </div>
                       )}
                       {request.advance_payment_status === 'paid' && (

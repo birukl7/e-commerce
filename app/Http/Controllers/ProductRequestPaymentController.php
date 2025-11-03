@@ -231,6 +231,9 @@ class ProductRequestPaymentController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
+        // Refresh to get latest payment status before checking
+        $productRequest->refresh();
+
         if (!$productRequest->requiresAdvancePayment()) {
             return redirect()
                 ->route('user.product-requests.show', $productRequest->id)
@@ -264,6 +267,9 @@ class ProductRequestPaymentController extends Controller
         if ($productRequest->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
+
+        // Refresh to get latest payment status before checking
+        $productRequest->refresh();
 
         if (!$productRequest->requiresAdvancePayment()) {
             return redirect()
@@ -538,7 +544,13 @@ class ProductRequestPaymentController extends Controller
         // Refresh the product request to get latest payment status
         $productRequest->refresh();
 
-        return Inertia::render('payment/AdvancePaymentSuccess', [
+        // Get the payment transaction to get transaction ID and amount
+        $transaction = \App\Models\PaymentTransaction::where('product_request_id', $productRequest->id)
+            ->where('tx_ref', 'like', 'ADV-%')
+            ->latest()
+            ->first();
+
+        return Inertia::render('product-requests/advance-payment-success-chapa', [
             'productRequest' => [
                 'id' => $productRequest->id,
                 'product_name' => $productRequest->product_name,
@@ -547,9 +559,13 @@ class ProductRequestPaymentController extends Controller
                 'currency' => $productRequest->currency,
                 'payment_reference' => $productRequest->payment_reference,
                 'advance_payment_status' => $productRequest->advance_payment_status,
-                'advance_paid_at' => $productRequest->advance_paid_at,
+                'workflow_status' => $productRequest->getWorkflowStatus(), // Include workflow status
             ],
-            'message' => 'Your advance payment was successful! We will now start procuring your product.',
+            'transaction_id' => $transaction?->tx_ref,
+            'amount' => $transaction?->amount ?? $productRequest->advance_amount,
+            'message' => $productRequest->advance_payment_status === 'processing' 
+                ? 'Your advance payment was successful! The payment is now pending admin approval.'
+                : 'Your advance payment was successful! We will now start procuring your product.',
         ]);
     }
 
@@ -619,15 +635,30 @@ class ProductRequestPaymentController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-        return Inertia::render('payment/FinalPaymentSuccess', [
+        // Refresh the product request to get latest payment status
+        $productRequest->refresh();
+
+        // Get the payment transaction to get transaction ID and amount
+        $transaction = \App\Models\PaymentTransaction::where('product_request_id', $productRequest->id)
+            ->where('tx_ref', 'like', 'FINAL-%')
+            ->latest()
+            ->first();
+
+        return Inertia::render('product-requests/final-payment-success-chapa', [
             'productRequest' => [
                 'id' => $productRequest->id,
                 'product_name' => $productRequest->product_name,
-                'amount' => $productRequest->amount,
+                'final_amount' => $productRequest->final_amount,
                 'currency' => $productRequest->currency,
                 'payment_reference' => $productRequest->payment_reference,
+                'final_payment_status' => $productRequest->final_payment_status,
+                'order_id' => $productRequest->order_id,
             ],
-            'message' => 'Your final payment was successful! Your order is now complete.',
+            'transaction_id' => $transaction?->tx_ref,
+            'amount' => $transaction?->amount ?? $productRequest->final_amount,
+            'message' => $productRequest->final_payment_status === 'processing'
+                ? 'Your final payment was successful! The payment is now pending admin approval.'
+                : 'Your final payment was successful! Your order is now complete.',
         ]);
     }
 }

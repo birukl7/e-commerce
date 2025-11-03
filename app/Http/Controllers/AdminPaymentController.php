@@ -170,7 +170,7 @@ class AdminPaymentController extends Controller
      */
     public function show($paymentId)
     {
-        $payment = PaymentTransaction::with(['admin', 'order'])
+        $payment = PaymentTransaction::with(['admin', 'order', 'productRequest'])
             ->where('id', $paymentId)
             ->first();
 
@@ -184,9 +184,24 @@ class AdminPaymentController extends Controller
             $payment->markSeen(Auth::user());
         }
 
+        // Determine if this is a product request payment
+        $isProductRequestPayment = $payment->product_request_id !== null;
+        
+        // Determine payment type (advance or final)
+        $paymentType = null;
+        if ($isProductRequestPayment) {
+            $txRef = $payment->tx_ref;
+            if (str_starts_with($txRef, 'ADV-')) {
+                $paymentType = 'advance';
+            } elseif (str_starts_with($txRef, 'FINAL-')) {
+                $paymentType = 'final';
+            }
+        }
+
         // Get additional data same as before...
         $orderItems = [];
-        if ($payment->order_id) {
+        if ($payment->order_id && !$isProductRequestPayment) {
+            // Only load order items for regular orders, not product requests
             $orderItems = DB::table('order_items as oi')
                 ->join('products as p', 'oi.product_id', '=', 'p.id')
                 ->leftJoin('product_images as pi', function($join) {
@@ -209,13 +224,22 @@ class AdminPaymentController extends Controller
             ->limit(5)
             ->get();
 
+        // Load product request with user relationship if it's a product request payment
+        $productRequest = null;
+        if ($isProductRequestPayment && $payment->productRequest) {
+            $productRequest = $payment->productRequest->load('user');
+        }
+
         return Inertia::render('admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
             'customerPaymentHistory' => $customerPaymentHistory,
             'canApprove' => $payment->canBeApproved(),
             'canReject' => $payment->canBeRejected(),
-            'orderStatus' => $this->paymentFinalizer->getOrderStatusForPayment($payment)
+            'orderStatus' => $this->paymentFinalizer->getOrderStatusForPayment($payment),
+            'isProductRequestPayment' => $isProductRequestPayment,
+            'paymentType' => $paymentType,
+            'productRequest' => $productRequest,
         ]);
     }
 

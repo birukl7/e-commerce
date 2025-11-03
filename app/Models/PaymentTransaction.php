@@ -108,6 +108,14 @@ class PaymentTransaction extends Model
 
     public function canBeApproved(): bool
     {
+        // For product request payments, allow approval if gateway_status is 'paid', 'pending', or 'processing'
+        // because payment might be initiated but webhook hasn't updated status yet
+        if ($this->product_request_id) {
+            $allowedGatewayStatuses = ['paid', 'pending', 'processing', 'proof_uploaded'];
+            return in_array($this->gateway_status, $allowedGatewayStatuses) && !$this->isAdminApproved();
+        }
+        
+        // For regular orders, require gateway paid or proof uploaded
         return ($this->isGatewayPaid() || $this->hasProofUploaded()) && !$this->isAdminApproved();
     }
 

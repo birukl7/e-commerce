@@ -24,8 +24,10 @@ class PaymentFinalizer
     public function canFinalizeOrder(PaymentTransaction $payment): bool
     {
         // For product request payments, only need admin approval
+        // Gateway status can be 'paid', 'pending', or 'processing' for product requests
         if ($payment->product_request_id) {
-            return $payment->isAdminApproved();
+            $allowedGatewayStatuses = ['paid', 'pending', 'processing', 'proof_uploaded'];
+            return $payment->isAdminApproved() && in_array($payment->gateway_status, $allowedGatewayStatuses);
         }
         
         // For regular orders, need both gateway payment and admin approval
@@ -124,8 +126,10 @@ class PaymentFinalizer
                     
                     if ($paymentType === 'advance' || $paymentType === 'product_request_advance') {
                         // Mark advance payment as paid (returns false if already paid)
+                        // Use the actual payment method from the transaction (chapa, offline, etc.)
+                        $paymentMethod = $payment->payment_method ?? 'chapa';
                         $result = $productRequest->markAdvancePaid(
-                            'offline',
+                            $paymentMethod,
                             $payment->tx_ref,
                             $payment->gateway_payload ?? []
                         );
@@ -156,8 +160,10 @@ class PaymentFinalizer
                     } elseif ($paymentType === 'final' || $paymentType === 'product_request_final') {
                         try {
                             // Mark final payment as paid (returns false if already paid, throws if advance not paid)
+                            // Use the actual payment method from the transaction (chapa, offline, etc.)
+                            $paymentMethod = $payment->payment_method ?? 'chapa';
                             $result = $productRequest->markFinalPaid(
-                                'offline',
+                                $paymentMethod,
                                 $payment->tx_ref,
                                 $payment->gateway_payload ?? []
                             );

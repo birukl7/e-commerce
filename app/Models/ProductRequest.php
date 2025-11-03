@@ -220,6 +220,7 @@ class ProductRequest extends Model
     {
         return $this->status === 'approved' && 
                $this->advance_payment_status !== 'paid' && 
+               $this->advance_payment_status !== 'processing' && // Don't require payment if already processing
                $this->advance_amount > 0 &&
                $this->customer_willing_to_buy;
     }
@@ -372,6 +373,13 @@ class ProductRequest extends Model
             
             // Check advance payment status (handle null as 'pending')
             $advanceStatus = $this->advance_payment_status ?? 'pending';
+            
+            // If payment is processing (awaiting admin approval), return appropriate status
+            if ($advanceStatus === 'processing') {
+                return 'awaiting_admin_approval';
+            }
+            
+            // If payment hasn't been paid yet, customer is awaiting to pay advance
             if ($advanceStatus !== 'paid') {
                 return 'awaiting_advance_payment';
             }
@@ -394,6 +402,13 @@ class ProductRequest extends Model
                 
                 // Check final payment status (handle null as 'pending')
                 $finalStatus = $this->final_payment_status ?? 'pending';
+                
+                // If final payment is processing (awaiting admin approval), return appropriate status
+                if ($finalStatus === 'processing') {
+                    return 'awaiting_admin_approval';
+                }
+                
+                // If final payment hasn't been paid yet, customer is awaiting to pay final
                 if ($finalStatus !== 'paid') {
                     return 'awaiting_final_payment';
                 }

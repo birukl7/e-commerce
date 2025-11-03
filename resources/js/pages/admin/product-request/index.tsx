@@ -96,9 +96,12 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
                 const getWorkflowBadge = (status: string) => {
                     switch (status) {
                         case 'awaiting_willingness':
+                        case 'awaiting_customer_willingness':
                             return <Badge variant="secondary">Awaiting Willingness</Badge>;
                         case 'awaiting_advance_payment':
                             return <Badge variant="secondary">Awaiting Advance Payment</Badge>;
+                        case 'awaiting_admin_approval':
+                            return <Badge variant="secondary">Awaiting Admin Approval</Badge>;
                         case 'advance_paid':
                             return <Badge variant="default">Advance Paid</Badge>;
                         case 'procurement_in_progress':
