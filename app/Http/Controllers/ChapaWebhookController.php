@@ -342,7 +342,7 @@ class ChapaWebhookController extends Controller
                 // For product request payments, require admin approval
                 // Set status to 'processing' and mark admin_status as 'unseen'
                 if ($paymentType === 'ADV') {
-                    // Update product request to 'processing' status (awaiting admin approval)
+                    // Update product request to 'processing' status (awaiting payment approval)
                     $productRequest->update([
                         'advance_payment_status' => 'processing',
                         'payment_reference' => $txRef,
@@ -370,14 +370,14 @@ class ChapaWebhookController extends Controller
                         route('user.product-requests.show', $productRequest->id)
                     ));
                     
-                    Log::info('Advance payment received, awaiting admin approval', [
+                    Log::info('Advance payment received, awaiting payment approval', [
                         'product_request_id' => $productRequestId,
                         'payment_transaction_id' => $payment->id ?? null,
                         'tx_ref' => $txRef
                     ] + $logContext);
                     
                 } elseif ($paymentType === 'FINAL') {
-                    // Update product request to 'processing' status (awaiting admin approval)
+                    // Update product request to 'processing' status (awaiting payment approval)
                     $productRequest->update([
                         'final_payment_status' => 'processing',
                         'payment_reference' => $txRef,
@@ -405,7 +405,7 @@ class ChapaWebhookController extends Controller
                         route('user.product-requests.show', $productRequest->id)
                     ));
                     
-                    Log::info('Final payment received, awaiting admin approval', [
+                    Log::info('Final payment received, awaiting payment approval', [
                         'product_request_id' => $productRequestId,
                         'payment_transaction_id' => $payment->id ?? null,
                         'tx_ref' => $txRef

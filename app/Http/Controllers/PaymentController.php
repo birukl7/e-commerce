@@ -1081,7 +1081,7 @@ class PaymentController extends Controller
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null
                     ] + $logContext);
 
-                    // For product request payments, update the status to 'processing' (awaiting admin approval)
+                    // For product request payments, update the status to 'processing' (awaiting payment approval)
                     // This ensures status is set BEFORE redirecting to Chapa
                     if ($paymentType === 'product_request_advance' && $productRequestId) {
                         $productRequest = \App\Models\ProductRequest::find($productRequestId);
@@ -2046,7 +2046,7 @@ class PaymentController extends Controller
                         // Get the payment transaction for details
                         $paymentTransaction = PaymentTransaction::where('tx_ref', $txRef)->first();
                         
-                        // Ensure payment status is updated to 'processing' (awaiting admin approval)
+                        // Ensure payment status is updated to 'processing' (awaiting payment approval)
                         // This ensures consistency even if webhook is delayed or hasn't run
                         $needsUpdate = false;
                         if ($isAdvancePayment) {

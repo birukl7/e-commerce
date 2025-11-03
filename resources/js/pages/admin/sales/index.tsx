@@ -40,6 +40,7 @@ interface PaymentTransaction {
     id: number;
     tx_ref: string;
     order_id: string | null;
+    product_request_id: number | null;
     customer_name: string;
     customer_email: string;
     amount: number;
@@ -49,6 +50,7 @@ interface PaymentTransaction {
     admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
     created_at: string;
     order_total?: number;
+    gateway_payload?: any;
 }
 
 interface Order {
@@ -123,13 +125,47 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
         });
     };
 
-    const handlePaymentAction = (paymentId: number, action: 'approve' | 'reject' | 'mark-seen') => {
-        const endpoint = action === 'mark-seen' ? 'mark-seen' : action;
-        router.post(`/admin/payments/${paymentId}/${endpoint}`, {}, {
-            onSuccess: () => {
-                router.reload({ only: ['payments', 'orders', 'stats'] });
-            },
-        });
+    const getPaymentType = (payment: PaymentTransaction): string => {
+        // First, check gateway_payload for payment_type (most reliable)
+        if (payment.gateway_payload) {
+            const payload = typeof payment.gateway_payload === 'string' 
+                ? JSON.parse(payment.gateway_payload) 
+                : payment.gateway_payload;
+            
+            if (payload?.payment_type) {
+                if (payload.payment_type === 'product_request_advance' || payload.payment_type === 'advance') {
+                    return 'Product Request Advance';
+                } else if (payload.payment_type === 'product_request_final' || payload.payment_type === 'final') {
+                    return 'Product Request Final';
+                }
+            }
+        }
+        
+        // Fall back to checking product_request_id and tx_ref prefix
+        if (payment.product_request_id) {
+            const txRef = payment.tx_ref;
+            if (txRef.startsWith('ADV-')) {
+                return 'Product Request Advance';
+            } else if (txRef.startsWith('FINAL-')) {
+                return 'Product Request Final';
+            }
+            // If it's a product request but we can't determine type, assume advance
+            // (since final payments typically come after advance)
+            return 'Product Request Advance';
+        }
+        return 'Normal Purchase';
+    };
+
+    const getPaymentTypeBadge = (payment: PaymentTransaction) => {
+        const paymentType = getPaymentType(payment);
+        if (paymentType === 'Product Request Advance') {
+            return <Badge className="bg-orange-100 text-orange-800">Request Advance</Badge>;
+        } else if (paymentType === 'Product Request Final') {
+            return <Badge className="bg-purple-100 text-purple-800">Request Final</Badge>;
+        } else if (paymentType === 'Product Request') {
+            return <Badge className="bg-blue-100 text-blue-800">Product Request</Badge>;
+        }
+        return <Badge className="bg-gray-100 text-gray-800">Normal Purchase</Badge>;
     };
 
     const getStatusBadge = (status: string, type: 'gateway' | 'admin') => {
@@ -298,6 +334,7 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="border-b border-gray-200">
+                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Type</th>
                                                     <th className="text-left py-3 px-2 font-medium text-gray-700">Transaction</th>
                                                     <th className="text-left py-3 px-2 font-medium text-gray-700">Order</th>
                                                     <th className="text-left py-3 px-2 font-medium text-gray-700">Customer</th>
@@ -311,6 +348,9 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
                                             <tbody>
                                                 {payments.data.map((payment) => (
                                                     <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50/50">
+                                                        <td className="py-3 px-2">
+                                                            {getPaymentTypeBadge(payment)}
+                                                        </td>
                                                         <td className="py-3 px-2">
                                                             <div className="font-mono text-xs">#{payment.tx_ref}</div>
                                                             <div className="text-xs text-gray-500">{payment.payment_method}</div>
@@ -353,47 +393,23 @@ export default function AdminSalesIndex({ payments, orders, stats, filters }: Ad
                                                             </div>
                                                         </td>
                                                         <td className="py-3 px-2">
-                                                            <div className="flex gap-1">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    asChild
-                                                                    className="text-xs"
-                                                                >
-                                                                    <Link href={`/paymentStats/${payment.id}`}>
-                                                                        <ExternalLink className="h-3 w-3 mr-1" />
-                                                                        View Details
-                                                                    </Link>
-                                                                </Button>
-                                                                {payment.admin_status !== 'approved' && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        onClick={() => handlePaymentAction(payment.id, 'approve')}
-                                                                        className="text-xs bg-green-600 hover:bg-green-700"
-                                                                    >
-                                                                        <CheckCircle className="h-3 w-3 mr-1" />
-                                                                        Approve
-                                                                    </Button>
-                                                                )}
-                                                                {payment.admin_status !== 'rejected' && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="destructive"
-                                                                    onClick={() => handlePaymentAction(payment.id, 'reject')}
-                                                                    className={`text-xs ${payment.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`}
-                                                                    disabled={payment.admin_status === 'approved'}
-                                                                >
-                                                                    <Ban className="h-3 w-3 mr-1" />
-                                                                    Reject
-                                                                </Button>
-                                                                )}
-                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                asChild
+                                                                className="text-xs"
+                                                            >
+                                                                <Link href={`/paymentStats/${payment.id}`}>
+                                                                    <Eye className="h-3 w-3 mr-1" />
+                                                                    View Details
+                                                                </Link>
+                                                            </Button>
                                                         </td>
                                                     </tr>
                                                 ))}
                                                 {payments.data.length === 0 && (
                                                     <tr>
-                                                        <td colSpan={8} className="py-8 text-center text-gray-500">
+                                                        <td colSpan={9} className="py-8 text-center text-gray-500">
                                                             No payments found
                                                         </td>
                                                     </tr>

@@ -174,7 +174,7 @@ class AdminProductRequestController extends Controller
     public function update(Request $request, ProductRequest $productRequest)
     {
         $validated = $request->validate([
-            'status' => ['required', 'in:pending,reviewed,approved,rejected'],
+            'status' => ['required', 'in:pending,approved,rejected'],
             'admin_response' => ['nullable', 'string', 'max:5000'],
             'amount' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
@@ -199,12 +199,8 @@ class AdminProductRequestController extends Controller
             $updateData['available'] = (bool) $validated['available'];
         }
 
-        // If status is approved, enforce availability first and then set up payment structure
+        // If status is approved, set up payment structure
         if ($validated['status'] === 'approved') {
-            if (empty($updateData['available'])) {
-                return back()->withErrors(['available' => 'Please mark the product as available before approving.'])->withInput();
-            }
-
             if (isset($validated['amount']) && $validated['amount'] > 0) {
                 $totalAmount = $validated['amount'];
                 $advancePercentage = 0.3; // 30% advance payment
@@ -249,7 +245,6 @@ class AdminProductRequestController extends Controller
 
         $statusMessages = [
             'pending' => 'Product request status has been set to pending.',
-            'reviewed' => 'Product request has been marked as reviewed.',
             'approved' => $productRequest->amount > 0 
                 ? 'Product request has been approved. A payment request has been sent to the user.'
                 : 'Product request has been approved successfully.',

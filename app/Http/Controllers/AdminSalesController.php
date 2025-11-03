@@ -65,6 +65,7 @@ class AdminSalesController extends Controller
                 'u.name as customer_name',
                 'o.total_amount as order_total'
             ])
+            // product_request_id and gateway_payload are already included in pt.*
             ->when($request->search, function($q) use ($request) {
                 $q->where('u.name', 'like', '%' . $request->search . '%')
                   ->orWhere('pt.tx_ref', 'like', '%' . $request->search . '%');

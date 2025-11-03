@@ -23,7 +23,7 @@ interface User {
 interface ProductRequest {
     id: number;
     product_name: string;
-    status: 'pending' | 'reviewed' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected';
     created_at: string;
     user: User;
     amount?: number;
@@ -100,8 +100,8 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
                             return <Badge variant="secondary">Awaiting Willingness</Badge>;
                         case 'awaiting_advance_payment':
                             return <Badge variant="secondary">Awaiting Advance Payment</Badge>;
-                        case 'awaiting_admin_approval':
-                            return <Badge variant="secondary">Awaiting Admin Approval</Badge>;
+                        case 'pending_payment_approval':
+                            return <Badge variant="secondary">Pending Payment Approval</Badge>;
                         case 'advance_paid':
                             return <Badge variant="default">Advance Paid</Badge>;
                         case 'procurement_in_progress':
@@ -171,7 +171,6 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
                         >
                             <option value="">All</option>
                             <option value="pending">Pending</option>
-                            <option value="reviewed">Reviewed</option>
                             <option value="approved">Approved</option>
                             <option value="rejected">Rejected</option>
                         </select>

@@ -479,7 +479,7 @@ class PaymentFinalizer
         }
 
         if ($payment->isAwaitingAdminApproval()) {
-            return 'awaiting_admin_approval';
+            return 'pending_payment_approval';
         }
 
         if ($payment->isAdminRejected()) {

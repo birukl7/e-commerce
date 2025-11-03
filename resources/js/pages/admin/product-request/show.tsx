@@ -24,7 +24,7 @@ interface ProductRequest {
     product_name: string;
     description: string;
     image?: string;
-    status: 'pending' | 'reviewed' | 'approved' | 'rejected';
+    status: 'pending' | 'approved' | 'rejected';
     admin_response?: string;
     created_at: string;
     updated_at: string;
@@ -72,8 +72,6 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
         switch (status) {
             case 'pending':
                 return 'secondary';
-            case 'reviewed':
-                return 'default';
             case 'approved':
                 return 'default';
             case 'rejected':
@@ -323,7 +321,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold text-blue-900">Overall Status:</span>
                                             <Badge variant="outline" className={
-                                                product_request.workflow_status === 'awaiting_admin_approval' ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                                                product_request.workflow_status === 'pending_payment_approval' ? 'bg-orange-100 text-orange-800 border-orange-300' :
                                                 product_request.workflow_status === 'awaiting_advance_payment' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
                                                 product_request.workflow_status === 'awaiting_procurement' ? 'bg-purple-100 text-purple-800 border-purple-300' :
                                                 product_request.workflow_status === 'procurement_in_progress' ? 'bg-indigo-100 text-indigo-800 border-indigo-300' :
@@ -331,7 +329,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                                 product_request.workflow_status === 'completed' ? 'bg-green-100 text-green-800 border-green-300' :
                                                 'bg-blue-100 text-blue-800'
                                             }>
-                                                {product_request.workflow_status === 'awaiting_admin_approval' ? 'Awaiting Admin Approval' :
+                                                {product_request.workflow_status === 'pending_payment_approval' ? 'Pending Payment Approval' :
                                                  product_request.workflow_status === 'awaiting_advance_payment' ? 'Awaiting Advance Payment' :
                                                  product_request.workflow_status === 'awaiting_procurement' ? 'Awaiting Procurement' :
                                                  product_request.workflow_status === 'procurement_in_progress' ? 'Procurement In Progress' :

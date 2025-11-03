@@ -17,6 +17,7 @@ interface PaymentTransaction {
     id: number;
     tx_ref: string;
     order_id: string | null;
+    product_request_id: number | null;
     customer_name: string;
     customer_email: string;
     customer_phone: string | null;
@@ -33,6 +34,7 @@ interface PaymentTransaction {
     order_date: string | null;
     admin_name: string | null;
     admin_action_at: string | null;
+    gateway_payload?: any;
 }
 
 interface PaymentStats {
@@ -74,6 +76,7 @@ interface PaymentRow {
     id: number;
     tx_ref: string;
     order_id: string | null;
+    product_request_id: number | null;
     customer_name: string;
     customer_email: string;
     amount: number;
@@ -82,6 +85,7 @@ interface PaymentRow {
     gateway_status: 'pending' | 'proof_uploaded' | 'paid' | 'failed' | 'refunded';
     admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
     created_at: string;
+    gateway_payload?: any;
 }
 
 interface AdminPaymentIndexProps {
@@ -149,7 +153,6 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
     const bulkActionForm = useForm({
         action: '',
         payment_ids: [] as number[],
-        notes: ''
     });
 
     const formatCurrency = (amount: number, currency = 'ETB') => {
@@ -270,6 +273,49 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
         return 'normal';
     };
 
+    const getPaymentType = (payment: PaymentRow | PaymentTransaction): string => {
+        // First, check gateway_payload for payment_type (most reliable)
+        if (payment.gateway_payload) {
+            const payload = typeof payment.gateway_payload === 'string' 
+                ? JSON.parse(payment.gateway_payload) 
+                : payment.gateway_payload;
+            
+            if (payload?.payment_type) {
+                if (payload.payment_type === 'product_request_advance' || payload.payment_type === 'advance') {
+                    return 'Product Request Advance';
+                } else if (payload.payment_type === 'product_request_final' || payload.payment_type === 'final') {
+                    return 'Product Request Final';
+                }
+            }
+        }
+        
+        // Fall back to checking product_request_id and tx_ref prefix
+        if ((payment as any).product_request_id) {
+            const txRef = payment.tx_ref;
+            if (txRef.startsWith('ADV-')) {
+                return 'Product Request Advance';
+            } else if (txRef.startsWith('FINAL-')) {
+                return 'Product Request Final';
+            }
+            // If it's a product request but we can't determine type, assume advance
+            // (since final payments typically come after advance)
+            return 'Product Request Advance';
+        }
+        return 'Normal Purchase';
+    };
+
+    const getPaymentTypeBadge = (payment: PaymentRow | PaymentTransaction) => {
+        const paymentType = getPaymentType(payment);
+        if (paymentType === 'Product Request Advance') {
+            return <Badge className="bg-orange-100 text-orange-800">Request Advance</Badge>;
+        } else if (paymentType === 'Product Request Final') {
+            return <Badge className="bg-purple-100 text-purple-800">Request Final</Badge>;
+        } else if (paymentType === 'Product Request') {
+            return <Badge className="bg-blue-100 text-blue-800">Product Request</Badge>;
+        }
+        return <Badge className="bg-gray-100 text-gray-800">Normal Purchase</Badge>;
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}> 
             <Head title="Payment Statistics" />
@@ -286,12 +332,6 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                             <div className="flex gap-2">
                                 <Button variant="outline" onClick={() => handleBulkAction('mark_seen')}>
                                     Mark Seen ({selectedPayments.length})
-                                </Button>
-                                <Button variant="default" onClick={() => handleBulkAction('approve')}>
-                                    Approve ({selectedPayments.length})
-                                </Button>
-                                <Button variant="destructive" onClick={() => handleBulkAction('reject')}>
-                                    Reject ({selectedPayments.length})
                                 </Button>
                             </div>
                         )}
@@ -495,6 +535,9 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                     <tbody>
                                         {recentChapaPayments.map(p => (
                                             <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                <td className="py-2">
+                                                    {getPaymentTypeBadge(p)}
+                                                </td>
                                                 <td className="py-2 font-mono">#{p.tx_ref}</td>
                                                 <td className="py-2">{p.order_id ?? '-'}</td>
                                                 <td className="py-2">
@@ -518,16 +561,17 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                                 </td>
                                                 <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
                                                 <td className="py-2">
-                                                    <div className="flex gap-2">
-                                                        <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
-                                                        <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
-                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })} className={`${p.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`} disabled={p.admin_status === 'approved'}>Reject</Button>
-                                                    </div>
+                                                    <Link href={`/admin/payments/${p.id}`}>
+                                                        <Button size="sm" variant="outline" type="button">
+                                                            <Eye className="h-3 w-3 mr-1" />
+                                                            View Details
+                                                        </Button>
+                                                    </Link>
                                                 </td>
                                             </tr>
                                         ))}
                                         {recentChapaPayments.length === 0 && (
-                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
+                                            <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -538,6 +582,7 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b">
+                                            <th className="text-left py-2">Type</th>
                                             <th className="text-left py-2">Tx Ref</th>
                                             <th className="text-left py-2">Order</th>
                                             <th className="text-left py-2">Customer</th>
@@ -551,6 +596,9 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                     <tbody>
                                         {recentOfflinePayments.map(p => (
                                             <tr key={p.id} className="border-b hover:bg-muted/30">
+                                                <td className="py-2">
+                                                    {getPaymentTypeBadge(p)}
+                                                </td>
                                                 <td className="py-2 font-mono">#{p.tx_ref}</td>
                                                 <td className="py-2">{p.order_id ?? '-'}</td>
                                                 <td className="py-2">
@@ -571,16 +619,17 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                                 </td>
                                                 <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
                                                 <td className="py-2">
-                                                    <div className="flex gap-2">
-                                                        <Button size="sm" variant="outline" type="button" onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`)}>Mark seen</Button>
-                                                        <Button size="sm" type="button" onClick={() => router.post(`/admin/payments/${p.id}/approve`)}>Approve</Button>
-                                                        <Button size="sm" variant="destructive" type="button" onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from payments page' })} className={`${p.admin_status === 'approved' ? 'opacity-50 pointer-events-none !bg-red-100 !text-red-400 !border-red-200' : ''}`} disabled={p.admin_status === 'approved'}>Reject</Button>
-                                                    </div>
+                                                    <Link href={`/admin/payments/${p.id}`}>
+                                                        <Button size="sm" variant="outline" type="button">
+                                                            <Eye className="h-3 w-3 mr-1" />
+                                                            View Details
+                                                        </Button>
+                                                    </Link>
                                                 </td>
                                             </tr>
                                         ))}
                                         {recentOfflinePayments.length === 0 && (
-                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
+                                            <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
                                         )}
                                     </tbody>
                                 </table>
@@ -590,39 +639,23 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                 </Card>
 
                 {/* Bulk Action Modal */}
-                {showBulkActions && (
+                {showBulkActions && bulkActionForm.data.action === 'mark_seen' && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                         <Card className="w-full max-w-md mx-4">
                             <CardHeader>
-                                <CardTitle>Bulk Action: {bulkActionForm.data.action}</CardTitle>
+                                <CardTitle>Bulk Action: Mark as Seen</CardTitle>
                                 <CardDescription>
-                                    This will affect {selectedPayments.length} selected payments
+                                    This will mark {selectedPayments.length} selected payments as seen
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                {(bulkActionForm.data.action === 'approve' || bulkActionForm.data.action === 'reject') && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">
-                                            {bulkActionForm.data.action === 'reject' ? 'Reason (Required)' : 'Notes (Optional)'}
-                                        </label>
-                                        <textarea
-                                            value={bulkActionForm.data.notes}
-                                            onChange={(e) => bulkActionForm.setData('notes', e.target.value)}
-                                            className="w-full p-2 border rounded-md"
-                                            rows={3}
-                                            placeholder="Enter notes..."
-                                            required={bulkActionForm.data.action === 'reject'}
-                                        />
-                                    </div>
-                                )}
                                 <div className="flex gap-2">
                                     <Button
                                         onClick={submitBulkAction}
                                         disabled={bulkActionForm.processing}
                                         className="flex-1"
-                                        variant={bulkActionForm.data.action === 'reject' ? 'destructive' : 'default'}
                                     >
-                                        Confirm {bulkActionForm.data.action}
+                                        Confirm Mark Seen
                                     </Button>
                                     <Button
                                         variant="outline"

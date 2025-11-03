@@ -89,8 +89,8 @@ export default function RequestShow({ request }: Props) {
         return { text: 'Awaiting Your Confirmation', variant: 'default' as const }
       case 'awaiting_advance_payment':
         return { text: 'Awaiting Advance Payment', variant: 'default' as const }
-      case 'awaiting_admin_approval':
-        return { text: 'Awaiting Admin Approval', variant: 'secondary' as const }
+      case 'pending_payment_approval':
+        return { text: 'Pending Payment Approval', variant: 'secondary' as const }
       case 'awaiting_procurement':
         return { text: 'We\'re Getting Your Product Ready', variant: 'default' as const }
       case 'procurement_in_progress':

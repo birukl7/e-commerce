@@ -123,16 +123,21 @@ class AdminPaymentController extends Controller
         ];
 
         // Recent payments lists (match Site Config payments tab UI)
+        // Include product_request_id and gateway_payload to identify product request payments
         $recentChapaPayments = DB::table('payment_transactions')
-            ->where('tx_ref', 'like', 'TX-%')
-            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->where(function($query) {
+                $query->where('tx_ref', 'like', 'TX-%')
+                      ->orWhere('tx_ref', 'like', 'ADV-%')
+                      ->orWhere('tx_ref', 'like', 'FINAL-%');
+            })
+            ->select(['id', 'tx_ref', 'order_id', 'product_request_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at', 'gateway_payload'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
         $recentOfflinePayments = DB::table('payment_transactions')
-            ->where('tx_ref', 'like', 'OFFLINE-%')
-            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
+            ->where('payment_method', '=', 'offline')
+            ->select(['id', 'tx_ref', 'order_id', 'product_request_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at', 'gateway_payload'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();

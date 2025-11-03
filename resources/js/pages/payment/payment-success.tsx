@@ -22,7 +22,7 @@ interface PaymentSuccessProps {
         price: number;
         image?: string;
     }>;
-    awaiting_admin_approval?: boolean;
+    pending_payment_approval?: boolean;
     // Advance payment context
     payment_type?: string;
     product_request_id?: number;
@@ -38,7 +38,7 @@ function PaymentSuccessContent({
     customer_name,
     customer_email,
     order_items = [],
-    awaiting_admin_approval = false,
+    pending_payment_approval = false,
     payment_type,
     product_request_id,
     is_advance_payment = false,
@@ -82,7 +82,7 @@ Email: ${customer_email}
 Payment Details:
 - Amount: ${formatPrice(amount)}
 - Payment Method: ${payment_method}
-- Status: ${awaiting_admin_approval ? 'Pending Admin Approval' : 'Completed'}
+- Status: ${pending_payment_approval ? 'Pending Admin Approval' : 'Completed'}
 
 Items:
 ${order_items.map((item) => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
@@ -114,7 +114,7 @@ Thank you for your purchase!
                     </div>
                     <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment Successful!</h1>
                     <p className="text-lg text-gray-600">Thank you for your purchase, {customer_name}</p>
-                    {awaiting_admin_approval && (
+                    {pending_payment_approval && (
                         <div className="mx-auto mt-4 max-w-2xl rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
                             Payment received and verified by the gateway. Your order will proceed after an admin reviews and approves the payment.
                         </div>
@@ -131,7 +131,7 @@ Thank you for your purchase!
                                     Order Details
                                 </CardTitle>
                                 <CardDescription>
-                                    {awaiting_admin_approval
+                                    {pending_payment_approval
                                         ? 'Your payment was received and is awaiting admin approval.'
                                         : 'Your order has been confirmed and is being processed.'}
                                 </CardDescription>
@@ -215,7 +215,7 @@ Thank you for your purchase!
                                     </div>
                                     <div className="flex justify-between text-sm text-gray-600">
                                         <span>Status</span>
-                                        {awaiting_admin_approval ? (
+                                        {pending_payment_approval ? (
                                             <span className="font-semibold text-yellow-600">Pending Admin Approval</span>
                                         ) : (
                                             <span className="font-semibold text-green-600">Completed</span>

@@ -185,7 +185,7 @@ class UserDashboardController extends Controller
                         $actualStatus = 'processing';
                         $actualPaymentStatus = 'paid';
                     } elseif ($order->gateway_status === 'proof_uploaded' && $order->admin_status === 'unseen') {
-                        $actualStatus = 'awaiting_admin_approval';
+                        $actualStatus = 'pending_payment_approval';
                         $actualPaymentStatus = 'pending_approval';
                     } elseif ($order->admin_status === 'approved' && $order->gateway_status === 'proof_uploaded') {
                         // Offline flow: admin approved with proof uploaded
@@ -382,8 +382,8 @@ class UserDashboardController extends Controller
             
             // Awaiting admin approval step
             $timeline[] = [
-                'status' => 'awaiting_admin_approval',
-                'title' => 'Awaiting Admin Approval',
+                'status' => 'pending_payment_approval',
+                'title' => 'Pending Payment Approval',
                 'description' => 'Payment is being reviewed by admin for approval',
                 'date' => null,
                 'completed' => false,
@@ -544,8 +544,8 @@ class UserDashboardController extends Controller
             
             // Awaiting admin approval step
             $timeline[] = [
-                'status' => 'awaiting_admin_approval',
-                'title' => 'Awaiting Admin Approval',
+                'status' => 'pending_payment_approval',
+                'title' => 'Pending Payment Approval',
                 'description' => 'Payment is being reviewed by admin for approval',
                 'date' => null,
                 'completed' => false,

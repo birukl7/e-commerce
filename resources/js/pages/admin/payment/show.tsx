@@ -157,7 +157,7 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
     const getOrderStatusDisplay = (status: string) => {
         const statusMap = {
             'processing': { class: 'bg-green-100 text-green-800', text: 'Ready for Fulfillment' },
-            'awaiting_admin_approval': { class: 'bg-orange-100 text-orange-800', text: 'Awaiting Admin Approval' },
+            'pending_payment_approval': { class: 'bg-orange-100 text-orange-800', text: 'Pending Payment Approval' },
             'payment_rejected': { class: 'bg-red-100 text-red-800', text: 'Payment Rejected' },
             'payment_failed': { class: 'bg-red-100 text-red-800', text: 'Payment Failed' },
             'pending_payment': { class: 'bg-gray-100 text-gray-800', text: 'Pending Payment' }

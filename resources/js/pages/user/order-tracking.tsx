@@ -71,7 +71,7 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                 return 'bg-green-100 text-green-800';
             case 'cancelled':
                 return 'bg-red-100 text-red-800';
-            case 'awaiting_admin_approval':
+            case 'pending_payment_approval':
                 return 'bg-orange-100 text-orange-800';
             case 'payment_rejected':
                 return 'bg-red-100 text-red-800';
@@ -88,7 +88,7 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                 return 'secondary';
             case 'pending_approval':
                 return 'outline';
-            case 'awaiting_admin_approval':
+            case 'pending_payment_approval':
                 return 'outline';
             case 'approved':
                 return 'default';
@@ -105,8 +105,8 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
         switch (status.toLowerCase()) {
             case 'pending_approval':
                 return 'Awaiting Approval';
-            case 'awaiting_admin_approval':
-                return 'Awaiting Admin Approval';
+            case 'pending_payment_approval':
+                return 'Pending Payment Approval';
             default:
                 return status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
         }
