@@ -93,7 +93,20 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
             render: (value, item) => {
                 if (item.status !== 'approved') return <span className="text-gray-400">-</span>;
                 
-                const getWorkflowBadge = (status: string) => {
+                const getWorkflowBadge = (status: string, item: ProductRequest) => {
+                    // Show lost interest status if applicable
+                    if (item.lost_interest_at) {
+                        const reason = item.lost_interest_reason || '';
+                        let reasonText = '';
+                        if (reason.startsWith('price_too_high')) reasonText = ' (Price Too High)';
+                        else if (reason.startsWith('delivery_date_too_long')) reasonText = ' (Delivery Too Long)';
+                        else if (reason.startsWith('simply_lost_interest')) reasonText = ' (Simply Lost Interest)';
+                        else if (reason.startsWith('changed_mind')) reasonText = ' (Changed Mind)';
+                        else if (reason.startsWith('found_elsewhere')) reasonText = ' (Found Elsewhere)';
+                        else if (reason.startsWith('other')) reasonText = ' (Other)';
+                        return <Badge variant="destructive">Lost Interest{reasonText}</Badge>;
+                    }
+                    
                     switch (status) {
                         case 'awaiting_willingness':
                         case 'awaiting_customer_willingness':
@@ -119,7 +132,7 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
                     }
                 };
                 
-                return getWorkflowBadge(value || 'unknown');
+                return getWorkflowBadge(value || 'unknown', item);
             }
         },
         createDateColumn<ProductRequest>('created_at', 'Date', {

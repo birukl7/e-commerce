@@ -61,6 +61,19 @@ class ProductRequestStatusUpdated extends Notification implements ShouldQueue
             ));
         }
 
+        // For rejected requests, show rejection reason prominently
+        if ($this->productRequest->status === 'rejected' && $this->productRequest->rejection_reason) {
+            $rejectionReasons = [
+                'product_not_available' => 'Product Not Available',
+                'specifications_not_matching' => 'Specifications Not Matching',
+                'out_of_stock' => 'Out of Stock',
+                'discontinued' => 'Product Discontinued',
+                'other' => 'Other Reason',
+            ];
+            
+            $mailMessage->line('Rejection Reason: ' . ($rejectionReasons[$this->productRequest->rejection_reason] ?? 'Other'));
+        }
+        
         if ($this->productRequest->admin_response) {
             $mailMessage->line('Admin Note: ' . $this->productRequest->admin_response);
         }

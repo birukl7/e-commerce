@@ -9,6 +9,8 @@ import { useForm, Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 interface ProductRequest {
   id: number
@@ -18,6 +20,7 @@ interface ProductRequest {
   image?: string | null
   created_at: string
   admin_response?: string
+  rejection_reason?: string
   amount?: number | null
   currency?: string | null
   payment_status?: string | null
@@ -42,6 +45,9 @@ interface ProductRequest {
   customer_willing_to_buy?: boolean
   willingness_confirmed_at?: string | null
   workflow_status?: string
+  lost_interest_at?: string | null
+  lost_interest_reason?: string | null
+  estimated_arrival_date?: string | null
 }
 
 interface RequestProps {
@@ -123,11 +129,34 @@ const getStatusIcon = (status: string) => {
 const getWorkflowStatusDisplay = (request: ProductRequest) => {
   const workflowStatus = request.workflow_status || 'unknown'
   
+  // If customer has lost interest, show that status
+  if (request.lost_interest_at) {
+    const reason = request.lost_interest_reason || '';
+    let reasonText = '';
+    if (reason.startsWith('price_too_high')) reasonText = ' - Price Too High';
+    else if (reason.startsWith('delivery_date_too_long')) reasonText = ' - Delivery Too Long';
+    else if (reason.startsWith('simply_lost_interest')) reasonText = ' - Simply Lost Interest';
+    else if (reason.startsWith('changed_mind')) reasonText = ' - Changed Mind';
+    else if (reason.startsWith('found_elsewhere')) reasonText = ' - Found Elsewhere';
+    else if (reason.startsWith('other')) reasonText = ' - Other';
+    return { text: `Lost Interest${reasonText}`, color: 'bg-red-100 text-red-800 border-red-200' }
+  }
+  
   switch (workflowStatus) {
     case 'pending_approval':
       return { text: 'Pending Admin Approval', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' }
     case 'rejected':
       return { text: 'Rejected', color: 'bg-red-100 text-red-800 border-red-200' }
+    case 'customer_lost_interest':
+      const reason = request.lost_interest_reason || '';
+      let reasonText = '';
+      if (reason.startsWith('price_too_high')) reasonText = ' - Price Too High';
+      else if (reason.startsWith('delivery_date_too_long')) reasonText = ' - Delivery Too Long';
+      else if (reason.startsWith('simply_lost_interest')) reasonText = ' - Simply Lost Interest';
+      else if (reason.startsWith('changed_mind')) reasonText = ' - Changed Mind';
+      else if (reason.startsWith('found_elsewhere')) reasonText = ' - Found Elsewhere';
+      else if (reason.startsWith('other')) reasonText = ' - Other';
+      return { text: `Lost Interest${reasonText}`, color: 'bg-red-100 text-red-800 border-red-200' }
     case 'awaiting_customer_willingness':
       return { text: 'Awaiting Your Confirmation', color: 'bg-blue-100 text-blue-800 border-blue-200' }
     case 'awaiting_advance_payment':
@@ -152,6 +181,11 @@ const getWorkflowStatusDisplay = (request: ProductRequest) => {
 // Helper function to get action button for request
 const getActionButton = (request: ProductRequest) => {
   const workflowStatus = request.workflow_status || 'unknown'
+  
+  // Don't show action button if customer has indicated lost interest
+  if (request.lost_interest_at) {
+    return null
+  }
   
   switch (workflowStatus) {
     case 'awaiting_customer_willingness':
@@ -197,6 +231,7 @@ const getActionButton = (request: ProductRequest) => {
 export default function RequestDashboard({ requests }: RequestProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [lostInterestDialogs, setLostInterestDialogs] = useState<Record<number, boolean>>({})
 
   const handleDelete = (requestId: number, productName: string) => {
     if (confirm(`Are you sure you want to delete the request for "${productName}"?`)) {
@@ -208,6 +243,12 @@ export default function RequestDashboard({ requests }: RequestProps) {
     product_name: "",
     description: "",
     image: null as File | null,
+  })
+
+  // Single form for lost interest that we'll reuse for all requests
+  const lostInterestForm = useForm({
+    reason: '',
+    additional_notes: '',
   })
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -406,7 +447,24 @@ export default function RequestDashboard({ requests }: RequestProps) {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getActionButton(request) && (
+                              {getActionButton(request) && request.workflow_status === 'awaiting_customer_willingness' && !request.lost_interest_at && request.status === 'approved' && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
+                                <>
+                                  <Link href={getActionButton(request).href}>
+                                    <Button size="sm" className={getActionButton(request).className}>
+                                      {getActionButton(request).text}
+                                    </Button>
+                                  </Link>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => setLostInterestDialogs(prev => ({ ...prev, [request.id]: true }))}
+                                    className="border-red-300 text-red-700 hover:bg-red-50"
+                                  >
+                                    Lost Interest
+                                  </Button>
+                                </>
+                              )}
+                              {getActionButton(request) && (request.workflow_status !== 'awaiting_customer_willingness' || request.status !== 'approved' || request.advance_payment_status === 'paid' || request.advance_payment_status === 'processing' || request.lost_interest_at) && (
                                 <Link href={getActionButton(request).href}>
                                   <Button size="sm" className={getActionButton(request).className}>
                                     {getActionButton(request).text}
@@ -453,11 +511,117 @@ export default function RequestDashboard({ requests }: RequestProps) {
                     )}
                   </div>
 
-                  {request.admin_response && (
+                  {/* Rejection Information */}
+                  {request.status === 'rejected' && request.rejection_reason && (
+                    <div className="mt-4 p-4 bg-red-50 rounded-lg border border-red-200">
+                      <h4 className="font-medium text-red-900 mb-2">Rejection Reason:</h4>
+                      <p className="text-sm text-red-700 mb-2">
+                        {request.rejection_reason === 'product_not_available' && 'Product Not Available - Unfortunately, the product you requested is not available at this time. We are unable to source this product from our suppliers.'}
+                        {request.rejection_reason === 'specifications_not_matching' && 'Specifications Not Matching - We were unable to find a product that matches your exact specifications. The available options do not meet the requirements you specified.'}
+                        {request.rejection_reason === 'out_of_stock' && 'Out of Stock - The product is currently out of stock with our suppliers and is not expected to be available in the foreseeable future.'}
+                        {request.rejection_reason === 'discontinued' && 'Product Discontinued - The product has been discontinued by the manufacturer and is no longer available in the market.'}
+                        {request.rejection_reason === 'other' && 'Other Reason - Your product request could not be fulfilled for the reasons specified below.'}
+                      </p>
+                      {request.admin_response && (
+                        <div className="mt-2 pt-2 border-t border-red-300">
+                          <p className="text-xs font-semibold text-red-900 mb-1">Additional Information:</p>
+                          <p className="text-xs text-red-700">{request.admin_response}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Admin Response (for non-rejected statuses) */}
+                  {request.admin_response && request.status !== 'rejected' && (
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg">
                       <h4 className="font-medium text-gray-900 mb-2">Admin Response:</h4>
                       <p className="text-gray-700">{request.admin_response}</p>
                     </div>
+                  )}
+
+                  {/* Lost Interest Dialogs */}
+                  {request.status === 'approved' && request.workflow_status === 'awaiting_customer_willingness' && !request.lost_interest_at && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
+                    <Dialog 
+                      open={lostInterestDialogs[request.id] || false} 
+                      onOpenChange={(open) => setLostInterestDialogs(prev => ({ ...prev, [request.id]: open }))}
+                    >
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Why are you losing interest?</DialogTitle>
+                          <DialogDescription>
+                            Please help us understand why you're no longer interested in this product request.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={(e) => {
+                          e.preventDefault()
+                          lostInterestForm.post(route('request.lost-interest', request.id), {
+                            onSuccess: () => {
+                              setLostInterestDialogs(prev => ({ ...prev, [request.id]: false }))
+                              lostInterestForm.reset()
+                            }
+                          })
+                        }} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`lost_interest_reason_${request.id}`}>Reason *</Label>
+                            <Select
+                              value={lostInterestForm.data.reason}
+                              onValueChange={(value) => lostInterestForm.setData('reason', value)}
+                            >
+                              <SelectTrigger id={`lost_interest_reason_${request.id}`}>
+                                <SelectValue placeholder="Select a reason" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="price_too_high">Price Too High</SelectItem>
+                                <SelectItem value="delivery_date_too_long">Delivery Date Too Long</SelectItem>
+                                <SelectItem value="simply_lost_interest">Simply Lost Interest</SelectItem>
+                                <SelectItem value="changed_mind">Changed My Mind</SelectItem>
+                                <SelectItem value="found_elsewhere">Found It Elsewhere</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            {lostInterestForm.errors.reason && (
+                              <p className="text-sm text-red-500">{lostInterestForm.errors.reason}</p>
+                            )}
+                          </div>
+                          
+                          {lostInterestForm.data.reason === 'other' && (
+                            <div className="space-y-2">
+                              <Label htmlFor={`additional_notes_${request.id}`}>Additional Notes</Label>
+                              <textarea
+                                id={`additional_notes_${request.id}`}
+                                value={lostInterestForm.data.additional_notes}
+                                onChange={(e) => lostInterestForm.setData('additional_notes', e.target.value)}
+                                className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Please provide more details..."
+                              />
+                              {lostInterestForm.errors.additional_notes && (
+                                <p className="text-sm text-red-500">{lostInterestForm.errors.additional_notes}</p>
+                              )}
+                            </div>
+                          )}
+
+                          <DialogFooter>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setLostInterestDialogs(prev => ({ ...prev, [request.id]: false }))
+                                lostInterestForm.reset()
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="submit"
+                              disabled={lostInterestForm.processing || !lostInterestForm.data.reason}
+                              className="bg-red-600 hover:bg-red-700"
+                            >
+                              {lostInterestForm.processing ? 'Submitting...' : 'Confirm Lost Interest'}
+                            </Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
                   )}
                 </div>
               ))}

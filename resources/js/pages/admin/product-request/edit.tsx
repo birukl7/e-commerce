@@ -23,7 +23,9 @@ interface ProductRequest {
     description: string;
     status: 'pending' | 'approved' | 'rejected';
     admin_response?: string;
+    rejection_reason?: string;
     amount?: number | string;
+    estimated_arrival_date?: string;
     currency?: string;
     payment_status?: string;
     available?: boolean | null;
@@ -40,7 +42,9 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
     const { data, setData, put, processing, errors } = useForm({
         status: product_request.status,
         admin_response: product_request.admin_response || '',
+        rejection_reason: product_request.rejection_reason || '',
         amount: product_request.amount || '',
+        estimated_arrival_date: product_request.estimated_arrival_date || '',
         currency: product_request.currency || 'ETB',
     });
 
@@ -142,29 +146,67 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                             </div>
 
                             <div className="space-y-4">
+                                {data.status === 'rejected' && (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="rejection_reason" className="text-base font-semibold">
+                                            Rejection Reason *
+                                        </Label>
+                                        <Select 
+                                            value={data.rejection_reason} 
+                                            onValueChange={(value) => setData('rejection_reason', value)}
+                                        >
+                                            <SelectTrigger id="rejection_reason" className={errors.rejection_reason ? 'border-red-500' : ''}>
+                                                <SelectValue placeholder="Select a reason for rejection" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="product_not_available">Product Not Available</SelectItem>
+                                                <SelectItem value="specifications_not_matching">Specifications Not Matching</SelectItem>
+                                                <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                                                <SelectItem value="discontinued">Product Discontinued</SelectItem>
+                                                <SelectItem value="other">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        {errors.rejection_reason && (
+                                            <p className="flex items-center gap-1 text-sm text-red-500">
+                                                <span className="font-medium">Error:</span> {errors.rejection_reason}
+                                            </p>
+                                        )}
+                                        <p className="text-xs text-gray-500">
+                                            Select the primary reason for rejecting this product request. This will help us provide better feedback to the customer.
+                                        </p>
+                                    </div>
+                                )}
+                                
                                 <div className="space-y-2">
                                     <Label htmlFor="admin_response" className="text-base font-semibold">
-                                        Admin Response
+                                        {data.status === 'rejected' ? 'Additional Notes (Optional)' : 'Admin Response'}
                                     </Label>
                                     <Textarea
                                         id="admin_response"
                                         value={data.admin_response}
                                         onChange={(e) => setData('admin_response', e.target.value)}
-                                        placeholder="Provide feedback or instructions for the user..."
+                                        placeholder={data.status === 'rejected' 
+                                            ? "Add any additional notes or clarification for the customer..."
+                                            : "Provide feedback or instructions for the user..."}
                                         className={errors.admin_response ? 'border-red-500' : ''}
                                         rows={4}
                                     />
                                     {errors.admin_response && <p className="text-sm text-red-500">{errors.admin_response}</p>}
+                                    {data.status === 'rejected' && (
+                                        <p className="text-xs text-gray-500">
+                                            You can add personalized feedback here. The rejection reason above will be automatically included in the notification.
+                                        </p>
+                                    )}
                                 </div>
 
                                 {data.status === 'approved' && (
                                     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
-                                        <h3 className="font-medium">Payment Information</h3>
+                                        <h3 className="font-medium">Product Pricing & Delivery Information</h3>
 
                                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             <div className="space-y-2">
                                                 <Label htmlFor="amount" className="font-medium">
-                                                    Amount *
+                                                    Total Amount *
                                                 </Label>
                                                 <div className="relative">
                                                     <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
@@ -183,6 +225,9 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                                     />
                                                 </div>
                                                 {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}
+                                                <p className="text-xs text-gray-500">
+                                                    This will be split into advance payment (30%) and final payment (70%)
+                                                </p>
                                             </div>
 
                                             <div className="space-y-2">
@@ -203,8 +248,29 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                             </div>
                                         </div>
 
+                                        <div className="space-y-2">
+                                            <Label htmlFor="estimated_arrival_date" className="font-medium">
+                                                Estimated Arrival Date *
+                                            </Label>
+                                            <input
+                                                type="date"
+                                                id="estimated_arrival_date"
+                                                min={new Date().toISOString().split('T')[0]}
+                                                value={data.estimated_arrival_date}
+                                                onChange={(e) => setData('estimated_arrival_date', e.target.value)}
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                                required={data.status === 'approved'}
+                                            />
+                                            {errors.estimated_arrival_date && (
+                                                <p className="text-sm text-red-500">{errors.estimated_arrival_date}</p>
+                                            )}
+                                            <p className="text-xs text-gray-500">
+                                                This date will be shown to the customer to help them make an informed decision.
+                                            </p>
+                                        </div>
+
                                         <p className="text-sm text-muted-foreground">
-                                            The user will be required to pay this amount to proceed with their request.
+                                            The customer will see both the price and estimated arrival date before confirming their willingness to proceed.
                                         </p>
                                     </div>
                                 )}

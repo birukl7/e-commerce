@@ -24,6 +24,7 @@ class ProductRequest extends Model
         'admin_id',
         'order_id',
         'amount',
+        'estimated_arrival_date',
         'estimated_price',
         'max_budget',
         'currency',
@@ -60,7 +61,10 @@ class ProductRequest extends Model
         'procurement_completed_at',
         'product_arrived_at',
         'customer_willing_to_buy',
-        'willingness_confirmed_at'
+        'willingness_confirmed_at',
+        'rejection_reason',
+        'lost_interest_at',
+        'lost_interest_reason'
     ];
 
     /**
@@ -75,6 +79,7 @@ class ProductRequest extends Model
         'shipping_cost' => 'decimal:2',
         'paid_at' => 'datetime',
         'desired_delivery_date' => 'date',
+        'estimated_arrival_date' => 'date',
         'payment_details' => 'array',
         'specifications' => 'array',
         'quantity' => 'integer',
@@ -88,7 +93,8 @@ class ProductRequest extends Model
         'procurement_completed_at' => 'datetime',
         'product_arrived_at' => 'datetime',
         'willingness_confirmed_at' => 'datetime',
-        'customer_willing_to_buy' => 'boolean'
+        'customer_willing_to_buy' => 'boolean',
+        'lost_interest_at' => 'datetime'
     ];
 
     /**
@@ -366,6 +372,11 @@ class ProductRequest extends Model
         if ($this->status === 'rejected') return 'rejected';
         
         if ($this->status === 'approved') {
+            // Check if customer has lost interest (this should take priority)
+            if ($this->lost_interest_at) {
+                return 'customer_lost_interest';
+            }
+            
             // Check customer willingness (handle null as false)
             if (!$this->customer_willing_to_buy) {
                 return 'awaiting_customer_willingness';

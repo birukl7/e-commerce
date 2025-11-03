@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, Package, CreditCard, Truck } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 
 interface TaxBreakdown {
   taxes: Array<{
@@ -25,6 +28,7 @@ interface ProductRequest {
   description: string
   status: "pending" | "reviewed" | "approved" | "rejected"
   admin_response?: string
+  rejection_reason?: string
   image?: string | null
   amount?: number | null
   currency?: string | null
@@ -56,6 +60,9 @@ interface ProductRequest {
   requires_final_payment?: boolean
   advance_tax_breakdown?: TaxBreakdown | null
   final_tax_breakdown?: TaxBreakdown | null
+  estimated_arrival_date?: string | null
+  lost_interest_at?: string | null
+  lost_interest_reason?: string | null
 }
 
 interface Props {
@@ -64,7 +71,12 @@ interface Props {
 
 export default function RequestShow({ request }: Props) {
   const [accepted, setAccepted] = useState(false)
+  const [lostInterestDialogOpen, setLostInterestDialogOpen] = useState(false)
   const { post, processing } = useForm({})
+  const lostInterestForm = useForm({
+    reason: '',
+    additional_notes: '',
+  })
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -80,11 +92,34 @@ export default function RequestShow({ request }: Props) {
   }
 
   const getWorkflowStatusBadge = (status?: string) => {
+    // Check if customer has lost interest (priority check)
+    if (request.lost_interest_at) {
+      const reason = request.lost_interest_reason || '';
+      let reasonText = '';
+      if (reason.startsWith('price_too_high')) reasonText = ' - Price Too High';
+      else if (reason.startsWith('delivery_date_too_long')) reasonText = ' - Delivery Too Long';
+      else if (reason.startsWith('simply_lost_interest')) reasonText = ' - Simply Lost Interest';
+      else if (reason.startsWith('changed_mind')) reasonText = ' - Changed Mind';
+      else if (reason.startsWith('found_elsewhere')) reasonText = ' - Found Elsewhere';
+      else if (reason.startsWith('other')) reasonText = ' - Other';
+      return { text: `Lost Interest${reasonText}`, variant: 'destructive' as const }
+    }
+    
     switch (status) {
       case 'pending_approval':
         return { text: 'Pending Admin Approval', variant: 'secondary' as const }
       case 'rejected':
         return { text: 'Rejected', variant: 'destructive' as const }
+      case 'customer_lost_interest':
+        const reason = request.lost_interest_reason || '';
+        let reasonText = '';
+        if (reason.startsWith('price_too_high')) reasonText = ' - Price Too High';
+        else if (reason.startsWith('delivery_date_too_long')) reasonText = ' - Delivery Too Long';
+        else if (reason.startsWith('simply_lost_interest')) reasonText = ' - Simply Lost Interest';
+        else if (reason.startsWith('changed_mind')) reasonText = ' - Changed Mind';
+        else if (reason.startsWith('found_elsewhere')) reasonText = ' - Found Elsewhere';
+        else if (reason.startsWith('other')) reasonText = ' - Other';
+        return { text: `Lost Interest${reasonText}`, variant: 'destructive' as const }
       case 'awaiting_customer_willingness':
         return { text: 'Awaiting Your Confirmation', variant: 'default' as const }
       case 'awaiting_advance_payment':
@@ -147,11 +182,35 @@ export default function RequestShow({ request }: Props) {
               </div>
             </div>
 
-            {request.admin_response && (
+            {/* Rejection Information */}
+            {request.status === 'rejected' && request.rejection_reason && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <h3 className="font-medium mb-2 text-red-900">Request Rejection</h3>
+                <div className="mb-2">
+                  <p className="text-sm font-semibold text-red-800 mb-1">Reason:</p>
+                  <p className="text-sm text-red-700">
+                    {request.rejection_reason === 'product_not_available' && 'Unfortunately, the product you requested is not available at this time. We are unable to source this product from our suppliers.'}
+                    {request.rejection_reason === 'specifications_not_matching' && 'We were unable to find a product that matches your exact specifications. The available options do not meet the requirements you specified.'}
+                    {request.rejection_reason === 'out_of_stock' && 'The product is currently out of stock with our suppliers and is not expected to be available in the foreseeable future.'}
+                    {request.rejection_reason === 'discontinued' && 'The product has been discontinued by the manufacturer and is no longer available in the market.'}
+                    {request.rejection_reason === 'other' && 'Your product request could not be fulfilled for the reasons specified below.'}
+                  </p>
+                </div>
+                {request.admin_response && (
+                  <div className="mt-3 pt-3 border-t border-red-300">
+                    <p className="text-sm font-semibold text-red-800 mb-1">Additional Information:</p>
+                    <p className="text-sm text-red-700">{request.admin_response}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Admin Response (for non-rejected statuses) */}
+            {request.admin_response && request.status !== 'rejected' && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <h3 className="font-medium mb-2 text-blue-900">Admin Response</h3>
                 <p className="text-sm text-blue-800">{request.admin_response}</p>
-              </div>
+            </div>
             )}
 
             {/* Workflow Status Section */}
@@ -160,24 +219,198 @@ export default function RequestShow({ request }: Props) {
                 <h3 className="font-semibold text-lg">Order Progress</h3>
                 
                 {/* Customer Willingness Step */}
-                {!request.customer_willing_to_buy && (
+                {request.status === 'approved' && !request.customer_willing_to_buy && !request.lost_interest_at && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
                   <div className="border rounded-lg p-4 bg-yellow-50">
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <Clock className="h-5 w-5 text-yellow-600" />
-                      <span className="font-medium">Confirm Your Willingness to Buy</span>
+                      <span className="font-medium">Review Product Details & Confirm Your Willingness</span>
+            </div>
+
+            {/* Price Information */}
+                    {request.amount && (
+                      <div className="bg-white rounded-lg p-3 mb-3 border border-gray-200">
+                        <h4 className="font-medium mb-2 text-gray-900">Pricing Information</h4>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Total Amount:</span>
+                            <span className="font-semibold text-gray-900">
+                              {formatCurrency(request.amount, request.currency)}
+                            </span>
+                          </div>
+                          {request.advance_amount && (
+                            <div className="flex justify-between text-gray-600">
+                              <span>Advance Payment (30%):</span>
+                              <span>{formatCurrency(request.advance_amount, request.currency)}</span>
+                            </div>
+                          )}
+                          {request.final_amount && (
+                            <div className="flex justify-between text-gray-600">
+                              <span>Final Payment (70%):</span>
+                              <span>{formatCurrency(request.final_amount, request.currency)}</span>
                     </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estimated Arrival Date */}
+                    {request.estimated_arrival_date && (
+                      <div className="bg-blue-50 rounded-lg p-3 mb-3 border border-blue-200">
+                        <h4 className="font-medium mb-2 text-blue-900">Estimated Arrival</h4>
+                        <div className="flex items-center gap-2">
+                          <Truck className="h-4 w-4 text-blue-600" />
+                          <span className="text-sm text-blue-800">
+                            Expected to arrive by: <span className="font-semibold">{formatDate(request.estimated_arrival_date)}</span>
+                            {(() => {
+                              const arrivalDate = new Date(request.estimated_arrival_date);
+                              const today = new Date();
+                              const daysUntilArrival = Math.ceil((arrivalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                              if (daysUntilArrival > 0) {
+                                return (
+                                  <span className="ml-1 text-blue-700">
+                                    ({daysUntilArrival} {daysUntilArrival === 1 ? 'day' : 'days'} from now)
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </span>
+                </div>
+              </div>
+            )}
+
                     <p className="text-sm text-gray-600 mb-3">
-                      Please confirm that you're willing to proceed with this purchase.
+                      Please review the pricing and estimated arrival date above. If you're satisfied, confirm your willingness to proceed with this purchase.
                     </p>
-                    <Button
-                      onClick={() => post(route('request.willingness', request.id))}
-                      disabled={processing}
-                      className="bg-orange-600 hover:bg-orange-700"
-                    >
-                      {processing ? 'Processing...' : 'Confirm Willingness'}
-                    </Button>
+                    
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => post(route('request.willingness', request.id))}
+                        disabled={processing}
+                        className="flex-1 bg-orange-600 hover:bg-orange-700"
+                      >
+                        {processing ? 'Processing...' : 'Confirm Willingness'}
+                      </Button>
+                      <Button
+                        onClick={() => setLostInterestDialogOpen(true)}
+                        disabled={processing}
+                        variant="outline"
+                        className="flex-1 border-red-300 text-red-700 hover:bg-red-50"
+                      >
+                        Lost Interest
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      You can decline if the price is too high or the arrival date is too long.
+                    </p>
                   </div>
                 )}
+
+                {/* Lost Interest Message */}
+                {request.lost_interest_at && (
+                  <div className="border rounded-lg p-4 bg-gray-50 border-gray-300">
+                    <div className="flex items-center gap-2 mb-2">
+                      <XCircle className="h-5 w-5 text-gray-600" />
+                      <span className="font-medium text-gray-700">You've Indicated Lost Interest</span>
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      You've indicated that you're no longer interested in this product request.
+                      {request.lost_interest_reason && (
+                        <span className="block mt-1">
+                          <span className="font-semibold">Reason:</span> {
+                            request.lost_interest_reason === 'price_too_high' && 'Price Too High'
+                            || request.lost_interest_reason === 'delivery_date_too_long' && 'Delivery Date Too Long'
+                            || request.lost_interest_reason === 'simply_lost_interest' && 'Simply Lost Interest'
+                            || request.lost_interest_reason === 'changed_mind' && 'Changed My Mind'
+                            || request.lost_interest_reason === 'found_elsewhere' && 'Found It Elsewhere'
+                            || request.lost_interest_reason === 'other' && 'Other'
+                            || request.lost_interest_reason
+                          }
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
+
+                {/* Lost Interest Dialog */}
+                <Dialog open={lostInterestDialogOpen} onOpenChange={setLostInterestDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Why are you losing interest?</DialogTitle>
+                      <DialogDescription>
+                        Please help us understand why you're no longer interested in this product request.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      lostInterestForm.post(route('request.lost-interest', request.id), {
+                        onSuccess: () => {
+                          setLostInterestDialogOpen(false)
+                          lostInterestForm.reset()
+                        }
+                      })
+                    }} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="lost_interest_reason">Reason *</Label>
+                        <Select
+                          value={lostInterestForm.data.reason}
+                          onValueChange={(value) => lostInterestForm.setData('reason', value)}
+                        >
+                          <SelectTrigger id="lost_interest_reason">
+                            <SelectValue placeholder="Select a reason" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="price_too_high">Price Too High</SelectItem>
+                            <SelectItem value="delivery_date_too_long">Delivery Date Too Long</SelectItem>
+                            <SelectItem value="simply_lost_interest">Simply Lost Interest</SelectItem>
+                            <SelectItem value="changed_mind">Changed My Mind</SelectItem>
+                            <SelectItem value="found_elsewhere">Found It Elsewhere</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {lostInterestForm.errors.reason && (
+                          <p className="text-sm text-red-500">{lostInterestForm.errors.reason}</p>
+                        )}
+            </div>
+
+                      {lostInterestForm.data.reason === 'other' && (
+                        <div className="space-y-2">
+                          <Label htmlFor="additional_notes">Additional Notes</Label>
+                          <textarea
+                            id="additional_notes"
+                            value={lostInterestForm.data.additional_notes}
+                            onChange={(e) => lostInterestForm.setData('additional_notes', e.target.value)}
+                            className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            placeholder="Please provide more details..."
+                          />
+                          {lostInterestForm.errors.additional_notes && (
+                            <p className="text-sm text-red-500">{lostInterestForm.errors.additional_notes}</p>
+                          )}
+                        </div>
+                      )}
+
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setLostInterestDialogOpen(false)
+                            lostInterestForm.reset()
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={lostInterestForm.processing || !lostInterestForm.data.reason}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          {lostInterestForm.processing ? 'Submitting...' : 'Confirm Lost Interest'}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
 
                 {/* Advance Payment Section */}
                 {request.advance_amount && (
@@ -275,7 +508,7 @@ export default function RequestShow({ request }: Props) {
                       {request.procurement_status === 'in_progress' && (
                         <div className="space-y-2">
                           {request.procurement_started_at && (
-                            <p className="text-sm">
+                <p className="text-sm">
                               <span className="font-medium">We started getting your product on:</span> {formatDate(request.procurement_started_at)}
                             </p>
                           )}
@@ -355,13 +588,13 @@ export default function RequestShow({ request }: Props) {
                               {formatCurrency(request.final_amount, request.currency)}
                             </div>
                           )}
-                        </div>
-                        <Button
+                </div>
+                <Button
                           className="w-full"
                           onClick={() => window.location.href = route('user.product-requests.show', request.id)}
-                        >
+                >
                           Pay Final Amount
-                        </Button>
+                </Button>
                       </div>
                     </CardContent>
                   </Card>

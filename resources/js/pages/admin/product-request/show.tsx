@@ -48,6 +48,8 @@ interface ProductRequest {
     product_arrived_at?: string;
     workflow_status?: string;
     procurement_notes?: string;
+    lost_interest_at?: string | null;
+    lost_interest_reason?: string | null;
 }
 
 
@@ -164,7 +166,29 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                             <h3 className="mb-2 font-semibold">Description</h3>
                             <p className="text-muted-foreground">{product_request.description}</p>
                         </div>
-                        {product_request.admin_response && (
+                        {/* Rejection Information */}
+                        {product_request.status === 'rejected' && product_request.rejection_reason && (
+                            <div className="rounded-md border bg-red-50 p-4 border-red-200">
+                                <h3 className="mb-2 font-semibold text-red-900">Rejection Reason</h3>
+                                <p className="text-sm font-medium text-red-800 mb-2">
+                                    {product_request.rejection_reason === 'product_not_available' && 'Product Not Available'}
+                                    {product_request.rejection_reason === 'specifications_not_matching' && 'Specifications Not Matching'}
+                                    {product_request.rejection_reason === 'out_of_stock' && 'Out of Stock'}
+                                    {product_request.rejection_reason === 'discontinued' && 'Product Discontinued'}
+                                    {product_request.rejection_reason === 'other' && 'Other Reason'}
+                                </p>
+                                {product_request.admin_response && (
+                                    <p className="text-sm text-red-700 mt-2">{product_request.admin_response}</p>
+                                )}
+                                {product_request.admin && (
+                                    <p className="mt-2 text-xs text-red-600">
+                                        Rejected by {product_request.admin.name} on {formatDate(product_request.updated_at)}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+
+                        {product_request.admin_response && product_request.status !== 'rejected' && (
                             <div className="rounded-md border bg-muted/50 p-4">
                                 <h3 className="mb-2 font-semibold">Admin Response</h3>
                                 <p className="text-sm text-muted-foreground">{product_request.admin_response}</p>
@@ -176,6 +200,43 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                             </div>
                         )}
 
+                        {/* Pricing and Estimated Arrival Information (for approved requests) */}
+                        {product_request.status === 'approved' && (product_request.amount || product_request.estimated_arrival_date) && (
+                            <div className="rounded-md border bg-green-50 p-4 border-green-200">
+                                <h3 className="mb-3 font-semibold text-green-900">Pricing & Delivery Information</h3>
+                                {product_request.amount && (
+                                    <div className="mb-2">
+                                        <p className="text-sm text-gray-700">
+                                            <span className="font-medium">Total Amount:</span>{' '}
+                                            <span className="font-semibold text-green-900">
+                                                {product_request.currency} {product_request.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </p>
+                                        {product_request.advance_amount && (
+                                            <p className="text-xs text-gray-600 ml-4">
+                                                Advance: {product_request.currency} {product_request.advance_amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} • 
+                                                Final: {product_request.currency} {product_request.final_amount?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                                {product_request.estimated_arrival_date && (
+                                    <div className="mt-2">
+                                        <p className="text-sm text-gray-700">
+                                            <span className="font-medium">Estimated Arrival Date:</span>{' '}
+                                            <span className="font-semibold text-green-900">
+                                                {formatDateOnly(product_request.estimated_arrival_date)}
+                                            </span>
+                                        </p>
+                                        <p className="text-xs text-gray-600 ml-4">
+                                            This date is shown to the customer when they review the approval
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+
                         {/* Workflow Status Section */}
                         {product_request.status === 'approved' && (
                             <div className="rounded-md border bg-blue-50 p-4">
@@ -184,20 +245,62 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                 {/* Customer Willingness */}
                                 <div className="mb-4">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className={`w-3 h-3 rounded-full ${product_request.customer_willing_to_buy ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                        <span className="font-medium">Customer Willingness</span>
-                                        <Badge variant={product_request.customer_willing_to_buy ? 'default' : 'secondary'}>
-                                            {product_request.customer_willing_to_buy ? 'Confirmed' : 'Pending'}
-                                        </Badge>
+                                        <div className={`w-3 h-3 rounded-full ${
+                                            product_request.lost_interest_at ? 'bg-red-500' :
+                                            product_request.customer_willing_to_buy ? 'bg-green-500' : 'bg-gray-300'
+                                        }`}></div>
+                                        <span className="font-medium">Customer Willingness to Pay</span>
+                                        {product_request.lost_interest_at ? (
+                                            <Badge variant="destructive">Lost Interest</Badge>
+                                        ) : (
+                                            <Badge variant={product_request.customer_willing_to_buy ? 'default' : 'secondary'}>
+                                                {product_request.customer_willing_to_buy ? 'Confirmed' : 'Pending'}
+                                            </Badge>
+                                        )}
                                     </div>
-                                    {product_request.willingness_confirmed_at && (
+                                    
+                                    {/* Show lost interest status and reason */}
+                                    {product_request.lost_interest_at && (
+                                        <div className="ml-5 space-y-2">
+                                            <p className="text-sm text-red-700 font-medium">
+                                                Customer indicated they've lost interest on {formatDate(product_request.lost_interest_at)}
+                                            </p>
+                                            {product_request.lost_interest_reason && (
+                                                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                                    <p className="text-sm font-semibold text-red-900 mb-1">Reason for Lost Interest:</p>
+                                                    <p className="text-sm text-red-800">
+                                                        {product_request.lost_interest_reason.startsWith('price_too_high') && 'Price Too High - Customer found the price too expensive.'}
+                                                        {product_request.lost_interest_reason.startsWith('delivery_date_too_long') && 'Delivery Date Too Long - Customer found the estimated delivery time too long.'}
+                                                        {product_request.lost_interest_reason.startsWith('simply_lost_interest') && 'Simply Lost Interest - Customer is no longer interested in this product.'}
+                                                        {product_request.lost_interest_reason.startsWith('changed_mind') && 'Changed My Mind - Customer has changed their mind about the purchase.'}
+                                                        {product_request.lost_interest_reason.startsWith('found_elsewhere') && 'Found It Elsewhere - Customer found the product from another source.'}
+                                                        {product_request.lost_interest_reason.startsWith('other') && (
+                                                            <span>
+                                                                Other Reason{product_request.lost_interest_reason.includes(':') && ` - ${product_request.lost_interest_reason.split(': ').slice(1).join(': ')}`}
+                                                            </span>
+                                                        )}
+                                                        {!product_request.lost_interest_reason.startsWith('price_too_high') &&
+                                                         !product_request.lost_interest_reason.startsWith('delivery_date_too_long') &&
+                                                         !product_request.lost_interest_reason.startsWith('simply_lost_interest') &&
+                                                         !product_request.lost_interest_reason.startsWith('changed_mind') &&
+                                                         !product_request.lost_interest_reason.startsWith('found_elsewhere') &&
+                                                         !product_request.lost_interest_reason.startsWith('other') &&
+                                                         product_request.lost_interest_reason}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Show confirmed willingness */}
+                                    {!product_request.lost_interest_at && product_request.willingness_confirmed_at && (
                                         <p className="text-sm text-gray-600 ml-5">
                                             Confirmed on {formatDate(product_request.willingness_confirmed_at)}
                                         </p>
                                     )}
                                     
                                     {/* Show distinction between confirmed only vs confirmed + paid */}
-                                    {product_request.customer_willing_to_buy && (
+                                    {!product_request.lost_interest_at && product_request.customer_willing_to_buy && (
                                         <div className="mt-2 ml-5">
                                             {product_request.advance_payment_status === 'paid' || product_request.advance_payment_status === 'processing' ? (
                                                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
@@ -209,6 +312,13 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                                 </Badge>
                                             )}
                                         </div>
+                                    )}
+                                    
+                                    {/* Show pending status when neither confirmed nor lost interest */}
+                                    {!product_request.lost_interest_at && !product_request.customer_willing_to_buy && (
+                                        <p className="text-sm text-gray-600 ml-5">
+                                            Waiting for customer to confirm willingness or indicate lost interest.
+                                        </p>
                                     )}
                                 </div>
 

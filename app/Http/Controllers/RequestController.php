@@ -34,6 +34,7 @@ class RequestController extends Controller
                     'image' => $request->image ? asset('storage/' . $request->image) : null,
                     'created_at' => $request->created_at,
                     'admin_response' => $request->admin_response,
+                    'rejection_reason' => $request->rejection_reason,
                     'amount' => $request->amount,
                     'currency' => $request->currency,
                     'payment_status' => $request->payment_status,
@@ -55,8 +56,11 @@ class RequestController extends Controller
                     'procurement_started_at' => $request->procurement_started_at,
                     'procurement_completed_at' => $request->procurement_completed_at,
                     'product_arrived_at' => $request->product_arrived_at,
+                    'estimated_arrival_date' => $request->estimated_arrival_date,
                     'customer_willing_to_buy' => $request->customer_willing_to_buy,
                     'willingness_confirmed_at' => $request->willingness_confirmed_at,
+                    'lost_interest_at' => $request->lost_interest_at,
+                    'lost_interest_reason' => $request->lost_interest_reason,
                     // Calculate workflow status AFTER refreshing the model
                     'workflow_status' => $request->getWorkflowStatus(),
                 ];
@@ -129,6 +133,7 @@ class RequestController extends Controller
                 'description' => $productRequest->description,
                 'status' => $productRequest->status,
                 'admin_response' => $productRequest->admin_response,
+                'rejection_reason' => $productRequest->rejection_reason,
                 'amount' => $productRequest->amount,
                 'currency' => $productRequest->currency,
                 'payment_status' => $productRequest->payment_status,
@@ -155,6 +160,9 @@ class RequestController extends Controller
                 'procurement_completed_at' => $productRequest->procurement_completed_at,
                 'procurement_notes' => $productRequest->procurement_notes,
                 'product_arrived_at' => $productRequest->product_arrived_at,
+                'estimated_arrival_date' => $productRequest->estimated_arrival_date,
+                'lost_interest_at' => $productRequest->lost_interest_at,
+                'lost_interest_reason' => $productRequest->lost_interest_reason,
                 // Calculate workflow status AFTER refreshing the model
                 'workflow_status' => $productRequest->getWorkflowStatus(),
                 // Calculate requires flags AFTER refreshing payment status
@@ -350,6 +358,59 @@ class RequestController extends Controller
 
         return redirect()->route('product-requests.advance-payment.show', $productRequest->id)
             ->with('success', 'Thank you for confirming your willingness to buy. Please proceed with advance payment.');
+    }
+
+    /**
+     * Mark customer as lost interest.
+     */
+    public function markLostInterest(Request $request, ProductRequest $productRequest)
+    {
+        if ($productRequest->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($productRequest->status !== 'approved') {
+            return redirect()->route('request.index')
+                ->with('error', 'This request has not been approved yet.');
+        }
+
+        // Refresh to get latest status
+        $productRequest->refresh();
+
+        // Prevent lost interest if advance payment has been paid or is processing
+        if ($productRequest->advance_payment_status === 'paid' || $productRequest->advance_payment_status === 'processing') {
+            return redirect()->route('user.product-requests.show', $productRequest->id)
+                ->with('error', 'You cannot indicate lost interest after advance payment has been made.');
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'in:price_too_high,delivery_date_too_long,simply_lost_interest,changed_mind,found_elsewhere,other'],
+            'additional_notes' => ['required_if:reason,other', 'nullable', 'string', 'max:500'],
+        ], [
+            'reason.required' => 'Please select a reason for losing interest.',
+            'reason.in' => 'The selected reason is invalid.',
+            'additional_notes.required_if' => 'Please provide additional notes when selecting "Other".',
+            'additional_notes.max' => 'Additional notes cannot exceed 500 characters.',
+        ]);
+        
+        // Build lost interest reason - if "other", combine with additional notes
+        $lostInterestReason = $validated['reason'];
+        if ($validated['reason'] === 'other' && !empty($validated['additional_notes'])) {
+            $lostInterestReason = $validated['reason'] . ': ' . $validated['additional_notes'];
+        } elseif ($validated['reason'] !== 'other') {
+            // Store just the reason code for standard reasons
+            $lostInterestReason = $validated['reason'];
+        }
+        
+        // Mark as lost interest
+        $productRequest->update([
+            'lost_interest_at' => now(),
+            'lost_interest_reason' => $lostInterestReason,
+            'customer_willing_to_buy' => false, // Reset willingness
+        ]);
+
+        return redirect()->route('user.product-requests.show', $productRequest->id)
+            ->with('info', 'You have indicated that you\'ve lost interest in this product request.');
     }
 
     /**
