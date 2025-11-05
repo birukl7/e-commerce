@@ -168,7 +168,7 @@ const SearchResults = ({
           <div className="mx-auto max-w-7xl px-4 py-6">
             <div className="flex items-center gap-3 mb-4">
               <Search className="h-6 w-6 text-gray-400" />
-              <H1 className="text-2xl font-bold text-gray-900">
+              <H1 className="text-2xl mb-0">
                 {query ? `Search Results for "${query}"` : "Search Results"}
               </H1>
             </div>

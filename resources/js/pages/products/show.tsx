@@ -80,6 +80,7 @@ interface ShowProps {
 
 
 const Show = ({ product, related_products, reviews, userHasReviewed }: ShowProps) => {
+  console.log("products images", product.images);
   return (
     <MainLayout 
       title={product?.name || 'Product'} 

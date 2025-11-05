@@ -4,6 +4,7 @@ import type React from 'react';
 
 import { ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
 import { useState } from 'react';
+import { getImageUrl } from '@/lib/image';
 
 interface ProductImage {
     id: number;
@@ -54,18 +55,9 @@ export function ProductImageGallery({ images, productName, productId, price, onA
         target.src = `/placeholder.svg?height=500&width=500&text=${encodeURIComponent(productName)}`;
     };
 
-    const handleAddToCart = async () => {
-        if (!productId || !onAddToCart) return;
+    console.log("currentImage", currentImage);
 
-        setIsAddingToCart(true);
-        try {
-            await onAddToCart(productId);
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-        } finally {
-            setIsAddingToCart(false);
-        }
-    };
+
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -79,13 +71,13 @@ export function ProductImageGallery({ images, productName, productId, price, onA
             {/* Main Image - Made smaller */}
             <div className="relative mx-auto aspect-square max-w-md overflow-hidden rounded-lg bg-gray-100">
                 <img
-                    src={currentImage.url || '/placeholder.svg'}
+                    src={getImageUrl(currentImage.url, { placeholderText: productName, width: 500, height: 500, bucket: "products" })}
                     alt={currentImage.alt_text || productName}
                     className={`h-full w-full object-cover transition-transform duration-300 ${
                         isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
                     }`}
                     onClick={() => setIsZoomed(!isZoomed)}
-                    onError={handleImageError}
+                   
                 />
 
                 {/* Zoom Icon */}

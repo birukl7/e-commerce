@@ -55,6 +55,9 @@ interface Props {
 }
 
 const Index = ({ categories = [], brands = [] }: Props) => {
+
+    console.log("categories", categories);
+    console.log("brands", brands);
     const [activeTab, setActiveTab] = useState<'categories' | 'brands'>('categories');
 
     const [dialogState, setDialogState] = useState<{
@@ -223,7 +226,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
             <div className="relative aspect-square bg-gray-100 p-4">
                 {brand.logo ? (
-                    <img src={`/image/${brand.logo}`} alt={brand.name} className="h-full w-full object-contain" />
+                    <img src={`/storage/${brand.logo}`} alt={brand.name} className="h-full w-full object-contain" />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center">
                         <ImageIcon className="h-12 w-12 text-gray-400" />
@@ -281,7 +284,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
                     <nav className="-mb-px flex space-x-8">
                         <button
                             onClick={() => setActiveTab('categories')}
-                            className={`border-b-2 px-1 py-2 text-sm font-medium ${
+                            className={`border-b-2 px-1 py-2 text-sm font-medium cursor-pointer ${
                                 activeTab === 'categories'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -291,7 +294,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
                         </button>
                         <button
                             onClick={() => setActiveTab('brands')}
-                            className={`border-b-2 px-1 py-2 text-sm font-medium ${
+                            className={`border-b-2 px-1 py-2 text-sm font-medium cursor-pointer ${
                                 activeTab === 'brands'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'

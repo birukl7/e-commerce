@@ -21,7 +21,7 @@ class AdminCategoryController extends Controller
             
         $brands = Brand::orderBy('name')->get();
 
-        return Inertia::render('admin/category/index', [
+        return Inertia::render('Admin/category/index', [
             'categories' => $categories,
             'brands' => $brands
         ]);

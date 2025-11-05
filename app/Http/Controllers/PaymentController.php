@@ -13,6 +13,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Facades\Storage;
+use App\Services\ImageUrlService;
 use App\Services\PaymentFinalizer;
 use App\Services\TaxService;
 
@@ -793,7 +794,7 @@ class PaymentController extends Controller
                 $productName = $productRequest ? $productRequest->product_name : 'Product Request';
             }
 
-            return Inertia::render('payment/chapa-method-select', [
+            return Inertia::render('Payment/chapa-method-select', [
                 'order_id' => $request->order_id,
                 'amount' => (float)$request->amount,
                 'currency' => $request->currency,
@@ -2246,7 +2247,7 @@ class PaymentController extends Controller
                     }
                 } else {
                     // Payment pending
-                    return Inertia::render('payment/payment-pending', [
+                    return Inertia::render('Payment/payment-pending', [
                         'tx_ref' => $txRef,
                         'product_request_id' => $productRequestId,
                         'payment_type' => $isAdvancePayment ? 'advance' : 'final',
@@ -2370,12 +2371,20 @@ class PaymentController extends Controller
                 }
                 
                 // Regular order payment success page
-                return Inertia::render('payment/payment-success', [
+                // Load order with user relationship
+                $order->load('user:id,name,email');
+                $orderItems = $this->getOrderItemsForDisplay($order->id);
+                
+                return Inertia::render('Payment/payment-success', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'payment_method' => 'Chapa',
                     'transaction_id' => $transaction->tx_ref,
+                    'customer_name' => $order->user->name ?? 'Customer',
+                    'customer_email' => $order->user->email ?? '',
+                    'order_items' => $orderItems,
+                    'pending_payment_approval' => $transaction->admin_status === 'pending',
                     'is_advance_payment' => false,
                     'product_request_id' => null,
                     'payment_type' => 'regular',
@@ -2390,12 +2399,11 @@ class PaymentController extends Controller
                     'message' => 'Payment is still being processed by Chapa'
                 ]);
                 
-                return Inertia::render('payment/payment-pending', [
+                return Inertia::render('Payment/payment-pending', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'transaction_id' => $transaction->tx_ref,
-                    'message' => 'Your payment is being processed. Please wait a moment and refresh this page to check the status.',
                     'check_again_url' => route('payment.return', ['tx_ref' => $txRef]),
                 ]);
             } else {
@@ -2497,7 +2505,7 @@ class PaymentController extends Controller
             $currency = $request->get('currency', 'ETB');
             $paymentMethod = $request->get('payment_method', 'Online Payment');
 
-            return Inertia::render('payment/payment-success', [
+            return Inertia::render('Payment/payment-success', [
                 'order_id' => $orderId,
                 'amount' => floatval($amount),
                 'currency' => $currency,
@@ -2576,7 +2584,7 @@ class PaymentController extends Controller
                         'name' => $item->name,
                         'quantity' => $item->quantity,
                         'price' => (float) $item->price,
-                        'image' => $item->image ? asset('storage/' . $item->image) : null,
+                        'image' => ImageUrlService::formatImageUrl($item->image),
                     ];
                 })
                 ->toArray();

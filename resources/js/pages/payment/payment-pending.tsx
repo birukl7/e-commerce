@@ -161,20 +161,12 @@ export default function PaymentPending({
                                 </div>
                             </div>
 
-                            {/* Status Message */}
-                            <Alert>
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>
-                                    {message}
-                                </AlertDescription>
-                            </Alert>
+                      
 
                             {/* Auto-check Status */}
                             {autoCheckInterval && (
                                 <div className="text-center">
-                                    <p className="text-sm text-gray-600 mb-2">
-                                        Automatically checking status... ({checkCount}/12)
-                                    </p>
+                                    
                                     <Button 
                                         variant="outline" 
                                         size="sm" 
@@ -214,19 +206,6 @@ export default function PaymentPending({
                                         Go to Dashboard
                                     </Link>
                                 </div>
-                            </div>
-
-                            {/* Help Information */}
-                            <div className="bg-blue-50 rounded-lg p-4">
-                                <h4 className="text-sm font-medium text-blue-900 mb-2">
-                                    What happens next?
-                                </h4>
-                                <ul className="text-xs text-blue-800 space-y-1">
-                                    <li>• We're verifying your payment with the bank</li>
-                                    <li>• This usually takes 1-2 minutes</li>
-                                    <li>• You'll be redirected automatically when confirmed</li>
-                                    <li>• Check your email for payment confirmation</li>
-                                </ul>
                             </div>
 
                             {/* Support Information */}

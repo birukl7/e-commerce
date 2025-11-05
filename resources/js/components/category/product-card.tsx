@@ -41,10 +41,6 @@ const formatETB = (amount: number) => {
 
 export function ProductCard({ product, index }: ProductCardProps) {
 
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const target = e.currentTarget
-    target.src = `/placeholder.svg?height=300&width=300&text=Product`
-  }
 
   const isOnSale = product.sale_price && product.sale_price < product.price
   const isOutOfStock = product.stock_status === "out_of_stock"
@@ -114,10 +110,12 @@ export function ProductCard({ product, index }: ProductCardProps) {
           {/* Stock Status */}
           <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1 text-xs text-gray-500">
-              <div className="flex items-center">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-3 w-3 fill-gray-300 text-gray-300" />
-                ))}
+              <div className="flex items-center flex-col justify-start">
+                <div className="flex items-center justify-start">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="h-3 w-3 fill-gray-300 text-gray-300" />
+                  ))}
+                </div>
                 <span className="ml-1">No reviews yet</span>
               </div>
             </div>

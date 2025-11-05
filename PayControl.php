@@ -305,7 +305,7 @@ class PaymentController extends Controller
                         $orderItems = $this->getOrderItemsForDisplay($orderId);
                     }
 
-                    return Inertia::render('payment/payment-success', [
+                    return Inertia::render('Payment/payment-success', [
                         'order_id' => $orderId ?? 'N/A',
                         'transaction_id' => $data['id'] ?? $txRef,
                         'amount' => floatval($data['amount'] ?? 0),

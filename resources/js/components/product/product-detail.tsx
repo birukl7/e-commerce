@@ -316,7 +316,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                         </div>
                     </div>
                     <div className="flex gap-4">
-                        <Button onClick={handleAddToCart} className="flex-1 rounded-md px-6 py-3 font-medium text-white transition-colors">
+                        <Button onClick={handleAddToCart} className="flex-1 rounded-md px-6 py-3 font-medium text-white transition-colors max-w-[300px]">
                             Add to Cart
                         </Button>
                         <Button
@@ -335,19 +335,6 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                 </div>
             )}
 
-            {/* Features */}
-            <div className="border-t pt-6">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <Shield className="h-5 w-5 text-green-600" />
-                        <span>1 year warranty</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-gray-600">
-                        <RotateCcw className="h-5 w-5 text-primary-600" />
-                        <span>30-day returns</span>
-                    </div>
-                </div>
-            </div>
 
             {/* Product Details */}
             <div className="border-t pt-6">

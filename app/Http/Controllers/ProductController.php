@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use App\Models\Review;
+use App\Services\ImageUrlService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -272,17 +273,17 @@ class ProductController extends Controller
                 'images' => $product->images->map(function ($image) {
                     return [
                         'id' => $image->id,
-                        'url' => asset('image/' . $image->image_path),
+                        'url' => ImageUrlService::formatImageUrl($image->image_path),
                         'alt_text' => $image->alt_text,
                         'is_primary' => $image->is_primary,
                         'sort_order' => $image->sort_order,
                     ];
                 }),
                 'primary_image' => $product->images->where('is_primary', true)->first() 
-                    ? asset('image' . $product->images->where('is_primary', true)->first()->image_path)
+                    ? ImageUrlService::formatImageUrl($product->images->where('is_primary', true)->first()->image_path)
                     : ($product->images->first() 
-                        ? asset('image' . $product->images->first()->image_path)
-                        : asset('image/placeholder.jpg')),
+                        ? ImageUrlService::formatImageUrl($product->images->first()->image_path)
+                        : ImageUrlService::formatImageUrl('image/placeholder.jpg')),
                 'category' => [
                     'id' => $product->category->id,
                     'name' => $product->category->name,

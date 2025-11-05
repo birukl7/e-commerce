@@ -2,10 +2,12 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import H1 from '@/components/ui/h1';
 import MainLayout from '@/layouts/app/main-layout';
 import { Link } from '@inertiajs/react';
-import { ArrowRight, CheckCircle, Download, Package } from 'lucide-react';
-import { useEffect } from 'react';
+import { ArrowRight, CheckCircle, Download, Package, Mail, Truck, Clock, Sparkles, BrickWallIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import ProductImages, { ProductItem } from '@/components/ProductImages';
 
 interface PaymentSuccessProps {
     order_id: string;
@@ -15,13 +17,7 @@ interface PaymentSuccessProps {
     payment_method: string;
     customer_name: string;
     customer_email: string;
-    order_items?: Array<{
-        id: number;
-        name: string;
-        quantity: number;
-        price: number;
-        image?: string;
-    }>;
+    order_items?: ProductItem[];
     pending_payment_approval?: boolean;
     // Advance payment context
     payment_type?: string;
@@ -44,6 +40,8 @@ function PaymentSuccessContent({
     is_advance_payment = false,
 }: PaymentSuccessProps) {
     // Clear cart when payment is successful
+
+    console.log("order_items", order_items);
     useEffect(() => {
         // Clear cart from localStorage directly since this is a standalone page
         if (typeof window !== 'undefined') {
@@ -67,6 +65,15 @@ function PaymentSuccessContent({
             minute: '2-digit',
         }).format(date);
     };
+
+    // Celebration animation state
+    const [showCelebration, setShowCelebration] = useState(true);
+
+    useEffect(() => {
+        // Hide celebration after animation
+        const timer = setTimeout(() => setShowCelebration(false), 2000);
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleDownloadReceipt = () => {
         // Create receipt content
@@ -105,173 +112,228 @@ Thank you for your purchase!
     };
 
     return (
-        <MainLayout title="Payment Successful - ShopHub">
-            <div className="py-12">
-                {/* Success Header */}
-                <div className="mb-8 text-center">
-                    <div className="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-                        <CheckCircle className="h-8 w-8 text-green-600" />
-                    </div>
-                    <h1 className="mb-2 text-3xl font-bold text-gray-900">Payment Successful!</h1>
-                    <p className="text-lg text-gray-600">Thank you for your purchase, {customer_name}</p>
-                    {pending_payment_approval && (
-                        <div className="mx-auto mt-4 max-w-2xl rounded-md border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800">
-                            Payment received and verified by the gateway. Your order will proceed after an admin reviews and approves the payment.
+        <MainLayout title="Payment Successful - ShopHub" >
+            <div className="min-h-screen ">
+
+                {/* Success Header with Gradient */}
+                <div className="mb-12 text-center relative">
+                    <div className="relative inline-block">
+                        {/* Animated Success Icon */}
+                        <div className="relative mb-6">
+                            <div className="relative inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600 shadow-lg shadow-green-200">
+                                <CheckCircle className="h-12 w-12 text-white" />
+                            </div>
                         </div>
-                    )}
+                        
+                        <H1 className="">
+                            Payment Successful!
+                        </H1>
+                        <p className="text-xl text-gray-700 mb-2">
+                            Thank you for your purchase, <span className="font-semibold text-gray-900">{customer_name}</span>
+                        </p>
+                        <p className="text-sm text-gray-500">
+                            Order #{order_id}
+                        </p>
+                        
+                        {pending_payment_approval && (
+                            <div className="mx-auto mt-6 max-w-2xl rounded-lg border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 p-4 shadow-md">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="h-5 w-5 text-yellow-600" />
+                                    <p className="text-sm font-medium text-yellow-800">
+                                        Payment received and verified by the gateway. Your order will proceed after an admin reviews and approves the payment.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-                    {/* Order Details */}
-                    <div className="space-y-6 lg:col-span-2">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Package className="h-5 w-5" />
-                                    Order Details
-                                </CardTitle>
-                                <CardDescription>
-                                    {pending_payment_approval
-                                        ? 'Your payment was received and is awaiting admin approval.'
-                                        : 'Your order has been confirmed and is being processed.'}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <p className="text-gray-600">Order ID</p>
-                                        <p className="font-mono font-semibold">{order_id}</p>
+                <div className="container mx-auto px-4">
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                        {/* Order Details */}
+                        <div className="space-y-6 lg:col-span-2">
+                            <Card className="border-2 border-green-100 shadow-xl bg-white/80 backdrop-blur-sm">
+                                <CardHeader className="bg-gradient-to-r from-green-50 to-blue-50 border-b">
+                                    <CardTitle className="flex items-center gap-3 text-2xl">
+                                        <div className="p-2 rounded-lg bg-green-100">
+                                            <Package className="h-6 w-6 text-green-600" />
+                                        </div>
+                                        Order Details
+                                    </CardTitle>
+                                    <CardDescription className="text-base mt-2">
+                                        {pending_payment_approval
+                                            ? 'Your payment was received and is awaiting admin approval.'
+                                            : 'Your order has been confirmed and is being processed.'}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-6 space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                                            <p className="text-sm font-medium text-gray-500 mb-1">Order ID</p>
+                                            <p className="font-mono font-bold text-gray-900 text-lg">{order_id}</p>
+                                        </div>
+                                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                                            <p className="text-sm font-medium text-gray-500 mb-1">Transaction ID</p>
+                                            <p className="font-mono font-bold text-gray-900 text-lg break-all">{transaction_id}</p>
+                                        </div>
+                                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                                            <p className="text-sm font-medium text-gray-500 mb-1">Payment Method</p>
+                                            <p className="font-semibold text-gray-900 capitalize text-lg">{payment_method}</p>
+                                        </div>
+                                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                                            <p className="text-sm font-medium text-gray-500 mb-1">Order Date</p>
+                                            <p className="font-semibold text-gray-900 text-lg">{formatDate()}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-gray-600">Transaction ID</p>
-                                        <p className="font-mono font-semibold">{transaction_id}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-600">Payment Method</p>
-                                        <p className="font-semibold capitalize">{payment_method}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-gray-600">Order Date</p>
-                                        <p className="font-semibold">{formatDate()}</p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
 
-                        {/* Next Steps */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>What's Next?</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <div className="space-y-4">
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                                            1
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold">Order Confirmation</h4>
-                                            <p className="text-sm text-gray-600">We've sent a confirmation email to {customer_email}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                                            2
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold">Processing</h4>
-                                            <p className="text-sm text-gray-600">Your order is being prepared for shipment</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-start gap-3">
-                                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-300 text-sm font-bold text-gray-600">
-                                            3
-                                        </div>
-                                        <div>
-                                            <h4 className="font-semibold text-gray-600">Shipping</h4>
-                                            <p className="text-sm text-gray-600">You'll receive tracking information once shipped</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
+                            {/* Product Images */}
+                            {order_items && order_items.length > 0 && (
+                                <ProductImages
+                                    items={order_items}
+                                    title="Ordered Products"
+                                    showQuantity={true}
+                                    showPrice={true}
+                                />
+                            )}
 
-                    {/* Payment Summary */}
-                    <div className="lg:col-span-1">
-                        <Card className="sticky top-4">
-                            <CardHeader>
-                                <CardTitle>Payment Summary</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between">
-                                        <span>Total Paid</span>
-                                        <span className="text-lg font-bold text-green-600">{formatPrice(amount)}</span>
+                            {/* Next Steps */}
+                            <Card className="border-2 border-blue-100 shadow-xl bg-gradient-to-br from-blue-50 to-indigo-50">
+                                <CardHeader>
+                                    <CardTitle className="text-2xl flex items-center gap-2">
+                                        <Sparkles className="h-6 w-6 text-blue-600" />
+                                        What's Next?
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="space-y-6">
+                                        <div className="flex items-start gap-4 p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-blue-200">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600 text-white font-bold shadow-md flex-shrink-0">
+                                                1
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Mail className="h-4 w-4 text-blue-600" />
+                                                    <h4 className="font-bold text-gray-900">Order Confirmation</h4>
+                                                </div>
+                                                <p className="text-sm text-gray-700">We've sent a confirmation email to <span className="font-semibold">{customer_email}</span></p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4 p-4 rounded-lg bg-white/60 backdrop-blur-sm border border-blue-200">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600 text-white font-bold shadow-md flex-shrink-0">
+                                                2
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    <h4 className="font-bold text-gray-900">Processing</h4>
+                                                </div>
+                                                <p className="text-sm text-gray-700">Your order is being prepared for shipment</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start gap-4 p-4 rounded-lg bg-white/40 backdrop-blur-sm border border-gray-200">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-white font-bold shadow-md flex-shrink-0">
+                                                3
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Truck className="h-4 w-4 text-gray-600" />
+                                                    <h4 className="font-bold text-gray-600">Shipping</h4>
+                                                </div>
+                                                <p className="text-sm text-gray-600">You'll receive tracking information once shipped</p>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between text-sm text-gray-600">
-                                        <span>Payment Method</span>
-                                        <span className="capitalize">{payment_method}</span>
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* Payment Summary */}
+                        <div className="lg:col-span-1">
+                            <Card className="sticky top-4 border-2 border-green-200 shadow-2xl bg-gradient-to-br from-white to-green-50">
+                                <CardHeader >
+                                    <CardTitle className="text-2xl flex items-center justify-between">
+                                        <span>Payment Summary</span>
+                                        <BrickWallIcon className="h-6 w-6" />
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="p-4 rounded-lg bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200">
+                                            <p className="text-sm font-medium text-gray-600 mb-2">Total Paid</p>
+                                            <p className="text-3xl font-bold text-green-600">{formatPrice(amount)}</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50">
+                                                <span className="text-sm font-medium text-gray-600">Payment Method</span>
+                                                <span className="font-semibold capitalize text-gray-900">{payment_method}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 rounded-lg bg-gray-50">
+                                                <span className="text-sm font-medium text-gray-600">Status</span>
+                                                {pending_payment_approval ? (
+                                                    <span className="px-3 py-1 rounded-full bg-yellow-100 text-yellow-800 font-semibold text-sm">
+                                                        Pending Approval
+                                                    </span>
+                                                ) : (
+                                                    <span className="px-3 py-1 rounded-full bg-green-100 text-green-800 font-semibold text-sm">
+                                                        Completed
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex justify-between text-sm text-gray-600">
-                                        <span>Status</span>
-                                        {pending_payment_approval ? (
-                                            <span className="font-semibold text-yellow-600">Pending Admin Approval</span>
+
+                                    <div className="space-y-3 border-t-2 border-gray-200 pt-6">
+                                        {is_advance_payment ? (
+                                            // Advance payment navigation
+                                            <>
+                                                <Button className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg transition-all duration-200" size="lg" asChild>
+                                                    <Link href={route('user.product-requests.show', product_request_id)}>
+                                                        <Package className="mr-2 h-5 w-5" />
+                                                        Back to Product Request
+                                                    </Link>
+                                                </Button>
+
+                                                <Button variant="outline" className="w-full border-2 hover:bg-green-50 transition-all duration-200" size="lg" onClick={handleDownloadReceipt}>
+                                                    <Download className="mr-2 h-5 w-5" />
+                                                    Download Receipt
+                                                </Button>
+
+                                                <Button variant="ghost" className="w-full hover:bg-gray-100 transition-all duration-200" asChild>
+                                                    <Link href={route('request.index')}>
+                                                        View All Requests
+                                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                            </>
                                         ) : (
-                                            <span className="font-semibold text-green-600">Completed</span>
+                                            // Regular order navigation
+                                            <>
+                                                <Button className="w-full  text-white shadow-lg transition-all duration-200" size="lg" asChild>
+                                                    <Link href={route('user.orders.show', order_id)}>
+                                                        <Package className="mr-2 h-5 w-5" />
+                                                        View Order Details
+                                                    </Link>
+                                                </Button>
+
+                                                <Button variant="outline" className="w-full border-2 hover:bg-green-50 transition-all duration-200" size="lg" onClick={handleDownloadReceipt}>
+                                                    <Download className="mr-2 h-5 w-5" />
+                                                    Download Receipt
+                                                </Button>
+
+                                                <Button variant="ghost" className="w-full hover:bg-gray-100 transition-all duration-200" asChild>
+                                                    <Link href={route('home')}>
+                                                        Continue Shopping
+                                                        <ArrowRight className="ml-2 h-4 w-4" />
+                                                    </Link>
+                                                </Button>
+                                            </>
                                         )}
                                     </div>
-                                </div>
-
-                                <div className="space-y-3 border-t pt-4">
-                                    {is_advance_payment ? (
-                                        // Advance payment navigation
-                                        <>
-                                            <Button className="w-full" asChild>
-                                                <Link href={route('user.product-requests.show', product_request_id)}>
-                                                    <Package className="mr-2 h-4 w-4" />
-                                                    Back to Product Request
-                                                </Link>
-                                            </Button>
-
-                                            <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download Receipt
-                                            </Button>
-
-                                            <Button variant="ghost" className="w-full" asChild>
-                                                <Link href={route('request.index')}>
-                                                    View All Requests
-                                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        // Regular order navigation
-                                        <>
-                                            <Button className="w-full" asChild>
-                                                <Link href={route('user.orders.show', order_id)}>
-                                                    <Package className="mr-2 h-4 w-4" />
-                                                    View Order Details
-                                                </Link>
-                                            </Button>
-
-                                            <Button variant="outline" className="w-full bg-transparent" onClick={handleDownloadReceipt}>
-                                                <Download className="mr-2 h-4 w-4" />
-                                                Download Receipt
-                                            </Button>
-
-                                            <Button variant="ghost" className="w-full" asChild>
-                                                <Link href={route('home')}>
-                                                    Continue Shopping
-                                                    <ArrowRight className="ml-2 h-4 w-4" />
-                                                </Link>
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                 </div>
             </div>

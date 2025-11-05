@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 type H1Props = {
   children: ReactNode; // Any valid React children
@@ -6,7 +7,7 @@ type H1Props = {
 };
 
 const H1: React.FC<H1Props> = ({ children, className }) => {
-  return <h1 className={'text-[26px] font-bold text-gray-900 mb-8 ' + className}>{children}</h1>;
+  return <h1 className={cn('text-[26px] font-bold text-gray-900 mb-8', className)}>{children}</h1>;
 };
 
 export default H1;

@@ -98,6 +98,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm sm:text-base text-gray-900 truncate pr-2">{item.name}</h3>
                         <p className="text-xs sm:text-sm text-gray-600 mt-1">{formatPrice(item.price)}</p>
+                        {item.manageStock && (
+                            <div className={`text-xs mt-1 ${
+                              item.stockStatus === 'out_of_stock' ? 'text-red-600' : 
+                              item.stockStatus === 'low_stock' ? 'text-amber-600' : 'text-green-600'
+                            }`}>
+                              {getStockStatusText(item)}
+                            </div>
+                          )}
 
                         {/* Quantity Controls and Remove Button */}
                         <div className="flex items-center justify-between mt-3 gap-2">
@@ -123,14 +131,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               <Plus className="h-3 w-3" />
                             </Button>
                           </div>
-                          {item.manageStock && (
-                            <div className={`text-xs mt-1 ${
-                              item.stockStatus === 'out_of_stock' ? 'text-red-600' : 
-                              item.stockStatus === 'low_stock' ? 'text-amber-600' : 'text-green-600'
-                            }`}>
-                              {getStockStatusText(item)}
-                            </div>
-                          )}
+
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-sm whitespace-nowrap">
                               {formatPrice(item.price * item.quantity)}
