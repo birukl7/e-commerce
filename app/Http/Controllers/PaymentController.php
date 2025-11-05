@@ -174,7 +174,7 @@ class PaymentController extends Controller
                         'has_tax' => $taxCalculation !== null
                     ]);
 
-                    return Inertia::render('payment/payment-process', [
+                    return Inertia::render('Payment/payment-process', [
                         'order_id' => $orderId,
                         'total_amount' => floatval($amount),
                         'subtotal' => $subtotal,

@@ -5,6 +5,8 @@ import { Link, usePage } from '@inertiajs/react';
 import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
+import TaxInfoDialog from '@/components/TaxInfoDialog';
+import H1 from '@/components/ui/h1';
 
 type TaxSetting = {
     id: number;
@@ -18,6 +20,7 @@ type TaxSetting = {
 function CheckoutContent() {
     const { items, getTotalPrice, removeFromCart, updateQuantity, clearCart, getTotalItems } = useCart();
     const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+    const [showTaxInfoDialog, setShowTaxInfoDialog] = useState(false);
     const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
 
     const subtotal = getTotalPrice();
@@ -93,7 +96,7 @@ function CheckoutContent() {
     return (
         <div className="py-8">
             <div className="container mx-auto px-4 md:px-6">
-                <h1 className="mb-8 text-center text-2xl font-bold md:text-3xl">Checkout</h1>
+                <H1 className="mb-8 text-center text-2xl font-bold md:text-3xl">Checkout</H1>
 
                 {items.length === 0 ? (
                     <div className="flex h-[50vh] flex-col items-center justify-center text-gray-500">
@@ -131,7 +134,7 @@ function CheckoutContent() {
                                                     <div className="flex items-center rounded-md border border-gray-300">
                                                         <Button
                                                             variant="outline"
-                                                            size="icon"
+                                                            size="sm"
                                                             className="h-8 w-8 bg-transparent"
                                                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
                                                         >
@@ -140,7 +143,7 @@ function CheckoutContent() {
                                                         <span className="px-3 text-base font-medium">{item.quantity}</span>
                                                         <Button
                                                             variant="outline"
-                                                            size="icon"
+                                                            size="sm"
                                                             className="h-8 w-8 bg-transparent"
                                                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                                         >
@@ -152,8 +155,8 @@ function CheckoutContent() {
                                                             {formatPrice(item.price * item.quantity)}
                                                         </span>
                                                         <Button
-                                                            variant="ghost"
-                                                            size="icon"
+                                                            variant="outline"
+                                                            size="sm"
                                                             className="text-red-500 hover:text-red-700"
                                                             onClick={() => removeFromCart(item.id)}
                                                         >
@@ -240,16 +243,29 @@ function CheckoutContent() {
                                 </div>
                             )}
 
-                            {/* How tax is calculated - link */}
+                            {/* How tax is calculated - dialog trigger */}
                             {activeTaxes && activeTaxes.length > 0 && (
                                 <div className="mt-4 text-xs text-gray-500">
-                                    <Link className="underline hover:text-gray-700" href={route('tax.info')}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowTaxInfoDialog(true)}
+                                        className="underline hover:text-gray-700 cursor-pointer"
+                                    >
                                         How we calculate tax
-                                    </Link>
+                                    </button>
                                 </div>
                             )}
                         </div>
                     </div>
+                )}
+
+                {/* Tax Info Dialog */}
+                {activeTaxes && activeTaxes.length > 0 && (
+                    <TaxInfoDialog
+                        isOpen={showTaxInfoDialog}
+                        onClose={() => setShowTaxInfoDialog(false)}
+                        activeTaxes={activeTaxes}
+                    />
                 )}
             </div>
         </div>
