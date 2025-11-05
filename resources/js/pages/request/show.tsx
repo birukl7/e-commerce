@@ -455,7 +455,7 @@ export default function RequestShow({ request }: Props) {
                           </div>
                           <Button
                             className="w-full bg-orange-600 hover:bg-orange-700"
-                            onClick={() => window.location.href = route('user.product-requests.show', request.id)}
+                            onClick={() => window.location.href = route('product-requests.advance-payment.show', request.id)}
                           >
                             Pay Advance Amount
                           </Button>
@@ -617,7 +617,7 @@ export default function RequestShow({ request }: Props) {
                 </div>
                 <Button
                           className={`w-full ${request.product_arrived_at ? 'bg-green-600 hover:bg-green-700 text-lg py-6 font-semibold' : ''}`}
-                          onClick={() => window.location.href = route('user.product-requests.show', request.id)}
+                          onClick={() => window.location.href = route('product-requests.final-payment.show', request.id)}
                 >
                           {request.product_arrived_at ? 'Pay Final Amount Now' : 'Pay Final Amount'}
                 </Button>

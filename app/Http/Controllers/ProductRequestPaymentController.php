@@ -359,7 +359,7 @@ class ProductRequestPaymentController extends Controller
     }
 
     /**
-     * Show final payment form
+     * Show final payment method selection page
      */
     public function showFinalPayment(ProductRequest $productRequest)
     {
@@ -373,14 +373,22 @@ class ProductRequestPaymentController extends Controller
                 ->with('error', 'Final payment is not required for this request.');
         }
 
-        // Use unified payment system with final payment parameters
-        return redirect()->route('payment.show', [
+        // Calculate tax for final payment
+        $taxService = app(\App\Services\TaxService::class);
+        $finalSubtotal = (float) $productRequest->final_amount;
+        $finalTaxCalculation = $taxService->calculateTaxes($finalSubtotal);
+        $finalTotalWithTax = $finalTaxCalculation['total'];
+
+        return Inertia::render('payment/final-payment-method', [
             'order_id' => 'FINAL-' . $productRequest->id . '-' . time(),
-            'amount' => $productRequest->final_amount,
+            'amount' => $finalTotalWithTax, // Amount including tax
+            'subtotal' => $finalSubtotal,
+            'tax_amount' => $finalTaxCalculation['total_tax_amount'],
+            'tax_breakdown' => $finalTaxCalculation['taxes'],
             'currency' => $productRequest->currency,
-            'payment_type' => 'product_request_final',
-            'product_request_id' => $productRequest->id,
+            'product_name' => $productRequest->product_name,
             'description' => 'Final Payment for: ' . $productRequest->product_name,
+            'product_request_id' => $productRequest->id,
         ]);
     }
 
