@@ -242,6 +242,8 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
         ->name('admin.product-requests.start-procurement');
     Route::post('admin/product-requests/{productRequest}/complete-procurement', [AdminProductRequestController::class, 'completeProcurement'])
         ->name('admin.product-requests.complete-procurement');
+    Route::post('admin/product-requests/{productRequest}/mark-arrived', [AdminProductRequestController::class, 'markProductArrived'])
+        ->name('admin.product-requests.mark-arrived');
     
     Route::get('/site-config', [AdminSiteConfigController::class, 'index'])->name('admin.site-config.index');
     Route::post('/site-config', [AdminSiteConfigController::class, 'update'])->name('admin.site-config.update');

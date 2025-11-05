@@ -160,6 +160,7 @@ class RequestController extends Controller
                 'procurement_completed_at' => $productRequest->procurement_completed_at,
                 'procurement_notes' => $productRequest->procurement_notes,
                 'product_arrived_at' => $productRequest->product_arrived_at,
+                'arrival_notes' => $productRequest->arrival_notes,
                 'estimated_arrival_date' => $productRequest->estimated_arrival_date,
                 'lost_interest_at' => $productRequest->lost_interest_at,
                 'lost_interest_reason' => $productRequest->lost_interest_reason,

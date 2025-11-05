@@ -55,6 +55,7 @@ interface ProductRequest {
   procurement_completed_at?: string | null
   procurement_notes?: string | null
   product_arrived_at?: string | null
+  arrival_notes?: string | null
   workflow_status?: string
   requires_advance_payment?: boolean
   requires_final_payment?: boolean
@@ -550,15 +551,40 @@ export default function RequestShow({ request }: Props) {
                   </Card>
                 )}
 
+                {/* Product Arrived Banner - Prominent Display */}
+                {request.product_arrived_at && (
+                  <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-6 shadow-lg border-2 border-green-400 animate-pulse">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CheckCircle className="h-8 w-8" />
+                      <h3 className="text-2xl font-bold">Product Has Arrived!</h3>
+                    </div>
+                    <p className="text-green-50 mb-1">
+                      Your product has arrived at our facility on <span className="font-semibold">{formatDate(request.product_arrived_at)}</span>
+                    </p>
+                    {request.arrival_notes && (
+                      <div className="bg-green-600/50 rounded-lg p-3 mb-2 border border-green-400/30">
+                        <p className="text-green-50 text-sm font-medium mb-1">Admin Note:</p>
+                        <p className="text-green-100 text-sm">{request.arrival_notes}</p>
+                      </div>
+                    )}
+                    <p className="text-green-100 text-sm">
+                      You can now proceed to pay the final amount to complete your order and proceed with delivery.
+                    </p>
+                  </div>
+                )}
+
                 {/* Final Payment Section - Only show after product arrived */}
                 {request.final_amount && request.requires_final_payment && request.product_arrived_at && (
-                  <Card>
+                  <Card className={request.product_arrived_at ? "border-2 border-green-500 shadow-lg" : ""}>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Truck className="h-5 w-5" />
                         Pay Remaining Amount
                         {request.final_payment_status === 'paid' && (
                           <Badge variant="default" className="ml-2">Paid</Badge>
+                        )}
+                        {request.product_arrived_at && request.final_payment_status !== 'paid' && (
+                          <Badge variant="default" className="ml-2 bg-green-600">Product Arrived - Ready for Payment</Badge>
                         )}
                       </CardTitle>
                     </CardHeader>
@@ -590,10 +616,10 @@ export default function RequestShow({ request }: Props) {
                           )}
                 </div>
                 <Button
-                          className="w-full"
+                          className={`w-full ${request.product_arrived_at ? 'bg-green-600 hover:bg-green-700 text-lg py-6 font-semibold' : ''}`}
                           onClick={() => window.location.href = route('user.product-requests.show', request.id)}
                 >
-                          Pay Final Amount
+                          {request.product_arrived_at ? 'Pay Final Amount Now' : 'Pay Final Amount'}
                 </Button>
                       </div>
                     </CardContent>

@@ -167,18 +167,80 @@ class AdminProductRequestController extends Controller
         }
 
         $productRequest->completeProcurement($validated['procurement_notes'] ?? null);
-        $productRequest->markProductArrived();
+        
+        // Check if product was already marked as arrived before marking
+        $wasAlreadyArrived = $productRequest->product_arrived_at !== null;
+        
+        // Only mark as arrived if not already marked (preserve existing arrival date and notes)
+        if (!$wasAlreadyArrived) {
+            $productRequest->markProductArrived();
+            $productRequest->refresh(); // Refresh to get updated arrival status
+            
+            // Send notification to customer only if product wasn't already marked as arrived
+            $productRequest->user->notify(new ProductRequestStatusUpdated(
+                $productRequest,
+                'Your product has arrived! Please complete the final payment to proceed with delivery. You can now pay the remaining amount.',
+                'Product Arrived - Payment Required',
+                route('user.product-requests.show', $productRequest->id)
+            ));
+        }
+
+        $successMessage = $wasAlreadyArrived 
+            ? 'Procurement completed successfully.'
+            : 'Procurement completed and product marked as arrived. Customer has been notified to pay the remaining amount.';
+
+        return redirect()->route('admin.product-requests.show', $productRequest->id)
+                         ->with('success', $successMessage);
+    }
+
+    /**
+     * Mark product as arrived (independent of procurement completion).
+     */
+    public function markProductArrived(Request $request, ProductRequest $productRequest)
+    {
+        $validated = $request->validate([
+            'arrival_notes' => ['nullable', 'string', 'max:5000'],
+            'arrival_date' => ['nullable', 'date'], // Optional - defaults to now() if not provided
+        ]);
+
+        // Refresh to get latest status
+        $productRequest->refresh();
+
+        // Prevent workflow updates if request is terminated
+        if ($productRequest->isTerminated()) {
+            return back()->withErrors(['error' => 'Cannot mark product as arrived: Product request is terminated (rejected or customer lost interest).'])->withInput();
+        }
+
+        // Validate request status
+        if ($productRequest->status !== 'approved') {
+            return back()->withErrors(['error' => 'Product request must be approved before marking as arrived.'])->withInput();
+        }
+
+        // Validate advance payment
+        if ($productRequest->advance_payment_status !== 'paid') {
+            return back()->withErrors(['error' => 'Advance payment must be paid before marking product as arrived.'])->withInput();
+        }
+
+        // Mark as arrived
+        $arrivalDate = isset($validated['arrival_date']) 
+            ? \Carbon\Carbon::parse($validated['arrival_date'])->setTime(now()->hour, now()->minute, now()->second)
+            : now();
+        
+        $productRequest->update([
+            'product_arrived_at' => $arrivalDate,
+            'arrival_notes' => $validated['arrival_notes'] ?? null,
+        ]);
 
         // Send notification to customer
         $productRequest->user->notify(new ProductRequestStatusUpdated(
             $productRequest,
-            'Your product has arrived! Please complete the final payment to proceed with delivery. You can now pay the remaining amount.',
-            'Product Arrived - Payment Required',
+            'Great news! Your product has arrived at our facility. Please complete the final payment to proceed with delivery.',
+            'Product Arrived - Final Payment Required',
             route('user.product-requests.show', $productRequest->id)
         ));
 
         return redirect()->route('admin.product-requests.show', $productRequest->id)
-                         ->with('success', 'Product marked as arrived. Customer has been notified to pay the remaining amount.');
+                         ->with('success', 'Product marked as arrived. Customer has been notified to pay the final amount.');
     }
 
     /**

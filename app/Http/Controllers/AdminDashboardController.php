@@ -179,7 +179,7 @@ class AdminDashboardController extends Controller
         ];
 
 
-        return Inertia::render('Admin/dashboard', [
+        return Inertia::render('admin/dashboard', [
             'stats' => [
                 'totalSales' => $totalSales,
                 'totalOrders' => $totalOrders,

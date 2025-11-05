@@ -175,7 +175,7 @@ class PaymentController extends Controller
                         'has_tax' => $taxCalculation !== null
                     ]);
 
-                    return Inertia::render('Payment/payment-process', [
+                    return Inertia::render('payment/payment-process', [
                         'order_id' => $orderId,
                         'total_amount' => floatval($amount),
                         'subtotal' => $subtotal,
@@ -794,7 +794,7 @@ class PaymentController extends Controller
                 $productName = $productRequest ? $productRequest->product_name : 'Product Request';
             }
 
-            return Inertia::render('Payment/chapa-method-select', [
+            return Inertia::render('payment/chapa-method-select', [
                 'order_id' => $request->order_id,
                 'amount' => (float)$request->amount,
                 'currency' => $request->currency,
@@ -2247,7 +2247,7 @@ class PaymentController extends Controller
                     }
                 } else {
                     // Payment pending
-                    return Inertia::render('Payment/payment-pending', [
+                    return Inertia::render('payment/payment-pending', [
                         'tx_ref' => $txRef,
                         'product_request_id' => $productRequestId,
                         'payment_type' => $isAdvancePayment ? 'advance' : 'final',
@@ -2375,7 +2375,7 @@ class PaymentController extends Controller
                 $order->load('user:id,name,email');
                 $orderItems = $this->getOrderItemsForDisplay($order->id);
                 
-                return Inertia::render('Payment/payment-success', [
+                return Inertia::render('payment/payment-success', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
@@ -2505,7 +2505,7 @@ class PaymentController extends Controller
             $currency = $request->get('currency', 'ETB');
             $paymentMethod = $request->get('payment_method', 'Online Payment');
 
-            return Inertia::render('Payment/payment-success', [
+            return Inertia::render('payment/payment-success', [
                 'order_id' => $orderId,
                 'amount' => floatval($amount),
                 'currency' => $currency,

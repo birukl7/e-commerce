@@ -60,6 +60,7 @@ class ProductRequest extends Model
         'procurement_expected_completion_date',
         'procurement_completed_at',
         'product_arrived_at',
+        'arrival_notes',
         'customer_willing_to_buy',
         'willingness_confirmed_at',
         'rejection_reason',

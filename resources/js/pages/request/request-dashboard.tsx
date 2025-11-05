@@ -170,7 +170,12 @@ const getWorkflowStatusDisplay = (request: ProductRequest) => {
     case 'awaiting_delivery':
       return { text: 'Awaiting Delivery', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
     case 'awaiting_final_payment':
-      return { text: 'Awaiting Final Payment', color: 'bg-amber-100 text-amber-800 border-amber-200' }
+      // Check if product has arrived for more prominent display
+      const hasArrived = request.product_arrived_at !== null && request.product_arrived_at !== undefined;
+      return { 
+        text: hasArrived ? 'Product Arrived - Pay Final Amount' : 'Awaiting Final Payment', 
+        color: hasArrived ? 'bg-green-100 text-green-800 border-green-300' : 'bg-amber-100 text-amber-800 border-amber-200' 
+      }
     case 'completed':
       return { text: 'Completed', color: 'bg-green-100 text-green-800 border-green-200' }
     default:
@@ -207,12 +212,14 @@ const getActionButton = (request: ProductRequest) => {
         href: route('user.product-requests.show', request.id),
         className: 'bg-blue-600 hover:bg-blue-700'
       }
-    case 'awaiting_final_payment':
-      return {
-        text: 'Pay Final Amount',
-        href: route('user.product-requests.show', request.id),
-        className: 'bg-amber-600 hover:bg-amber-700'
-      }
+      case 'awaiting_final_payment':
+        // Check if product has arrived to show more prominent badge
+        const hasArrived = request.product_arrived_at !== null && request.product_arrived_at !== undefined;
+        return {
+          text: hasArrived ? 'Product Arrived - Pay Final Amount' : 'Pay Final Amount',
+          href: route('user.product-requests.show', request.id),
+          className: hasArrived ? 'bg-green-600 hover:bg-green-700' : 'bg-amber-600 hover:bg-amber-700'
+        }
     case 'completed':
       return {
         text: 'View Details',
