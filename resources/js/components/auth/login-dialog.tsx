@@ -99,7 +99,7 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <DialogTitle>Sign in</DialogTitle>
-              <DialogDescription>Use your email to access ShopHub.</DialogDescription>
+              <DialogDescription>Use your email to access Serdo.</DialogDescription>
             </div>
             <button
               type="button"

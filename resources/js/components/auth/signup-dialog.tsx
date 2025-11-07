@@ -110,7 +110,7 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
         <DialogClose className="absolute right-4 top-4" />
         <DialogHeader>
           <DialogTitle>Create an account</DialogTitle>
-          <DialogDescription>Sign up to unlock personalised shopping on ShopHub.</DialogDescription>
+          <DialogDescription>Sign up to unlock personalised shopping on Serdo.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
