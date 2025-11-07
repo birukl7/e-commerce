@@ -38,9 +38,10 @@ import { CategoryDropdownContent as CategoryDropdown } from "./ui/drop-down-menu
 import { cn } from "@/lib/utils"
 import { LoginDialog } from "./auth/login-dialog"
 import { SignupDialog } from "./auth/signup-dialog"
+import { ChooseRoleDialog } from "./auth/choose-role-dialog"
 
 const Header = () => {
-  const { auth } = usePage<SharedData>().props
+  const { auth, shouldChooseRole = false } = usePage<SharedData>().props
   const { getTotalItems, isCartDrawerOpen, openCartDrawer, closeCartDrawer } = useCart()
   const cartButtonRef = useRef<HTMLButtonElement>(null)
   const headerRef = useRef<HTMLElement>(null)
@@ -82,9 +83,16 @@ const Header = () => {
     setIsMobileMenuOpen(false)
   }
 
+  useEffect(() => {
+    if (shouldChooseRole) {
+      window.dispatchEvent(new Event("auth:choose-role"))
+    }
+  }, [shouldChooseRole])
+
   return (
     <>
       <SignupDialog listenForOpenEvent />
+      <ChooseRoleDialog listenForOpenEvent />
       <header
         ref={headerRef}
         className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60"

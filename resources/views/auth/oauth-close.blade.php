@@ -54,12 +54,17 @@
         <a href="{{ $redirectUrl }}" target="_self">Continue</a>
     </div>
 
+    @php(
+        $oauthPayload = [
+            'type' => 'oauth-success',
+            'redirectUrl' => $redirectUrl,
+            'next' => $next ?? null,
+        ]
+    )
+
     <script>
         (function() {
-            const message = {
-                type: 'oauth-success',
-                redirectUrl: @json($redirectUrl),
-            };
+            const message = <?php echo json_encode($oauthPayload); ?>;
 
             if (window.opener && !window.opener.closed) {
                 try {

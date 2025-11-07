@@ -47,8 +47,6 @@ Route::controller(SocialiteController::class)->group(function() {
 
     Route::get('auth/google/callback', 'googleAuthentication')->name('auth.callback');
 
-    Route::get('/choose-role', [ChooseRoleController::class, 'index'])->name('choose-role.index');
-
     Route::post('/choose-role', [ChooseRoleController::class, 'store'])->name('choose-role.store');
 });
 

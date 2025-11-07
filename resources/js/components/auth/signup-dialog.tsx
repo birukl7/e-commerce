@@ -95,7 +95,8 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
 
       if (event.data?.type === "oauth-success") {
         const redirectUrl: string = event.data.redirectUrl || (route("home") as string)
-        window.location.href = redirectUrl
+        setOpen(false)
+        router.visit(redirectUrl)
       }
     }
 
@@ -103,96 +104,100 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
     return () => window.removeEventListener("message", handler)
   }, [])
 
+  const content = (
+    <DialogContent className="w-full max-w-sm p-6">
+      <DialogClose className="absolute right-4 top-4" />
+      <DialogHeader>
+        <DialogTitle>Create an account</DialogTitle>
+        <DialogDescription>Sign up to unlock personalised shopping on Serdo.</DialogDescription>
+      </DialogHeader>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <label htmlFor="dialog-signup-name" className="text-sm font-medium text-foreground">
+            First name
+          </label>
+          <Input
+            id="dialog-signup-name"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            autoComplete="name"
+            required
+            placeholder="Jane"
+            className="h-12"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="dialog-signup-email" className="text-sm font-medium text-foreground">
+            Email address
+          </label>
+          <Input
+            id="dialog-signup-email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            autoComplete="email"
+            required
+            placeholder="you@example.com"
+            className="h-12"
+          />
+        </div>
+        <div className="space-y-2">
+          <label htmlFor="dialog-signup-password" className="text-sm font-medium text-foreground">
+            Password
+          </label>
+          <Input
+            id="dialog-signup-password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            autoComplete="new-password"
+            required
+            placeholder="Create a secure password"
+            className="h-12"
+          />
+        </div>
+        <Button type="submit" className="w-full rounded-full" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Mail className="mr-2 h-4 w-4" />
+          )}
+          Continue with email
+        </Button>
+      </form>
+      <div className="relative my-4">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t" />
+        </div>
+        <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">or</span>
+      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full justify-center rounded-full"
+        onClick={handleGoogle}
+        disabled={isSubmitting}
+      >
+        <GoogleIcon className="mr-2" />
+        Continue with Google
+      </Button>
+      <DialogFooter>
+        <p className="text-center text-sm text-muted-foreground w-full">
+          By creating an account you agree to our
+          <a href={route("terms") as string} target="_blank" rel="noopener noreferrer" className="ml-1 underline">
+            Terms of Service
+          </a>
+          .
+        </p>
+      </DialogFooter>
+    </DialogContent>
+  )
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className="w-full max-w-sm p-6">
-        <DialogClose className="absolute right-4 top-4" />
-        <DialogHeader>
-          <DialogTitle>Create an account</DialogTitle>
-          <DialogDescription>Sign up to unlock personalised shopping on Serdo.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="dialog-signup-name" className="text-sm font-medium text-foreground">
-              First name
-            </label>
-            <Input
-              id="dialog-signup-name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              autoComplete="name"
-              required
-              placeholder="Jane"
-              className="h-12"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="dialog-signup-email" className="text-sm font-medium text-foreground">
-              Email address
-            </label>
-            <Input
-              id="dialog-signup-email"
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-              required
-              placeholder="you@example.com"
-              className="h-12"
-            />
-          </div>
-          <div className="space-y-2">
-            <label htmlFor="dialog-signup-password" className="text-sm font-medium text-foreground">
-              Password
-            </label>
-            <Input
-              id="dialog-signup-password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              autoComplete="new-password"
-              required
-              placeholder="Create a secure password"
-              className="h-12"
-            />
-          </div>
-          <Button type="submit" className="w-full rounded-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="mr-2 h-4 w-4" />
-            )}
-            Continue with email
-          </Button>
-        </form>
-        <div className="relative my-4">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">or</span>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-center rounded-full"
-          onClick={handleGoogle}
-          disabled={isSubmitting}
-        >
-          <GoogleIcon className="mr-2" />
-          Continue with Google
-        </Button>
-        <DialogFooter>
-          <p className="text-center text-sm text-muted-foreground w-full">
-            By creating an account you agree to our
-            <a href={route("terms") as string} target="_blank" rel="noopener noreferrer" className="ml-1 underline">
-              Terms of Service
-            </a>
-            .
-          </p>
-        </DialogFooter>
-      </DialogContent>
+      {content}
     </Dialog>
   )
 }

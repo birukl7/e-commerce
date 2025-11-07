@@ -63,7 +63,8 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
 
       if (event.data?.type === "oauth-success") {
         const redirectUrl: string = event.data.redirectUrl || (route("home") as string)
-        window.location.href = redirectUrl
+        setOpen(false)
+        router.visit(redirectUrl)
       }
     }
 

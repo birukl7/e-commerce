@@ -126,6 +126,7 @@ class RegisteredUserController extends Controller
             
             // Log in the user
             Auth::login($user);
+            $request->session()->flash('choose_role_pending', true);
             
             // Debug logging
             Log::info('User registered and logged in, redirecting to homepage', [

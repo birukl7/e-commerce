@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Str;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -88,7 +89,14 @@ class AuthenticatedSessionController extends Controller
             return redirect()->to($intended);
         }
 
-        // For regular users, always redirect to homepage
+        if ($user && $request->session()->pull('oauth_requires_role', false)) {
+            return redirect()->route('home');
+        }
+
+        if ($user && $user->roles()->whereIn('name', ['customer', 'supplier'])->exists()) {
+            return redirect()->route('home');
+        }
+
         return redirect()->route('home');
     }
 
