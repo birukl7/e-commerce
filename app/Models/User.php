@@ -35,7 +35,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'profile_image',
         'status',
         'google_id',
-        'is_supplier'
+        'is_supplier',
+        'email_verified_at',
     ];
     /**
      * The attributes that should be hidden for serialization.
