@@ -45,7 +45,7 @@ class CustomerController extends Controller
 
         $users = $query->latest()->paginate(10);
 
-        return Inertia::render('Admin/customers/index', [
+        return Inertia::render('admin/customers/index', [
             'customers' => $users,
             'filters' => $request->only(['search', 'status', 'type']),
             'type' => $type

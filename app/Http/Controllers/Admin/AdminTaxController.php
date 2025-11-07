@@ -30,7 +30,7 @@ class AdminTaxController extends TaxSettingController
         $taxClasses = []; // To be implemented with tax classes
         $taxRules = []; // To be implemented with tax rules
         
-        return Inertia::render('Admin/Tax/Index', [
+        return Inertia::render('admin/Tax/Index', [
             'activeTab' => request()->get('tab', 'rates'),
             'tabs' => [
                 'rates' => 'Tax Rates',
