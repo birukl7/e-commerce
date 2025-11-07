@@ -222,9 +222,14 @@ const Header = () => {
                 )}
 
                 {/* Desktop Wishlist */}
-                <CustomLink href={"/user-wishlist"} variant="ghost" sizes="icon">
+                <a
+                  href="/user-wishlist"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                >
                   <Heart className="h-5 w-5" />
-                </CustomLink>
+                </a>
               </div>
 
               {/* Mobile Hamburger Menu */}
