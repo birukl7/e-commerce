@@ -404,6 +404,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Individual order details and tracking
     Route::get('/user/orders/{order}', [UserDashboardController::class, 'showOrder'])->name('user.orders.show');
     Route::get('/user/orders/{order}/track', [UserDashboardController::class, 'trackOrder'])->name('user.orders.track');
+    Route::get('/user/orders/{order}/tracking-data', [UserDashboardController::class, 'trackOrderData'])->name('user.orders.track-data');
     
     // Product Request routes
     Route::get('/request', [RequestController::class, 'index'])->name('request.index');

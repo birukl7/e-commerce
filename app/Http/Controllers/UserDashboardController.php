@@ -477,23 +477,35 @@ class UserDashboardController extends Controller
 
     public function trackOrder(Order $order)
     {
-        // Ensure user can only track their own orders
         if ($order->user_id !== auth()->id()) {
             abort(403, 'Unauthorized');
         }
 
-        // Apply same status normalization for tracking
+        $trackingData = $this->buildOrderTrackingData($order);
+
+        return Inertia::render('user/order-tracking', $trackingData);
+    }
+
+    public function trackOrderData(Order $order)
+    {
+        if ($order->user_id !== auth()->id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        return response()->json($this->buildOrderTrackingData($order));
+    }
+
+    private function buildOrderTrackingData(Order $order): array
+    {
         $actualStatus = $order->status;
         $actualPaymentStatus = $order->payment_status;
-        
+
         if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
             $actualPaymentStatus = 'paid';
         }
 
-        // Create order tracking timeline
         $timeline = [];
-        
-        // Order placed
+
         $timeline[] = [
             'status' => 'ordered',
             'title' => 'Order Placed',
@@ -502,20 +514,31 @@ class UserDashboardController extends Controller
             'completed' => true,
         ];
 
-        // Get payment transaction for detailed status
         $paymentTransaction = \App\Models\PaymentTransaction::where('order_id', $order->id)->first();
         $paymentMethodType = 'Unknown Payment';
+        $resolvedPaymentMethod = $order->payment_method ?: 'N/A';
+
         if ($paymentTransaction) {
+            $resolvedPaymentMethod = $paymentTransaction->payment_method ?: $resolvedPaymentMethod;
+
             if (str_starts_with($paymentTransaction->tx_ref, 'TX-')) {
                 $paymentMethodType = 'Chapa Online Payment';
             } elseif (str_starts_with($paymentTransaction->tx_ref, 'OFFLINE-')) {
                 $paymentMethodType = 'Offline Payment';
+            } elseif ($paymentTransaction->payment_method) {
+                $paymentMethodType = $this->formatPaymentMethod($paymentTransaction->payment_method);
+            }
+        } else {
+            if (str_starts_with((string) $resolvedPaymentMethod, 'OFFLINE-') || $resolvedPaymentMethod === 'offline') {
+                $paymentMethodType = 'Offline Payment';
+            } elseif (str_starts_with((string) $resolvedPaymentMethod, 'TX-') || in_array($resolvedPaymentMethod, ['chapa', 'telebirr', 'cbe', 'paypal'], true)) {
+                $paymentMethodType = 'Chapa Online Payment';
+            } elseif ($resolvedPaymentMethod !== 'N/A') {
+                $paymentMethodType = $this->formatPaymentMethod($resolvedPaymentMethod);
             }
         }
 
-        // Enhanced payment status tracking
         if ($actualPaymentStatus === 'paid') {
-            // Payment received step
             $timeline[] = [
                 'status' => 'payment_received',
                 'title' => 'Payment Received',
@@ -523,8 +546,7 @@ class UserDashboardController extends Controller
                 'date' => $order->updated_at,
                 'completed' => true,
             ];
-            
-            // Admin approval step
+
             $timeline[] = [
                 'status' => 'admin_approved',
                 'title' => 'Payment Approved',
@@ -533,7 +555,6 @@ class UserDashboardController extends Controller
                 'completed' => true,
             ];
         } elseif ($actualPaymentStatus === 'pending_approval') {
-            // Payment received step
             $timeline[] = [
                 'status' => 'payment_received',
                 'title' => 'Payment Received',
@@ -541,8 +562,7 @@ class UserDashboardController extends Controller
                 'date' => $order->updated_at,
                 'completed' => true,
             ];
-            
-            // Awaiting admin approval step
+
             $timeline[] = [
                 'status' => 'pending_payment_approval',
                 'title' => 'Pending Payment Approval',
@@ -578,7 +598,6 @@ class UserDashboardController extends Controller
             ];
         }
 
-        // Processing
         if ($actualStatus === 'processing' && $actualPaymentStatus === 'paid') {
             $timeline[] = [
                 'status' => 'processing',
@@ -597,7 +616,6 @@ class UserDashboardController extends Controller
             ];
         }
 
-        // Shipped
         if ($actualStatus === 'shipped' || $actualStatus === 'delivered') {
             $timeline[] = [
                 'status' => 'shipped',
@@ -616,7 +634,6 @@ class UserDashboardController extends Controller
             ];
         }
 
-        // Delivered
         if ($actualStatus === 'delivered') {
             $timeline[] = [
                 'status' => 'delivered',
@@ -635,10 +652,9 @@ class UserDashboardController extends Controller
             ];
         }
 
-        // Handle cancelled orders
         if ($actualStatus === 'cancelled') {
             $timeline = [
-                $timeline[0], // Keep order placed
+                $timeline[0],
                 [
                     'status' => 'cancelled',
                     'title' => 'Order Cancelled',
@@ -646,22 +662,24 @@ class UserDashboardController extends Controller
                     'date' => $order->updated_at,
                     'completed' => true,
                     'error' => true,
-                ]
+                ],
             ];
         }
 
-        return Inertia::render('user/order-tracking', [
+        return [
             'order' => [
                 'id' => $order->id,
                 'order_number' => $order->order_number,
                 'status' => $actualStatus,
                 'payment_status' => $actualPaymentStatus,
+                'payment_method' => $this->formatPaymentMethod($resolvedPaymentMethod),
+                'payment_method_type' => $paymentMethodType,
                 'total_amount' => (float) $order->total_amount,
                 'currency' => $order->currency,
                 'created_at' => $order->created_at,
             ],
             'timeline' => $timeline,
-        ]);
+        ];
     }
 
     public function products()
