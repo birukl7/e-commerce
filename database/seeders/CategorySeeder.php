@@ -19,7 +19,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => null, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "clothes.jpg"
+                "image" => "categories/clothes.jpg"
             ],
             [
                 "name" => "Electronics", 
@@ -28,7 +28,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => null, 
                 "sort_order" => 2, 
                 "is_active" => true, 
-                "image" => "electronics.jpg"
+                "image" => "categories/electronics.jpg"
             ],
         ];
 
@@ -40,7 +40,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => 1, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "shoes.jpg"
+                "image" => "categories/shoes.jpg"
             ],
             [
                 "name" => "Shirts", 
@@ -49,7 +49,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => 1, 
                 "sort_order" => 2, 
                 "is_active" => true, 
-                "image" => "shirt.jpg"
+                "image" => "categories/shirt.jpg"
             ],
             [
                 "name" => "Trousers", 
@@ -58,7 +58,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => 1, 
                 "sort_order" => 3, 
                 "is_active" => true, 
-                "image" => "female_trousers.jpg"
+                "image" => "categories/female_trousers.jpg"
             ],
             [
                 "name" => "Laptops", 
@@ -67,7 +67,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => 2, 
                 "sort_order" => 1, 
                 "is_active" => true, 
-                "image" => "laptop.jpg"
+                "image" => "categories/laptop.jpg"
             ],
             [
                 "name" => "Smartphones", 
@@ -76,7 +76,7 @@ class CategorySeeder extends Seeder
                 "parent_id" => 2, 
                 "sort_order" => 2, 
                 "is_active" => true, 
-                "image" => "smartphone.jpg"
+                "image" => "categories/smartphone.jpg"
             ]
         ];
 

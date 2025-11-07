@@ -122,6 +122,7 @@ class RegisteredUserController extends Controller
 
             // Send email verification notification
             event(new Registered($user));
+            //dispatch(new Registered($user)); 
             
             // Log in the user
             Auth::login($user);

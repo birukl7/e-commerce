@@ -109,6 +109,8 @@ interface ShowProps {
 }
 
 const Show = ({ category, products, pagination, filters, currentFilters, sortOptions }: ShowProps) => {
+
+  console.log("products", products);
   return (
     <MainLayout title={category.name} className="" showBackButton>
       <>

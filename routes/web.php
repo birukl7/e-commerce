@@ -401,7 +401,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/user-order', [UserDashboardController::class, 'orders'])->name('user.orders');
     Route::get('/contact', fn() => Inertia::render('user/orders'))->name('contact'); 
 
-    // Route::get('/user-products', fn() => Inertia::render('user/products'))->name('user.products');
+    Route::get('/user-products', [UserDashboardController::class, 'products'])->name('user.products');
 
     // Individual order details and tracking
     Route::get('/user/orders/{order}', [UserDashboardController::class, 'showOrder'])->name('user.orders.show');

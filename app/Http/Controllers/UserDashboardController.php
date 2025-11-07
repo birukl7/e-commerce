@@ -664,6 +664,80 @@ class UserDashboardController extends Controller
         ]);
     }
 
+    public function products()
+    {
+        $user = Auth::user();
+
+        $items = DB::table('order_items as oi')
+            ->join('orders as o', 'oi.order_id', '=', 'o.id')
+            ->join('products as p', 'oi.product_id', '=', 'p.id')
+            ->leftJoin('product_images as pi', function ($join) {
+                $join->on('p.id', '=', 'pi.product_id')
+                    ->where('pi.is_primary', true);
+            })
+            ->leftJoin('brands as b', 'p.brand_id', '=', 'b.id')
+            ->select([
+                'oi.id as order_item_id',
+                'oi.order_id',
+                'oi.quantity',
+                'oi.price as unit_price',
+                'oi.total',
+                'o.order_number',
+                'o.status as order_status',
+                'o.payment_status',
+                'o.created_at as purchased_at',
+                'p.id as product_id',
+                'p.name as product_name',
+                'p.slug as product_slug',
+                'p.sku as product_sku',
+                'pi.image_path as primary_image_path',
+                'b.name as brand_name',
+            ])
+            ->where('o.user_id', $user->id)
+            ->orderBy('o.created_at', 'desc')
+            ->get();
+
+        $products = $items->map(function ($item) {
+            $image = null;
+            if ($item->primary_image_path) {
+                $image = asset('storage/' . $item->primary_image_path);
+            }
+
+            return [
+                'order_item_id' => $item->order_item_id,
+                'order_id' => $item->order_id,
+                'order_number' => $item->order_number,
+                'order_status' => $item->order_status,
+                'payment_status' => $item->payment_status,
+                'purchased_at' => $item->purchased_at,
+                'product' => [
+                    'id' => $item->product_id,
+                    'name' => $item->product_name,
+                    'slug' => $item->product_slug,
+                    'sku' => $item->product_sku,
+                    'brand' => $item->brand_name,
+                    'image' => $image,
+                ],
+                'quantity' => (int) $item->quantity,
+                'unit_price' => (float) $item->unit_price,
+                'total' => (float) $item->total,
+            ];
+        });
+
+        $summary = [
+            'items_count' => $products->count(),
+            'unique_products' => $products->pluck('product.id')->unique()->count(),
+            'total_quantity' => $products->sum('quantity'),
+            'total_spent' => $products->sum('total'),
+            'status_breakdown' => $products->groupBy('order_status')->map->count(),
+        ];
+
+        return Inertia::render('user/products', [
+            'purchasedItems' => $products,
+            'summary' => $summary,
+        ]);
+    }
+
     private function formatPaymentMethod($method)
     {
         if (str_starts_with($method, 'TX-')) {

@@ -11,6 +11,7 @@ import {
   XCircle,
   Eye,
   LayoutDashboard,
+  Settings,
 } from "lucide-react"
 import { Link } from "@inertiajs/react"
 import H3 from "@/components/ui/h3"
@@ -85,6 +86,11 @@ const defaultMainNavItems: NavItem[] = [
     title: "Bought Products",
     href: "/user-products",
     icon: Package2,
+  },
+  {
+    title: "Settings",
+    href: "/settings/profile",
+    icon: Settings,
   },
 ]
 

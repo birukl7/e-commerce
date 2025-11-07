@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Brand;
 use App\Models\Product;
+use App\Services\ImageUrlService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
@@ -113,8 +114,8 @@ class CategoryController extends Controller
         // Get available filters for this category
         $availableFilters = $this->getAvailableFilters($category->id);
 
-        // Use /image symlink base
-        $category_image = $category->image ? asset('/image/' . ltrim($category->image, '/')) : null;
+        // Format category image URL - handles both old format (just filename) and new format (categories/filename)
+        $category_image = ImageUrlService::formatImageUrl($category->image);
 
         // temporary fix: remove "subcategories" sub path for image subcategories
 
@@ -127,7 +128,7 @@ class CategoryController extends Controller
                 'image' => $category_image,
                 'subcategories' => $category->children->map(function ($subcategory) {
                     // Fix: Use 'image/' instead of 'storage/image/'
-                    $subcategory_image = asset('/image/' . $subcategory->image);
+                    $subcategory_image = ImageUrlService::formatImageUrl($subcategory->image);
                     return [
                         'id' => $subcategory->id,
                         'name' => $subcategory->name,

@@ -2399,7 +2399,7 @@ class PaymentController extends Controller
                     'message' => 'Payment is still being processed by Chapa'
                 ]);
                 
-                return Inertia::render('Payment/payment-pending', [
+                return Inertia::render('payment/payment-pending', [
                     'order_id' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,

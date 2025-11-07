@@ -2,7 +2,7 @@
 import AppLayout from "@/layouts/app-layout"
 import MainLayout from "@/layouts/app/main-layout"
 import type { NavItem, BreadcrumbItem } from "@/types"
-import { BrickWall, ListOrdered, Save, Heart, Trash2, ShoppingCart, Star, LayoutDashboard } from "lucide-react"
+import { Bookmark, ShoppingBag, MessageSquare, Package2, Heart, Trash2, ShoppingCart, Star, LayoutDashboard, Settings } from "lucide-react"
 import { Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { CustomLink } from "@/components/link"
@@ -54,22 +54,27 @@ const defaultMainNavItems: NavItem[] = [
   {
     title: "BookMarked Products",
     href: "/user-wishlist",
-    icon: Save,
+    icon: Bookmark,
   },
   {
     title: "Orders",
     href: "/user-order",
-    icon: ListOrdered,
+    icon: ShoppingBag,
   },
   {
     title: "Requests",
     href: "/user-request",
-    icon: BrickWall,
+    icon: MessageSquare,
   },
   {
     title: "Bought Products",
     href: "/user-products",
-    icon: ListOrdered,
+    icon: Package2,
+  },
+  {
+    title: "Settings",
+    href: "/settings/profile",
+    icon: Settings,
   },
 ]
 

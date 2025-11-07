@@ -53,9 +53,9 @@ export function NavMain({ items = [] }: { items: NavItemWithChildren[] }) {
         // Handle both function icons (from frontend) and string icons (from backend)
         let Icon: React.ComponentType | undefined;
         
-        if (typeof item.icon === 'function') {
-            // Frontend icon (React component)
-            Icon = item.icon;
+        if (typeof item.icon === 'function' || (typeof item.icon === 'object' && item.icon !== null)) {
+            // Frontend icon (React component or forwardRef exotic component)
+            Icon = item.icon as React.ComponentType;
         } else if (typeof item.icon === 'string') {
             // Backend icon (string name)
             Icon = iconMap[item.icon];

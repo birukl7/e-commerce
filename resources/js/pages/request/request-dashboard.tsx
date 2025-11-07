@@ -4,7 +4,7 @@ import type React from "react"
 
 import MainLayout from "@/layouts/app/main-layout"
 import type { NavItem, BreadcrumbItem } from "@/types"
-import { BrickWall, ListOrdered, Save, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard, Edit, Trash2 } from "lucide-react"
+import { BrickWall, Bookmark, ShoppingBag, MessageSquare, Package2, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard, Edit, Trash2, Settings } from "lucide-react"
 import { useForm, Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -74,22 +74,27 @@ const defaultMainNavItems: NavItem[] = [
   {
     title: "BookMarked Products",
     href: "/user-wishlist",
-    icon: Save,
+    icon: Bookmark,
   },
   {
     title: "Orders",
     href: "/user-order",
-    icon: ListOrdered,
+    icon: ShoppingBag,
   },
   {
     title: "Requests",
     href: "/user-request",
-    icon: BrickWall,
+    icon: MessageSquare,
   },
   {
     title: "Bought Products",
     href: "/user-products",
-    icon: ListOrdered,
+    icon: Package2,
+  },
+  {
+    title: "Settings",
+    href: "/settings/profile",
+    icon: Settings,
   },
 ]
 

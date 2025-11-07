@@ -5,7 +5,7 @@ import AppLayout from '@/layouts/app-layout';
 import MainLayout from '@/layouts/app/main-layout';
 import { BreadcrumbItem, NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, BrickWall, Calendar, DollarSign, Eye, LayoutDashboard, ListOrdered, Package, Save } from 'lucide-react';
+import { ArrowLeft, Bookmark, Calendar, DollarSign, Eye, LayoutDashboard, MessageSquare, Package, Package2, Settings, ShoppingBag } from 'lucide-react';
 
 interface OrderItem {
     id: number;
@@ -57,22 +57,27 @@ const defaultMainNavItems: NavItem[] = [
     {
         title: 'BookMarked Products',
         href: '/user-wishlist',
-        icon: Save,
+        icon: Bookmark,
     },
     {
         title: 'Orders',
         href: '/user-order',
-        icon: ListOrdered,
+        icon: ShoppingBag,
     },
     {
         title: 'Requests',
         href: '/user-request',
-        icon: BrickWall,
+        icon: MessageSquare,
     },
     {
         title: 'Bought Products',
         href: '/user-products',
-        icon: ListOrdered,
+        icon: Package2,
+    },
+    {
+        title: 'Settings',
+        href: '/settings/profile',
+        icon: Settings,
     },
 ];
 export default function UserOrders({ orders = [] }: UserOrdersProps) {
