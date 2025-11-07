@@ -583,13 +583,24 @@ export default function RequestShow({ request }: Props) {
                         {request.final_payment_status === 'paid' && (
                           <Badge variant="default" className="ml-2">Paid</Badge>
                         )}
-                        {request.product_arrived_at && request.final_payment_status !== 'paid' && (
+                        {request.final_payment_status === 'processing' && (
+                          <Badge variant="default" className="ml-2 bg-yellow-600">Awaiting Admin Approval</Badge>
+                        )}
+                        {request.product_arrived_at && request.final_payment_status !== 'paid' && request.final_payment_status !== 'processing' && (
                           <Badge variant="default" className="ml-2 bg-green-600">Product Arrived - Ready for Payment</Badge>
                         )}
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
+                        {/* Show status message if payment is processing */}
+                        {request.final_payment_status === 'processing' && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Final payment submitted - awaiting admin approval.</strong> You can take the product after admin approves your payment.
+                            </p>
+                          </div>
+                        )}
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                           <h4 className="font-medium mb-3">Payment Breakdown (with tax)</h4>
                           {request.final_tax_breakdown ? (
@@ -615,12 +626,15 @@ export default function RequestShow({ request }: Props) {
                             </div>
                           )}
                 </div>
-                <Button
-                          className={`w-full ${request.product_arrived_at ? 'bg-green-600 hover:bg-green-700 text-lg py-6 font-semibold' : ''}`}
-                          onClick={() => window.location.href = route('product-requests.final-payment.show', request.id)}
-                >
-                          {request.product_arrived_at ? 'Pay Final Amount Now' : 'Pay Final Amount'}
-                </Button>
+                {/* Only show payment button if payment hasn't been submitted yet */}
+                {request.final_payment_status !== 'processing' && request.final_payment_status !== 'paid' && (
+                  <Button
+                    className={`w-full ${request.product_arrived_at ? 'bg-green-600 hover:bg-green-700 text-lg py-6 font-semibold' : ''}`}
+                    onClick={() => window.location.href = route('product-requests.final-payment.show', request.id)}
+                  >
+                    {request.product_arrived_at ? 'Pay Final Amount Now' : 'Pay Final Amount'}
+                  </Button>
+                )}
                       </div>
                     </CardContent>
                   </Card>

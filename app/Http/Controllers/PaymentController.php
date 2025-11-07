@@ -928,44 +928,136 @@ class PaymentController extends Controller
                 $txRef = 'TX-' . Str::random(10) . '-' . time();
             }
             
+            // Calculate tax for all payment types
+            $taxService = app(\App\Services\TaxService::class);
+            $taxCalculation = null;
+            $subtotal = null;
+            $amountWithTax = (float) $request->amount; // Default to request amount
+            
+            if (in_array($paymentType, ['product_request_advance', 'product_request_final']) && $productRequestId) {
+                $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                if ($productRequest) {
+                    if ($paymentType === 'product_request_advance') {
+                        $subtotal = (float) $productRequest->advance_amount;
+                        $taxCalculation = $taxService->calculateTaxes($subtotal);
+                        $amountWithTax = $taxCalculation['total']; // Use total with tax
+                    } elseif ($paymentType === 'product_request_final') {
+                        $subtotal = (float) $productRequest->final_amount;
+                        $taxCalculation = $taxService->calculateTaxes($subtotal);
+                        $amountWithTax = $taxCalculation['total']; // Use total with tax
+                    }
+                    
+                    \Log::info('Tax calculated for product request payment', [
+                        'payment_type' => $paymentType,
+                        'product_request_id' => $productRequestId,
+                        'subtotal' => $subtotal,
+                        'tax_amount' => $taxCalculation['total_tax_amount'],
+                        'total_with_tax' => $amountWithTax,
+                    ] + $logContext);
+                }
+            } elseif ($paymentType === 'regular') {
+                // Calculate tax for regular orders
+                // First, try to get subtotal from existing order
+                $existingOrder = Order::where('order_number', $request->order_id)->first();
+                if ($existingOrder && $existingOrder->subtotal > 0) {
+                    // Use order's subtotal if it exists
+                    $subtotal = (float) $existingOrder->subtotal;
+                } else {
+                    // Calculate subtotal from cart items
+                    $subtotal = 0;
+                    if (is_array($cartItems) && count($cartItems) > 0) {
+                        foreach ($cartItems as $item) {
+                            $itemPrice = (float) ($item['price'] ?? 0);
+                            $itemQuantity = (int) ($item['quantity'] ?? 1);
+                            $subtotal += $itemPrice * $itemQuantity;
+                        }
+                    } else {
+                        // If no cart items and order exists, try to calculate from order items
+                        if ($existingOrder && $existingOrder->items()->count() > 0) {
+                            $subtotal = (float) $existingOrder->items()->sum('total');
+                        } else {
+                            // Fallback to request amount as subtotal (assume it's pre-tax)
+                            $subtotal = (float) $request->amount;
+                        }
+                    }
+                }
+                
+                // Only calculate tax if we haven't already calculated it for this order
+                // Check if order already has tax_amount set (meaning tax was already calculated)
+                if ($existingOrder && $existingOrder->tax_amount > 0 && $existingOrder->total_amount > $existingOrder->subtotal) {
+                    // Order already has tax calculated, use existing values
+                    $amountWithTax = (float) $existingOrder->total_amount;
+                    $taxCalculation = [
+                        'subtotal' => (float) $existingOrder->subtotal,
+                        'total_tax_amount' => (float) $existingOrder->tax_amount,
+                        'total' => (float) $existingOrder->total_amount,
+                        'taxes' => [], // We don't have the breakdown, but that's okay
+                    ];
+                    \Log::info('Using existing order tax calculation', [
+                        'order_id' => $request->order_id,
+                        'subtotal' => $taxCalculation['subtotal'],
+                        'tax_amount' => $taxCalculation['total_tax_amount'],
+                        'total_with_tax' => $amountWithTax,
+                    ] + $logContext);
+                } else {
+                    // Calculate tax on the subtotal
+                    $taxCalculation = $taxService->calculateTaxes($subtotal);
+                    $amountWithTax = $taxCalculation['total']; // Use total with tax
+                    
+                    \Log::info('Tax calculated for regular order payment', [
+                        'order_id' => $request->order_id,
+                        'subtotal' => $subtotal,
+                        'tax_amount' => $taxCalculation['total_tax_amount'],
+                        'total_with_tax' => $amountWithTax,
+                    ] + $logContext);
+                }
+            }
+            
             // Start database transaction
             DB::beginTransaction();
             
             try {
-                // Create or get the order with cart items
-                $order = Order::where('order_number', $request->order_id)->first();
-                
-                if ($order) {
-                    \Log::info('Found existing order', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'status' => $order->status,
-                        'payment_status' => $order->payment_status
-                    ] + $logContext);
+                // For product request payments, we don't need to create/update orders
+                $order = null;
+                if ($paymentType === 'regular') {
+                    // Create or get the order with cart items for regular payments
+                    $order = Order::where('order_number', $request->order_id)->first();
                     
-                    // Update existing order if needed
-                    $order->update([
-                        'payment_status' => 'pending',
-                        'payment_method' => $request->payment_method,
-                        'total_amount' => $request->amount,
-                        'currency' => $request->currency,
-                    ]);
-                } else {
-                    \Log::info('Creating new order with cart items', $logContext);
-                    $order = $this->createOrderFromCart(
-                        $request->order_id,
-                        $request->amount,
-                        $request->currency,
-                        $cartItems
-                    );
-                    
-                    if (!$order) {
-                        throw new \Exception('Failed to create order');
+                    if ($order) {
+                        \Log::info('Found existing order', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'status' => $order->status,
+                            'payment_status' => $order->payment_status
+                        ] + $logContext);
+                        
+                        // Update existing order if needed
+                        $order->update([
+                            'payment_status' => 'pending',
+                            'payment_method' => $request->payment_method,
+                            'total_amount' => $amountWithTax, // Use tax-calculated amount
+                            'tax_amount' => $taxCalculation ? $taxCalculation['total_tax_amount'] : ($order->tax_amount ?? 0),
+                            'subtotal' => $subtotal ?? $order->subtotal,
+                            'currency' => $request->currency,
+                        ]);
+                    } else {
+                        \Log::info('Creating new order with cart items', $logContext);
+                        // createOrderFromCart calculates tax internally, so pass subtotal, not total with tax
+                        $order = $this->createOrderFromCart(
+                            $request->order_id,
+                            $subtotal ?? $request->amount, // Pass subtotal, not total with tax
+                            $request->currency,
+                            $cartItems
+                        );
+                        
+                        if (!$order) {
+                            throw new \Exception('Failed to create order');
+                        }
+                        \Log::info('Order created successfully', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number
+                        ] + $logContext);
                     }
-                    \Log::info('Order created successfully', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number
-                    ] + $logContext);
                 }
                 
                 // Prepare Chapa payment data
@@ -983,11 +1075,11 @@ class PaymentController extends Controller
                 } elseif ($paymentType === 'product_request_final') {
                     $description = 'Final Payment for Product Request';
                 } else {
-                    $description = 'Payment for Order: ' . $order->order_number;
+                    $description = 'Payment for Order: ' . ($order->order_number ?? $request->order_id);
                 }
                 
                 $paymentData = [
-                    'amount' => $request->amount,
+                    'amount' => $amountWithTax, // Use tax-calculated amount for product requests
                     'currency' => $request->currency,
                     'email' => $customerEmail,
                     'first_name' => $firstName,
@@ -1002,7 +1094,7 @@ class PaymentController extends Controller
                         'logo' => asset('images/logo.png'),
                     ],
                     'meta' => [
-                        'order_id' => $order->order_number, // Use the actual order number from database
+                        'order_id' => $order->order_number ?? $request->order_id, // Use the actual order number from database if available
                         'payment_method' => $request->payment_method,
                         'payment_type' => $paymentType,
                         'product_request_id' => $request->input('product_request_id'),
@@ -1082,7 +1174,7 @@ class PaymentController extends Controller
                         'tx_ref' => $txRef,
                         'order_id' => $orderIdForTransaction,
                         'product_request_id' => $productRequestId, // Include product_request_id for advance/final payments
-                        'amount' => $request->amount,
+                        'amount' => $amountWithTax, // Use tax-calculated amount
                         'currency' => $request->currency,
                         'customer_email' => $customerEmail,
                         'customer_name' => $customerName,
@@ -1093,7 +1185,11 @@ class PaymentController extends Controller
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null,
                         'gateway_payload' => array_merge($responseData['data'] ?? [], [
                             'payment_type' => $paymentType,
-                        ]),
+                        ], $taxCalculation ? [
+                            'subtotal' => $subtotal,
+                            'tax_amount' => $taxCalculation['total_tax_amount'],
+                            'taxes' => $taxCalculation['taxes'],
+                        ] : []),
                     ];
                     
                     PaymentTransaction::create($transactionData);
@@ -1263,9 +1359,13 @@ class PaymentController extends Controller
                 'request_id' => $requestId ?? 'N/A'
             ]);
         } finally {
+            $duration = defined('LARAVEL_START') 
+                ? round((microtime(true) - LARAVEL_START) * 1000, 2)
+                : null;
+            
             \Log::info('=== CHAPA PAYMENT PROCESSING COMPLETED ===', [
                 'request_id' => $requestId ?? 'N/A',
-                'duration_ms' => round((microtime(true) - LARAVEL_START) * 1000, 2)
+                'duration_ms' => $duration
             ]);
         }
     } 

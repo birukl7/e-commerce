@@ -613,14 +613,15 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                 </Dialog>
                             )}
                             
-                            {/* Mark Product as Arrived - Alternative to starting procurement (skip procurement workflow)
-                                Show when: approved, paid, procurement NOT started, product NOT arrived
-                                This is mutually exclusive with "Start Getting Product" - use this if product is already available */}
+                            {/* Mark Product as Arrived - Show only when procurement has been started but product hasn't arrived
+                                Hide when "Start Getting Product" button is visible (procurement not started)
+                                This is mutually exclusive with "Start Getting Product" */}
                             {product_request.status === 'approved' && 
                              product_request.advance_payment_status === 'paid' && 
                              !product_request.lost_interest_at &&
-                             product_request.procurement_status !== 'in_progress' && // Don't show if procurement started (use Complete Procurement instead)
-                             product_request.procurement_status !== 'completed' && // Don't show if procurement completed
+                             (product_request.procurement_status === 'in_progress' || 
+                              product_request.procurement_status === 'completed' || 
+                              product_request.procurement_started_at) && // Only show if procurement has been started
                              !product_request.product_arrived_at && ( // Don't show if already arrived
                                 <Dialog open={markArrivedDialogOpen} onOpenChange={setMarkArrivedDialogOpen}>
                                     <DialogTrigger asChild>

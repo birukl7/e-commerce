@@ -102,9 +102,14 @@ export default function ChapaMethodSelect({
   const [submitError, setSubmitError] = useState<string>("")
   const page = usePage<{ auth?: { user?: { phone?: string } } }>()
 
+  // Get phone number from multiple sources with priority
+  const getPhoneNumber = () => {
+    return auth?.user?.phone || page?.props?.auth?.user?.phone || ""
+  }
+
   const { data, setData, processing, errors, clearErrors } = useForm<FormData>({
     payment_method: "telebirr",
-    phone_number: auth?.user?.phone || "",
+    phone_number: getPhoneNumber(),
     name: auth?.user?.name || "",
     email: auth?.user?.email || "",
     order_id: order_id || "",
@@ -124,17 +129,11 @@ export default function ChapaMethodSelect({
 
   // Ensure phone is prefilled when available from auth, even if props arrive slightly later
   useEffect(() => {
-    if (!data.phone_number && auth?.user?.phone) {
-      setData("phone_number", auth.user.phone)
+    const phoneFromAuth = auth?.user?.phone || page?.props?.auth?.user?.phone
+    if (phoneFromAuth && (!data.phone_number || data.phone_number === "")) {
+      setData("phone_number", phoneFromAuth)
     }
-  }, [auth?.user?.phone])
-
-  // Fallback: also try to prefill from usePage props (Inertia shared props)
-  useEffect(() => {
-    if (!data.phone_number && page?.props?.auth?.user?.phone) {
-      setData("phone_number", page.props.auth.user.phone)
-    }
-  }, [page?.props?.auth?.user?.phone])
+  }, [auth?.user?.phone, page?.props?.auth?.user?.phone, data.phone_number, setData])
 
   // Real-time validation
   const validateField = useCallback(
