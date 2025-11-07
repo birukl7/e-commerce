@@ -3,9 +3,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -32,6 +34,7 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
         
         // Get the authenticated user
+        /** @var User $user */
         $user = Auth::user();
         
         // Check if user account is active
@@ -85,8 +88,8 @@ class AuthenticatedSessionController extends Controller
             return redirect()->to($intended);
         }
 
-        // For regular users, redirect to user dashboard
-        return redirect()->intended(route('user.dashboard'));
+        // For regular users, always redirect to homepage
+        return redirect()->route('home');
     }
 
 
@@ -96,10 +99,11 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
         
         // Get the authenticated user
+        /** @var User $user */
         $user = Auth::user();
         
         // Debug logging
-        \Log::info('Admin login attempt', [
+        Log::info('Admin login attempt', [
             'user_id' => $user->id,
             'email' => $user->email,
             'is_admin' => $user->hasRole('admin') || $user->hasRole('super_admin'),
