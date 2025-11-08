@@ -21,6 +21,7 @@ interface Customer {
   created_at: string
   orders_count?: number
   wishlists_count?: number
+  is_supplier?: boolean
 }
 
 interface PaginatedCustomers {
@@ -80,6 +81,15 @@ export default function CustomersIndex({ customers, filters, type }: Props) {
       key: 'phone',
       title: 'Phone',
       render: (value) => value || 'N/A'
+    },
+    {
+      key: 'is_supplier',
+      title: 'Account Type',
+      render: (_, row) => (
+        <Badge variant={row.is_supplier ? "default" : "secondary"}>
+          {row.is_supplier ? 'Supplier' : 'Customer'}
+        </Badge>
+      ),
     },
     createStatusColumn<Customer>('status', 'Status'),
     {

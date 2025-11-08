@@ -37,6 +37,7 @@ export interface SharedData {
     auth: Auth;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
+    shouldChooseRole?: boolean;
     [key: string]: unknown;
 }
 

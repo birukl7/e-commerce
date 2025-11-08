@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('profile_image')->nullable();
             $table->enum('status', ['active', 'inactive', 'banned'])->default('active');
             $table->string('google_id')->nullable();
+            $table->boolean('is_supplier')->default(false);
             $table->rememberToken();
             $table->timestamps();
         });

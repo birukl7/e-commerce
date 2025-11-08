@@ -22,12 +22,22 @@ class CustomerController extends Controller
                 $query->latest()->limit(5);
             }]);
 
-        // Filter by role based on type
+        // Filter by account type
         if ($type === 'suppliers') {
-            $query->role('supplier');
+            $query->where(function ($builder) {
+                $builder->where('is_supplier', true)
+                    ->orWhereHas('roles', function ($roleQuery) {
+                        $roleQuery->where('name', 'supplier');
+                    });
+            });
         } else {
-            // For customers, include both 'customer' role and 'user' role (legacy users)
-            $query->role(['customer', 'user']);
+            $query->where(function ($builder) {
+                $builder->where('is_supplier', false)
+                    ->orWhereNull('is_supplier')
+                    ->orWhereHas('roles', function ($roleQuery) {
+                        $roleQuery->whereIn('name', ['customer', 'user']);
+                    });
+            });
         }
 
         // Add search functionality
