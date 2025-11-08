@@ -631,7 +631,7 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                         <DialogHeader>
                                             <DialogTitle>Mark Product as Arrived</DialogTitle>
                                             <DialogDescription>
-                                                Use this if the product is already available and you want to skip the procurement workflow. This will notify the customer that their product has arrived and they can now pay the final amount.
+                                                Mark the product as arrived after procurement has been started. This will notify the customer that their product has arrived and they can now pay the final amount.
                                             </DialogDescription>
                                         </DialogHeader>
                                         <form onSubmit={handleMarkArrived}>
