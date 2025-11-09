@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { router } from "@inertiajs/react"
+import { useTranslation } from "react-i18next"
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,7 @@ interface SignupDialogProps {
 }
 
 export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
@@ -108,13 +110,13 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
     <DialogContent className="w-full max-w-sm p-6">
       <DialogClose className="absolute right-4 top-4" />
       <DialogHeader>
-        <DialogTitle>Create an account</DialogTitle>
-        <DialogDescription>Sign up to unlock personalised shopping on Serdo.</DialogDescription>
+        <DialogTitle>{t("auth.createAccount")}</DialogTitle>
+        <DialogDescription>{t("auth.signUpDescription")}</DialogDescription>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="dialog-signup-name" className="text-sm font-medium text-foreground">
-            First name
+            {t("auth.firstName")}
           </label>
           <Input
             id="dialog-signup-name"
@@ -129,7 +131,7 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
         </div>
         <div className="space-y-2">
           <label htmlFor="dialog-signup-email" className="text-sm font-medium text-foreground">
-            Email address
+            {t("auth.emailAddress")}
           </label>
           <Input
             id="dialog-signup-email"
@@ -144,7 +146,7 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
         </div>
         <div className="space-y-2">
           <label htmlFor="dialog-signup-password" className="text-sm font-medium text-foreground">
-            Password
+            {t("auth.password")}
           </label>
           <Input
             id="dialog-signup-password"
@@ -163,14 +165,14 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
           ) : (
             <Mail className="mr-2 h-4 w-4" />
           )}
-          Continue with email
+          {t("auth.continueWithEmail")}
         </Button>
       </form>
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <span className="w-full border-t" />
         </div>
-        <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">or</span>
+        <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">{t("auth.or")}</span>
       </div>
       <Button
         type="button"
@@ -180,13 +182,13 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
         disabled={isSubmitting}
       >
         <GoogleIcon className="mr-2" />
-        Continue with Google
+        {t("auth.continueWithGoogle")}
       </Button>
       <DialogFooter>
         <p className="text-center text-sm text-muted-foreground w-full">
-          By creating an account you agree to our
+          {t("auth.termsAgreement")}{" "}
           <a href={route("terms") as string} target="_blank" rel="noopener noreferrer" className="ml-1 underline">
-            Terms of Service
+            {t("auth.termsOfService")}
           </a>
           .
         </p>

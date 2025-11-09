@@ -69,12 +69,6 @@ function WelcomeContent({ settings }: WelcomeProps) {
 export default function Welcome({ settings, diagnostics }: WelcomeProps) {
   React.useEffect(() => {
     // type-safe check for Inertia to avoid TS errors at runtime
-    const hasInertia = typeof (window as any).Inertia !== 'undefined'
-
-    console.log('[Welcome] Mounted with props:', { settings, diagnostics })
-    console.log('[Welcome] document.readyState:', document.readyState)
-    console.log('[Welcome] root element:', document.getElementById('app'))
-    console.log('[Welcome] Inertia available:', hasInertia)
 
     // Try to list stylesheets for debugging (wrap in try/catch because of CORS)
     try {

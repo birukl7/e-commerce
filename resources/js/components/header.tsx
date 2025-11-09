@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from "react"
 import { Link, usePage, router } from "@inertiajs/react"
+import { useTranslation } from "react-i18next"
 import { useCart } from "@/contexts/cart-context"
 import { Button, buttonVariants } from "./ui/button"
 import {
@@ -16,6 +17,7 @@ import {
   ShoppingCart,
   User,
   Menu,
+  Languages,
 } from "lucide-react"
 import { Badge } from "./ui/badge"
 import type { SharedData } from "@/types"
@@ -31,6 +33,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -43,9 +47,21 @@ import { ChooseRoleDialog } from "./auth/choose-role-dialog"
 const Header = () => {
   const { auth, shouldChooseRole = false } = usePage<SharedData>().props
   const { getTotalItems, isCartDrawerOpen, openCartDrawer, closeCartDrawer } = useCart()
+  const { t, i18n } = useTranslation()
   const cartButtonRef = useRef<HTMLButtonElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  const normalizeLanguage = (lang: string): string => {
+    // Normalize language codes (e.g., 'en-US' -> 'en', 'am-ET' -> 'am')
+    const baseLang = lang.split('-')[0]
+    if (['en', 'am', 'om'].includes(baseLang)) {
+      return baseLang
+    }
+    return 'en' // fallback to English
+  }
+
+  const [currentLanguage, setCurrentLanguage] = useState(() => normalizeLanguage(i18n.language || 'en'))
 
   const getInitials = (name: string) => {
     if (!name) return "U"
@@ -88,6 +104,17 @@ const Header = () => {
       window.dispatchEvent(new Event("auth:choose-role"))
     }
   }, [shouldChooseRole])
+
+  const handleLanguageChange = (language: string) => {
+    const normalizedLang = normalizeLanguage(language)
+    i18n.changeLanguage(normalizedLang)
+    setCurrentLanguage(normalizedLang)
+  }
+
+  useEffect(() => {
+    const normalizedLang = normalizeLanguage(i18n.language || 'en')
+    setCurrentLanguage(normalizedLang)
+  }, [i18n.language])
 
   return (
     <>
@@ -150,39 +177,39 @@ const Header = () => {
                           </Avatar>
                           <div className="min-w-0">
                             <p className="truncate text-sm font-medium text-foreground">{auth.user.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">View your profile</p>
+                            <p className="truncate text-xs text-muted-foreground">{t("header.viewProfile")}</p>
                           </div>
                         </a>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {[
                         {
-                          title: "Dashboard",
+                          title: t("header.dashboard"),
                           href: route("user.dashboard"),
                           icon: LayoutDashboard,
                         },
                         {
-                          title: "BookMarked Products",
+                          title: t("header.bookmarkedProducts"),
                           href: route("user.wishlist"),
                           icon: Bookmark,
                         },
                         {
-                          title: "Orders",
+                          title: t("header.orders"),
                           href: route("user.orders"),
                           icon: ShoppingBag,
                         },
                         {
-                          title: "Requests",
+                          title: t("header.requests"),
                           href: route("user.request"),
                           icon: MessageSquare,
                         },
                         {
-                          title: "Bought Products",
+                          title: t("header.boughtProducts"),
                           href: route("user.products"),
                           icon: Package2,
                         },
                         {
-                          title: "Settings",
+                          title: t("header.settings"),
                           href: route("profile.edit"),
                           icon: Settings,
                         },
@@ -211,13 +238,13 @@ const Header = () => {
                         }}
                       >
                         <LogOut className="mr-2 h-4 w-4" />
-                        Sign out
+                        {t("header.signOut")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 ) : (
                   <div className="flex items-center space-x-1 pl-2">
-                    <LoginDialog trigger={<Button size="sm">Sign in</Button>} />
+                    <LoginDialog trigger={<Button size="sm">{t("header.signIn")}</Button>} />
                   </div>
                 )}
 
@@ -245,7 +272,7 @@ const Header = () => {
                   </SheetTrigger>
                   <SheetContent side="right" className="w-80">
                     <SheetHeader>
-                      <SheetTitle>Menu</SheetTitle>
+                      <SheetTitle>{t("header.menu")}</SheetTitle>
                     </SheetHeader>
                     <div className="flex flex-col space-y-4 mt-6">
                       {/* Categories in mobile menu */}
@@ -263,16 +290,16 @@ const Header = () => {
                             onClick={closeMobileMenu}
                           >
                             <User className="h-5 w-5 mr-2" />
-                            Dashboard
+                            {t("header.dashboard")}
                           </CustomLink>
                         </div>
                       ) : (
                         <div className="flex flex-col space-y-3">
                           <LoginDialog
-                            trigger={<Button className="w-full">Log in</Button>}
+                            trigger={<Button className="w-full">{t("header.signIn")}</Button>}
                           />
                           <SignupDialog
-                            trigger={<Button variant="outline" className="w-full bg-transparent">Sign up</Button>}
+                            trigger={<Button variant="outline" className="w-full bg-transparent">{t("header.signUp")}</Button>}
                           />
                         </div>
                       )}
@@ -285,12 +312,14 @@ const Header = () => {
                         onClick={closeMobileMenu}
                       >
                         <Heart className="h-5 w-5 mr-2" />
-                        Wishlist
+                        {t("header.wishlist")}
                       </CustomLink>
                     </div>
                   </SheetContent>
                 </Sheet>
               </div>
+
+
 
               {/* Cart (always visible) */}
               <button
@@ -308,6 +337,34 @@ const Header = () => {
                   </Badge>
                 )}
               </button>
+
+              {/* Language Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
+                    aria-label="Select language"
+                  >
+                    <Languages className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{t("language.selectLanguage")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuRadioGroup value={currentLanguage} onValueChange={handleLanguageChange}>
+                    <DropdownMenuRadioItem value="en">
+                      {t("language.english")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="am">
+                      {t("language.amharic")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="om">
+                      {t("language.oromifa")}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
           {/* Search Bar (Mobile) */}

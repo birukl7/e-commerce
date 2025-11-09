@@ -2,6 +2,7 @@ import { Head } from "@inertiajs/react"
 import Header from "@/components/header"
 import { CartProvider } from "@/contexts/cart-context"
 import Footer from "@/components/footer"
+import { useTranslation } from "react-i18next"
 
 interface TermsProps {
   settings?: {
@@ -10,9 +11,11 @@ interface TermsProps {
 }
 
 function TermsContent({ settings }: TermsProps) {
+  const { t } = useTranslation()
+  
   return (
     <>
-      <Head title="Terms and Conditions - ShopHub">
+      <Head title={`${t('terms.title')} - ShopHub`}>
       </Head>
       
       <div
@@ -25,10 +28,10 @@ function TermsContent({ settings }: TermsProps) {
         {/* Main Content */}
         <div className="container mx-auto px-4 py-12 max-w-4xl">
           <div className="bg-white rounded-lg shadow-lg p-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-8">Terms and Conditions</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">{t('terms.title')}</h1>
             
             <div className="prose prose-lg max-w-none">
-              <p className="text-gray-600 mb-6">Last updated: {new Date().toLocaleDateString()}</p>
+              <p className="text-gray-600 mb-6">{t('terms.lastUpdated')} {new Date().toLocaleDateString()}</p>
               
               {settings?.terms_conditions_content ? (
                 <div 
@@ -38,47 +41,44 @@ function TermsContent({ settings }: TermsProps) {
               ) : (
                 <>
                   <section className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('terms.acceptanceOfTerms')}</h2>
                     <p className="text-gray-700 mb-4">
-                      By accessing and using ShopHub Ethiopia ("we," "our," or "us"), you accept and agree to be bound by the terms and provision of this agreement.
+                      {t('terms.acceptanceOfTermsDesc')}
                     </p>
                   </section>
 
                   <section className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">2. Description of Service</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('terms.descriptionOfService')}</h2>
                     <p className="text-gray-700 mb-4">
-                      ShopHub is an Ethiopian e-commerce platform that connects buyers with sellers of traditional Ethiopian crafts, 
-                      modern products, and authentic Ethiopian goods including coffee, textiles, and artwork.
+                      {t('terms.descriptionOfServiceDesc')}
                     </p>
                   </section>
 
                   <section className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">3. User Accounts</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('terms.userAccounts')}</h2>
                     <p className="text-gray-700 mb-4">
-                      You are responsible for maintaining the confidentiality of your account and password. 
-                      You agree to accept responsibility for all activities that occur under your account.
+                      {t('terms.userAccountsDesc')}
                     </p>
                   </section>
 
                   <section className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">4. Product Information</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('terms.productInformation')}</h2>
                     <p className="text-gray-700 mb-4">
-                      While we strive to provide accurate product information, we do not warrant that product descriptions, 
-                      prices, or other content is accurate, complete, reliable, current, or error-free.
+                      {t('terms.productInformationDesc')}
                     </p>
                   </section>
 
                   <section className="mb-8">
-                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">5. Contact Information</h2>
+                    <h2 className="text-2xl font-semibold text-gray-900 mb-4">{t('terms.contactInformation')}</h2>
                     <p className="text-gray-700 mb-4">
-                      If you have any questions about these Terms and Conditions, please contact us at:
+                      {t('terms.contactInformationDesc')}
                     </p>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-gray-700">
                         <strong>ShopHub Ethiopia</strong><br />
-                        Email: support@shophub.et<br />
-                        Phone: +251 911 123 456<br />
-                        Address: Addis Ababa, Ethiopia
+                        {t('terms.supportEmail')} support@shophub.et<br />
+                        {t('terms.supportPhone')} +251 911 123 456<br />
+                        {t('terms.supportAddress')} Addis Ababa, Ethiopia
                       </p>
                     </div>
                   </section>

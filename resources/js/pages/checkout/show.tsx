@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxInfoDialog from '@/components/TaxInfoDialog';
 import H1 from '@/components/ui/h1';
+import { useTranslation } from 'react-i18next';
 
 type TaxSetting = {
     id: number;
@@ -22,6 +23,7 @@ function CheckoutContent() {
     const [showPaymentMethods, setShowPaymentMethods] = useState(false);
     const [showTaxInfoDialog, setShowTaxInfoDialog] = useState(false);
     const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
+    const { t } = useTranslation();
 
     const subtotal = getTotalPrice();
     const taxCalc = useTaxCalculation(subtotal, activeTaxes as TaxSetting[]);
@@ -40,7 +42,7 @@ function CheckoutContent() {
 
     const handlePayNow = () => {
         if (items.length === 0) {
-            alert('Your cart is empty');
+            alert(t('checkout.yourCartIsEmpty'));
             return;
         }
 
@@ -96,21 +98,21 @@ function CheckoutContent() {
     return (
         <div className="py-8">
             <div className="container mx-auto px-4 md:px-6">
-                <H1 className="mb-8 text-center text-2xl font-bold md:text-3xl">Checkout</H1>
+                <H1 className="mb-8 text-center text-2xl font-bold md:text-3xl">{t('checkout.checkout')}</H1>
 
                 {items.length === 0 ? (
                     <div className="flex h-[50vh] flex-col items-center justify-center text-gray-500">
                         <ShoppingCart className="mb-4 h-16 w-16 md:h-20 md:w-20" />
-                        <p className="mb-4 text-lg md:text-xl">Your cart is empty.</p>
+                        <p className="mb-4 text-lg md:text-xl">{t('checkout.yourCartIsEmpty')}</p>
                         <Link href={route('home')}>
-                            <Button>Continue Shopping</Button>
+                            <Button>{t('checkout.continueShopping')}</Button>
                         </Link>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-6 md:gap-8 lg:grid-cols-3">
                         {/* Order Summary - Mobile First Responsive */}
                         <div className="rounded-lg bg-white p-4 shadow-md md:p-6 lg:col-span-2">
-                            <h2 className="mb-4 text-xl font-semibold md:mb-6 md:text-2xl">Order Summary</h2>
+                            <h2 className="mb-4 text-xl font-semibold md:mb-6 md:text-2xl">{t('checkout.orderSummary')}</h2>
                             <ul className="space-y-4 md:space-y-6">
                                 {items.map((item) => (
                                     <li
@@ -173,22 +175,22 @@ function CheckoutContent() {
 
                         {/* Order Total - Responsive */}
                         <div className="h-fit rounded-lg bg-white p-4 shadow-md md:p-6 lg:col-span-1">
-                            <h2 className="mb-4 text-xl font-semibold md:mb-6 md:text-2xl">Order Total</h2>
+                            <h2 className="mb-4 text-xl font-semibold md:mb-6 md:text-2xl">{t('checkout.orderTotal')}</h2>
                             <div className="space-y-3 md:space-y-4">
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
-                                    <span>Subtotal ({getTotalItems()} items)</span>
+                                    <span>{t('checkout.subtotal')} ({getTotalItems()} {getTotalItems() === 1 ? t('orders.item') : t('orders.items')})</span>
                                     <span>{formatPrice(subtotal)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
-                                    <span>Shipping</span>
+                                    <span>{t('checkout.shipping')}</span>
                                     <span>{formatPrice(0)}</span>
                                 </div>
                                 <div className="flex justify-between text-sm text-gray-700 md:text-base">
-                                    <span>Tax</span>
+                                    <span>{t('checkout.tax')}</span>
                                     <span>{formatPrice(taxCalc.total_tax_amount)}</span>
                                 </div>
                                 <div className="flex justify-between border-t pt-4 text-lg font-bold md:text-xl">
-                                    <span>Total</span>
+                                    <span>{t('checkout.total')}</span>
                                     <span>{formatPrice(taxCalc.total)}</span>
                                 </div>
                             </div>
@@ -199,11 +201,11 @@ function CheckoutContent() {
                                     className="mt-6 w-full py-3 text-base md:mt-8 md:text-lg"
                                     disabled={items.length === 0}
                                 >
-                                    Pay Now
+                                    {t('checkout.payNow')}
                                 </Button>
                             ) : (
                                 <div className="mt-6 space-y-4 md:mt-8">
-                                    <h3 className="text-lg font-semibold text-gray-900">Choose Payment Method</h3>
+                                    <h3 className="text-lg font-semibold text-gray-900">{t('checkout.choosePaymentMethod')}</h3>
 
                                     {/* Online Payment with Chapa */}
                                     <button
@@ -215,8 +217,8 @@ function CheckoutContent() {
                                                 <CreditCard className="h-6 w-6 text-primary-600" />
                                             </div>
                                             <div className="text-left">
-                                                <h4 className="font-semibold text-gray-900">Pay with Chapa</h4>
-                                                <p className="text-sm text-gray-600">Secure online payment</p>
+                                                <h4 className="font-semibold text-gray-900">{t('checkout.payWithChapa')}</h4>
+                                                <p className="text-sm text-gray-600">{t('checkout.secureOnlinePayment')}</p>
                                             </div>
                                         </div>
                                     </button>
@@ -231,14 +233,14 @@ function CheckoutContent() {
                                                 <Upload className="h-6 w-6 text-primary-600" />
                                             </div>
                                             <div className="text-left">
-                                                <h4 className="font-semibold text-gray-900">Pay & Upload Proof</h4>
-                                                <p className="text-sm text-gray-600">Bank transfer + screenshot</p>
+                                                <h4 className="font-semibold text-gray-900">{t('checkout.payUploadProof')}</h4>
+                                                <p className="text-sm text-gray-600">{t('checkout.bankTransfer')}</p>
                                             </div>
                                         </div>
                                     </button>
 
                                     <Button variant="outline" onClick={() => setShowPaymentMethods(false)} className="w-full">
-                                        Back
+                                        {t('checkout.back')}
                                     </Button>
                                 </div>
                             )}
@@ -251,7 +253,7 @@ function CheckoutContent() {
                                         onClick={() => setShowTaxInfoDialog(true)}
                                         className="underline hover:text-gray-700 cursor-pointer"
                                     >
-                                        How we calculate tax
+                                        {t('checkout.howWeCalculateTax')}
                                     </button>
                                 </div>
                             )}
@@ -273,9 +275,10 @@ function CheckoutContent() {
 }
 
 export default function Show() {
+    const { t } = useTranslation()
     return (
         <CartProvider>
-            <MainLayout title="Checkout">
+            <MainLayout title={t('checkout.checkout')}>
                 <CheckoutContent />
             </MainLayout>
         </CartProvider>

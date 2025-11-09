@@ -4,6 +4,7 @@ import { useCart } from "@/contexts/cart-context"
 import { Button } from "./ui/button"
 import { X, Plus, Minus, ShoppingCart } from "lucide-react"
 import { Link } from "@inertiajs/react"
+import { useTranslation } from "react-i18next"
 // import { route } from "@/utils/route" // Import the route function
 
 interface CartDrawerProps {
@@ -13,16 +14,17 @@ interface CartDrawerProps {
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { items, removeFromCart, updateQuantity, getTotalPrice } = useCart()
+  const { t } = useTranslation()
   
   const getStockStatusText = (item: any) => {
     if (!item.manageStock) return ''
     
     if (item.stockStatus === 'out_of_stock') {
-      return 'Out of stock'
+      return t('cart.outOfStock')
     } else if (item.stockStatus === 'low_stock') {
-      return `Only ${item.maxQuantity} left in stock`
+      return t('cart.onlyLeft', { count: item.maxQuantity })
     } else {
-      return 'In stock'
+      return t('cart.inStock')
     }
   }
 
@@ -62,11 +64,11 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           {/* Header */}
           <div className="flex items-center justify-between border-b p-4 bg-white sticky top-0 z-10">
             <h2 id="cart-drawer-title" className="text-lg font-semibold truncate text-gray-900">
-              Your Cart ({items.length})
+              {t('cart.yourCart')} ({items.length})
             </h2>
             <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
               <X className="h-5 w-5" />
-              <span className="sr-only">Close cart</span>
+              <span className="sr-only">{t('cart.close')}</span>
             </Button>
           </div>
 
@@ -75,9 +77,9 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-500 px-4">
                 <ShoppingCart className="h-12 w-12 sm:h-16 sm:w-16 mb-4" />
-                <p className="text-base sm:text-lg text-center">Your cart is empty.</p>
+                <p className="text-base sm:text-lg text-center">{t('cart.empty')}</p>
                 <Button onClick={onClose} className="mt-4 w-full sm:w-auto">
-                  Continue Shopping
+                  {t('cart.continueShopping')}
                 </Button>
               </div>
             ) : (
@@ -143,7 +145,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               onClick={() => removeFromCart(item.id)}
                             >
                               <X className="h-4 w-4" />
-                              <span className="sr-only">Remove</span>
+                              <span className="sr-only">{t('cart.remove')}</span>
                             </Button>
                           </div>
                         </div>
@@ -159,12 +161,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           {items.length > 0 && (
             <div className="border-t p-4 bg-white sticky bottom-0">
               <div className="flex justify-between items-center text-lg font-semibold mb-4">
-                <span>Total:</span>
+                <span>{t('cart.total')}</span>
                 <span className="text-primary">{formatPrice(getTotalPrice())}</span>
               </div>
               <Link href={route("checkout")} className="block w-full">
                 <Button className="w-full text-base sm:text-lg py-3" onClick={onClose}>
-                  Proceed to Checkout
+                  {t('cart.proceedToCheckout')}
                 </Button>
               </Link>
             </div>

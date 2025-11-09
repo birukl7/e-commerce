@@ -32,6 +32,7 @@ import {
     Truck,
     XCircle,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface OrderItem {
     id: number;
@@ -133,6 +134,7 @@ const defaultMainNavItems: NavItem[] = [
     },
 ];
 export default function UserOrders({ orders = [] }: UserOrdersProps) {
+    const { t } = useTranslation()
     const placeholderImage = '/placeholder.svg?height=100&width=100&query=product';
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -342,7 +344,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
     };
 
     return (
-        <MainLayout title="My Orders - ShopHub" className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
+        <MainLayout title={t('orders.orderHistory') + ' - ShopHub'} className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
             <AppLayout
                 logoDisplay=" invisible"
                 sidebarStyle="mt-[20px]"
@@ -357,10 +359,10 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                         <Card>
                             <CardContent className="flex flex-col items-center justify-center py-12">
                                 <Package className="mb-4 h-16 w-16 text-gray-400" />
-                                <h3 className="mb-2 text-xl font-semibold text-gray-900">No Orders Yet</h3>
-                                <p className="mb-6 text-gray-600">You haven't placed any orders yet.</p>
+                                <h3 className="mb-2 text-xl font-semibold text-gray-900">{t('orders.noOrdersYet')}</h3>
+                                <p className="mb-6 text-gray-600">{t('orders.noOrdersDescription')}</p>
                                 <Button asChild>
-                                    <Link href={route('home')}>Start Shopping</Link>
+                                    <Link href={route('home')}>{t('orders.startShopping')}</Link>
                                 </Button>
                             </CardContent>
                         </Card>
@@ -370,13 +372,13 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                 <CardHeader className="border-b border-gray-100 bg-gray-50/70 py-5">
                                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                         <div className="space-y-1">
-                                            <CardTitle className="text-lg font-semibold text-gray-900">Order History</CardTitle>
+                                            <CardTitle className="text-lg font-semibold text-gray-900">{t('orders.orderHistory')}</CardTitle>
                                             <CardDescription>
-                                                Review your orders, check statuses, and open any order for full details.
+                                                {t('orders.reviewOrders')}
                                             </CardDescription>
                                         </div>
                                         <Badge variant="outline" className="self-start border-dashed text-xs uppercase tracking-wide text-gray-600">
-                                            {orders.length} {orders.length === 1 ? 'order' : 'orders'}
+                                            {orders.length} {orders.length === 1 ? t('orders.order') : t('orders.orders')}
                                         </Badge>
                                     </div>
                                 </CardHeader>
@@ -384,11 +386,11 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead className="min-w-[240px]">Order</TableHead>
-                                                <TableHead className="min-w-[160px]">Placed</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Payment</TableHead>
-                                                <TableHead className="text-right">Total</TableHead>
+                                                <TableHead className="min-w-[240px]">{t('orders.order')}</TableHead>
+                                                <TableHead className="min-w-[160px]">{t('orders.placed')}</TableHead>
+                                                <TableHead>{t('orders.status')}</TableHead>
+                                                <TableHead>{t('orders.payment')}</TableHead>
+                                                <TableHead className="text-right">{t('orders.total')}</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -406,9 +408,9 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                                 className="h-12 w-12 rounded-md border border-gray-200 object-cover"
                                                             />
                                                             <div className="space-y-1">
-                                                                <p className="font-medium text-gray-900">Order #{order.order_number}</p>
+                                                                <p className="font-medium text-gray-900">{t('orders.order')} #{order.order_number}</p>
                                                                 <p className="text-xs text-gray-500">
-                                                                    {order.item_count} {order.item_count === 1 ? 'item' : 'items'} • {order.product_summary}
+                                                                    {order.item_count} {order.item_count === 1 ? t('orders.item') : t('orders.items')} • {order.product_summary}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -429,7 +431,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                     </Table>
                                 </CardContent>
                                 <CardFooter className="border-t border-gray-100 bg-white py-4 text-sm text-gray-500">
-                                    Click any order row to open the detailed breakdown.
+                                    {t('orders.clickOrderRow')}
                                 </CardFooter>
                             </Card>
 
@@ -438,12 +440,12 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                     <DialogContent className="w-[96vw] max-w-[1600px] gap-6 border border-gray-100 p-0 sm:w-[92vw] sm:max-w-none sm:p-8 lg:w-[88vw] xl:w-[85vw]">
                                         <DialogHeader className="space-y-3 border-b border-gray-100 pb-4">
                                             <DialogTitle className="text-2xl font-semibold text-gray-900">
-                                                Order #{selectedOrder.order_number}
+                                                {t('orders.order')} #{selectedOrder.order_number}
                                             </DialogTitle>
                                             <DialogDescription className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                                                 <span className="flex items-center gap-2">
                                                     <Calendar className="h-4 w-4 text-gray-400" />
-                                                    Placed {formatDate(selectedOrder.created_at)}
+                                                    {t('orders.placed')} {formatDate(selectedOrder.created_at)}
                                                 </span>
                                                 <span className="flex items-center gap-2">
                                                     <DollarSign className="h-4 w-4 text-gray-400" />
@@ -464,7 +466,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                             <div className="space-y-4">
                                                 <div className="flex items-center justify-between">
                                                     <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                                                        Items ({selectedOrder.item_count})
+                                                        {t('orders.orderItems')} ({selectedOrder.item_count})
                                                     </h3>
                                                     <span className="text-xs text-gray-400">{selectedOrder.product_summary}</span>
                                                 </div>
@@ -489,9 +491,9 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                                     </span>
                                                                 </div>
                                                                 <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                                                    <span>Qty {item.quantity}</span>
+                                                                    <span>{t('orders.qty')} {item.quantity}</span>
                                                                     <span className="hidden sm:inline">•</span>
-                                                                    <span>{formatPrice(item.price, selectedOrder.currency)} each</span>
+                                                                    <span>{formatPrice(item.price, selectedOrder.currency)} {t('orders.price')}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -501,58 +503,57 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
 
                                             <div className="space-y-4 rounded-xl border border-gray-100 bg-gray-50 p-5">
                                                 <div className="space-y-2">
-                                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Order Summary</h4>
+                                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('orders.orderSummary')}</h4>
                                                     <div className="flex items-center justify-between text-sm text-gray-600">
-                                                        <span>Order total</span>
+                                                        <span>{t('orders.orderTotal')}</span>
                                                         <span className="text-base font-semibold text-gray-900">
                                                             {formatPrice(selectedOrder.total_amount, selectedOrder.currency)}
                                                         </span>
                                                     </div>
                                                     <div className="flex flex-col gap-1 text-sm text-gray-600">
                                                         <span>
-                                                            Payment reference:{' '}
+                                                            {t('orders.paymentReference')}{' '}
                                                             <span className="font-medium text-gray-900">{selectedOrder.tx_ref || 'N/A'}</span>
                                                         </span>
                                                         <span>
-                                                            Payment method:{' '}
+                                                            {t('orders.paymentMethod')}{' '}
                                                             <span className="font-medium text-gray-900">
                                                                 {selectedOrder.payment_type} • {selectedOrder.payment_method}
                                                             </span>
                                                         </span>
                                                         <span>
-                                                            Last updated:{' '}
+                                                            {t('orders.lastUpdated')}{' '}
                                                             <span className="font-medium text-gray-900">{formatDate(selectedOrder.updated_at)}</span>
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <div className="space-y-2">
-                                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Order Details</h4>
+                                                    <h4 className="text-sm font-semibold uppercase tracking-wide text-gray-500">{t('orders.orderDetails')}</h4>
                                                     <div className="space-y-1 text-sm text-gray-600">
                                                         <div className="flex justify-between">
-                                                            <span>Order number</span>
+                                                            <span>{t('orders.orderNumber')}</span>
                                                             <span className="font-medium text-gray-900">#{selectedOrder.order_number}</span>
                                                         </div>
                                                         <div className="flex justify-between">
-                                                            <span>Payment status</span>
+                                                            <span>{t('orders.paymentStatus')}</span>
                                                             <span className="font-medium text-gray-900">{formatStatusText(selectedOrder.payment_status)}</span>
                                                         </div>
                                                         <div className="flex justify-between">
-                                                            <span>Order status</span>
+                                                            <span>{t('orders.orderStatus')}</span>
                                                             <span className="font-medium text-gray-900">{formatStatusText(selectedOrder.status)}</span>
                                                         </div>
                                                         <div className="flex justify-between">
-                                                            <span>Currency</span>
+                                                            <span>{t('orders.currency')}</span>
                                                             <span className="font-medium text-gray-900">{selectedOrder.currency}</span>
                                                         </div>
                                                         <div className="flex justify-between">
-                                                            <span>Transaction ref</span>
+                                                            <span>{t('orders.transactionRef')}</span>
                                                             <span className="font-medium text-gray-900">{selectedOrder.tx_ref || '—'}</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                                 <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-xs text-gray-500">
-                                                    Need help with this order? Contact support with your reference{' '}
-                                                    <span className="font-semibold text-gray-900">#{selectedOrder.order_number}</span>.
+                                                    {t('orders.needHelp')} <span className="font-semibold text-gray-900">#{selectedOrder.order_number}</span>.
                                                 </div>
                                             </div>
                                         </div>
@@ -568,7 +569,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                 ) : (
                                                     <Package className="mr-2 h-4 w-4" />
                                                 )}
-                                                Track shipment
+                                                {t('orders.trackShipment')}
                                             </Button>
                                         </DialogFooter>
                                     </DialogContent>
@@ -579,13 +580,13 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                 <DialogContent className="max-h-[90vh] w-[96vw] max-w-5xl gap-6 overflow-y-auto border border-gray-100 p-0 sm:w-[92vw] sm:max-w-none sm:p-8 lg:w-[80vw] xl:w-[70vw]">
                                     <DialogHeader className="space-y-3 border-b border-gray-100 pb-4">
                                         <DialogTitle className="text-2xl font-semibold text-gray-900">
-                                            Track Order #{trackingData?.order.order_number ?? trackingOrder?.order_number ?? ''}
+                                            {t('orderTracking.trackOrder')} #{trackingData?.order.order_number ?? trackingOrder?.order_number ?? ''}
                                         </DialogTitle>
                                         <DialogDescription className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
                                             {trackingData?.order.created_at || trackingOrder?.created_at ? (
                                                 <span className="flex items-center gap-2">
                                                     <Calendar className="h-4 w-4 text-gray-400" />
-                                                    Placed {formatDate(trackingData?.order.created_at || trackingOrder?.created_at || '')}
+                                                    {t('orders.placed')} {formatDate(trackingData?.order.created_at || trackingOrder?.created_at || '')}
                                                 </span>
                                             ) : null}
                                             {trackingData ? (
@@ -608,14 +609,14 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                     {isTrackingLoading ? (
                                         <div className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-gray-500">
                                             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
-                                            Loading tracking details...
+                                            {t('orderTracking.trackOrder')}...
                                         </div>
                                     ) : trackingError ? (
                                         <div className="flex h-64 flex-col items-center justify-center gap-3 text-center text-sm text-red-600">
                                             <XCircle className="h-10 w-10 text-red-500" />
                                             <p>{trackingError}</p>
                                             <p className="text-xs text-gray-500">
-                                                Please try again later or contact support with your order number.
+                                                {t('orderTracking.questionsAboutOrder')}
                                             </p>
                                         </div>
                                     ) : trackingData ? (
@@ -625,7 +626,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                     <CardHeader>
                                                         <CardTitle className="flex items-center gap-2">
                                                             <Truck className="h-5 w-5" />
-                                                            Order Progress
+                                                            {t('orderTracking.orderProgress')}
                                                         </CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
@@ -689,35 +690,35 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                     <CardHeader>
                                                         <CardTitle className="flex items-center gap-2">
                                                             <Package className="h-5 w-5" />
-                                                            Order Summary
+                                                            {t('orderTracking.orderSummary')}
                                                         </CardTitle>
                                                     </CardHeader>
                                                     <CardContent className="space-y-4">
                                                         <div className="space-y-2 text-sm text-gray-600">
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-600">Order Number</span>
+                                                                <span className="text-gray-600">{t('orderTracking.orderNumber')}</span>
                                                                 <span className="font-medium text-gray-900">#{trackingData.order.order_number}</span>
                                                             </div>
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-600">Order Date</span>
+                                                                <span className="text-gray-600">{t('orderTracking.orderDate')}</span>
                                                                 <span className="font-medium text-gray-900">{formatDate(trackingData.order.created_at)}</span>
                                                             </div>
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-600">Total Amount</span>
+                                                                <span className="text-gray-600">{t('orderTracking.totalAmount')}</span>
                                                                 <span className="font-medium text-gray-900">
                                                                     {formatPrice(trackingData.order.total_amount, trackingData.order.currency)}
                                                                 </span>
                                                             </div>
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-600">Payment Method</span>
+                                                                <span className="text-gray-600">{t('orderTracking.paymentMethod')}</span>
                                                                 <span className="font-medium text-gray-900">{trackingData.order.payment_method}</span>
                                                             </div>
                                                             <div className="flex justify-between">
-                                                                <span className="text-gray-600">Payment Type</span>
+                                                                <span className="text-gray-600">{t('orderTracking.paymentType')}</span>
                                                                 <span className="font-medium text-gray-900">{trackingData.order.payment_method_type}</span>
                                                             </div>
                                                             <div className="flex items-center justify-between">
-                                                                <span className="text-gray-600">Payment Status</span>
+                                                                <span className="text-gray-600">{t('orderTracking.paymentStatus')}</span>
                                                                 <Badge variant={getTrackingPaymentVariant(trackingData.order.payment_status)} className="text-xs">
                                                                     {formatTrackingPaymentStatus(trackingData.order.payment_status)}
                                                                 </Badge>
@@ -730,31 +731,31 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                     <Button asChild className="w-full" variant="outline">
                                                         <Link href={`/user/orders/${trackingData.order.id}`}>
                                                             <Package className="mr-2 h-4 w-4" />
-                                                            View Order Details
+                                                            {t('orderTracking.viewOrderDetails')}
                                                         </Link>
                                                     </Button>
                                                     <Button asChild className="w-full" variant="outline">
                                                         <Link href={route('user.orders')}>
-                                                            All Orders
+                                                            {t('orderTracking.allOrders')}
                                                         </Link>
                                                     </Button>
                                                     {trackingData.order.payment_status === 'failed' && (
                                                         <Button className="w-full" variant="destructive">
-                                                            Retry Payment
+                                                            {t('orders.retryPayment')}
                                                         </Button>
                                                     )}
                                                 </div>
 
                                                 <Card>
                                                     <CardHeader>
-                                                        <CardTitle className="text-base">Need Help?</CardTitle>
+                                                        <CardTitle className="text-base">{t('orderTracking.needHelp')}</CardTitle>
                                                     </CardHeader>
                                                     <CardContent>
                                                         <p className="mb-3 text-sm text-gray-600">
-                                                            If you have questions about your order, please contact our support team.
+                                                            {t('orderTracking.questionsAboutOrder')}
                                                         </p>
                                                         <Button variant="outline" size="sm" className="w-full">
-                                                            Contact Support
+                                                            {t('orderTracking.contactSupport')}
                                                         </Button>
                                                     </CardContent>
                                                 </Card>
@@ -762,7 +763,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                         </div>
                                     ) : (
                                         <div className="flex h-64 items-center justify-center text-sm text-gray-500">
-                                            Tracking information is unavailable for this order.
+                                            {t('orderTracking.trackOrder')} {t('orderTracking.orderProgress')}
                                         </div>
                                     )}
                                 </DialogContent>

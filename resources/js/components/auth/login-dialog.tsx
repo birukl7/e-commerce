@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { router } from "@inertiajs/react"
+import { useTranslation } from "react-i18next"
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ trigger }: LoginDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -99,8 +101,8 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
         <DialogHeader className="gap-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <DialogTitle>Sign in</DialogTitle>
-              <DialogDescription>Use your email to access Serdo.</DialogDescription>
+              <DialogTitle>{t("auth.signIn")}</DialogTitle>
+              <DialogDescription>{t("auth.signInDescription")}</DialogDescription>
             </div>
             <button
               type="button"
@@ -112,7 +114,7 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
                 }, 150)
               }}
             >
-              Sign up
+              {t("auth.signUp")}
             </button>
           </div>
         </DialogHeader>
@@ -120,7 +122,7 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <label htmlFor="dialog-login-email" className="text-sm font-medium text-foreground">
-              Email address
+              {t("auth.emailAddress")}
             </label>
             <Input
               id="dialog-login-email"
@@ -135,7 +137,7 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
           </div>
           <div className="space-y-2">
             <label htmlFor="dialog-login-password" className="text-sm font-medium text-foreground">
-              Password
+              {t("auth.password")}
             </label>
             <Input
               id="dialog-login-password"
@@ -150,14 +152,14 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
           </div>
           <Button type="submit" className="w-full rounded-full" disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Mail className="mr-2 h-4 w-4" />}
-            Continue with email
+            {t("auth.continueWithEmail")}
           </Button>
         </form>
         <div className="relative my-4">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t" />
           </div>
-          <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">or</span>
+          <span className="relative mx-auto flex w-fit bg-background px-2 text-xs text-muted-foreground">{t("auth.or")}</span>
         </div>
         <Button
           type="button"
@@ -167,13 +169,13 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
           disabled={isSubmitting}
         >
           <GoogleIcon className="mr-2" />
-          Continue with Google
+          {t("auth.continueWithGoogle")}
         </Button>
         <DialogFooter>
           <p className="text-center text-sm text-muted-foreground w-full">
-            By continuing, you agree to our
+            {t("auth.termsAgreementLogin")}{" "}
             <a href={route("terms") as string} target="_blank" rel="noopener noreferrer" className="ml-1 underline">
-              Terms of Service
+              {t("auth.termsOfService")}
             </a>
             .
           </p>

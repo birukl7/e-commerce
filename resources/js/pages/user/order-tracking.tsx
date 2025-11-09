@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Package, CheckCircle, Clock, XCircle, Truck } from 'lucide-react';
 import MainLayout from '@/layouts/app/main-layout';
+import { useTranslation } from 'react-i18next';
 
 interface TimelineItem {
     status: string;
@@ -32,6 +33,8 @@ interface OrderTrackingProps {
 }
 
 export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
+    const { t } = useTranslation()
+    
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -113,8 +116,8 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
     };
 
     return (
-        <MainLayout title={`Track Order #${order.order_number} - ShopHub`}>
-            <Head title={`Track Order #${order.order_number}`} />
+        <MainLayout title={`${t('orderTracking.trackOrder')} #${order.order_number} - ShopHub`}>
+            <Head title={`${t('orderTracking.trackOrder')} #${order.order_number}`} />
             
             <div className="py-8">
                 {/* Header */}
@@ -123,14 +126,14 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                         <Button variant="outline" size="sm" asChild>
                             <Link href={`/user/orders/${order.id}`}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back to Order Details
+                                {t('orderTracking.backToOrderDetails')}
                             </Link>
                         </Button>
                     </div>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Track Order</h1>
-                            <p className="text-gray-600">Order #{order.order_number}</p>
+                            <h1 className="text-3xl font-bold text-gray-900">{t('orderTracking.trackOrder')}</h1>
+                            <p className="text-gray-600">{t('orders.order')} #{order.order_number}</p>
                         </div>
                         <Badge className={getStatusColor(order.status)}>
                             {order.status}
@@ -145,7 +148,7 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Truck className="h-5 w-5" />
-                                    Order Progress
+                                    {t('orderTracking.orderProgress')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
@@ -211,33 +214,33 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Package className="h-5 w-5" />
-                                    Order Summary
+                                    {t('orderTracking.orderSummary')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Order Number:</span>
+                                        <span className="text-gray-600">{t('orderTracking.orderNumber')}</span>
                                         <span className="font-medium">{order.order_number}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Order Date:</span>
+                                        <span className="text-gray-600">{t('orderTracking.orderDate')}</span>
                                         <span className="font-medium">{formatDate(order.created_at)}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Total Amount:</span>
+                                        <span className="text-gray-600">{t('orderTracking.totalAmount')}</span>
                                         <span className="font-medium">{formatPrice(order.total_amount)}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Method:</span>
+                                        <span className="text-gray-600">{t('orderTracking.paymentMethod')}</span>
                                         <span className="font-medium">{order.payment_method}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Type:</span>
+                                        <span className="text-gray-600">{t('orderTracking.paymentType')}</span>
                                         <span className="font-medium">{order.payment_method_type}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Status:</span>
+                                        <span className="text-gray-600">{t('orderTracking.paymentStatus')}</span>
                                         <Badge className="text-xs" variant={getPaymentStatusColor(order.payment_status)}>
                                             {formatPaymentStatus(order.payment_status)}
                                         </Badge>
@@ -251,19 +254,19 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                             <Button asChild className="w-full" variant="outline">
                                 <Link href={`/user/orders/${order.id}`}>
                                     <Package className="mr-2 h-4 w-4" />
-                                    View Order Details
+                                    {t('orderTracking.viewOrderDetails')}
                                 </Link>
                             </Button>
                             
                             <Button asChild className="w-full" variant="outline">
                                 <Link href={route('user.orders')}>
-                                    All Orders
+                                    {t('orderTracking.allOrders')}
                                 </Link>
                             </Button>
 
                             {order.payment_status === 'failed' && (
                                 <Button className="w-full" variant="destructive">
-                                    Retry Payment
+                                    {t('orders.retryPayment')}
                                 </Button>
                             )}
                         </div>
@@ -271,14 +274,14 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                         {/* Help Card */}
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Need Help?</CardTitle>
+                                <CardTitle className="text-base">{t('orderTracking.needHelp')}</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-gray-600 mb-3">
-                                    If you have questions about your order, please contact our support team.
+                                    {t('orderTracking.questionsAboutOrder')}
                                 </p>
                                 <Button variant="outline" size="sm" className="w-full">
-                                    Contact Support
+                                    {t('orderTracking.contactSupport')}
                                 </Button>
                             </CardContent>
                         </Card>

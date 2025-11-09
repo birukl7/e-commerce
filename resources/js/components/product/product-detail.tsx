@@ -6,6 +6,7 @@ import { Heart, RotateCcw, Share2, Shield, Star, Tag } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '../ui/button';
 import { ReviewSection } from './review-section';
+import { useTranslation } from 'react-i18next';
 // import { ReviewSection } from "./review-section"
 
 interface ProductImage {
@@ -83,6 +84,7 @@ interface ProductDetailsProps {
 }
 
 export function ProductDetails({ product, reviews, userHasReviewed }: ProductDetailsProps) {
+    const { t } = useTranslation()
     const { auth } = usePage<SharedData>().props;
     const [quantity, setQuantity] = useState(1);
     const [isWishlisted, setIsWishlisted] = useState(false);
@@ -227,12 +229,12 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                     <span className="text-sm text-gray-600">{product.brand.name}</span>
                     {product.featured && (
                         <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                            Featured
+                            {t('wishlist.featured')}
                         </span>
                     )}
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-                <p className="mt-1 text-sm text-gray-500">SKU: {product.sku}</p>
+                <p className="mt-1 text-sm text-gray-500">{t('productDetail.sku')} {product.sku}</p>
             </div>
 
             {/* Rating and Reviews */}
@@ -247,7 +249,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                         />
                     ))}
                     <span className="ml-2 text-sm text-gray-600">
-                        {product.average_rating.toFixed(1)} ({product.reviews_count} reviews)
+                        {product.average_rating.toFixed(1)} ({product.reviews_count} {t('productDetail.reviews')})
                     </span>
                 </div>
             </div>
@@ -260,7 +262,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                         <span className="text-xl text-gray-500 line-through">{formatPrice(product.price)}</span>
                         <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-sm font-medium text-red-800">
                             <Tag className="mr-1 h-4 w-4" />
-                            Save {formatPrice(product.price - product.current_price)}
+                            {t('productDetail.save')} {formatPrice(product.price - product.current_price)}
                         </span>
                     </div>
                 ) : (
@@ -272,13 +274,13 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
             <div className="flex items-center gap-2">
                 <div className={`h-3 w-3 rounded-full ${isOutOfStock ? 'bg-red-500' : isLowStock ? 'bg-yellow-500' : 'bg-green-500'}`} />
                 <span className={`text-sm font-medium ${isOutOfStock ? 'text-red-600' : isLowStock ? 'text-yellow-600' : 'text-green-600'}`}>
-                    {isOutOfStock ? 'Out of Stock' : isLowStock ? `Only ${product.stock_quantity} left in stock` : 'In Stock'}
+                    {isOutOfStock ? t('productDetail.outOfStock') : isLowStock ? t('productDetail.onlyLeft', { count: product.stock_quantity }) : t('productDetail.inStock')}
                 </span>
             </div>
 
             {/* Description */}
             <div>
-                <h3 className="mb-2 text-lg font-medium text-gray-900">Description</h3>
+                <h3 className="mb-2 text-lg font-medium text-gray-900">{t('productDetail.description')}</h3>
                 <p className="leading-relaxed text-gray-600">{product.description}</p>
             </div>
 
@@ -287,7 +289,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                 <div className="space-y-4">
                     <div className="flex items-center gap-4">
                         <label htmlFor="quantity" className="text-sm font-medium text-gray-700">
-                            Quantity:
+                            {t('productDetail.quantity')}
                         </label>
                         <div className="flex items-center rounded-md border border-gray-300">
                             <button
@@ -317,7 +319,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                     </div>
                     <div className="flex gap-4">
                         <Button onClick={handleAddToCart} className="flex-1 rounded-md px-6 py-3 font-medium text-white transition-colors max-w-[300px]">
-                            Add to Cart
+                            {t('productDetail.addToCart')}
                         </Button>
                         <Button
                             onClick={handleToggleWishlist}
@@ -338,23 +340,23 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
 
             {/* Product Details */}
             <div className="border-t pt-6">
-                <h3 className="mb-4 text-lg font-medium text-gray-900">Product Details</h3>
+                <h3 className="mb-4 text-lg font-medium text-gray-900">{t('productDetail.productDetails')}</h3>
                 <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                     <div>
-                        <dt className="font-medium text-gray-900">Category</dt>
+                        <dt className="font-medium text-gray-900">{t('productDetail.category')}</dt>
                         <dd className="text-gray-600">{product.category.name}</dd>
                     </div>
                     <div>
-                        <dt className="font-medium text-gray-900">Brand</dt>
+                        <dt className="font-medium text-gray-900">{t('productDetail.brand')}</dt>
                         <dd className="text-gray-600">{product.brand.name}</dd>
                     </div>
                     <div>
-                        <dt className="font-medium text-gray-900">SKU</dt>
+                        <dt className="font-medium text-gray-900">{t('productDetail.sku')}</dt>
                         <dd className="text-gray-600">{product.sku}</dd>
                     </div>
                     <div>
-                        <dt className="font-medium text-gray-900">Availability</dt>
-                        <dd className="text-gray-600">{product.stock_quantity} units in stock</dd>
+                        <dt className="font-medium text-gray-900">{t('productDetail.availability')}</dt>
+                        <dd className="text-gray-600">{product.stock_quantity} {t('productDetail.unitsInStock')}</dd>
                     </div>
                 </dl>
             </div>

@@ -6,6 +6,7 @@ import { Star, ThumbsUp, User, CheckCircle, MessageSquare, Filter } from "lucide
 import { Button } from "../ui/button"
 import { usePage } from "@inertiajs/react"
 import type { SharedData } from "@/types"
+import { useTranslation } from "react-i18next"
 
 interface Review {
   id: number
@@ -49,6 +50,7 @@ export function ReviewSection({
   reviews: initialReviews = { data: [], pagination: { current_page: 1, last_page: 1, per_page: 10, total: 0 } },
   userHasReviewed: initialUserHasReviewed,
 }: ReviewSectionProps) {
+  const { t } = useTranslation()
   const { auth } = usePage<SharedData>().props
   const [reviews, setReviews] = useState<ReviewsData>(initialReviews)
   const [userHasReviewed, setUserHasReviewed] = useState(initialUserHasReviewed)
@@ -213,14 +215,14 @@ export function ReviewSection({
     <div className="space-y-8">
       {/* Rating Overview */}
       <div className="border-t pt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Customer Reviews</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('reviews.customerReviews')}</h2>
 
         <div className="grid md:grid-cols-2 gap-8 mb-8">
           {/* Overall Rating */}
           <div className="text-center">
             <div className="text-4xl font-bold text-gray-900 mb-2">{averageRating.toFixed(1)}</div>
             <div className="flex justify-center mb-2">{renderStars(Math.round(averageRating))}</div>
-            <p className="text-gray-600">{reviewsCount} reviews</p>
+            <p className="text-gray-600">{reviewsCount} {t('reviews.reviews')}</p>
           </div>
 
           {/* Rating Breakdown */}
@@ -246,7 +248,7 @@ export function ReviewSection({
           <div className="mb-8">
             <Button onClick={() => setShowReviewForm(!showReviewForm)} className="flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
-              Write a Review
+              {t('reviews.writeReview')}
             </Button>
           </div>
         )}
@@ -254,16 +256,16 @@ export function ReviewSection({
         {/* Review Form */}
         {showReviewForm && (
           <div className="bg-gray-50 rounded-lg p-6 mb-8">
-            <h3 className="text-lg font-semibold mb-4">Write Your Review</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('reviews.writeYourReview')}</h3>
             <form onSubmit={handleSubmitReview} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Rating *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">{t('reviews.rating')}</label>
                 {renderStars(reviewForm.rating, true, (rating) => setReviewForm((prev) => ({ ...prev, rating })))}
               </div>
 
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                  Review Title (Optional)
+                  {t('reviews.reviewTitle')}
                 </label>
                 <input
                   type="text"
@@ -271,13 +273,13 @@ export function ReviewSection({
                   value={reviewForm.title}
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, title: e.target.value }))}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Summarize your review"
+                  placeholder={t('reviews.summarizeReview')}
                 />
               </div>
 
               <div>
                 <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-1">
-                  Your Review *
+                  {t('reviews.yourReview')}
                 </label>
                 <textarea
                   id="comment"
@@ -285,7 +287,7 @@ export function ReviewSection({
                   onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
                   rows={4}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  placeholder="Share your thoughts about this product"
+                  placeholder={t('reviews.shareThoughts')}
                   required
                 />
               </div>
@@ -296,14 +298,14 @@ export function ReviewSection({
                   disabled={submitting || reviewForm.rating === 0 || !reviewForm.comment.trim()}
                   className="bg-blue-600 text-white hover:bg-blue-700"
                 >
-                  {submitting ? "Submitting..." : "Submit Review"}
+                  {submitting ? t('reviews.submitting') : t('reviews.submitReview')}
                 </Button>
                 <Button
                   type="button"
                   onClick={() => setShowReviewForm(false)}
                   className="bg-gray-200 text-gray-800 hover:bg-gray-300"
                 >
-                  Cancel
+                  {t('reviews.cancel')}
                 </Button>
               </div>
             </form>
@@ -314,33 +316,33 @@ export function ReviewSection({
         <div className="flex flex-wrap items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            <span className="text-sm font-medium">Sort by:</span>
+            <span className="text-sm font-medium">{t('reviews.sortBy')}</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
               className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="highest_rating">Highest Rating</option>
-              <option value="lowest_rating">Lowest Rating</option>
-              <option value="most_helpful">Most Helpful</option>
+              <option value="newest">{t('reviews.newest')}</option>
+              <option value="oldest">{t('reviews.oldest')}</option>
+              <option value="highest_rating">{t('reviews.highestRating')}</option>
+              <option value="lowest_rating">{t('reviews.lowestRating')}</option>
+              <option value="most_helpful">{t('reviews.mostHelpful')}</option>
             </select>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Filter by rating:</span>
+            <span className="text-sm font-medium">{t('reviews.filterByRating')}</span>
             <select
               value={filterRating || ""}
               onChange={(e) => setFilterRating(e.target.value ? Number.parseInt(e.target.value) : null)}
               className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All Ratings</option>
-              <option value="5">5 Stars</option>
-              <option value="4">4 Stars</option>
-              <option value="3">3 Stars</option>
-              <option value="2">2 Stars</option>
-              <option value="1">1 Star</option>
+              <option value="">{t('reviews.allRatings')}</option>
+              <option value="5">5 {t('reviews.stars')}</option>
+              <option value="4">4 {t('reviews.stars')}</option>
+              <option value="3">3 {t('reviews.stars')}</option>
+              <option value="2">2 {t('reviews.stars')}</option>
+              <option value="1">1 {t('reviews.star')}</option>
             </select>
           </div>
         </div>
@@ -350,7 +352,7 @@ export function ReviewSection({
           {loading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-2">Loading reviews...</p>
+              <p className="text-gray-600 mt-2">{t('reviews.loadingReviews')}</p>
             </div>
           ) : reviews?.data?.length > 0 ? (
             reviews.data.map((review) => (
@@ -376,7 +378,7 @@ export function ReviewSection({
                       {review.is_verified_purchase && (
                         <span className="inline-flex items-center gap-1 text-xs text-green-600">
                           <CheckCircle className="h-3 w-3" />
-                          Verified Purchase
+                          {t('reviews.verifiedPurchase')}
                         </span>
                       )}
                     </div>
@@ -399,7 +401,7 @@ export function ReviewSection({
                         } ${!auth.user ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                       >
                         <ThumbsUp className="h-4 w-4" />
-                        Helpful ({review.helpful_count})
+                        {t('reviews.helpful')} ({review.helpful_count})
                       </button>
                     </div>
                   </div>
@@ -409,7 +411,7 @@ export function ReviewSection({
           ) : (
             <div className="text-center py-8">
               <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No reviews yet. Be the first to review this product!</p>
+              <p className="text-gray-600">{t('reviews.noReviewsYet')}</p>
             </div>
           )}
         </div>

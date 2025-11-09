@@ -1,6 +1,7 @@
 import { ProductDetails } from '@/components/product/product-detail'
 import { ProductImageGallery } from '@/components/product/product-image-gallery'
 import MainLayout from '@/layouts/app/main-layout'
+import { useTranslation } from 'react-i18next'
 
 interface ProductImage {
   id: number
@@ -80,16 +81,17 @@ interface ShowProps {
 
 
 const Show = ({ product, related_products, reviews, userHasReviewed }: ShowProps) => {
+  const { t } = useTranslation()
   console.log("products images", product.images);
   return (
     <MainLayout 
-      title={product?.name || 'Product'} 
+      title={product?.name || t('productDetail.productDetails')} 
       className=""
       showBackButton
     >
       <div className="max-w-7xl mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">
-          {product?.name || 'Loading...'}
+          {product?.name || t('productDetail.productDetails')}
         </h1>
         
         {/* Test ProductImageGallery */}

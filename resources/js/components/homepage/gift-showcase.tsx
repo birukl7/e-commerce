@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
+import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -39,6 +40,7 @@ interface GiftShowcaseProps {
 
 export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6, categoryCount = 3 }: GiftShowcaseProps) {
     const { auth } = usePage<SharedData>().props;
+    const { t } = useTranslation();
     const [products, setProducts] = useState<Product[]>([]);
     const [categories, setCategories] = useState<ShowcaseCategory[]>([]);
     const [productsLoading, setProductsLoading] = useState(true);
@@ -366,9 +368,9 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
         return (
             <div className="mx-auto p-2 md:p-2 lg:p-2">
                 <div className="py-8 text-center">
-                    <p className="mb-4 text-red-500">Failed to load content</p>
+                    <p className="mb-4 text-red-500">{t("giftShowcase.failedToLoad")}</p>
                     <Button onClick={handleRetry} className="px-6 py-2">
-                        Try Again
+                        {t("giftShowcase.tryAgain")}
                     </Button>
                 </div>
             </div>
@@ -381,12 +383,12 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
             <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between">
                 <div className="mb-6 lg:mb-0">
                     <H2 className="mb-4 leading-tight text-gray-900">
-                        Serdo-special gifts
+                        {t("giftShowcase.title")}
                         <br />
-                        for birthdays
+                        {t("giftShowcase.subtitle")}
                     </H2>
                     <Button variant="outline" className="border-gray-300 bg-transparent px-6 py-2 text-sm font-medium hover:bg-gray-50">
-                        Get inspired
+                        {t("giftShowcase.getInspired")}
                     </Button>
                 </div>
                 {/* Featured Categories Grid */}
@@ -415,7 +417,7 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                                                   <h3 className="group-hover:primary text-lg font-semibold text-white transition-colors md:text-xl">
                                                       {category.name}
                                                   </h3>
-                                                  <p className="text-sm text-white/80">{category.product_count} products</p>
+                                                  <p className="text-sm text-white/80">{category.product_count} {t("giftShowcase.products")}</p>
                                               </div>
                                           </div>
                                       </CardContent>
@@ -502,11 +504,11 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
 
             {!productsLoading && products.length === 0 && (
                 <div className="py-8 text-center">
-                    <p className="text-gray-500">No products available at the moment.</p>
+                    <p className="text-gray-500">{t("giftShowcase.noProducts")}</p>
                 </div>
             )}
 
-            <p className="text-center text-sm text-gray-600">Find things you'll love. Support independent sellers. Only on ShopHub</p>
+            <p className="text-center text-sm text-gray-600">{t("giftShowcase.footerText")}</p>
         </div>
     );
 }

@@ -10,10 +10,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Upload, X, CheckCircle, Home } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 const Index = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const { t } = useTranslation()
 
   const { data, setData, post, processing, errors, reset } = useForm({
     product_name: "",
@@ -63,7 +65,7 @@ const Index = () => {
 
   if (isSubmitted) {
     return (
-      <MainLayout title={"Request a feature"} className={""}>
+      <MainLayout title={t("request.requestNewProduct")} className={""}>
         <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center py-12 px-4">
           <div className="max-w-2xl mx-auto w-full">
             <Card className="shadow-2xl border-0 bg-white/90 backdrop-blur-sm">
@@ -73,17 +75,17 @@ const Index = () => {
                     <CheckCircle className="h-16 w-16 text-green-600" />
                   </div>
                   <div className="space-y-3">
-                    <H2 className="text-3xl font-bold text-green-800">Request Submitted Successfully!</H2>
+                    <H2 className="text-3xl font-bold text-green-800">{t("request.requestSubmitted")}</H2>
                     <p className="text-lg text-gray-600 max-w-md text-center">
-                      Thank you for your product request. We'll review it carefully and get back to you soon.
+                      {t("request.thankYou")}
                     </p>
                   </div>
                   <div className="bg-gray-50 p-6 rounded-lg w-full max-w-md">
-                    <p className="text-sm text-gray-500 mb-2 text-left">What happens next?</p>
+                    <p className="text-sm text-gray-500 mb-2 text-left">{t("request.whatHappensNext")}</p>
                     <ul className="text-sm text-gray-700 space-y-1 text-left">
-                      <li>• Our team will review your request</li>
-                      <li>• We'll evaluate feasibility and impact</li>
-                      <li>• You'll receive updates via email</li>
+                      <li>• {t("request.teamWillReview")}</li>
+                      <li>• {t("request.evaluateFeasibility")}</li>
+                      <li>• {t("request.receiveUpdates")}</li>
                     </ul>
                   </div>
                   <Button
@@ -91,7 +93,7 @@ const Index = () => {
                     className="mt-6 h-12 px-8 text-base shadow-lg"
                   >
                     <Home className="w-5 h-5 mr-2" />
-                    Back to Homepage
+                    {t("request.backToHomepage")}
                   </Button>
                 </div>
               </CardContent>
@@ -104,14 +106,13 @@ const Index = () => {
   }
 
   return (
-    <MainLayout title={"Request a feature"} className={""}>
+    <MainLayout title={t("request.requestNewProduct")} className={""}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 py-12 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
-            <H2 className="text-3xl font-bold text-gray-900 mb-4">Request a New Product Feature</H2>
+            <H2 className="text-3xl font-bold text-gray-900 mb-4">{t("request.requestNewProduct")}</H2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Have an idea for a new product or feature? We'd love to hear from you! Share your vision and help us build
-              something amazing together.
+              {t("request.haveAnIdea")}
             </p>
           </div>
 
@@ -124,14 +125,14 @@ const Index = () => {
                     {/* Product Name Field */}
                     <div className="space-y-3">
                       <Label htmlFor="product_name" className="text-base font-semibold text-gray-700">
-                        Product Name *
+                        {t("request.productName")}
                       </Label>
                       <Input
                         id="product_name"
                         type="text"
                         value={data.product_name}
                         onChange={(e) => setData("product_name", e.target.value)}
-                        placeholder="Enter the product name"
+                        placeholder={t("request.enterProductName")}
                         className={`h-12 text-base ${errors.product_name ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-blue-500"}`}
                       />
                       {errors.product_name && (
@@ -145,14 +146,14 @@ const Index = () => {
                     {/* Description Field */}
                     <div className="space-y-3">
                       <Label htmlFor="description" className="text-base font-semibold text-gray-700">
-                        Description *
+                        {t("request.description")}
                       </Label>
                       <Textarea
                         id="description"
                         rows={24}
                         value={data.description}
                         onChange={(e) => setData("description", e.target.value)}
-                        placeholder="Describe your product idea in detail. What problem does it solve? Who would use it? What features should it have?"
+                        placeholder={t("request.describeProductIdea")}
                         className={`text-base resize-none ${errors.description ? "border-red-500 focus:border-red-500" : "border-gray-300 focus:border-blue-500"}`}
                       />
                       {errors.description && (
@@ -166,7 +167,7 @@ const Index = () => {
 
                   {/* Right Column - Image Upload */}
                   <div className="space-y-3">
-                    <Label className="text-base font-semibold text-gray-700">Product Image (Optional)</Label>
+                    <Label className="text-base font-semibold text-gray-700">{t("request.productImage")}</Label>
                     <div className="h-full min-h-[300px]">
                       {!imagePreview ? (
                         <div className="h-full border-2 border-dashed border-gray-300 rounded-xl bg-gray-50/50 hover:bg-gray-100/50 hover:border-gray-400 transition-all duration-200 cursor-pointer group">
@@ -178,9 +179,9 @@ const Index = () => {
                               <Upload className="h-8 w-8 text-blue-500" />
                             </div>
                             <div className="mt-4 text-center">
-                              <span className="text-lg font-medium text-gray-900 block">Upload an image</span>
-                              <span className="text-sm text-gray-500 mt-1 block">Drag and drop or click to browse</span>
-                              <span className="text-xs text-gray-400 mt-2 block">PNG, JPG, GIF up to 10MB</span>
+                              <span className="text-lg font-medium text-gray-900 block">{t("request.uploadImage")}</span>
+                              <span className="text-sm text-gray-500 mt-1 block">{t("request.dragAndDrop")}</span>
+                              <span className="text-xs text-gray-400 mt-2 block">{t("request.imageFormats")}</span>
                             </div>
                           </Label>
                           <Input
@@ -235,7 +236,7 @@ const Index = () => {
                     disabled={processing}
                     className="h-12 px-8 text-base"
                   >
-                    Clear Form
+                    {t("request.clearForm")}
                   </Button>
                   <Button
                     type="submit"
@@ -245,10 +246,10 @@ const Index = () => {
                     {processing ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Submitting...
+                        {t("request.submitting")}
                       </>
                     ) : (
-                      "Submit Request"
+                      t("request.submitRequest")
                     )}
                   </Button>
                 </div>

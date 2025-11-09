@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { Link } from "@inertiajs/react"
 import H3 from "@/components/ui/h3"
+import { useTranslation } from "react-i18next"
 // import { route } from "@/router" // Import the route function
 
 interface Product {
@@ -137,8 +138,10 @@ const getStatusIcon = (status: string) => {
 }
 
 export default function Dashboard({ stats, recentWishlist, recentRequests }: DashboardProps) {
+  const { t } = useTranslation()
+  
   return (
-    <MainLayout title={"User Dashboard"} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
+    <MainLayout title={t("dashboard.title")} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
       <AppLayout
         logoDisplay=" invisible"
         sidebarStyle="mt-[20px]"
@@ -158,8 +161,8 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <span className="text-2xl font-bold text-blue-600">{stats.wishlist_count}</span>
               </div>
               <div>
-                <h3 className="font-semibold text-blue-900">Wishlist Items</h3>
-                <p className="text-sm text-blue-700">Products you love</p>
+                <h3 className="font-semibold text-blue-900">{t("dashboard.wishlistItems")}</h3>
+                <p className="text-sm text-blue-700">{t("dashboard.productsYouLove")}</p>
               </div>
             </div>
             {/* Total Requests */}
@@ -171,8 +174,8 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <span className="text-2xl font-bold text-green-600">{stats.requests_count}</span>
               </div>
               <div>
-                <h3 className="font-semibold text-green-900">Total Requests</h3>
-                <p className="text-sm text-green-700">Product requests made</p>
+                <h3 className="font-semibold text-green-900">{t("dashboard.totalRequests")}</h3>
+                <p className="text-sm text-green-700">{t("dashboard.productRequestsMade")}</p>
               </div>
             </div>
             {/* Pending Requests */}
@@ -184,8 +187,8 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <span className="text-2xl font-bold text-yellow-600">{stats.pending_requests}</span>
               </div>
               <div>
-                <h3 className="font-semibold text-yellow-900">Pending</h3>
-                <p className="text-sm text-yellow-700">Awaiting review</p>
+                <h3 className="font-semibold text-yellow-900">{t("dashboard.pending")}</h3>
+                <p className="text-sm text-yellow-700">{t("dashboard.awaitingReview")}</p>
               </div>
             </div>
             {/* Approved Requests */}
@@ -197,8 +200,8 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
                 <span className="text-2xl font-bold text-purple-600">{stats.approved_requests}</span>
               </div>
               <div>
-                <H3 className="font-semibold text-purple-900">Approved</H3>
-                <p className="text-sm text-purple-700">Requests approved</p>
+                <H3 className="font-semibold text-purple-900">{t("dashboard.approved")}</H3>
+                <p className="text-sm text-purple-700">{t("dashboard.requestsApproved")}</p>
               </div>
             </div>
           </div>
@@ -207,9 +210,9 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
             {/* Recent Wishlist Items */}
             <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-white p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Wishlist Items</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t("dashboard.recentWishlistItems")}</h2>
                 <Link href="/user-wishlist" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                  View All
+                  {t("dashboard.viewAll")}
                 </Link>
               </div>
               {recentWishlist.length > 0 ? (
@@ -269,12 +272,12 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
               ) : (
                 <div className="text-center py-8">
                   <Bookmark className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-500">No items in your wishlist yet</p>
+                  <p className="text-gray-500">{t("dashboard.noItemsInWishlist")}</p>
                   <Link
                     href={route("home")}
                     className="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
-                    Browse Products
+                    {t("dashboard.browseProducts")}
                   </Link>
                 </div>
               )}
@@ -282,9 +285,9 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
             {/* Recent Requests */}
             <div className="rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-white p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Requests</h2>
+                <h2 className="text-lg font-semibold text-gray-900">{t("dashboard.recentRequests")}</h2>
                 <Link href="/user-request" className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                  View All
+                  {t("dashboard.viewAll")}
                 </Link>
               </div>
               {recentRequests.length > 0 ? (
@@ -324,12 +327,12 @@ export default function Dashboard({ stats, recentWishlist, recentRequests }: Das
               ) : (
                 <div className="text-center py-8">
                   <MessageSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-gray-500">No product requests yet</p>
+                  <p className="text-gray-500">{t("dashboard.noProductRequests")}</p>
                   <Link
                     href="/user-request"
                     className="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800"
                   >
-                    Make a Request
+                    {t("dashboard.makeARequest")}
                   </Link>
                 </div>
               )}

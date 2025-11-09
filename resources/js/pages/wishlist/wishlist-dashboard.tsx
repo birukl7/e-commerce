@@ -6,6 +6,7 @@ import { Bookmark, ShoppingBag, MessageSquare, Package2, Heart, Trash2, Shopping
 import { Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { CustomLink } from "@/components/link"
+import { useTranslation } from "react-i18next"
 
 interface Product {
   id: number
@@ -89,6 +90,7 @@ const formatETB = (amount: number) => {
 }
 
 export default function WishlistDashboard({ wishlistItems, count }: WishlistProps) {
+  const { t } = useTranslation()
   const [removingItems, setRemovingItems] = useState<Set<number>>(new Set())
 
   const handleRemoveFromWishlist = async (productId: number) => {
@@ -125,7 +127,7 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
   }
 
   return (
-    <MainLayout title={"My Wishlist"} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
+    <MainLayout title={t("wishlist.myWishlist")} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
       <AppLayout
         logoDisplay=" invisible"
         sidebarStyle="mt-[20px]"
@@ -137,12 +139,12 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">My Wishlist</h1>
-              <p className="text-gray-600">{count} items saved for later</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t("wishlist.myWishlist")}</h1>
+              <p className="text-gray-600">{count} {t("wishlist.itemsSaved")}</p>
             </div>
             <div className="flex items-center gap-2">
               <Heart className="h-5 w-5 text-red-500" />
-              <span className="text-sm text-gray-600">Items you love</span>
+              <span className="text-sm text-gray-600">{t("wishlist.itemsYouLove")}</span>
             </div>
           </div>
 
@@ -168,11 +170,11 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
                     <div className="absolute top-3 left-3 flex flex-col gap-2">
                       {product.featured && (
                         <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-                          Featured
+                          {t("wishlist.featured")}
                         </span>
                       )}
                       {product.sale_price && (
-                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">Sale</span>
+                        <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">{t("wishlist.sale")}</span>
                       )}
                     </div>
 
@@ -241,7 +243,7 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
                       {[...Array(5)].map((_, i) => (
                         <Star key={i} className="w-4 h-4 fill-gray-300 text-gray-300" />
                       ))}
-                      <span className="text-xs text-gray-500 ml-1">No reviews yet</span>
+                      <span className="text-xs text-gray-500 ml-1">{t("wishlist.noReviewsYet")}</span>
                     </div>
 
                     {/* Stock Status */}
@@ -258,7 +260,7 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
                         {product.stock_status.replace("_", " ")}
                       </span>
                       <span className="text-xs text-gray-500">
-                        Added {new Date(product.added_at).toLocaleDateString()}
+                        {t("wishlist.added")} {new Date(product.added_at).toLocaleDateString()}
                       </span>
                     </div>
 
@@ -268,7 +270,7 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
                         href={`/products/${product.slug}`}
                         className="flex-1 bg-blue-600 text-white text-center py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                       >
-                        View Product
+                        {t("wishlist.viewProduct")}
                       </Link>
                       {product.stock_status === "in_stock" && (
                         <button className="flex items-center justify-center p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
@@ -283,16 +285,15 @@ export default function WishlistDashboard({ wishlistItems, count }: WishlistProp
           ) : (
             <div className="flex flex-col items-center justify-center py-16">
               <Heart className="w-16 h-16 text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Your wishlist is empty</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{t("wishlist.wishlistEmpty")}</h2>
               <p className="text-gray-600 mb-6 text-center max-w-md">
-                Start adding products you love to your wishlist. You can save items for later and keep track of your
-                favorites.
+                {t("wishlist.startAdding")}
               </p>
               <CustomLink
                 href={route('home')}
                 className=" text-white px-6 py-3 rounded-lg  transition-colors font-medium"
               >
-                Browse Products
+                {t("wishlist.browseProducts")}
               </CustomLink>
             </div>
           )}

@@ -15,6 +15,7 @@ import { Loader2, Menu } from "lucide-react"
 import React, { useRef, useEffect, useState, ErrorInfo } from "react"
 import { Link } from "@inertiajs/react"
 import { getImageUrl } from "@/lib/image"
+import { useTranslation } from "react-i18next"
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: Error | null }> {
   constructor(props: { children: React.ReactNode }) {
@@ -63,6 +64,7 @@ interface CategoryDropdownProps {
 }
 
 export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownProps) {
+  const { t } = useTranslation()
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -182,7 +184,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
           onMouseLeave={() => scheduleClose(300)}
         >
           <Menu className="mr-2" />
-          {categories.length > 0 ? `Categories (${categories.length})` : "Categories"}
+          {categories.length > 0 ? `${t('categoryDropdown.categories')} (${categories.length})` : t('categoryDropdown.categories')}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -195,20 +197,20 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
         {loading ? (
           <div className="px-3 py-2 text-sm flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading categories…
+            {t('categoryDropdown.loadingCategories')}
           </div>
         ) : error ? (
           <div className="px-3 py-2 text-sm space-y-2">
-            <div className="text-red-500">{`Error: ${error}`}</div>
+            <div className="text-red-500">{t('categoryDropdown.error')} {error}</div>
             <Button size="sm" variant="outline" className="w-full" onClick={fetchCategories}>
-              Retry
+              {t('categoryDropdown.retry')}
             </Button>
           </div>
         ) : categories.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-muted-foreground">No categories</div>
+          <div className="px-3 py-2 text-sm text-muted-foreground">{t('categoryDropdown.noCategories')}</div>
         ) : (
           <>
-            <DropdownMenuLabel>Select Category</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('categoryDropdown.selectCategory')}</DropdownMenuLabel>
             <DropdownMenuGroup>
             {categories.map((category) => (
               <div key={category.id}>
@@ -232,7 +234,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
                         </div>
                         <div className="flex flex-col text-left">
                           <span className="font-medium">{category.name}</span>
-                          <span className="text-xs text-gray-500">{category.product_count || 0} products</span>
+                          <span className="text-xs text-gray-500">{category.product_count || 0} {t('categoryDropdown.products')}</span>
                         </div>
                       </Link>
                     </DropdownMenuSubTrigger>
@@ -296,7 +298,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
               </div>
             ))}
             <Link href="/request" className="mx-auto my-2 block text-center">
-              Request
+              {t('categoryDropdown.request')}
             </Link>
           </DropdownMenuGroup>
           </>

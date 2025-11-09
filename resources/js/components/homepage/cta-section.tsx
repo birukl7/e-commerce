@@ -1,17 +1,19 @@
+import { useTranslation } from "react-i18next"
 import H2 from "../ui/h2"
 import { CustomLink } from "../link"
 
 
 export default function CTASection() {
+  const { t } = useTranslation()
   return (
     <section className="w-full bg-primary rounded-3xl">
       <div className="mx-auto px-4 md:px-6 lg:px-8 pr-0 mr-0">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Content Side */}
           <div className="text-center lg:text-left">
-            <H2 className="font-bold text-white mb-4">Can't Find It? Request It</H2>
+            <H2 className="font-bold text-white mb-4">{t("cta.title")}</H2>
             <p className="text-lg md:text-xl text-white/90 mb-8 leading-relaxed">
-              Tell us what you're looking for - we'll source it, stock it, or custom order it for you.
+              {t("cta.description")}
             </p>
 
             <CustomLink
@@ -19,7 +21,7 @@ export default function CTASection() {
               variant="secondary"
               className="px-8 py-3 text-lg font-semibold bg-white text-primary hover:bg-gray-100 transition-colors"
               href={route('request.index')}>
-              Request
+              {t("cta.request")}
             </CustomLink>
           </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { router } from "@inertiajs/react"
+import { useTranslation } from "react-i18next"
 import {
   Dialog,
   DialogContent,
@@ -20,25 +21,26 @@ interface ChooseRoleDialogProps {
   listenForOpenEvent?: boolean
 }
 
-const roleOptions: Array<{ value: RoleOption; label: string; description: string; icon: typeof User }> = [
-  {
-    value: "customer",
-    label: "Customer",
-    description: "I want to buy products",
-    icon: User,
-  },
-  {
-    value: "supplier",
-    label: "Supplier",
-    description: "I want to sell products",
-    icon: Truck,
-  },
-]
-
 export function ChooseRoleDialog({ trigger, listenForOpenEvent = false }: ChooseRoleDialogProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [selectedRole, setSelectedRole] = useState<RoleOption | "">("")
   const [submitting, setSubmitting] = useState(false)
+
+  const roleOptions: Array<{ value: RoleOption; label: string; description: string; icon: typeof User }> = [
+    {
+      value: "customer",
+      label: t("auth.customer"),
+      description: t("auth.customerDescription"),
+      icon: User,
+    },
+    {
+      value: "supplier",
+      label: t("auth.supplier"),
+      description: t("auth.supplierDescription"),
+      icon: Truck,
+    },
+  ]
 
   useEffect(() => {
     if (!listenForOpenEvent) return
@@ -76,8 +78,8 @@ export function ChooseRoleDialog({ trigger, listenForOpenEvent = false }: Choose
   const content = (
     <DialogContent className="w-full max-w-md p-6">
       <DialogHeader className="space-y-2">
-        <DialogTitle>Choose your account type</DialogTitle>
-        <DialogDescription>Select whether you are shopping or selling on Serdo.</DialogDescription>
+        <DialogTitle>{t("auth.chooseAccountType")}</DialogTitle>
+        <DialogDescription>{t("auth.chooseAccountTypeDescription")}</DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -116,7 +118,7 @@ export function ChooseRoleDialog({ trigger, listenForOpenEvent = false }: Choose
         <DialogFooter className="sm:justify-start">
           <Button type="submit" className="w-full rounded-full" disabled={!selectedRole || submitting}>
             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue
+            {t("auth.continue")}
           </Button>
         </DialogFooter>
       </form>

@@ -13,6 +13,7 @@ import {
   Package,
   ArrowUpRight,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 type PurchasedProduct = {
   order_item_id: number
@@ -138,8 +139,10 @@ const paymentStatusColor = (status: string) => {
 }
 
 export default function BoughtProducts({ purchasedItems, summary }: ProductsPageProps) {
+  const { t } = useTranslation()
+  
   return (
-    <MainLayout title="Bought Products" className={''} footerOff={false} contentMarginTop="mt-[60px]">
+    <MainLayout title={t('products.boughtProducts')} className={''} footerOff={false} contentMarginTop="mt-[60px]">
       <AppLayout
         logoDisplay=" invisible"
         sidebarStyle="mt-[20px]"
@@ -149,35 +152,34 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
       >
         <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-6">
           <div className="flex flex-col gap-2">
-            <h1 className="text-3xl font-bold text-gray-900">Bought Products</h1>
+            <h1 className="text-3xl font-bold text-gray-900">{t('products.boughtProducts')}</h1>
             <p className="text-gray-600">
-              Track every product you have purchased including quantity, status, and quick navigation back to their
-              orders.
+              {t('products.trackEveryProduct')}
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Total Items Purchased</CardDescription>
+                <CardDescription>{t('products.totalItemsPurchased')}</CardDescription>
                 <CardTitle className="text-3xl">{summary.items_count}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Unique Products</CardDescription>
+                <CardDescription>{t('products.uniqueProducts')}</CardDescription>
                 <CardTitle className="text-3xl">{summary.unique_products}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Total Quantity</CardDescription>
+                <CardDescription>{t('products.totalQuantity')}</CardDescription>
                 <CardTitle className="text-3xl">{summary.total_quantity}</CardTitle>
               </CardHeader>
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Total Spent</CardDescription>
+                <CardDescription>{t('products.totalSpent')}</CardDescription>
                 <CardTitle className="text-3xl">{formatCurrency(summary.total_spent)}</CardTitle>
               </CardHeader>
             </Card>
@@ -186,8 +188,8 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
           {Object.keys(summary.status_breakdown).length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Order Status Overview</CardTitle>
-                <CardDescription>Counts of purchased items grouped by the order status they belong to.</CardDescription>
+                <CardTitle>{t('products.orderStatusOverview')}</CardTitle>
+                <CardDescription>{t('products.countsOfPurchasedItems')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-3">
@@ -204,8 +206,8 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
           <Card className="overflow-hidden">
             <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <CardTitle>Purchase History</CardTitle>
-                <CardDescription>Detailed list of every product you have purchased.</CardDescription>
+                <CardTitle>{t('products.purchaseHistory')}</CardTitle>
+                <CardDescription>{t('products.detailedList')}</CardDescription>
               </div>
             </CardHeader>
             <CardContent className="p-0">
@@ -213,14 +215,14 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
                 <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
                   <Package className="h-12 w-12 text-gray-400" />
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">No purchases yet</h3>
-                    <p className="text-sm text-gray-600">Start shopping to see your purchased products here.</p>
+                    <h3 className="text-lg font-semibold text-gray-900">{t('products.noPurchasesYet')}</h3>
+                    <p className="text-sm text-gray-600">{t('products.startShopping')}</p>
                   </div>
                   <Link
                     href={route('home')}
                     className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                   >
-                    Browse products
+                    {t('products.browseProducts')}
                     <ArrowUpRight className="h-4 w-4" />
                   </Link>
                 </div>
@@ -230,25 +232,25 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
                     <thead className="bg-gray-50">
                       <tr>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Product
+                          {t('products.product')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Order
+                          {t('products.order')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Quantity
+                          {t('products.quantity')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Unit Price
+                          {t('products.unitPrice')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Total
+                          {t('products.total')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Status
+                          {t('products.status')}
                         </th>
                         <th scope="col" className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                          Actions
+                          {t('products.actions')}
                         </th>
                       </tr>
                     </thead>
@@ -270,11 +272,11 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
                                   {item.product.name}
                                 </Link>
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                  {item.product.brand && <span>Brand: {item.product.brand}</span>}
-                                  {item.product.sku && <span>SKU: {item.product.sku}</span>}
+                                  {item.product.brand && <span>{t('products.brand')} {item.product.brand}</span>}
+                                  {item.product.sku && <span>{t('products.sku')} {item.product.sku}</span>}
                                 </div>
                                 <p className="mt-1 text-xs text-gray-500">
-                                  Purchased {new Date(item.purchased_at).toLocaleDateString()}
+                                  {t('products.purchased')} {new Date(item.purchased_at).toLocaleDateString()}
                                 </p>
                               </div>
                             </div>
@@ -282,7 +284,7 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
                           <td className="px-6 py-4 text-sm text-gray-600">
                             <div className="flex flex-col">
                               <span className="font-medium text-gray-900">#{item.order_number}</span>
-                              <span className="text-xs text-gray-500">Order ID: {item.order_id}</span>
+                              <span className="text-xs text-gray-500">{t('orders.order')} ID: {item.order_id}</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-600">{item.quantity}</td>
@@ -306,13 +308,13 @@ export default function BoughtProducts({ purchasedItems, summary }: ProductsPage
                                 href={route('user.orders.show', item.order_id)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:border-gray-300 hover:text-gray-900"
                               >
-                                View order
+                                {t('products.viewOrder')}
                               </Link>
                               <Link
                                 href={route('user.orders.track', item.order_id)}
                                 className="inline-flex items-center gap-1 rounded-lg border border-blue-200 px-3 py-1 text-xs font-medium text-blue-600 hover:border-blue-300 hover:text-blue-700"
                               >
-                                Track order
+                                {t('products.trackOrder')}
                               </Link>
                             </div>
                           </td>

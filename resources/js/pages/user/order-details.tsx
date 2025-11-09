@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MainLayout from '@/layouts/app/main-layout';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, CreditCard, DollarSign, MapPin, Package, Truck } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface OrderItem {
     id: number;
@@ -42,6 +43,8 @@ interface OrderDetailsProps {
 }
 
 export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsProps) {
+    const { t } = useTranslation()
+    
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -114,8 +117,8 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
     };
 
     return (
-        <MainLayout title={`Order #${order.order_number} - ShopHub`}>
-            <Head title={`Order #${order.order_number}`} />
+        <MainLayout title={`${t('orders.order')} #${order.order_number} - ShopHub`}>
+            <Head title={`${t('orders.order')} #${order.order_number}`} />
 
             <div className="py-8">
                 {/* Header */}
@@ -124,14 +127,14 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                         <Button variant="outline" size="sm" asChild>
                             <Link href={route('user.orders')}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back to Orders
+                                {t('orders.backToOrders')}
                             </Link>
                         </Button>
                     </div>
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900">Order #{order.order_number}</h1>
-                            <p className="text-gray-600">Placed on {formatDate(order.created_at)}</p>
+                            <h1 className="text-3xl font-bold text-gray-900">{t('orders.order')} #{order.order_number}</h1>
+                            <p className="text-gray-600">{t('orders.placedOn')} {formatDate(order.created_at)}</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <Badge className={getStatusColor(order.status)}>{order.status}</Badge>
@@ -147,7 +150,7 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Package className="h-5 w-5" />
-                                    Order Items
+                                    {t('orders.orderItems')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -163,8 +166,8 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                                                 {item.product_name}
                                             </Link>
                                             <div className="mt-1 flex items-center gap-4 text-sm text-gray-600">
-                                                <span>Qty: {item.quantity}</span>
-                                                <span>Price: {formatPrice(item.price)}</span>
+                                                <span>{t('orders.qty')} {item.quantity}</span>
+                                                <span>{t('orders.price')} {formatPrice(item.price)}</span>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -183,42 +186,42 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <DollarSign className="h-5 w-5" />
-                                    Order Summary
+                                    {t('orders.orderSummary')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="flex justify-between text-sm">
-                                    <span>Subtotal:</span>
+                                    <span>{t('orders.subtotal')}</span>
                                     <span>{formatPrice(order.subtotal)}</span>
                                 </div>
                                 {/* Show only total tax to customers; see breakdown link below */}
                                 {order.tax_amount > 0 && (
                                     <div className="flex justify-between text-sm">
-                                        <span>Tax:</span>
+                                        <span>{t('orders.tax')}</span>
                                         <span>{formatPrice(order.tax_amount)}</span>
                                     </div>
                                 )}
                                 {order.tax_amount > 0 && (
                                     <div className="text-xs text-gray-500">
                                         <Link className="underline hover:text-gray-700" href={route('tax.info')}>
-                                            How we calculate tax
+                                            {t('checkout.howWeCalculateTax')}
                                         </Link>
                                     </div>
                                 )}
                                 {order.shipping_amount > 0 && (
                                     <div className="flex justify-between text-sm">
-                                        <span>Shipping:</span>
+                                        <span>{t('orders.shipping')}</span>
                                         <span>{formatPrice(order.shipping_amount)}</span>
                                     </div>
                                 )}
                                 {order.discount_amount > 0 && (
                                     <div className="flex justify-between text-sm">
-                                        <span>Discount:</span>
+                                        <span>{t('orders.discount')}</span>
                                         <span className="text-green-600">-{formatPrice(order.discount_amount)}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between border-t pt-3 font-semibold">
-                                    <span>Total:</span>
+                                    <span>{t('orders.total')}</span>
                                     <span>{formatPrice(order.total_amount)}</span>
                                 </div>
                             </CardContent>
@@ -229,27 +232,27 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <CreditCard className="h-5 w-5" />
-                                    Payment Details
+                                    {t('orders.paymentDetails')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="grid grid-cols-1 gap-3">
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Method:</span>
+                                        <span className="text-gray-600">{t('orders.paymentMethod')}</span>
                                         <span className="font-medium capitalize">{order.payment_method.replace('_', ' ')}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Type:</span>
+                                        <span className="text-gray-600">{t('orders.paymentType')}</span>
                                         <span className="font-medium">{order.payment_method_type}</span>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Payment Status:</span>
+                                        <span className="text-gray-600">{t('orders.paymentStatus')}</span>
                                         <Badge className={getPaymentStatusColor(order.payment_status)}>
                                             {formatPaymentStatus(order.payment_status)}
                                         </Badge>
                                     </div>
                                     <div className="flex justify-between text-sm">
-                                        <span className="text-gray-600">Total Amount:</span>
+                                        <span className="text-gray-600">{t('orders.totalAmount')}</span>
                                         <span className="font-semibold">{formatPrice(order.total_amount)}</span>
                                     </div>
                                 </div>
@@ -263,23 +266,23 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
                                     <Truck className="h-5 w-5" />
-                                    Shipping Details
+                                    {t('orders.shippingDetails')}
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
                                 <div className="flex justify-between text-sm">
-                                    <span>Shipping Method:</span>
+                                    <span>{t('orders.shippingMethod')}</span>
                                     <span className="capitalize">{order.shipping_method}</span>
                                 </div>
                                 {order.shipped_at && (
                                     <div className="flex justify-between text-sm">
-                                        <span>Shipped At:</span>
+                                        <span>{t('orders.shippedAt')}</span>
                                         <span>{formatDate(order.shipped_at)}</span>
                                     </div>
                                 )}
                                 {order.delivered_at && (
                                     <div className="flex justify-between text-sm">
-                                        <span>Delivered At:</span>
+                                        <span>{t('orders.deliveredAt')}</span>
                                         <span>{formatDate(order.delivered_at)}</span>
                                     </div>
                                 )}
@@ -291,13 +294,13 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                             <Button asChild className="w-full">
                                 <Link href={`/user/orders/${order.id}/track`}>
                                     <MapPin className="mr-2 h-4 w-4" />
-                                    Track Order
+                                    {t('orders.trackOrder')}
                                 </Link>
                             </Button>
 
                             {order.payment_status === 'failed' && (
                                 <Button variant="outline" className="w-full">
-                                    Retry Payment
+                                    {t('orders.retryPayment')}
                                 </Button>
                             )}
                         </div>

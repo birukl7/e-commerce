@@ -6,6 +6,7 @@ import { Search, Filter, X } from "lucide-react"
 import { router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { useTranslation } from "react-i18next"
 
 interface ProductImage {
   id: number
@@ -108,6 +109,7 @@ const SearchResults = ({
   currentFilters,
 }: SearchResultsProps) => {
   const [showFilters, setShowFilters] = useState(false)
+  const { t } = useTranslation()
 
   const handleSortChange = (sortValue: string) => {
     const params = new URLSearchParams(window.location.search)
@@ -161,7 +163,7 @@ const SearchResults = ({
     currentFilters.category || currentFilters.brand || currentFilters.min_price || currentFilters.max_price
 
   return (
-    <MainLayout title={`Search Results for "${query}"`} className="" showBackButton>
+    <MainLayout title={query ? t('search.searchResultsFor', { query }) : t('search.searchResults')} className="" showBackButton>
       <>
         {/* Search Header */}
         <div className="bg-gray-50 border-b">
@@ -169,7 +171,7 @@ const SearchResults = ({
             <div className="flex items-center gap-3 mb-4">
               <Search className="h-6 w-6 text-gray-400" />
               <H1 className="text-2xl mb-0">
-                {query ? `Search Results for "${query}"` : "Search Results"}
+                {query ? t('search.searchResultsFor', { query }) : t('search.searchResults')}
               </H1>
             </div>
 
@@ -178,11 +180,11 @@ const SearchResults = ({
               <p className="text-gray-600">
                 {pagination.total > 0 ? (
                   <>
-                    Showing {pagination.from}-{pagination.to} of {pagination.total} results
-                    {query && ` for "${query}"`}
+                    {t('search.showing')} {pagination.from}-{pagination.to} {t('search.of')} {pagination.total} {t('search.results')}
+                    {query && ` ${t('search.for')} "${query}"`}
                   </>
                 ) : (
-                  <>No results found{query && ` for "${query}"`}</>
+                  <>{t('search.noResultsFound')}{query && ` ${t('search.for')} "${query}"`}</>
                 )}
               </p>
 
@@ -192,7 +194,7 @@ const SearchResults = ({
                 className="md:hidden flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 <Filter className="h-4 w-4" />
-                Filters
+                {t('search.filters')}
               </button>
             </div>
           </div>
@@ -203,7 +205,7 @@ const SearchResults = ({
           <div className="bg-white border-b">
             <div className="mx-auto max-w-7xl px-4 py-4">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium text-gray-700">Active filters:</span>
+                <span className="text-sm font-medium text-gray-700">{t('search.activeFilters')}</span>
 
                 {currentFilters.category && (
                   <div className="flex items-center gap-1 bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
@@ -245,7 +247,7 @@ const SearchResults = ({
                 )}
 
                 <button onClick={clearAllFilters} className="text-sm text-gray-500 hover:text-gray-700 underline">
-                  Clear all
+                  {t('search.clearAll')}
                 </button>
               </div>
             </div>
@@ -257,11 +259,11 @@ const SearchResults = ({
             {/* Sidebar Filters - Desktop */}
             <div className={`${showFilters ? "block" : "hidden"} md:block w-full md:w-64 flex-shrink-0`}>
               <div className="bg-white rounded-lg border p-6 sticky top-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Filters</h3>
+                <h3 className="font-semibold text-gray-900 mb-4">{t('search.filters')}</h3>
 
                 {/* Sort By */}
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('search.sortBy')}</label>
                   <select
                     value={currentFilters.sort_by}
                     onChange={(e) => handleSortChange(e.target.value)}
@@ -278,13 +280,13 @@ const SearchResults = ({
                 {/* Categories */}
                 {filters.categories.length > 0 && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('search.category')}</label>
                     <select
                       value={currentFilters.category || ""}
                       onChange={(e) => handleFilterChange("category", e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">All Categories</option>
+                      <option value="">{t('search.allCategories')}</option>
                       {filters.categories.map((category) => (
                         <option key={category.id} value={category.id}>
                           {category.name}
@@ -297,13 +299,13 @@ const SearchResults = ({
                 {/* Brands */}
                 {filters.brands.length > 0 && (
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">{t('search.brand')}</label>
                     <select
                       value={currentFilters.brand || ""}
                       onChange={(e) => handleFilterChange("brand", e.target.value)}
                       className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="">All Brands</option>
+                      <option value="">{t('search.allBrands')}</option>
                       {filters.brands.map((brand) => (
                         <option key={brand.id} value={brand.id}>
                           {brand.name}
@@ -315,7 +317,7 @@ const SearchResults = ({
 
                 {/* Price Ranges */}
                 <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('search.priceRange')}</label>
                   <div className="space-y-2">
                     {filters.price_ranges.map((range, index) => (
                       <label key={index} className="flex items-center">
@@ -341,11 +343,11 @@ const SearchResults = ({
 
                 {/* Quick Stats */}
                 <div className="border-t pt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Quick Stats</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">{t('search.quickStats')}</h4>
                   <div className="space-y-1 text-sm text-gray-600">
-                    <div>In Stock: {active_filters.in_stock}</div>
-                    <div>On Sale: {active_filters.on_sale}</div>
-                    <div>Featured: {active_filters.featured}</div>
+                    <div>{t('search.inStock')} {active_filters.in_stock}</div>
+                    <div>{t('search.onSale')} {active_filters.on_sale}</div>
+                    <div>{t('search.featured')} {active_filters.featured}</div>
                   </div>
                 </div>
               </div>
@@ -356,7 +358,7 @@ const SearchResults = ({
               {/* Search Suggestions */}
               {suggestions.length > 0 && (
                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                  <h3 className="text-sm font-medium text-blue-900 mb-2">Related Suggestions:</h3>
+                  <h3 className="text-sm font-medium text-blue-900 mb-2">{t('search.relatedSuggestions')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {suggestions.map((suggestion, index) => (
                       <button
@@ -388,12 +390,12 @@ const SearchResults = ({
                         }}
                         className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                       >
-                        Previous
+                        {t('search.previous')}
                       </button>
                     )}
 
                     <span className="px-4 py-2 text-sm text-gray-700">
-                      Page {pagination.current_page} of {pagination.last_page}
+                      {t('search.page')} {pagination.current_page} {t('search.of')} {pagination.last_page}
                     </span>
 
                     {pagination.current_page < pagination.last_page && (
@@ -405,7 +407,7 @@ const SearchResults = ({
                         }}
                         className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                       >
-                        Next
+                        {t('search.next')}
                       </button>
                     )}
                   </div>
@@ -416,18 +418,18 @@ const SearchResults = ({
               {products.length === 0 && (
                 <div className="text-center py-12">
                   <Search className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No products found</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">{t('search.noProductsFound')}</h3>
                   <p className="text-gray-600 mb-4">
                     {query
-                      ? `We couldn't find any products matching "${query}". Try adjusting your search or filters.`
-                      : "Try adjusting your filters to see more results."}
+                      ? t('search.couldntFind', { query }) + ' ' + t('search.tryAdjusting')
+                      : t('search.tryAdjustingFilters')}
                   </p>
                   {hasActiveFilters && (
                     <Button
                       onClick={clearAllFilters}
                       className="inline-flex items-center px-4 py-2  text-white rounded-md  transition-colors"
                     >
-                      Clear all filters
+                      {t('search.clearAllFilters')}
                     </Button>
                   )}
                 </div>

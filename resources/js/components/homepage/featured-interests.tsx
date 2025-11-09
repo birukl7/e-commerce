@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { InterestCard } from "./interest-card"
 import { InterestCardSkeleton } from "./interest-card-skeleton"
 import { Button } from "../ui/button"
@@ -19,6 +20,7 @@ interface FeaturedInterestsProps {
 }
 
 export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
+  const { t } = useTranslation()
   const [interests, setInterests] = useState<FeaturedCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -72,11 +74,11 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
   if (error) {
     return (
       <section className="mx-auto w-full px-4 py-12">
-        <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
+        <h2 className="mb-8 text-2xl font-bold text-gray-900">{t("featuredInterests.title")}</h2>
         <div className="py-8 text-center">
-          <p className="mb-4 text-red-500">Failed to load featured interests</p>
+          <p className="mb-4 text-red-500">{t("featuredInterests.failedToLoad")}</p>
           <Button onClick={handleRetry} className="">
-            Try Again
+            {t("featuredInterests.tryAgain")}
           </Button>
         </div>
       </section>
@@ -85,7 +87,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
 
   return (
     <section className="mx-auto w-full px-4 py-12">
-      <h2 className="mb-8 text-2xl font-bold text-gray-900">Jump into featured interests</h2>
+      <h2 className="mb-8 text-2xl font-bold text-gray-900">{t("featuredInterests.title")}</h2>
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {loading
           ? Array.from({ length: count }).map((_, index) => <InterestCardSkeleton key={index} />)
@@ -103,7 +105,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
       </div>
       {!loading && interests.length === 0 && (
         <div className="py-8 text-center">
-          <p className="text-gray-500">No featured interests available at the moment.</p>
+          <p className="text-gray-500">{t("featuredInterests.noInterests")}</p>
         </div>
       )}
     </section>
