@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import ProductImages, { ProductItem } from '@/components/ProductImages';
 
 interface PaymentSuccessProps {
-    order_id: string;
+    order_id: string | null;
     transaction_id: string;
     amount: number;
     currency: string;
@@ -23,6 +23,9 @@ interface PaymentSuccessProps {
     payment_type?: string;
     product_request_id?: number;
     is_advance_payment?: boolean;
+    // Warning message for edge cases
+    warning_message?: string;
+    show_contact_support?: boolean;
 }
 
 function PaymentSuccessContent({
@@ -38,6 +41,8 @@ function PaymentSuccessContent({
     payment_type,
     product_request_id,
     is_advance_payment = false,
+    warning_message,
+    show_contact_support = false,
 }: PaymentSuccessProps) {
     // Clear cart when payment is successful
 
@@ -56,14 +61,34 @@ function PaymentSuccessContent({
         }).format(price);
     };
 
-    const formatDate = (date: Date = new Date()) => {
+    const formatDate = (date: Date | string = new Date()) => {
+        // Handle both Date objects and date strings from backend
+        let dateObj: Date;
+        if (typeof date === 'string') {
+            // Backend sends dates in UTC format (without timezone indicator)
+            // We need to explicitly parse it as UTC, then convert to user's local timezone
+            if (date.includes('T') && (date.endsWith('Z') || date.includes('+'))) {
+                // Already has timezone info
+                dateObj = new Date(date);
+            } else {
+                // No timezone info - assume UTC and append 'Z'
+                const utcString = date.replace(' ', 'T') + 'Z';
+                dateObj = new Date(utcString);
+            }
+        } else {
+            dateObj = date;
+        }
+        
+        // Get user's timezone to properly convert UTC dates from backend
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         return new Intl.DateTimeFormat('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        }).format(date);
+            timeZone: tz, // Use user's local timezone (GMT+3)
+        }).format(dateObj);
     };
 
     // Celebration animation state
@@ -131,11 +156,31 @@ Thank you for your purchase!
                         <p className="text-xl text-gray-700 mb-2">
                             Thank you for your purchase, <span className="font-semibold text-gray-900">{customer_name}</span>
                         </p>
-                        <p className="text-sm text-gray-500">
-                            Order #{order_id}
-                        </p>
+                        {order_id && (
+                            <p className="text-sm text-gray-500">
+                                Order #{order_id}
+                            </p>
+                        )}
                         
-                        {pending_payment_approval && (
+                        {warning_message && (
+                            <div className="mx-auto mt-6 max-w-2xl rounded-lg border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50 p-4 shadow-md">
+                                <div className="flex items-start gap-3">
+                                    <Clock className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium text-orange-800 mb-2">
+                                            {warning_message}
+                                        </p>
+                                        {show_contact_support && (
+                                            <p className="text-xs text-orange-700">
+                                                If you have any questions, please contact our support team with your transaction reference.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {pending_payment_approval && !warning_message && (
                             <div className="mx-auto mt-6 max-w-2xl rounded-lg border-2 border-yellow-300 bg-gradient-to-r from-yellow-50 to-amber-50 p-4 shadow-md">
                                 <div className="flex items-center gap-2">
                                     <Clock className="h-5 w-5 text-yellow-600" />
@@ -168,10 +213,12 @@ Thank you for your purchase!
                                 </CardHeader>
                                 <CardContent className="pt-6 space-y-6">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-                                            <p className="text-sm font-medium text-gray-500 mb-1">Order ID</p>
-                                            <p className="font-mono font-bold text-gray-900 text-lg">{order_id}</p>
-                                        </div>
+                                        {order_id && (
+                                            <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                                                <p className="text-sm font-medium text-gray-500 mb-1">Order ID</p>
+                                                <p className="font-mono font-bold text-gray-900 text-lg">{order_id}</p>
+                                            </div>
+                                        )}
                                         <div className="p-4 rounded-lg bg-gray-50 border border-gray-200">
                                             <p className="text-sm font-medium text-gray-500 mb-1">Transaction ID</p>
                                             <p className="font-mono font-bold text-gray-900 text-lg break-all">{transaction_id}</p>
@@ -310,12 +357,21 @@ Thank you for your purchase!
                                         ) : (
                                             // Regular order navigation
                                             <>
-                                                <Button className="w-full  text-white shadow-lg transition-all duration-200" size="lg" asChild>
-                                                    <Link href={route('user.orders.show', order_id)}>
-                                                        <Package className="mr-2 h-5 w-5" />
-                                                        View Order Details
-                                                    </Link>
-                                                </Button>
+                                                {order_id ? (
+                                                    <Button className="w-full  text-white shadow-lg transition-all duration-200" size="lg" asChild>
+                                                        <Link href={route('user.orders.show', order_id)}>
+                                                            <Package className="mr-2 h-5 w-5" />
+                                                            View Order Details
+                                                        </Link>
+                                                    </Button>
+                                                ) : (
+                                                    <Button className="w-full  text-white shadow-lg transition-all duration-200" size="lg" asChild>
+                                                        <Link href={route('user.orders')}>
+                                                            <Package className="mr-2 h-5 w-5" />
+                                                            View My Orders
+                                                        </Link>
+                                                    </Button>
+                                                )}
 
                                                 <Button variant="outline" className="w-full border-2 hover:bg-green-50 transition-all duration-200" size="lg" onClick={handleDownloadReceipt}>
                                                     <Download className="mr-2 h-5 w-5" />

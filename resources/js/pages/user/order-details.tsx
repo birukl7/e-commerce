@@ -66,6 +66,18 @@ export default function OrderDetails({ order, taxBreakdown = [], paymentTransact
     };
 
     const formatDate = (dateString: string) => {
+        // Backend sends dates in UTC format (without timezone indicator)
+        // We need to explicitly parse it as UTC, then convert to user's local timezone
+        let date: Date;
+        if (dateString.includes('T') && (dateString.endsWith('Z') || dateString.includes('+'))) {
+            // Already has timezone info
+            date = new Date(dateString);
+        } else {
+            // No timezone info - assume UTC and append 'Z'
+            const utcString = dateString.replace(' ', 'T') + 'Z';
+            date = new Date(utcString);
+        }
+        
         const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         return new Intl.DateTimeFormat(undefined, {
             year: 'numeric',
@@ -74,8 +86,8 @@ export default function OrderDetails({ order, taxBreakdown = [], paymentTransact
             hour: '2-digit',
             minute: '2-digit',
             hour12: true,
-            timeZone: tz,
-        }).format(new Date(dateString));
+            timeZone: tz, // Use user's local timezone (GMT+3)
+        }).format(date);
     };
 
     const getStatusColor = (status: string) => {

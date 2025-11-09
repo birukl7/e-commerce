@@ -181,10 +181,8 @@ const Header = () => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">
                       <DropdownMenuItem asChild>
-                        <a
+                        <Link
                           href={safeRoute("profile.edit")}
-                          target="_blank"
-                          rel="noopener noreferrer"
                           className="flex items-center gap-3 px-2 py-2 cursor-pointer"
                         >
                           <Avatar className="h-9 w-9">
@@ -195,7 +193,7 @@ const Header = () => {
                             <p className="truncate text-sm font-medium text-foreground">{auth.user?.name ?? 'User'}</p>
                             <p className="truncate text-xs text-muted-foreground">{t("header.viewProfile")}</p>
                           </div>
-                        </a>
+                        </Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {[
@@ -233,15 +231,13 @@ const Header = () => {
                         const Icon = item.icon
                         return (
                           <DropdownMenuItem key={item.title} asChild>
-                            <a
+                            <Link
                               href={item.href}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               className="flex items-center gap-3 cursor-pointer"
                             >
                               <Icon className="h-4 w-4" />
                               <span className="text-sm">{item.title}</span>
-                            </a>
+                            </Link>
                           </DropdownMenuItem>
                         )
                       })}

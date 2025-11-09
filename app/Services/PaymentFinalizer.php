@@ -30,8 +30,38 @@ class PaymentFinalizer
             return $payment->isAdminApproved() && in_array($payment->gateway_status, $allowedGatewayStatuses);
         }
         
-        // For regular orders, need both gateway payment and admin approval
-        return $payment->isAdminApproved() && ($payment->isGatewayPaid() || $payment->hasProofUploaded());
+        // For regular orders:
+        // 1. If admin approved, we trust their judgment (especially for retried payments)
+        // 2. For offline payments, gateway_status should be 'proof_uploaded'
+        // 3. For Chapa payments, gateway_status should be 'paid', but if admin approves
+        //    a retried payment with 'pending' status, we allow it (admin has verified payment)
+        if ($payment->isAdminApproved()) {
+            // Admin approval is sufficient for:
+            // - Offline payments with proof uploaded
+            // - Chapa payments that are paid
+            // - Retried payments where admin manually verified (gateway_status may be 'pending')
+            if ($payment->hasProofUploaded() || $payment->isGatewayPaid()) {
+                return true;
+            }
+            
+            // For retried payments: if admin approves a payment with 'pending' gateway_status,
+            // it means admin has manually verified the payment (e.g., checked bank records, verified proof, etc.)
+            // Allow finalization in this case regardless of payment method
+            // This handles cases where:
+            // - Chapa payment was retried and admin verified payment manually
+            // - Offline payment proof was uploaded but gateway_status wasn't updated properly
+            if ($payment->gateway_status === 'pending') {
+                Log::info('Admin approved payment with pending gateway status - allowing finalization', [
+                    'payment_id' => $payment->id,
+                    'gateway_status' => $payment->gateway_status,
+                    'admin_status' => $payment->admin_status,
+                    'payment_method' => $payment->payment_method,
+                ]);
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**

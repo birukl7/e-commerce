@@ -145,6 +145,11 @@ class PaymentController extends Controller
                 $customerName = $user->name;
 
                 // FIXED: Check payment method and render appropriate page
+                // Check if we should show payment method selection (for retry payments or when explicitly requested)
+                // Only show selection if retry is true AND payment_method is not explicitly set
+                $isRetry = $request->get('retry', false);
+                $showMethodSelection = ($isRetry && !$paymentMethod) || $request->get('show_method_selection', false);
+                
                 if ($paymentMethod === 'offline') {
                     // For offline payment, get offline payment methods and render offline form
                     $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
@@ -193,8 +198,8 @@ class PaymentController extends Controller
                         'product_request_id' => $productRequestId,
                         'description' => $request->get('description'),
                     ]);
-                } else {
-                    // For Chapa payment (default), render Chapa payment form
+                } elseif ($paymentMethod === 'chapa') {
+                    // For Chapa payment (when explicitly specified), render Chapa payment form
                     Log::info('Rendering Chapa payment form');
 
                     return Inertia::render('payment/payment-process', [
@@ -203,11 +208,53 @@ class PaymentController extends Controller
                         'currency' => $currency,
                         'customer_email' => $customerEmail,
                         'customer_name' => $customerName,
-                        'payment_method_type' => null, // This tells the React component to show Chapa form
+                        'payment_method_type' => 'chapa', // Explicitly set to 'chapa' to show Chapa form directly
                         'offlinePaymentMethods' => collect(), // Empty collection
                         'payment_type' => $request->get('payment_type', 'regular'),
                         'product_request_id' => $request->get('product_request_id'),
                         'description' => $request->get('description'),
+                        'cart_items' => $cartItems,
+                    ]);
+                } elseif ($showMethodSelection || !$paymentMethod) {
+                    // Show payment method selection page (for retry payments or when no method specified)
+                    Log::info('Rendering payment method selection page', [
+                        'show_method_selection' => $showMethodSelection,
+                        'payment_method' => $paymentMethod,
+                        'retry' => $request->get('retry', false)
+                    ]);
+                    
+                    // Get offline payment methods for the selection page
+                    $offlinePaymentMethods = OfflinePaymentMethod::active()->ordered()->get();
+
+                    return Inertia::render('payment/payment-process', [
+                        'order_id' => $orderId,
+                        'total_amount' => floatval($amount),
+                        'currency' => $currency,
+                        'customer_email' => $customerEmail,
+                        'customer_name' => $customerName,
+                        'payment_method_type' => null, // null triggers payment method selection UI
+                        'offlinePaymentMethods' => $offlinePaymentMethods,
+                        'payment_type' => $request->get('payment_type', 'regular'),
+                        'product_request_id' => $request->get('product_request_id'),
+                        'description' => $request->get('description'),
+                        'cart_items' => $cartItems,
+                    ]);
+                } else {
+                    // Default fallback: show Chapa payment form
+                    Log::info('Rendering Chapa payment form (default fallback)');
+
+                    return Inertia::render('payment/payment-process', [
+                        'order_id' => $orderId,
+                        'total_amount' => floatval($amount),
+                        'currency' => $currency,
+                        'customer_email' => $customerEmail,
+                        'customer_name' => $customerName,
+                        'payment_method_type' => 'chapa', // Explicitly set to 'chapa' to show Chapa form directly
+                        'offlinePaymentMethods' => collect(), // Empty collection
+                        'payment_type' => $request->get('payment_type', 'regular'),
+                        'product_request_id' => $request->get('product_request_id'),
+                        'description' => $request->get('description'),
+                        'cart_items' => $cartItems,
                     ]);
                 }
 
@@ -1178,10 +1225,51 @@ class PaymentController extends Controller
                 if ($response->successful() && ($responseData['status'] ?? '') === 'success') {
                     // Payment type and product request ID already determined above
                     
-                    // For product request payments, use null for order_id or set appropriately
+                    // For regular payments, ensure we have an order and use numeric order ID
+                    // For product request payments, use null for order_id
                     $orderIdForTransaction = null;
-                    if ($paymentType === 'regular' && isset($order)) {
-                        $orderIdForTransaction = $order->order_number;
+                    if ($paymentType === 'regular') {
+                        if (!isset($order)) {
+                            \Log::error('Order not found when creating payment transaction for regular payment', [
+                                'order_id' => $request->order_id,
+                                'tx_ref' => $txRef,
+                            ] + $logContext);
+                            throw new \Exception('Order not found. Cannot create payment transaction without an order.');
+                        }
+                        // Use numeric order ID (not order_number string) for proper foreign key relationship
+                        $orderIdForTransaction = $order->id;
+                    }
+                    
+                    // Check if this is a retry payment - look for existing transaction that was reset during retry
+                    // This could be a rejected transaction that was reset, or a transaction that's already in retry state
+                    $existingTransaction = null;
+                    if ($paymentType === 'regular' && $orderIdForTransaction) {
+                        // Check for existing transaction for this order that's not completed
+                        // Look for transactions that are either rejected (and will be reset) or already reset (unseen/pending)
+                        $existingTransaction = PaymentTransaction::where('order_id', $orderIdForTransaction)
+                            ->where(function($query) {
+                                $query->where('admin_status', 'rejected')
+                                      ->orWhere(function($q) {
+                                          $q->where('admin_status', 'unseen')
+                                            ->where('gateway_status', 'pending');
+                                      });
+                            })
+                            ->where('gateway_status', '!=', 'paid') // Don't reuse if already paid
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                    } elseif ($productRequestId) {
+                        // Check for existing transaction for this product request
+                        $existingTransaction = PaymentTransaction::where('product_request_id', $productRequestId)
+                            ->where(function($query) {
+                                $query->where('admin_status', 'rejected')
+                                      ->orWhere(function($q) {
+                                          $q->where('admin_status', 'unseen')
+                                            ->where('gateway_status', 'pending');
+                                      });
+                            })
+                            ->where('gateway_status', '!=', 'paid') // Don't reuse if already paid
+                            ->orderBy('created_at', 'desc')
+                            ->first();
                     }
                     
                     // Store transaction details in database
@@ -1200,6 +1288,7 @@ class PaymentController extends Controller
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null,
                         'gateway_payload' => array_merge($responseData['data'] ?? [], [
                             'payment_type' => $paymentType,
+                            'order_number' => $order->order_number ?? $request->order_id, // Store order_number in payload for reference
                         ], $taxCalculation ? [
                             'subtotal' => $subtotal,
                             'tax_amount' => $taxCalculation['total_tax_amount'],
@@ -1207,7 +1296,30 @@ class PaymentController extends Controller
                         ] : []),
                     ];
                     
-                    PaymentTransaction::create($transactionData);
+                    // If we found an existing transaction (rejected or reset), update it instead of creating a new one
+                    // This prevents duplicate transactions and ensures the retry uses the same transaction
+                    if ($existingTransaction) {
+                        \Log::info('Updating existing transaction for retry', [
+                            'existing_transaction_id' => $existingTransaction->id,
+                            'old_tx_ref' => $existingTransaction->tx_ref,
+                            'old_admin_status' => $existingTransaction->admin_status,
+                            'old_gateway_status' => $existingTransaction->gateway_status,
+                            'new_tx_ref' => $txRef,
+                        ] + $logContext);
+                        
+                        // Update the existing transaction with new payment attempt details
+                        $existingTransaction->update($transactionData);
+                        \Log::info('Existing transaction updated for retry', [
+                            'transaction_id' => $existingTransaction->id,
+                            'tx_ref' => $txRef,
+                        ] + $logContext);
+                    } else {
+                        // Create new transaction
+                        PaymentTransaction::create($transactionData);
+                        \Log::info('New transaction created', [
+                            'tx_ref' => $txRef,
+                        ] + $logContext);
+                    }
                     \Log::info('Transaction stored successfully', [
                         'tx_ref' => $txRef,
                         'checkout_url' => $responseData['data']['checkout_url'] ?? null
@@ -2072,19 +2184,52 @@ class PaymentController extends Controller
                 'transaction_order_id' => $transaction->order_id,
                 'transaction_status' => $transaction->status,
                 'gateway_status' => $transaction->gateway_status,
-                'payment_method' => $transaction->payment_method ?? null
+                'payment_method' => $transaction->payment_method ?? null,
+                'customer_email' => $transaction->customer_email,
+                'user_id' => $transaction->user_id,
+                'gateway_payload' => $transaction->gateway_payload,
             ]);
 
             // First, try to find the order using the reference from the transaction
             $order = null;
             $searchMethods = [];
             
-            // Method 1: Search by order_number (exact match) - this should work now
-            if (!$order) {
-                $searchMethods[] = 'order_number exact match';
-                $order = Order::where('order_number', $transaction->order_id)->first();
+            // Method 0: Check gateway_payload for order_number or order_id
+            if (!$order && $transaction->gateway_payload) {
+                $payload = is_array($transaction->gateway_payload) 
+                    ? $transaction->gateway_payload 
+                    : (is_string($transaction->gateway_payload) ? json_decode($transaction->gateway_payload, true) : []);
+                
+                if (isset($payload['order_number'])) {
+                    $searchMethods[] = 'gateway_payload order_number';
+                    $order = Order::where('order_number', $payload['order_number'])->first();
+                    if ($order) {
+                        \Log::info('Order found from gateway_payload order_number', [
+                            'tx_ref' => $txRef,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                    }
+                }
+                if (!$order && isset($payload['order_id']) && is_numeric($payload['order_id'])) {
+                    $searchMethods[] = 'gateway_payload order_id';
+                    $order = Order::find($payload['order_id']);
+                    if ($order) {
+                        \Log::info('Order found from gateway_payload order_id', [
+                            'tx_ref' => $txRef,
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                        ]);
+                    }
+                }
+            }
+            
+            // Method 1: If order_id is numeric, search by ID first (most reliable)
+            if (!$order && is_numeric($transaction->order_id)) {
+                $searchMethods[] = 'numeric ID match';
+                $order = Order::find($transaction->order_id);
                 if ($order) {
-                    \Log::info('Order found by exact order_number match', [
+                    \Log::info('Order found by numeric ID match', [
                         'tx_ref' => $txRef,
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
@@ -2093,12 +2238,12 @@ class PaymentController extends Controller
                 }
             }
             
-            // Method 2: If order_id is numeric, search by ID
-            if (!$order && is_numeric($transaction->order_id)) {
-                $searchMethods[] = 'numeric ID match';
-                $order = Order::find($transaction->order_id);
+            // Method 2: Search by order_number (exact match) - this should work now
+            if (!$order && !empty($transaction->order_id)) {
+                $searchMethods[] = 'order_number exact match';
+                $order = Order::where('order_number', $transaction->order_id)->first();
                 if ($order) {
-                    \Log::info('Order found by numeric ID match', [
+                    \Log::info('Order found by exact order_number match', [
                         'tx_ref' => $txRef,
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
@@ -2138,17 +2283,19 @@ class PaymentController extends Controller
 
             // If order still not found, try to find the most recent order for this user
             if (!$order) {
-                $searchMethods[] = 'recent user order';
-                $searchTime = now()->subMinutes(5);
+                $searchMethods[] = 'recent user order by amount';
+                $searchTime = $transaction->created_at ? $transaction->created_at->subMinutes(10) : now()->subMinutes(30);
                 
-                \Log::debug('Order not found by reference, trying to find most recent order for user', [
+                \Log::debug('Order not found by reference, trying to find most recent order for user by amount', [
                     'tx_ref' => $txRef,
                     'user_id' => $transaction->user_id,
                     'search_time' => $searchTime->toDateTimeString(),
+                    'transaction_amount' => $transaction->amount,
                     'attempted_methods' => $searchMethods
                 ]);
                 
                 $query = Order::where('created_at', '>=', $searchTime)
+                    ->where('total_amount', $transaction->amount)
                     ->orderBy('created_at', 'desc');
                 
                 if ($transaction->user_id) {
@@ -2158,17 +2305,44 @@ class PaymentController extends Controller
                 $order = $query->first();
                 
                 if ($order) {
-                    \Log::info('Found recent order for user', [
+                    \Log::info('Found recent order for user by amount match', [
                         'order_id' => $order->id,
                         'order_number' => $order->order_number,
+                        'order_amount' => $order->total_amount,
+                        'transaction_amount' => $transaction->amount,
                         'created_at' => $order->created_at,
-                        'amount' => $transaction->amount,
                         'tx_ref' => $txRef
                     ]);
                     
-                    // Update the transaction with the found order ID if different
-                    if ($transaction->order_id !== $order->id) {
-                        $transaction->order_id = $order->id;
+                    // Update the transaction with the found order number for consistency
+                    if ($transaction->order_id !== $order->order_number) {
+                        $transaction->order_id = $order->order_number;
+                        $transaction->save();
+                    }
+                } else {
+                    // Last resort: find any recent order for user (without amount match)
+                    $searchMethods[] = 'recent user order (any amount)';
+                    $query = Order::where('created_at', '>=', $searchTime)
+                        ->orderBy('created_at', 'desc');
+                    
+                    if ($transaction->user_id) {
+                        $query->where('user_id', $transaction->user_id);
+                    }
+                    
+                    $order = $query->first();
+                    
+                    if ($order) {
+                        \Log::info('Found recent order for user (amount mismatch, but using it)', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'order_amount' => $order->total_amount,
+                            'transaction_amount' => $transaction->amount,
+                            'created_at' => $order->created_at,
+                            'tx_ref' => $txRef
+                        ]);
+                        
+                        // Update the transaction with the found order number
+                        $transaction->order_id = $order->order_number;
                         $transaction->save();
                     }
                 }
@@ -2395,20 +2569,91 @@ class PaymentController extends Controller
                 }
             }
             
-            // If we still don't have an order, return error (but only for regular payments)
+            // If we still don't have an order, verify payment status with Chapa first
             // Product request payments are already handled above
             if (!$order) {
-                \Log::warning('No order found and not a product request payment', [
+                \Log::warning('No order found and not a product request payment, verifying payment with Chapa', [
                     'tx_ref' => $txRef,
-                    'transaction_order_id' => $transaction->order_id
+                    'transaction_order_id' => $transaction->order_id,
+                    'transaction_gateway_status' => $transaction->gateway_status,
                 ]);
-                return Inertia::render('payment/payment-failed', [
-                    'error' => 'Order not found',
-                    'order_id' => null,
-                    'amount' => $transaction->amount ?? 0,
-                    'currency' => $transaction->currency ?? 'ETB',
-                    'transaction_id' => $txRef,
-                ]);
+                
+                // Verify payment status with Chapa API before showing error
+                $verifiedStatus = $this->verifyWithChapa($txRef);
+                if ($verifiedStatus === 'paid') {
+                    // Payment was successful, update transaction
+                    $transaction->gateway_status = 'paid';
+                    $transaction->status = 'completed';
+                    $transaction->save();
+                    
+                    // Try one more time to find order by multiple methods
+                    if ($transaction->customer_email) {
+                        // Method 1: Try by user_id, amount, and time window
+                        $order = Order::where('user_id', $transaction->user_id ?? null)
+                            ->where('total_amount', $transaction->amount)
+                            ->where('created_at', '>=', $transaction->created_at->subMinutes(30))
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                        
+                        // Method 2: If transaction->order_id is a string (order_number), try that
+                        if (!$order && !empty($transaction->order_id) && !is_numeric($transaction->order_id)) {
+                            $order = Order::where('order_number', $transaction->order_id)
+                                ->where('user_id', $transaction->user_id ?? null)
+                                ->first();
+                        }
+                        
+                        // Method 3: Try to find by amount and user within a wider time window
+                        if (!$order) {
+                            $order = Order::where('user_id', $transaction->user_id ?? null)
+                                ->where('total_amount', $transaction->amount)
+                                ->where('created_at', '>=', $transaction->created_at->subHours(2))
+                                ->orderBy('created_at', 'desc')
+                                ->first();
+                        }
+                            
+                        if ($order) {
+                            // Update transaction with found order (store as order_number for consistency)
+                            $transaction->order_id = $order->order_number;
+                            $transaction->save();
+                            \Log::info('Order found after Chapa verification', [
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'transaction_order_id_updated' => $transaction->order_id,
+                            ]);
+                        }
+                    }
+                }
+                
+                // If still no order found but payment was successful, show generic success
+                if (!$order) {
+                    \Log::error('Order not found even after Chapa verification, but payment was successful', [
+                        'tx_ref' => $txRef,
+                        'transaction_order_id' => $transaction->order_id,
+                        'verified_status' => $verifiedStatus,
+                        'customer_email' => $transaction->customer_email,
+                        'user_id' => $transaction->user_id,
+                        'amount' => $transaction->amount,
+                    ]);
+                    
+                    // If payment was verified as successful, show a generic success page
+                    // This handles edge cases where order might have been deleted or not properly linked
+                    return Inertia::render('payment/payment-success', [
+                        'order_id' => null,
+                        'amount' => $transaction->amount ?? 0,
+                        'currency' => $transaction->currency ?? 'ETB',
+                        'payment_method' => 'Chapa',
+                        'transaction_id' => $transaction->tx_ref,
+                        'customer_name' => $transaction->customer_name ?? 'Customer',
+                        'customer_email' => $transaction->customer_email ?? '',
+                        'order_items' => [],
+                        'pending_payment_approval' => false,
+                        'is_advance_payment' => false,
+                        'product_request_id' => null,
+                        'payment_type' => 'regular',
+                        'warning_message' => 'Payment was successful, but order details could not be retrieved. Please contact support with your transaction reference: ' . $txRef,
+                        'show_contact_support' => true,
+                    ]);
+                }
             }
             
             \Log::info('=== PAYMENT RETURN DECISION POINT ===', [
@@ -2774,8 +3019,11 @@ class PaymentController extends Controller
 
             // Reset payment status for retry
             // Note: admin_status is an ENUM and cannot be null, so we reset it to 'unseen'
+            // IMPORTANT: Also reset gateway_status to prevent showing incorrect "paid" status
             $payment->update([
                 'admin_status' => 'unseen',
+                'gateway_status' => 'pending', // Reset gateway status for retry
+                'status' => 'pending', // Reset transaction status
                 'admin_notes' => null,
                 'rejection_reason_code' => null,
                 'admin_id' => null,
@@ -2863,7 +3111,8 @@ class PaymentController extends Controller
                         'amount' => $order->total_amount,
                         'currency' => $order->currency,
                         'cart_items' => json_encode($cartItems),
-                        // Don't specify payment_method so it shows both options
+                        'show_method_selection' => true, // Show payment method selection page
+                        'retry' => true, // Indicate this is a retry payment
                     ])->with('success', 'Payment reset. You can now retry the payment.');
                 }
                 // Fallback to checkout if order not found

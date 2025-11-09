@@ -6,9 +6,10 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Textarea } from '@/components/ui/textarea';
 import PaymentDetailsModal from '@/components/payment-details-modal';
 import MainLayout from '@/layouts/app/main-layout';
-import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, Building, CreditCard, Smartphone, Upload } from 'lucide-react';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { ArrowLeft, Building, CreditCard, Phone, Smartphone, Upload } from 'lucide-react';
 import React, { useState } from 'react';
+import type { SharedData } from '@/types';
 
 interface TaxBreakdownItem {
     name: string;
@@ -54,12 +55,18 @@ export default function PaymentProcess({
     tax_breakdown,
     offlinePaymentMethods = [],
 }: PaymentProcessProps) {
+    const { auth } = usePage<SharedData>().props;
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [selectedOfflineMethod, setSelectedOfflineMethod] = useState('');
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [modalPaymentReference, setModalPaymentReference] = useState('');
     const [modalPaymentNotes, setModalPaymentNotes] = useState('');
     const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
+    
+    // Get phone number from user profile
+    const getUserPhone = (): string => {
+        return (auth?.user?.phone as string) || '';
+    };
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -172,6 +179,7 @@ export default function PaymentProcess({
                                                 order_id: order_id,
                                                 amount: total_amount,
                                                 currency: currency,
+                                                payment_method: 'chapa', // Explicitly set Chapa payment method
                                                 cart_items: JSON.stringify([]),
                                             }))
                                         }
@@ -216,6 +224,7 @@ export default function PaymentProcess({
         payment_method: 'telebirr',
         customer_name: customer_name,
         customer_email: customer_email,
+        phone_number: getUserPhone(), // Add phone number from user profile
         order_id: order_id,
         amount: total_amount,
         currency: currency,
@@ -261,6 +270,7 @@ export default function PaymentProcess({
                 payment_method: chapaForm.data.payment_method,
                 customer_name: chapaForm.data.customer_name,
                 customer_email: chapaForm.data.customer_email,
+                phone_number: chapaForm.data.phone_number, // Include phone number
                 order_id: chapaForm.data.order_id,
                 amount: chapaForm.data.amount,
                 currency: chapaForm.data.currency,
@@ -830,8 +840,8 @@ export default function PaymentProcess({
                                         <Input
                                             id="customer_name"
                                             required
-                                            value={chapaForm.data.customer_name}
-                                            onChange={(e) => chapaForm.setData('customer_name', e.target.value)}
+                                        value={String(chapaForm.data.customer_name || '')}
+                                        onChange={(e) => chapaForm.setData('customer_name', e.target.value)}
                                         />
                                         {chapaForm.errors.customer_name && (
                                             <p className="mt-1 text-sm text-red-600">{chapaForm.errors.customer_name}</p>
@@ -844,8 +854,8 @@ export default function PaymentProcess({
                                             id="customer_email"
                                             type="email"
                                             required
-                                            value={chapaForm.data.customer_email}
-                                            onChange={(e) => chapaForm.setData('customer_email', e.target.value)}
+                                        value={String(chapaForm.data.customer_email || '')}
+                                        onChange={(e) => chapaForm.setData('customer_email', e.target.value)}
                                         />
                                         {chapaForm.errors.customer_email && (
                                             <p className="mt-1 text-sm text-red-600">{chapaForm.errors.customer_email}</p>
@@ -853,11 +863,31 @@ export default function PaymentProcess({
                                     </div>
                                 </div>
 
+                                <div>
+                                    <Label htmlFor="phone_number" className="flex items-center gap-1">
+                                        <Phone className="h-4 w-4" />
+                                        Phone Number *
+                                    </Label>
+                                    <Input
+                                        id="phone_number"
+                                        type="tel"
+                                        autoComplete="tel"
+                                        placeholder="e.g., +251911223344 or 0911223344"
+                                        required
+                                        value={String(chapaForm.data.phone_number || '')}
+                                        onChange={(e) => chapaForm.setData('phone_number', e.target.value)}
+                                        className={chapaForm.errors.phone_number ? 'border-red-500' : ''}
+                                    />
+                                    {chapaForm.errors.phone_number && (
+                                        <p className="mt-1 text-sm text-red-600">{chapaForm.errors.phone_number}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500">Ethiopian mobile numbers starting with 07 or 09</p>
+                                </div>
 
                                 <div>
                                     <Label htmlFor="payment_method">Payment Method *</Label>
                                     <RadioGroup
-                                        value={chapaForm.data.payment_method}
+                                        value={String(chapaForm.data.payment_method || 'telebirr')}
                                         onValueChange={(value) => chapaForm.setData('payment_method', value)}
                                         className="mt-2"
                                     >

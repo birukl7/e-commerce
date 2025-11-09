@@ -54,13 +54,28 @@ export default function OrderTracking({ order, timeline, paymentTransaction }: O
     };
 
     const formatDate = (dateString: string) => {
+        // Backend sends dates in UTC format (without timezone indicator)
+        // We need to explicitly parse it as UTC, then convert to user's local timezone
+        let date: Date;
+        if (dateString.includes('T') && (dateString.endsWith('Z') || dateString.includes('+'))) {
+            // Already has timezone info
+            date = new Date(dateString);
+        } else {
+            // No timezone info - assume UTC and append 'Z'
+            const utcString = dateString.replace(' ', 'T') + 'Z';
+            date = new Date(utcString);
+        }
+        
+        // Get user's timezone to properly convert UTC dates from backend
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         return new Intl.DateTimeFormat('en-US', {
+            timeZone: tz, // Use user's local timezone (GMT+3)
             year: 'numeric',
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        }).format(new Date(dateString));
+        }).format(date);
     };
 
     const getStatusIcon = (item: TimelineItem) => {

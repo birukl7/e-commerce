@@ -179,13 +179,29 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
     };
 
     const formatDate = (dateString: string) => {
+        // Backend sends dates in UTC format (without timezone indicator)
+        // We need to explicitly parse it as UTC, then convert to user's local timezone
+        // If the string doesn't end with 'Z' or have timezone info, treat it as UTC
+        let date: Date;
+        if (dateString.includes('T') && (dateString.endsWith('Z') || dateString.includes('+'))) {
+            // Already has timezone info
+            date = new Date(dateString);
+        } else {
+            // No timezone info - assume UTC and append 'Z'
+            const utcString = dateString.replace(' ', 'T') + 'Z';
+            date = new Date(utcString);
+        }
+        
+        // Get user's timezone to properly convert UTC dates from backend
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
         return new Intl.DateTimeFormat('en-US', {
             year: 'numeric',
             month: 'long',
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-        }).format(new Date(dateString));
+            timeZone: tz, // Use user's local timezone (GMT+3)
+        }).format(date);
     };
 
     const formatStatusText = (status: string) => {
@@ -451,9 +467,19 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                                 {formatStatusText(order.payment_status)}
                                                             </Badge>
                                                             {order.paymentTransaction?.admin_status === 'rejected' && (
-                                                                <Badge className="bg-red-100 text-red-800 text-xs mt-1">
-                                                                    Payment Rejected
-                                                                </Badge>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <Badge className="bg-red-600 text-white text-xs font-semibold">
+                                                                        Payment Rejected
+                                                                    </Badge>
+                                                                    {order.paymentTransaction?.rejection_reason && (
+                                                                        <span className="text-xs text-red-600 font-medium">
+                                                                            {order.paymentTransaction.rejection_reason.reason_text}
+                                                                        </span>
+                                                                    )}
+                                                                    <span className="text-xs text-gray-500 italic">
+                                                                        Click to view details & retry
+                                                                    </span>
+                                                                </div>
                                                             )}
                                                         </div>
                                                     </TableCell>

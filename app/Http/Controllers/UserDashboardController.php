@@ -80,9 +80,9 @@ class UserDashboardController extends Controller
     {
         $user = Auth::user();
         
-        // First get all orders for the user
+        // First get all orders for the user, sorted by newest first
+        // Get orders separately to avoid join issues
         $orders = DB::table('orders as o')
-            ->leftJoin('payment_transactions as pt', 'o.id', '=', 'pt.order_id')
             ->select([
                 'o.id',
                 'o.order_number',
@@ -93,14 +93,10 @@ class UserDashboardController extends Controller
                 'o.currency',
                 'o.created_at',
                 'o.updated_at',
-                'pt.id as payment_transaction_id',
-                'pt.gateway_status',
-                'pt.admin_status',
-                'pt.tx_ref',
-                'pt.rejection_reason_code',
             ])
             ->where('o.user_id', $user->id)
             ->orderBy('o.created_at', 'desc')
+            ->orderBy('o.id', 'desc') // Secondary sort to ensure consistent ordering
             ->get();
             
         // Get all order items for the user's orders
@@ -132,8 +128,85 @@ class UserDashboardController extends Controller
             }
         }
         
-        // Process and group orders with their items
-        $orders = $orders->map(function ($order) use ($orderItems) {
+        // Get payment transactions with rejection reasons for orders that have them
+        // Handle both numeric order_id (numeric) and order_number (string) cases
+        $orderIds = $orders->pluck('id')->toArray();
+        $orderNumbers = $orders->pluck('order_number')->toArray();
+        
+        // Create a lookup map for orders by order_number and by amount
+        $ordersByNumber = $orders->keyBy('order_number');
+        $ordersByAmount = $orders->groupBy('total_amount');
+        
+        // Get all payment transactions that might match these orders
+        // Include transactions with null order_id that might match by amount and user
+        $allPaymentTransactions = \App\Models\PaymentTransaction::with('rejectionReason')
+            ->whereNull('deleted_at')
+            ->where('customer_email', $user->email)
+            ->where(function($query) use ($orderIds, $orderNumbers, $orders) {
+                // Match when order_id is numeric and in orderIds
+                if (!empty($orderIds)) {
+                    $query->where(function($q) use ($orderIds) {
+                        foreach ($orderIds as $orderId) {
+                            $q->orWhereRaw('CAST(order_id AS UNSIGNED) = ?', [$orderId]);
+                        }
+                    });
+                }
+                // OR when order_id is a string and in orderNumbers
+                if (!empty($orderNumbers)) {
+                    $query->orWhereIn('order_id', $orderNumbers);
+                }
+                // OR when order_id is null, try to match by amount and time window
+                $query->orWhere(function($q) use ($orders) {
+                    $q->whereNull('order_id');
+                    // For each order, check if there's a payment transaction with matching amount
+                    // created within 1 hour of the order
+                    foreach ($orders as $order) {
+                        $q->orWhere(function($subQ) use ($order) {
+                            $subQ->where('amount', $order->total_amount)
+                                 ->whereBetween('created_at', [
+                                     date('Y-m-d H:i:s', strtotime($order->created_at) - 3600),
+                                     date('Y-m-d H:i:s', strtotime($order->created_at) + 3600)
+                                 ]);
+                        });
+                    }
+                });
+            })
+            ->get();
+        
+        // Create a mapping of order_id -> payment transaction
+        // Handle both numeric IDs, order_number strings, and null order_id with amount matching
+        $paymentTransactionsByOrder = [];
+        foreach ($allPaymentTransactions as $pt) {
+            // Try to match by numeric order_id
+            if (is_numeric($pt->order_id) && in_array((int)$pt->order_id, $orderIds)) {
+                $paymentTransactionsByOrder[(int)$pt->order_id] = $pt;
+            }
+            // Also try to match by order_number
+            elseif (in_array($pt->order_id, $orderNumbers)) {
+                $matchingOrder = $ordersByNumber->get($pt->order_id);
+                if ($matchingOrder) {
+                    $paymentTransactionsByOrder[$matchingOrder->id] = $pt;
+                }
+            }
+            // Try to match by amount and time when order_id is null
+            elseif (empty($pt->order_id)) {
+                $matchingOrders = $orders->filter(function($order) use ($pt) {
+                    return abs((float)$order->total_amount - (float)$pt->amount) < 0.01 // Amount matches (within 1 cent)
+                        && abs(strtotime($order->created_at) - strtotime($pt->created_at)) < 3600; // Within 1 hour
+                });
+                
+                if ($matchingOrders->isNotEmpty()) {
+                    // Use the most recent matching order
+                    $matchingOrder = $matchingOrders->sortByDesc('created_at')->first();
+                    if ($matchingOrder && !isset($paymentTransactionsByOrder[$matchingOrder->id])) {
+                        $paymentTransactionsByOrder[$matchingOrder->id] = $pt;
+                    }
+                }
+            }
+        }
+        
+        // Process and group orders with their items and payment transactions
+        $orders = $orders->map(function ($order) use ($orderItems, $paymentTransactionsByOrder) {
             // Add items to each order
             $items = collect($orderItems[$order->id] ?? [])
                 ->map(function ($item) {
@@ -155,24 +228,30 @@ class UserDashboardController extends Controller
                 (count($items) > 1 ? ' +' . (count($items) - 1) . ' more' : '') : 
                 'No items';
                 
-            // Get payment method type from payment_method and tx_rehem
+            // Get payment transaction for this order if it exists
+            $paymentTransaction = $paymentTransactionsByOrder[$order->id] ?? null;
+            $txRef = $paymentTransaction ? $paymentTransaction->tx_ref : null;
+            $gatewayStatus = $paymentTransaction ? $paymentTransaction->gateway_status : null;
+            $adminStatus = $paymentTransaction ? $paymentTransaction->admin_status : null;
+            
+            // Get payment method type from payment_method and tx_ref
             $paymentMethodType = 'Unknown';
             if ($order->payment_method === 'offline') {
                 $paymentMethodType = 'Offline';
             } elseif (in_array($order->payment_method, ['chapa', 'telebirr', 'cbe', 'paypal'])) {
                 $paymentMethodType = 'Online';
-            } elseif ($order->tx_ref) {
-                if (str_starts_with($order->tx_ref, 'TX-')) {
+            } elseif ($txRef) {
+                if (str_starts_with($txRef, 'TX-')) {
                     $paymentMethodType = 'Online';
-                } elseif (str_starts_with($order->tx_ref, 'OFFLINE-')) {
+                } elseif (str_starts_with($txRef, 'OFFLINE-')) {
                     $paymentMethodType = 'Offline';
                 }
             }
                 
-                // Determine actual order status based on persisted order first.
-                // Only fall back to payment transaction when order is still pending/unpaid.
-                $actualStatus = $order->status;
-                $actualPaymentStatus = $order->payment_status;
+            // Determine actual order status based on persisted order first.
+            // Only fall back to payment transaction when order is still pending/unpaid.
+            $actualStatus = $order->status;
+            $actualPaymentStatus = $order->payment_status;
 
                 // Normalize: if order has progressed but payment_status is still pending, assume paid
                 if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
@@ -182,31 +261,37 @@ class UserDashboardController extends Controller
                 $isOrderFinalized = in_array($order->payment_status, ['paid', 'completed', 'rejected', 'refunded'], true)
                     || in_array($order->status, ['processing', 'shipped', 'delivered', 'cancelled'], true);
 
-                if (!$isOrderFinalized && $order->gateway_status && $order->admin_status) {
-                    if ($order->gateway_status === 'paid' && $order->admin_status === 'approved') {
+                if (!$isOrderFinalized && $gatewayStatus && $adminStatus) {
+                    if ($gatewayStatus === 'paid' && $adminStatus === 'approved') {
                         $actualStatus = 'processing';
                         $actualPaymentStatus = 'paid';
-                    } elseif ($order->gateway_status === 'proof_uploaded' && $order->admin_status === 'unseen') {
+                    } elseif ($gatewayStatus === 'proof_uploaded' && $adminStatus === 'unseen') {
                         $actualStatus = 'pending_payment_approval';
                         $actualPaymentStatus = 'pending_approval';
-                    } elseif ($order->admin_status === 'approved' && $order->gateway_status === 'proof_uploaded') {
+                    } elseif ($adminStatus === 'approved' && $gatewayStatus === 'proof_uploaded') {
                         // Offline flow: admin approved with proof uploaded
                         $actualStatus = 'processing';
                         $actualPaymentStatus = 'paid';
-                    } elseif ($order->admin_status === 'rejected') {
+                    } elseif ($adminStatus === 'rejected') {
                         $actualStatus = 'payment_rejected';
                         $actualPaymentStatus = 'rejected';
                     }
                 }
+                
+                // Also check payment transaction for rejected status even if order is finalized
+                if ($adminStatus === 'rejected') {
+                    $actualStatus = 'payment_rejected';
+                    $actualPaymentStatus = 'rejected';
+                }
 
-                return [
+                $orderData = [
                     'id' => $order->id,
                     'order_number' => $order->order_number,
                     'status' => $actualStatus,
                     'payment_status' => $actualPaymentStatus,
                     'payment_method' => $this->formatPaymentMethod($order->payment_method),
                     'payment_type' => $paymentMethodType,
-                    'tx_ref' => $order->tx_ref,
+                    'tx_ref' => $txRef,
                     'total_amount' => (float) $order->total_amount,
                     'currency' => $order->currency,
                     'created_at' => $order->created_at,
@@ -216,34 +301,36 @@ class UserDashboardController extends Controller
                     'product_summary' => $productSummary,
                     'first_item_image' => $firstProduct['primary_image'] ?? null,
                 ];
+                
+                // Add payment transaction data if it exists (for all statuses, not just rejected)
+                if ($paymentTransaction) {
+                    $orderData['paymentTransaction'] = [
+                        'id' => $paymentTransaction->id,
+                        'admin_status' => $paymentTransaction->admin_status,
+                        'gateway_status' => $paymentTransaction->gateway_status,
+                        'rejection_reason_code' => $paymentTransaction->rejection_reason_code,
+                        'rejection_reason' => $paymentTransaction->rejectionReason ? [
+                            'reason_text' => $paymentTransaction->rejectionReason->reason_text,
+                            'description' => $paymentTransaction->rejectionReason->description,
+                        ] : null,
+                        'admin_notes' => $paymentTransaction->admin_notes,
+                    ];
+                }
+                
+                return $orderData;
             })
             ->values()
             ->toArray();
 
-        // Get payment transactions with rejection reasons for orders that have them
-        $orderIds = collect($orders)->pluck('id')->toArray();
-        $paymentTransactions = \App\Models\PaymentTransaction::with('rejectionReason')
-            ->whereIn('order_id', $orderIds)
-            ->get()
-            ->keyBy('order_id');
-
-        // Add payment transaction data to each order
-        $ordersWithPayments = collect($orders)->map(function ($order) use ($paymentTransactions) {
-            $paymentTransaction = $paymentTransactions->get($order['id']);
-            if ($paymentTransaction && $paymentTransaction->admin_status === 'rejected') {
-                $order['paymentTransaction'] = [
-                    'id' => $paymentTransaction->id,
-                    'admin_status' => $paymentTransaction->admin_status,
-                    'rejection_reason_code' => $paymentTransaction->rejection_reason_code,
-                    'rejection_reason' => $paymentTransaction->rejectionReason ? [
-                        'reason_text' => $paymentTransaction->rejectionReason->reason_text,
-                        'description' => $paymentTransaction->rejectionReason->description,
-                    ] : null,
-                    'admin_notes' => $paymentTransaction->admin_notes,
-                ];
-            }
-            return $order;
-        })->toArray();
+        // Orders already have payment transaction data from the map above
+        // Just ensure they're sorted correctly
+        $ordersWithPayments = collect($orders)
+        ->sortByDesc(function ($order) {
+            // Ensure orders are sorted by created_at descending (newest first)
+            return $order['created_at'];
+        })
+        ->values()
+        ->toArray();
 
         return Inertia::render('user/orders', [
             'orders' => $ordersWithPayments,
