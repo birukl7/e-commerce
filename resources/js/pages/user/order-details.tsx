@@ -2,8 +2,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MainLayout from '@/layouts/app/main-layout';
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, CreditCard, DollarSign, MapPin, Package, Truck } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, CreditCard, DollarSign, MapPin, Package, Truck, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface OrderItem {
@@ -37,14 +37,25 @@ interface Order {
     items: OrderItem[];
 }
 
+interface PaymentTransaction {
+    id: number;
+    admin_status: string;
+    rejection_reason_code: string | null;
+    rejection_reason: {
+        reason_text: string;
+        description?: string;
+    } | null;
+    admin_notes: string | null;
+}
+
 interface OrderDetailsProps {
     order: Order;
     taxBreakdown?: Array<{ id: number; name: string; type: 'percentage' | 'fixed'; rate: number; amount: number; formatted_rate: string; description?: string }>;
+    paymentTransaction?: PaymentTransaction | null;
 }
 
-export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsProps) {
+export default function OrderDetails({ order, taxBreakdown = [], paymentTransaction }: OrderDetailsProps) {
     const { t } = useTranslation()
-    
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -257,6 +268,37 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                                     </div>
                                 </div>
 
+                                {/* Payment Rejection Information */}
+                                {paymentTransaction?.admin_status === 'rejected' && (
+                                    <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <XCircle className="h-5 w-5 text-red-600" />
+                                            <p className="font-medium text-red-800">Payment Rejected</p>
+                                        </div>
+                                        {paymentTransaction.rejection_reason && (
+                                            <div className="text-sm text-red-700">
+                                                <p className="font-medium">Reason: {paymentTransaction.rejection_reason.reason_text}</p>
+                                                {paymentTransaction.rejection_reason.description && (
+                                                    <p className="text-xs mt-1 text-red-600">{paymentTransaction.rejection_reason.description}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {paymentTransaction.admin_notes && (
+                                            <p className="text-sm text-red-700">Additional notes: {paymentTransaction.admin_notes}</p>
+                                        )}
+                                        <Button
+                                            className="w-full bg-red-600 hover:bg-red-700"
+                                            onClick={() => {
+                                                router.post(route('payments.retry', paymentTransaction.id), {}, {
+                                                    preserveScroll: true,
+                                                })
+                                            }}
+                                        >
+                                            Retry Payment
+                                        </Button>
+                                    </div>
+                                )}
+
                                 {/* Order Items in Payment Details */}
                             </CardContent>
                         </Card>
@@ -298,7 +340,7 @@ export default function OrderDetails({ order, taxBreakdown = [] }: OrderDetailsP
                                 </Link>
                             </Button>
 
-                            {order.payment_status === 'failed' && (
+                            {order.payment_status === 'failed' && !paymentTransaction && (
                                 <Button variant="outline" className="w-full">
                                     {t('orders.retryPayment')}
                                 </Button>

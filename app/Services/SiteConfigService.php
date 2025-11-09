@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\ChapaPaymentMethod;
 use Illuminate\Support\Facades\Cache;
 
 class SiteConfigService
@@ -80,6 +81,38 @@ class SiteConfigService
     public function shouldAutoApproveGatewayPayments(): bool
     {
         return (bool) $this->get('payments.auto_approve_if_gateway_paid', true);
+    }
+
+    /**
+     * Get active Chapa payment methods ordered by sort_order.
+     */
+    public function getChapaPaymentMethods(): array
+    {
+        return Cache::remember(
+            'chapa_payment_methods_active',
+            self::CACHE_TTL,
+            fn() => ChapaPaymentMethod::active()
+                ->ordered()
+                ->get()
+                ->map(function ($method) {
+                    return [
+                        'id' => $method->id,
+                        'name' => $method->name,
+                        'code' => $method->code,
+                        'description' => $method->description,
+                        'logo' => $method->logo,
+                    ];
+                })
+                ->toArray()
+        );
+    }
+
+    /**
+     * Clear Chapa payment methods cache.
+     */
+    public function clearChapaPaymentMethodsCache(): void
+    {
+        Cache::forget('chapa_payment_methods_active');
     }
 
     // UI Configuration Methods

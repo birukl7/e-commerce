@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Package, CheckCircle, Clock, XCircle, Truck } from 'lucide-react';
 import MainLayout from '@/layouts/app/main-layout';
 import { useTranslation } from 'react-i18next';
@@ -27,14 +27,25 @@ interface Order {
     created_at: string;
 }
 
+interface PaymentTransaction {
+    id: number;
+    admin_status: string;
+    rejection_reason_code: string | null;
+    rejection_reason: {
+        reason_text: string;
+        description?: string;
+    } | null;
+    admin_notes: string | null;
+}
+
 interface OrderTrackingProps {
     order: Order;
     timeline: TimelineItem[];
+    paymentTransaction?: PaymentTransaction | null;
 }
 
-export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
+export default function OrderTracking({ order, timeline, paymentTransaction }: OrderTrackingProps) {
     const { t } = useTranslation()
-    
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -249,6 +260,41 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                             </CardContent>
                         </Card>
 
+                        {/* Payment Rejection Information */}
+                        {paymentTransaction?.admin_status === 'rejected' && (
+                            <Card className="border-red-200 bg-red-50">
+                                <CardContent className="pt-6">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <XCircle className="h-5 w-5 text-red-600" />
+                                            <p className="font-medium text-red-800">Payment Rejected</p>
+                                        </div>
+                                        {paymentTransaction.rejection_reason && (
+                                            <div className="text-sm text-red-700">
+                                                <p className="font-medium">Reason: {paymentTransaction.rejection_reason.reason_text}</p>
+                                                {paymentTransaction.rejection_reason.description && (
+                                                    <p className="text-xs mt-1 text-red-600">{paymentTransaction.rejection_reason.description}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                        {paymentTransaction.admin_notes && (
+                                            <p className="text-sm text-red-700">Additional notes: {paymentTransaction.admin_notes}</p>
+                                        )}
+                                        <Button
+                                            className="w-full bg-red-600 hover:bg-red-700"
+                                            onClick={() => {
+                                                router.post(route('payments.retry', paymentTransaction.id), {}, {
+                                                    preserveScroll: true,
+                                                })
+                                            }}
+                                        >
+                                            Retry Payment
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         {/* Actions */}
                         <div className="space-y-3">
                             <Button asChild className="w-full" variant="outline">
@@ -264,7 +310,7 @@ export default function OrderTracking({ order, timeline }: OrderTrackingProps) {
                                 </Link>
                             </Button>
 
-                            {order.payment_status === 'failed' && (
+                            {order.payment_status === 'failed' && !paymentTransaction && (
                                 <Button className="w-full" variant="destructive">
                                     {t('orders.retryPayment')}
                                 </Button>

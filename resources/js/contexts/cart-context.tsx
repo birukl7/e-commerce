@@ -63,8 +63,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
       
       setItems((prevItems) => {
         const existingItem = prevItems.find((item) => item.id === product.id)
-        const requestedQuantity = typeof product.quantity === 'number' && product.quantity > 0 ? product.quantity : 1
-        const newQuantity = existingItem ? existingItem.quantity + requestedQuantity : requestedQuantity
+        // Ensure we properly extract the quantity from the product object
+        const requestedQuantity = typeof product.quantity === 'number' && product.quantity > 0 
+          ? Math.floor(product.quantity) 
+          : 1
+        
+        // SET the quantity to the selected amount (don't add to existing)
+        // This means if cart has 3 and user selects 5, cart becomes 5 (not 8)
+        const newQuantity = requestedQuantity
         
         // Check stock availability
         if (manage_stock && newQuantity > stock_quantity) {
@@ -112,8 +118,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prevItems) => prevItems.filter((item) => item.id !== id))
   }
 
-  const updateQuantity = (id: number, quantity: number) => {
-    if (quantity <= 0) {
+  const updateQuantity = (id: number, newQuantity: number) => {
+    // Ensure quantity is at least 1
+    if (newQuantity < 1) {
       removeFromCart(id)
       return
     }
@@ -121,8 +128,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems((prevItems) => {
       const itemToUpdate = prevItems.find(item => item.id === id)
       
+      if (!itemToUpdate) {
+        return prevItems
+      }
+      
+      // Ensure quantity is at least 1
+      const quantity = Math.max(1, Math.floor(newQuantity))
+      
       // Check if the new quantity exceeds available stock
-      if (itemToUpdate?.manageStock && quantity > itemToUpdate.maxQuantity) {
+      if (itemToUpdate.manageStock && quantity > itemToUpdate.maxQuantity) {
         alert(`Sorry, only ${itemToUpdate.maxQuantity} items available in stock.`)
         return prevItems
       }

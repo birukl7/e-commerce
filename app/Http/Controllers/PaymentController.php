@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Services\ImageUrlService;
 use App\Services\PaymentFinalizer;
 use App\Services\TaxService;
+use App\Services\SiteConfigService;
 
 class PaymentController extends Controller
 {
@@ -24,6 +25,7 @@ class PaymentController extends Controller
     private $chapaBaseUrl;
     private PaymentFinalizer $paymentFinalizer;
     private TaxService $taxService;
+    private SiteConfigService $siteConfig;
 
     public function __construct()
     {
@@ -32,6 +34,7 @@ class PaymentController extends Controller
         $this->chapaBaseUrl = config('services.chapa.base_url', 'https://api.chapa.co/v1');
         $this->paymentFinalizer = app(PaymentFinalizer::class);
         $this->taxService = app(TaxService::class);
+        $this->siteConfig = app(SiteConfigService::class);
     }
 
     public function selectMethod(Request $request)
@@ -794,6 +797,17 @@ class PaymentController extends Controller
                 $productName = $productRequest ? $productRequest->product_name : 'Product Request';
             }
 
+            // Get active Chapa payment methods
+            $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
+            
+            // Fallback to default methods if none configured
+            if (empty($chapaPaymentMethods)) {
+                $chapaPaymentMethods = [
+                    ['id' => 1, 'name' => 'Telebirr', 'code' => 'telebirr', 'description' => 'Pay with Telebirr', 'logo' => null],
+                    ['id' => 2, 'name' => 'CBE', 'code' => 'cbe', 'description' => 'Pay with Commercial Bank of Ethiopia', 'logo' => null],
+                ];
+            }
+
             return Inertia::render('payment/chapa-method-select', [
                 'order_id' => $request->order_id,
                 'amount' => (float)$request->amount,
@@ -803,6 +817,7 @@ class PaymentController extends Controller
                 'product_request_id' => $request->product_request_id,
                 'product_name' => $productName,
                 'description' => $request->description,
+                'chapaPaymentMethods' => $chapaPaymentMethods,
                 'auth' => [
                     'user' => [
                         'name' => auth()->user()->name ?? '',
@@ -2003,26 +2018,51 @@ class PaymentController extends Controller
     }
 
     // NEW: Payment return handler for Chapa
-    public function paymentReturn(Request $request, $txRef)
+    public function paymentReturn(Request $request, $txRef = null)
     {
+        // Handle both path parameter and query parameter for tx_ref
+        // Chapa might redirect with query parameters instead of path parameters
+        if (empty($txRef)) {
+            $txRef = $request->get('tx_ref') ?? $request->get('transaction_reference') ?? $request->get('reference');
+        }
+
         \Log::info('=== PAYMENT RETURN REQUEST STARTED ===', [
             'tx_ref' => $txRef,
             'full_url' => $request->fullUrl(),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'query_params' => $request->query(),
+            'path_params' => $request->route()->parameters(),
         ]);
+
+        // If we still don't have a tx_ref, show a generic error page
+        if (empty($txRef)) {
+            \Log::warning('Payment return called without tx_ref', [
+                'full_url' => $request->fullUrl(),
+                'query_params' => $request->query(),
+            ]);
+            return Inertia::render('payment/payment-failed', [
+                'error' => 'Payment reference not found. Please contact support if you made a payment.',
+                'order_id' => null,
+                'amount' => 0,
+                'currency' => 'ETB',
+                'error_code' => 'missing_reference',
+                'show_contact_support' => true,
+            ]);
+        }
 
         try {
             $transaction = PaymentTransaction::where('tx_ref', $txRef)->first();
             if (!$transaction) {
                 Log::warning('Payment transaction not found for return', ['tx_ref' => $txRef]);
                 return Inertia::render('payment/payment-failed', [
-                    'error' => 'Transaction not found',
+                    'error' => 'Transaction not found. Please contact support with your payment reference.',
                     'order_id' => null,
                     'amount' => 0,
                     'currency' => 'ETB',
                     'transaction_id' => $txRef, // Include the transaction reference for debugging
+                    'error_code' => 'transaction_not_found',
+                    'show_contact_support' => true,
                 ]);
             }
 
@@ -2392,6 +2432,28 @@ class PaymentController extends Controller
             
             // Check payment status and decide which page to show
             $gatewayStatus = $transaction->gateway_status;
+            
+            // If gateway_status is null or empty, try to verify with Chapa API
+            if (empty($gatewayStatus)) {
+                \Log::info('Gateway status is empty, verifying with Chapa API', [
+                    'tx_ref' => $txRef,
+                    'transaction_id' => $transaction->id,
+                ]);
+                $verifiedStatus = $this->verifyWithChapa($txRef);
+                if ($verifiedStatus !== 'pending') {
+                    $gatewayStatus = $verifiedStatus;
+                    // Update transaction with verified status
+                    $transaction->gateway_status = $gatewayStatus;
+                    $transaction->save();
+                } else {
+                    // If verification returns pending, default to failed for safety
+                    $gatewayStatus = 'failed';
+                    \Log::warning('Payment verification returned pending, defaulting to failed', [
+                        'tx_ref' => $txRef,
+                    ]);
+                }
+            }
+            
             \Log::info('Payment status check', [
                 'tx_ref' => $txRef,
                 'gateway_status' => $gatewayStatus,
@@ -2694,4 +2756,126 @@ class PaymentController extends Controller
         }
     }
 
+    /**
+     * Retry a rejected payment
+     */
+    public function retryPayment(Request $request, PaymentTransaction $payment)
+    {
+        try {
+            // Validate that payment can be retried
+            if (!$payment->isAdminRejected()) {
+                return back()->with('error', 'Only rejected payments can be retried.');
+            }
+
+            // Check if user owns this payment
+            if (auth()->check() && $payment->customer_email !== auth()->user()->email) {
+                return back()->with('error', 'You can only retry your own payments.');
+            }
+
+            // Reset payment status for retry
+            // Note: admin_status is an ENUM and cannot be null, so we reset it to 'unseen'
+            $payment->update([
+                'admin_status' => 'unseen',
+                'admin_notes' => null,
+                'rejection_reason_code' => null,
+                'admin_id' => null,
+                'admin_action_at' => null,
+            ]);
+
+            // For product request payments, reset the payment status
+            if ($payment->product_request_id) {
+                $productRequest = \App\Models\ProductRequest::find($payment->product_request_id);
+                if ($productRequest) {
+                    // Determine if this is advance or final payment based on tx_ref
+                    $txRef = $payment->tx_ref;
+                    if (str_starts_with($txRef, 'ADV-')) {
+                        // Reset advance payment status
+                        $productRequest->update([
+                            'advance_payment_status' => 'pending',
+                        ]);
+                        \Log::info('Reset advance payment status for retry', [
+                            'product_request_id' => $productRequest->id,
+                            'payment_id' => $payment->id,
+                        ]);
+                    } elseif (str_starts_with($txRef, 'FINAL-')) {
+                        // Reset final payment status
+                        $productRequest->update([
+                            'final_payment_status' => 'pending',
+                        ]);
+                        \Log::info('Reset final payment status for retry', [
+                            'product_request_id' => $productRequest->id,
+                            'payment_id' => $payment->id,
+                        ]);
+                    }
+                }
+            }
+
+            // For regular orders, reset order status if it was cancelled
+            // Note: Order status enum is ['processing', 'shipped', 'delivered', 'cancelled']
+            // So we reset to 'processing' instead of 'pending'
+            if ($payment->order_id) {
+                $order = Order::find($payment->order_id);
+                if ($order && $order->status === 'cancelled') {
+                    $order->update([
+                        'status' => 'processing',
+                    ]);
+                }
+            }
+
+            \Log::info('Payment retry initiated', [
+                'payment_id' => $payment->id,
+                'user_email' => auth()->user()->email ?? $payment->customer_email,
+            ]);
+
+            // Redirect to appropriate payment page
+            if ($payment->product_request_id) {
+                $productRequest = \App\Models\ProductRequest::find($payment->product_request_id);
+                if ($productRequest) {
+                    $txRef = $payment->tx_ref;
+                    if (str_starts_with($txRef, 'ADV-')) {
+                        return redirect()->route('product-requests.advance-payment.show', $payment->product_request_id)
+                            ->with('success', 'Payment reset. You can now retry the payment.');
+                    } elseif (str_starts_with($txRef, 'FINAL-')) {
+                        return redirect()->route('product-requests.final-payment.show', $payment->product_request_id)
+                            ->with('success', 'Payment reset. You can now retry the payment.');
+                    }
+                }
+                // Fallback to product request show page
+                return redirect()->route('user.product-requests.show', $payment->product_request_id)
+                    ->with('success', 'Payment reset. You can now retry the payment.');
+            } else {
+                // Regular order payment - redirect to payment page with order details (shows both Chapa and Offline options)
+                $order = Order::with('items.product')->find($payment->order_id);
+                if ($order) {
+                    // Prepare cart items from order items for the payment page
+                    $cartItems = $order->items->map(function ($item) {
+                        return [
+                            'id' => $item->product_id,
+                            'name' => $item->product->name ?? 'Product',
+                            'price' => (float) $item->price,
+                            'quantity' => $item->quantity,
+                            'total' => (float) $item->total,
+                        ];
+                    })->toArray();
+
+                    return redirect()->route('payment.show', [
+                        'order_id' => $order->order_number,
+                        'amount' => $order->total_amount,
+                        'currency' => $order->currency,
+                        'cart_items' => json_encode($cartItems),
+                        // Don't specify payment_method so it shows both options
+                    ])->with('success', 'Payment reset. You can now retry the payment.');
+                }
+                // Fallback to checkout if order not found
+                return redirect()->route('checkout')
+                    ->with('error', 'Order not found. Please add items to cart and try again.');
+            }
+        } catch (\Exception $e) {
+            \Log::error('Payment retry failed: ' . $e->getMessage(), [
+                'payment_id' => $payment->id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Failed to retry payment. Please try again.');
+        }
+    }
 }

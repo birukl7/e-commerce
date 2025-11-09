@@ -125,6 +125,19 @@ class RequestController extends Controller
         // Refresh the model to get latest payment status from database
         $productRequest->refresh();
 
+        // Get payment transactions with rejection information
+        $advancePayment = \App\Models\PaymentTransaction::where('product_request_id', $productRequest->id)
+            ->where('tx_ref', 'like', 'ADV-%')
+            ->with('rejectionReason')
+            ->latest()
+            ->first();
+        
+        $finalPayment = \App\Models\PaymentTransaction::where('product_request_id', $productRequest->id)
+            ->where('tx_ref', 'like', 'FINAL-%')
+            ->with('rejectionReason')
+            ->latest()
+            ->first();
+
         return Inertia::render('request/show', [
             'request' => [
                 'id' => $productRequest->id,
@@ -172,7 +185,27 @@ class RequestController extends Controller
                 // Tax calculations
                 'advance_tax_breakdown' => $advanceTaxCalculation,
                 'final_tax_breakdown' => $finalTaxCalculation,
-            ]
+            ],
+            'advancePayment' => $advancePayment ? [
+                'id' => $advancePayment->id,
+                'admin_status' => $advancePayment->admin_status,
+                'rejection_reason_code' => $advancePayment->rejection_reason_code,
+                'rejection_reason' => $advancePayment->rejectionReason ? [
+                    'reason_text' => $advancePayment->rejectionReason->reason_text,
+                    'description' => $advancePayment->rejectionReason->description,
+                ] : null,
+                'admin_notes' => $advancePayment->admin_notes,
+            ] : null,
+            'finalPayment' => $finalPayment ? [
+                'id' => $finalPayment->id,
+                'admin_status' => $finalPayment->admin_status,
+                'rejection_reason_code' => $finalPayment->rejection_reason_code,
+                'rejection_reason' => $finalPayment->rejectionReason ? [
+                    'reason_text' => $finalPayment->rejectionReason->reason_text,
+                    'description' => $finalPayment->rejectionReason->description,
+                ] : null,
+                'admin_notes' => $finalPayment->admin_notes,
+            ] : null,
         ]);
     }
 

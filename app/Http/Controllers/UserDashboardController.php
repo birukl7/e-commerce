@@ -93,9 +93,11 @@ class UserDashboardController extends Controller
                 'o.currency',
                 'o.created_at',
                 'o.updated_at',
+                'pt.id as payment_transaction_id',
                 'pt.gateway_status',
                 'pt.admin_status',
                 'pt.tx_ref',
+                'pt.rejection_reason_code',
             ])
             ->where('o.user_id', $user->id)
             ->orderBy('o.created_at', 'desc')
@@ -218,8 +220,33 @@ class UserDashboardController extends Controller
             ->values()
             ->toArray();
 
+        // Get payment transactions with rejection reasons for orders that have them
+        $orderIds = collect($orders)->pluck('id')->toArray();
+        $paymentTransactions = \App\Models\PaymentTransaction::with('rejectionReason')
+            ->whereIn('order_id', $orderIds)
+            ->get()
+            ->keyBy('order_id');
+
+        // Add payment transaction data to each order
+        $ordersWithPayments = collect($orders)->map(function ($order) use ($paymentTransactions) {
+            $paymentTransaction = $paymentTransactions->get($order['id']);
+            if ($paymentTransaction && $paymentTransaction->admin_status === 'rejected') {
+                $order['paymentTransaction'] = [
+                    'id' => $paymentTransaction->id,
+                    'admin_status' => $paymentTransaction->admin_status,
+                    'rejection_reason_code' => $paymentTransaction->rejection_reason_code,
+                    'rejection_reason' => $paymentTransaction->rejectionReason ? [
+                        'reason_text' => $paymentTransaction->rejectionReason->reason_text,
+                        'description' => $paymentTransaction->rejectionReason->description,
+                    ] : null,
+                    'admin_notes' => $paymentTransaction->admin_notes,
+                ];
+            }
+            return $order;
+        })->toArray();
+
         return Inertia::render('user/orders', [
-            'orders' => $orders,
+            'orders' => $ordersWithPayments,
         ]);
     }
 
@@ -248,9 +275,11 @@ class UserDashboardController extends Controller
                 'p.name as product_name',
                 'p.slug as product_slug',
                 'pi.image_path as primary_image',
+                'pt.id as payment_transaction_id',
                 'pt.payment_method as actual_payment_method',
                 'pt.gateway_status',
                 'pt.admin_status',
+                'pt.rejection_reason_code',
             ])
             ->where('o.id', $order->id)
             ->get();
@@ -468,10 +497,27 @@ class UserDashboardController extends Controller
             ]);
         }
 
+        // Get payment transaction with rejection reason if payment was rejected
+        $paymentTransaction = null;
+        if ($firstOrder->payment_transaction_id) {
+            $paymentTransaction = \App\Models\PaymentTransaction::with('rejectionReason')
+                ->find($firstOrder->payment_transaction_id);
+        }
+
         return Inertia::render('user/order-details', [
             'order' => $orderDetails,
             'timeline' => $timeline,
             'taxBreakdown' => $taxBreakdown,
+            'paymentTransaction' => $paymentTransaction ? [
+                'id' => $paymentTransaction->id,
+                'admin_status' => $paymentTransaction->admin_status,
+                'rejection_reason_code' => $paymentTransaction->rejection_reason_code,
+                'rejection_reason' => $paymentTransaction->rejectionReason ? [
+                    'reason_text' => $paymentTransaction->rejectionReason->reason_text,
+                    'description' => $paymentTransaction->rejectionReason->description,
+                ] : null,
+                'admin_notes' => $paymentTransaction->admin_notes,
+            ] : null,
         ]);
     }
 
@@ -514,7 +560,9 @@ class UserDashboardController extends Controller
             'completed' => true,
         ];
 
-        $paymentTransaction = \App\Models\PaymentTransaction::where('order_id', $order->id)->first();
+        $paymentTransaction = \App\Models\PaymentTransaction::with('rejectionReason')
+            ->where('order_id', $order->id)
+            ->first();
         $paymentMethodType = 'Unknown Payment';
         $resolvedPaymentMethod = $order->payment_method ?: 'N/A';
 
@@ -679,6 +727,16 @@ class UserDashboardController extends Controller
                 'created_at' => $order->created_at,
             ],
             'timeline' => $timeline,
+            'paymentTransaction' => $paymentTransaction ? [
+                'id' => $paymentTransaction->id,
+                'admin_status' => $paymentTransaction->admin_status,
+                'rejection_reason_code' => $paymentTransaction->rejection_reason_code,
+                'rejection_reason' => $paymentTransaction->rejectionReason ? [
+                    'reason_text' => $paymentTransaction->rejectionReason->reason_text,
+                    'description' => $paymentTransaction->rejectionReason->description,
+                ] : null,
+                'admin_notes' => $paymentTransaction->admin_notes,
+            ] : null,
         ];
     }
 

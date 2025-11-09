@@ -463,26 +463,81 @@ class PaymentFinalizer
     public function handleAdminRejection(
         PaymentTransaction $payment, 
         User $admin, 
-        ?string $notes = null
+        ?string $notes = null,
+        ?string $rejectionReasonCode = null
     ): bool {
         if (!$payment->canBeRejected()) {
             return false;
         }
 
-        $payment->reject($admin, $notes);
+        $payment->reject($admin, $notes, $rejectionReasonCode);
+
+        // Get rejection reason text for notification
+        $rejectionReasonText = 'Please contact support for more information.';
+        if ($rejectionReasonCode) {
+            $reason = \App\Models\PaymentRejectionReason::where('reason_code', $rejectionReasonCode)->first();
+            if ($reason) {
+                $rejectionReasonText = $reason->reason_text;
+                if ($notes) {
+                    $rejectionReasonText .= ': ' . $notes;
+                }
+            }
+        } elseif ($notes) {
+            $rejectionReasonText = $notes;
+        }
 
         Log::info('Payment rejected by admin', [
             'payment_id' => $payment->id,
-            'admin_id' => $admin->id
+            'admin_id' => $admin->id,
+            'rejection_reason_code' => $rejectionReasonCode,
+            'notes' => $notes
         ]);
 
         // Notify user of payment rejection
         if ($payment->order) {
+            $message = 'Your payment was rejected. Reason: ' . $rejectionReasonText . 
+                      ' You can retry the payment from your order details page.';
             $this->notificationService->sendOrderStatusUpdate(
                 $payment->order, 
                 'payment_failed', 
-                'Your payment was rejected. Reason: ' . ($notes ?? 'Please contact support for more information.')
+                $message
             );
+        }
+
+        // For product request payments, send notification to the user
+        if ($payment->product_request_id) {
+            $productRequest = $payment->productRequest;
+            if ($productRequest && $productRequest->user) {
+                // Determine retry URL based on payment type
+                $txRef = $payment->tx_ref;
+                if (str_starts_with($txRef, 'ADV-')) {
+                    $actionText = 'Retry Advance Payment';
+                    $actionUrl = route('product-requests.advance-payment.show', $productRequest->id);
+                    $message = 'Your advance payment was rejected. Reason: ' . $rejectionReasonText . 
+                              ' You can retry the payment from the product request page.';
+                } elseif (str_starts_with($txRef, 'FINAL-')) {
+                    $actionText = 'Retry Final Payment';
+                    $actionUrl = route('product-requests.final-payment.show', $productRequest->id);
+                    $message = 'Your final payment was rejected. Reason: ' . $rejectionReasonText . 
+                              ' You can retry the payment from the product request page.';
+                } else {
+                    $actionText = 'View Product Request';
+                    $actionUrl = route('user.product-requests.show', $productRequest->id);
+                    $message = 'Your payment was rejected. Reason: ' . $rejectionReasonText . 
+                              ' You can retry the payment from the product request page.';
+                }
+                
+                // Send notification via the product request notification system
+                $productRequest->user->notify(
+                    new \App\Notifications\ProductRequestStatusUpdated(
+                        $productRequest,
+                        $message,
+                        'Payment Rejected',
+                        $actionUrl,
+                        $actionText
+                    )
+                );
+            }
         }
 
         // Handle order cancellation if needed

@@ -199,6 +199,13 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     Route::get('/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
     Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
     
+    // Payment Rejection Reasons Management
+    Route::get('/admin/payment-rejection-reasons', [App\Http\Controllers\Admin\PaymentRejectionReasonController::class, 'index'])->name('admin.payment-rejection-reasons.index');
+    Route::post('/admin/payment-rejection-reasons', [App\Http\Controllers\Admin\PaymentRejectionReasonController::class, 'store'])->name('admin.payment-rejection-reasons.store');
+    Route::patch('/admin/payment-rejection-reasons/{paymentRejectionReason}', [App\Http\Controllers\Admin\PaymentRejectionReasonController::class, 'update'])->name('admin.payment-rejection-reasons.update');
+    Route::delete('/admin/payment-rejection-reasons/{paymentRejectionReason}', [App\Http\Controllers\Admin\PaymentRejectionReasonController::class, 'destroy'])->name('admin.payment-rejection-reasons.destroy');
+    Route::get('/api/payment-rejection-reasons', [App\Http\Controllers\Admin\PaymentRejectionReasonController::class, 'getActiveReasons'])->name('api.payment-rejection-reasons.active');
+    
     Route::resource('admin/orders', AdminOrderController::class);
 
     Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])
@@ -323,6 +330,11 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     // Offline Payment Methods Management
     Route::post('/admin/offline-payment-methods', [AdminSiteConfigController::class, 'storeOfflinePaymentMethod'])->name('admin.offline-payment-methods.store');
     Route::patch('/admin/offline-payment-methods/{offlinePaymentMethod}', [AdminSiteConfigController::class, 'updateOfflinePaymentMethod'])->name('admin.offline-payment-methods.update');
+    
+    // Chapa Payment Methods Management
+    Route::post('/admin/chapa-payment-methods', [AdminSiteConfigController::class, 'storeChapaPaymentMethod'])->name('admin.chapa-payment-methods.store');
+    Route::patch('/admin/chapa-payment-methods/{chapaPaymentMethod}', [AdminSiteConfigController::class, 'updateChapaPaymentMethod'])->name('admin.chapa-payment-methods.update');
+    Route::delete('/admin/chapa-payment-methods/{chapaPaymentMethod}', [AdminSiteConfigController::class, 'destroyChapaPaymentMethod'])->name('admin.chapa-payment-methods.destroy');
     // Offline Payment Submissions Management
     Route::get('/admin/offline-payments', [App\Http\Controllers\OfflinePaymentController::class, 'adminIndex'])->name('admin.offline-payments.index');
     Route::get('/admin/offline-payments/{submission}', [App\Http\Controllers\OfflinePaymentController::class, 'adminShow'])->name('admin.offline-payments.show');
@@ -374,6 +386,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Payment failure page
     Route::get('/product-requests/{productRequest}/payment/failure', [\App\Http\Controllers\ProductRequestPaymentController::class, 'failure'])
         ->name('product-requests.payment.failure');
+    
+    // Payment retry route
+    Route::post('/payments/{payment}/retry', [PaymentController::class, 'retryPayment'])->name('payments.retry');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -457,7 +472,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // Chapa payment routes
         Route::post('/callback', [PaymentController::class, 'paymentCallback'])->name('callback');
-        Route::get('/return/{tx_ref}', [PaymentController::class, 'paymentReturn'])->name('return');
+        Route::get('/return/{tx_ref?}', [PaymentController::class, 'paymentReturn'])->name('return');
         
         // Test route for debugging callbacks
         Route::get('/test-callback', [PaymentController::class, 'testCallback'])->name('test.callback');

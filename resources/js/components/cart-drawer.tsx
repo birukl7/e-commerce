@@ -116,11 +116,15 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                               variant="outline"
                               size="sm"
                               className="h-8 w-8 p-0"
-                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              disabled={item.quantity <= 1}
+                              onClick={() => {
+                                const newQuantity = item.quantity - 1;
+                                updateQuantity(item.id, newQuantity);
+                              }}
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
-                            <span className="w-8 text-center">{item.quantity}</span>
+                            <span className="w-8 text-center font-medium">{item.quantity}</span>
                             <Button
                               variant="outline"
                               size="sm"
@@ -128,7 +132,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                                 item.manageStock && item.quantity >= item.maxQuantity ? 'opacity-50 cursor-not-allowed' : ''
                               }`}
                               disabled={item.manageStock && item.quantity >= item.maxQuantity}
-                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              onClick={() => {
+                                const newQuantity = item.quantity + 1;
+                                updateQuantity(item.id, newQuantity);
+                              }}
                             >
                               <Plus className="h-3 w-3" />
                             </Button>

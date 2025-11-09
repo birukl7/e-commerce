@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
@@ -75,6 +76,13 @@ interface ProductRequest {
     };
 }
 
+interface RejectionReason {
+    id: number;
+    reason_code: string;
+    reason_text: string;
+    description?: string;
+}
+
 interface Props {
     payment: PaymentTransaction;
     orderItems: OrderItem[];
@@ -85,9 +93,10 @@ interface Props {
     isProductRequestPayment?: boolean;
     paymentType?: 'advance' | 'final' | null;
     productRequest?: ProductRequest | null;
+    rejectionReasons?: RejectionReason[];
 }
 
-export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null }: Props) {
+export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null, rejectionReasons = [] }: Props) {
     const [activeAction, setActiveAction] = useState<'approve' | 'reject' | null>(null);
 
     const breadcrumbs: BreadcrumbItem[] = [
@@ -110,6 +119,7 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
     });
 
     const rejectForm = useForm({
+        rejection_reason_code: '',
         notes: ''
     });
 
@@ -744,14 +754,40 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                 ) : (
                                     <form onSubmit={handleReject} className="space-y-4">
                                         <div className="space-y-2">
-                                            <Label htmlFor="reject-notes">Rejection Reason (Required)</Label>
+                                            <Label htmlFor="reject-reason">Rejection Reason *</Label>
+                                            <Select
+                                                value={rejectForm.data.rejection_reason_code}
+                                                onValueChange={(value) => rejectForm.setData('rejection_reason_code', value)}
+                                                required
+                                            >
+                                                <SelectTrigger id="reject-reason">
+                                                    <SelectValue placeholder="Select a rejection reason..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {rejectionReasons.map((reason) => (
+                                                        <SelectItem key={reason.id} value={reason.reason_code}>
+                                                            <div>
+                                                                <div className="font-medium">{reason.reason_text}</div>
+                                                                {reason.description && (
+                                                                    <div className="text-xs text-muted-foreground">{reason.description}</div>
+                                                                )}
+                                                            </div>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {rejectForm.errors.rejection_reason_code && (
+                                                <p className="text-sm text-red-600">{rejectForm.errors.rejection_reason_code}</p>
+                                            )}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="reject-notes">Additional Notes (Optional)</Label>
                                             <Textarea
                                                 id="reject-notes"
                                                 value={rejectForm.data.notes}
                                                 onChange={(e) => rejectForm.setData('notes', e.target.value)}
-                                                placeholder="Please provide a reason for rejecting this payment..."
+                                                placeholder="Add any additional notes or details..."
                                                 rows={3}
-                                                required
                                             />
                                             {rejectForm.errors.notes && (
                                                 <p className="text-sm text-red-600">{rejectForm.errors.notes}</p>

@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import AppLayout from '@/layouts/app-layout';
 import MainLayout from '@/layouts/app/main-layout';
 import { BreadcrumbItem, NavItem } from '@/types';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import {
     Bookmark,
     Calendar,
@@ -44,6 +44,17 @@ interface OrderItem {
     primary_image?: string;
 }
 
+interface PaymentTransaction {
+    id: number;
+    admin_status: string;
+    rejection_reason_code: string | null;
+    rejection_reason: {
+        reason_text: string;
+        description?: string;
+    } | null;
+    admin_notes: string | null;
+}
+
 interface Order {
     id: number;
     order_number: string;
@@ -60,6 +71,7 @@ interface Order {
     item_count: number;
     product_summary: string;
     first_item_image?: string;
+    paymentTransaction?: PaymentTransaction | null;
 }
 
 interface TrackingTimelineItem {
@@ -183,8 +195,12 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
             .join(' ');
     };
 
-    const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string, paymentTransaction?: PaymentTransaction | null) => {
         const statusLower = status.toLowerCase();
+        // If payment is rejected, show as payment rejected even if order status is cancelled
+        if (paymentTransaction?.admin_status === 'rejected') {
+            return 'bg-red-100 text-red-800';
+        }
         if (statusLower.includes('rejected') || statusLower === 'cancelled') {
             return 'bg-red-100 text-red-800';
         } else if (statusLower.includes('pending') || statusLower === 'awaiting') {
@@ -197,6 +213,14 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
             return 'bg-green-100 text-green-800';
         }
         return 'bg-gray-100 text-gray-800';
+    };
+
+    const getStatusText = (status: string, paymentTransaction?: PaymentTransaction | null) => {
+        // If payment is rejected, show "Payment Rejected" instead of order status
+        if (paymentTransaction?.admin_status === 'rejected') {
+            return 'Payment Rejected';
+        }
+        return formatStatusText(status);
     };
 
     const getPaymentStatusColor = (status: string) => {
@@ -417,12 +441,21 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                     </TableCell>
                                                     <TableCell className="text-sm text-gray-600">{formatDate(order.created_at)}</TableCell>
                                                     <TableCell>
-                                                        <Badge className={getStatusColor(order.status)}>{formatStatusText(order.status)}</Badge>
+                                                        <Badge className={getStatusColor(order.status, order.paymentTransaction)}>
+                                                            {getStatusText(order.status, order.paymentTransaction)}
+                                                        </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge className={getPaymentStatusColor(order.payment_status)}>
-                                                            {formatStatusText(order.payment_status)}
-                                                        </Badge>
+                                                        <div className="flex flex-col gap-1">
+                                                            <Badge className={getPaymentStatusColor(order.payment_status)}>
+                                                                {formatStatusText(order.payment_status)}
+                                                            </Badge>
+                                                            {order.paymentTransaction?.admin_status === 'rejected' && (
+                                                                <Badge className="bg-red-100 text-red-800 text-xs mt-1">
+                                                                    Payment Rejected
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-right font-semibold text-gray-900">{formatPrice(order.total_amount, order.currency)}</TableCell>
                                                 </TableRow>
@@ -552,6 +585,36 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                         </div>
                                                     </div>
                                                 </div>
+                                                {/* Payment Rejection Information */}
+                                                {selectedOrder.paymentTransaction?.admin_status === 'rejected' && (
+                                                    <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <XCircle className="h-5 w-5 text-red-600" />
+                                                            <p className="font-medium text-red-800">Payment Rejected</p>
+                                                        </div>
+                                                        {selectedOrder.paymentTransaction.rejection_reason && (
+                                                            <div className="text-sm text-red-700">
+                                                                <p className="font-medium">Reason: {selectedOrder.paymentTransaction.rejection_reason.reason_text}</p>
+                                                                {selectedOrder.paymentTransaction.rejection_reason.description && (
+                                                                    <p className="text-xs mt-1 text-red-600">{selectedOrder.paymentTransaction.rejection_reason.description}</p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {selectedOrder.paymentTransaction.admin_notes && (
+                                                            <p className="text-sm text-red-700">Additional notes: {selectedOrder.paymentTransaction.admin_notes}</p>
+                                                        )}
+                                                        <Button
+                                                            className="w-full bg-red-600 hover:bg-red-700 text-white"
+                                                            onClick={() => {
+                                                                router.post(route('payments.retry', selectedOrder.paymentTransaction!.id), {}, {
+                                                                    preserveScroll: true,
+                                                                })
+                                                            }}
+                                                        >
+                                                            Retry Payment
+                                                        </Button>
+                                                    </div>
+                                                )}
                                                 <div className="rounded-lg border border-dashed border-gray-300 bg-white p-4 text-xs text-gray-500">
                                                     {t('orders.needHelp')} <span className="font-semibold text-gray-900">#{selectedOrder.order_number}</span>.
                                                 </div>
@@ -559,18 +622,31 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                         </div>
 
                                         <DialogFooter className="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleTrackClick(selectedOrder)}
-                                                disabled={isTrackingLoading}
-                                            >
-                                                {isTrackingLoading && trackingOrder?.id === selectedOrder.id ? (
-                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Package className="mr-2 h-4 w-4" />
-                                                )}
-                                                {t('orders.trackShipment')}
-                                            </Button>
+                                            {selectedOrder.paymentTransaction?.admin_status === 'rejected' ? (
+                                                <Button
+                                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                                    onClick={() => {
+                                                        router.post(route('payments.retry', selectedOrder.paymentTransaction!.id), {}, {
+                                                            preserveScroll: true,
+                                                        })
+                                                    }}
+                                                >
+                                                    {t('orders.retryPayment')}
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => handleTrackClick(selectedOrder)}
+                                                    disabled={isTrackingLoading}
+                                                >
+                                                    {isTrackingLoading && trackingOrder?.id === selectedOrder.id ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Package className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    {t('orders.trackShipment')}
+                                                </Button>
+                                            )}
                                         </DialogFooter>
                                     </DialogContent>
                                 )}
@@ -740,7 +816,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                         </Link>
                                                     </Button>
                                                     {trackingData.order.payment_status === 'failed' && (
-                                                        <Button className="w-full" variant="destructive">
+                                                        <Button className="w-full bg-red-600 hover:bg-red-700 text-white">
                                                             {t('orders.retryPayment')}
                                                         </Button>
                                                     )}

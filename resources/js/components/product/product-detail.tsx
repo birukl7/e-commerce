@@ -3,7 +3,7 @@ import { useCart } from '@/contexts/cart-context';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
 import { Heart, RotateCcw, Share2, Shield, Star, Tag } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ReviewSection } from './review-section';
 import { useTranslation } from 'react-i18next';
@@ -89,7 +89,13 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
     const [quantity, setQuantity] = useState(1);
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [wishlistLoading, setWishlistLoading] = useState(false);
-    const { addToCart } = useCart();
+    const { addToCart, isCartDrawerOpen } = useCart();
+    const quantityRef = useRef(quantity);
+    
+    // Keep ref in sync with state
+    useEffect(() => {
+        quantityRef.current = quantity;
+    }, [quantity]);
 
     const getCsrfToken = () => {
         const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -124,8 +130,17 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
     };
 
     const handleAddToCart = () => {
-        addToCart({ ...product, quantity: quantity });
-        // console.log(`Adding ${quantity} of product ${product.id} to cart`)
+        // Use ref to ensure we get the latest quantity value, even if state hasn't updated yet
+        // This prevents issues with stale closures
+        const currentQuantity = quantityRef.current || quantity;
+        const quantityToAdd = Math.max(1, Math.min(currentQuantity, product.stock_quantity));
+        
+        if (quantityToAdd !== currentQuantity) {
+            console.warn('Quantity mismatch:', { currentQuantity, quantityToAdd, stateQuantity: quantity });
+        }
+        
+        addToCart({ ...product, quantity: quantityToAdd });
+        // Keep the selected quantity so user can add more if needed
     };
 
     const handleShare = () => {
@@ -305,7 +320,18 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                                 min="1"
                                 max={product.stock_quantity}
                                 value={quantity}
-                                onChange={(e) => handleQuantityChange(Number.parseInt(e.target.value) || 1)}
+                                onChange={(e) => {
+                                    const newValue = Number.parseInt(e.target.value) || 1;
+                                    handleQuantityChange(newValue);
+                                }}
+                                onBlur={(e) => {
+                                    // Ensure quantity is valid when input loses focus
+                                    const value = Number.parseInt(e.target.value) || 1;
+                                    const validValue = Math.max(1, Math.min(value, product.stock_quantity));
+                                    if (value !== validValue) {
+                                        setQuantity(validValue);
+                                    }
+                                }}
                                 className="w-16 border-0 px-3 py-2 text-center focus:ring-0"
                             />
                             <button

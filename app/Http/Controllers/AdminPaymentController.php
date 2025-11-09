@@ -235,6 +235,13 @@ class AdminPaymentController extends Controller
             $productRequest = $payment->productRequest->load('user');
         }
 
+        // Get rejection reasons for this payment type
+        $paymentTypeForReasons = $isProductRequestPayment ? 'product_request' : 'normal_purchase';
+        $rejectionReasons = \App\Models\PaymentRejectionReason::active()
+            ->forPaymentType($paymentTypeForReasons)
+            ->ordered()
+            ->get(['id', 'reason_code', 'reason_text', 'description']);
+
         return Inertia::render('admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
@@ -245,6 +252,7 @@ class AdminPaymentController extends Controller
             'isProductRequestPayment' => $isProductRequestPayment,
             'paymentType' => $paymentType,
             'productRequest' => $productRequest,
+            'rejectionReasons' => $rejectionReasons,
         ]);
     }
 
@@ -304,7 +312,8 @@ class AdminPaymentController extends Controller
     public function reject(Request $request, $paymentId)
     {
         $request->validate([
-            'notes' => 'required|string|max:1000'
+            'rejection_reason_code' => 'required|string|exists:payment_rejection_reasons,reason_code',
+            'notes' => 'nullable|string|max:1000'
         ]);
 
         $payment = PaymentTransaction::findOrFail($paymentId);
@@ -316,7 +325,8 @@ class AdminPaymentController extends Controller
         $success = $this->paymentFinalizer->handleAdminRejection(
             $payment, 
             Auth::user(), 
-            $request->input('notes')
+            $request->input('notes'),
+            $request->input('rejection_reason_code')
         );
 
         if ($success) {
@@ -364,7 +374,8 @@ class AdminPaymentController extends Controller
             'action' => 'required|in:mark_seen,approve,reject',
             'payment_ids' => 'required|array',
             'payment_ids.*' => 'exists:payment_transactions,id',
-            'notes' => 'nullable|string|max:1000'
+            'notes' => 'nullable|string|max:1000',
+            'rejection_reason_code' => 'required_if:action,reject|string|exists:payment_rejection_reasons,reason_code'
         ]);
 
         $payments = PaymentTransaction::whereIn('id', $request->payment_ids)->get();
@@ -390,7 +401,12 @@ class AdminPaymentController extends Controller
 
                 case 'reject':
                     if ($payment->canBeRejected()) {
-                        if ($this->paymentFinalizer->handleAdminRejection($payment, $admin, $request->notes)) {
+                        if ($this->paymentFinalizer->handleAdminRejection(
+                            $payment, 
+                            $admin, 
+                            $request->notes,
+                            $request->rejection_reason_code
+                        )) {
                             $successCount++;
                         }
                     }

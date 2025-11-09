@@ -1,6 +1,6 @@
 import type React from "react"
 
-import { Head, Link, useForm } from "@inertiajs/react"
+import { Head, Link, useForm, router } from "@inertiajs/react"
 import { useState } from "react"
 import MainLayout from "@/layouts/app/main-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -66,11 +66,24 @@ interface ProductRequest {
   lost_interest_reason?: string | null
 }
 
-interface Props {
-  request: ProductRequest
+interface PaymentInfo {
+  id: number
+  admin_status: string | null
+  rejection_reason_code: string | null
+  rejection_reason: {
+    reason_text: string
+    description?: string
+  } | null
+  admin_notes: string | null
 }
 
-export default function RequestShow({ request }: Props) {
+interface Props {
+  request: ProductRequest
+  advancePayment?: PaymentInfo | null
+  finalPayment?: PaymentInfo | null
+}
+
+export default function RequestShow({ request, advancePayment, finalPayment }: Props) {
   const [accepted, setAccepted] = useState(false)
   const [lostInterestDialogOpen, setLostInterestDialogOpen] = useState(false)
   const { post, processing } = useForm({})
@@ -485,6 +498,35 @@ export default function RequestShow({ request }: Props) {
                           )}
                         </div>
                       )}
+                      {advancePayment?.admin_status === 'rejected' && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="h-5 w-5 text-red-600" />
+                            <p className="font-medium text-red-800">Payment Rejected</p>
+                          </div>
+                          {advancePayment.rejection_reason && (
+                            <div className="text-sm text-red-700">
+                              <p className="font-medium">Reason: {advancePayment.rejection_reason.reason_text}</p>
+                              {advancePayment.rejection_reason.description && (
+                                <p className="text-xs mt-1 text-red-600">{advancePayment.rejection_reason.description}</p>
+                              )}
+                            </div>
+                          )}
+                          {advancePayment.admin_notes && (
+                            <p className="text-sm text-red-700">Additional notes: {advancePayment.admin_notes}</p>
+                          )}
+                          <Button
+                            className="w-full bg-red-600 hover:bg-red-700"
+                            onClick={() => {
+                              router.post(route('payments.retry', advancePayment.id), {}, {
+                                preserveScroll: true,
+                              })
+                            }}
+                          >
+                            Retry Payment
+                          </Button>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -627,13 +669,48 @@ export default function RequestShow({ request }: Props) {
                           )}
                 </div>
                 {/* Only show payment button if payment hasn't been submitted yet */}
-                {request.final_payment_status !== 'processing' && request.final_payment_status !== 'paid' && (
+                {request.final_payment_status !== 'processing' && request.final_payment_status !== 'paid' && !finalPayment?.admin_status && (
                   <Button
                     className={`w-full ${request.product_arrived_at ? 'bg-green-600 hover:bg-green-700 text-lg py-6 font-semibold' : ''}`}
                     onClick={() => window.location.href = route('product-requests.final-payment.show', request.id)}
                   >
                     {request.product_arrived_at ? 'Pay Final Amount Now' : 'Pay Final Amount'}
                   </Button>
+                )}
+                {request.final_payment_status === 'paid' && (
+                  <div className="text-sm text-gray-600 space-y-2">
+                    <p className="font-medium text-green-700">✓ Final Payment Completed</p>
+                    <p>Paid on: {request.final_paid_at ? formatDate(request.final_paid_at) : 'N/A'}</p>
+                  </div>
+                )}
+                {finalPayment?.admin_status === 'rejected' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-5 w-5 text-red-600" />
+                      <p className="font-medium text-red-800">Payment Rejected</p>
+                    </div>
+                    {finalPayment.rejection_reason && (
+                      <div className="text-sm text-red-700">
+                        <p className="font-medium">Reason: {finalPayment.rejection_reason.reason_text}</p>
+                        {finalPayment.rejection_reason.description && (
+                          <p className="text-xs mt-1 text-red-600">{finalPayment.rejection_reason.description}</p>
+                        )}
+                      </div>
+                    )}
+                    {finalPayment.admin_notes && (
+                      <p className="text-sm text-red-700">Additional notes: {finalPayment.admin_notes}</p>
+                    )}
+                    <Button
+                      className="w-full bg-red-600 hover:bg-red-700"
+                      onClick={() => {
+                        router.post(route('payments.retry', finalPayment.id), {}, {
+                          preserveScroll: true,
+                        })
+                      }}
+                    >
+                      Retry Payment
+                    </Button>
+                  </div>
                 )}
                       </div>
                     </CardContent>

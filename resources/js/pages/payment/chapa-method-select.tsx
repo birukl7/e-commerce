@@ -20,11 +20,20 @@ interface CartItem {
   image?: string
 }
 
+interface ChapaPaymentMethod {
+  id: number
+  name: string
+  code: string
+  description?: string
+  logo?: string
+}
+
 interface ChapaMethodSelectProps {
   order_id: string
   amount: number
   currency: string
   cart_items: CartItem[]
+  chapaPaymentMethods?: ChapaPaymentMethod[]
   auth: {
     user: {
       name: string
@@ -39,7 +48,7 @@ interface ChapaMethodSelectProps {
   description?: string
 }
 
-type PaymentMethod = "telebirr" | "cbe"
+type PaymentMethod = string
 
 type FormData = {
   payment_method: PaymentMethod
@@ -91,6 +100,7 @@ export default function ChapaMethodSelect({
   amount, 
   currency, 
   cart_items, 
+  chapaPaymentMethods = [],
   auth, 
   payment_type, 
   product_request_id, 
@@ -107,8 +117,19 @@ export default function ChapaMethodSelect({
     return auth?.user?.phone || page?.props?.auth?.user?.phone || ""
   }
 
+  // Fallback to default methods if none provided
+  const availableMethods: ChapaPaymentMethod[] = chapaPaymentMethods.length > 0 
+    ? chapaPaymentMethods 
+    : [
+        { id: 1, name: 'Telebirr', code: 'telebirr', description: 'Pay with your Telebirr wallet' },
+        { id: 2, name: 'CBE', code: 'cbe', description: 'Pay with Commercial Bank of Ethiopia' },
+      ]
+
+  // Get default payment method (first available)
+  const defaultMethod = availableMethods.length > 0 ? availableMethods[0].code : "telebirr"
+
   const { data, setData, processing, errors, clearErrors } = useForm<FormData>({
-    payment_method: "telebirr",
+    payment_method: defaultMethod,
     phone_number: getPhoneNumber(),
     name: auth?.user?.name || "",
     email: auth?.user?.email || "",
@@ -401,39 +422,63 @@ export default function ChapaMethodSelect({
                   onValueChange={(value: PaymentMethod) => setData("payment_method", value)}
                   className="space-y-3"
                 >
-                  <div
-                    className={`flex items-center space-x-3 rounded-lg border-2 p-4 transition-colors hover:bg-gray-50 cursor-pointer ${
-                      data.payment_method === "telebirr" ? "border-orange-500 bg-orange-50" : "border-gray-200"
-                    }`}
-                  >
-                    <RadioGroupItem value="telebirr" id="telebirr" />
-                    <div className="flex items-center gap-3 flex-1">
-                      <Smartphone className="h-6 w-6 text-orange-500" />
-                      <div>
-                        <Label htmlFor="telebirr" className="cursor-pointer text-base font-medium">
-                          Telebirr
-                        </Label>
-                        <p className="text-sm text-gray-500">Pay with your Telebirr wallet</p>
+                  {availableMethods.map((method) => {
+                    const isSelected = data.payment_method === method.code
+                    const isTelebirr = method.code === 'telebirr'
+                    const isCbe = method.code === 'cbe'
+                    
+                    // Determine classes based on method type and selection state
+                    const containerClasses = isSelected
+                      ? isTelebirr
+                        ? "border-orange-500 bg-orange-50"
+                        : isCbe
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-primary-500 bg-primary-50"
+                      : "border-gray-200"
+                    
+                    const hoverClass = isTelebirr
+                      ? "hover:bg-orange-50"
+                      : isCbe
+                      ? "hover:bg-blue-50"
+                      : "hover:bg-gray-50"
+                    
+                    return (
+                      <div
+                        key={method.id}
+                        className={`flex items-center space-x-3 rounded-lg border-2 p-4 transition-colors ${hoverClass} cursor-pointer ${containerClasses}`}
+                      >
+                        <RadioGroupItem value={method.code} id={method.code} />
+                        <div className="flex items-center gap-3 flex-1">
+                          {method.logo ? (
+                            <img src={method.logo} alt={method.name} className="h-6 w-6 object-contain" />
+                          ) : (
+                            isTelebirr ? (
+                              <Smartphone className="h-6 w-6 text-orange-500" />
+                            ) : (
+                              <CreditCard className={`h-6 w-6 ${isCbe ? 'text-blue-600' : 'text-gray-600'}`} />
+                            )
+                          )}
+                          <div>
+                            <Label 
+                              htmlFor={method.code} 
+                              className={`cursor-pointer text-base font-medium ${
+                                isSelected && isCbe ? 'text-blue-800' : isSelected && isTelebirr ? 'text-orange-800' : ''
+                              }`}
+                            >
+                              {method.name}
+                            </Label>
+                            <p className={`text-sm ${
+                              isSelected && isCbe ? 'text-blue-600' : 
+                              isSelected && isTelebirr ? 'text-orange-600' : 
+                              'text-gray-500'
+                            }`}>
+                              {method.description || `Pay with ${method.name}`}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div
-                    className={`flex items-center space-x-3 rounded-lg border-2 p-4 transition-colors hover:bg-blue-50 cursor-pointer ${
-                      data.payment_method === "cbe" ? "border-blue-500 bg-blue-50" : "border-gray-200"
-                    }`}
-                  >
-                    <RadioGroupItem value="cbe" id="cbe" className="text-blue-600" />
-                    <div className="flex items-center gap-3 flex-1">
-                      <CreditCard className="h-6 w-6 text-blue-600" />
-                      <div>
-                        <Label htmlFor="cbe" className="cursor-pointer text-base font-medium text-blue-800">
-                          CBE Birr
-                        </Label>
-                        <p className="text-sm text-blue-600">Pay with Commercial Bank of Ethiopia</p>
-                      </div>
-                    </div>
-                  </div>
+                    )
+                  })}
                 </RadioGroup>
                 {errors.payment_method && <p className="text-sm text-red-500">{errors.payment_method}</p>}
               </div>

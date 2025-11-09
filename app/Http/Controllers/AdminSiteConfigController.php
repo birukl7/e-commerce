@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\OfflinePaymentMethod;
+use App\Models\ChapaPaymentMethod;
 use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -64,6 +65,9 @@ class AdminSiteConfigController extends Controller
         // Load offline payment methods
         $offlinePaymentMethods = OfflinePaymentMethod::orderBy('sort_order')->get();
         
+        // Load Chapa payment methods
+        $chapaPaymentMethods = ChapaPaymentMethod::ordered()->get();
+        
         // Load recent payment data for dashboard with fresh data
         // Use tx_ref patterns to distinguish payment types:
         // Chapa: TX-xxxxx (from PaymentController)
@@ -83,6 +87,7 @@ class AdminSiteConfigController extends Controller
         return Inertia::render('admin/site-config/index', [
             'settings' => $settings,
             'offlinePaymentMethods' => $offlinePaymentMethods,
+            'chapaPaymentMethods' => $chapaPaymentMethods,
             'recentChapaPayments' => $recentChapaPayments,
             'recentOfflinePayments' => $recentOfflinePayments,
         ]);
@@ -181,6 +186,57 @@ class AdminSiteConfigController extends Controller
         $offlinePaymentMethod->update($validated);
 
         return redirect()->route('admin.site-config.index')->with('success', 'Payment method updated successfully');
+    }
+
+    /**
+     * Store a new Chapa payment method.
+     */
+    public function storeChapaPaymentMethod(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'code' => 'required|string|max:255|unique:chapa_payment_methods,code',
+            'description' => 'nullable|string|max:500',
+            'logo' => 'nullable|string|max:255',
+            'is_active' => 'sometimes|boolean',
+            'sort_order' => 'sometimes|integer|min:0',
+        ]);
+
+        ChapaPaymentMethod::create($validated);
+        $this->siteConfig->clearChapaPaymentMethodsCache();
+
+        return redirect()->route('admin.site-config.index')->with('success', 'Chapa payment method created successfully');
+    }
+
+    /**
+     * Update an existing Chapa payment method.
+     */
+    public function updateChapaPaymentMethod(Request $request, ChapaPaymentMethod $chapaPaymentMethod)
+    {
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
+            'code' => 'sometimes|string|max:255|unique:chapa_payment_methods,code,' . $chapaPaymentMethod->id,
+            'description' => 'nullable|string|max:500',
+            'logo' => 'nullable|string|max:255',
+            'is_active' => 'sometimes|boolean',
+            'sort_order' => 'sometimes|integer|min:0',
+        ]);
+
+        $chapaPaymentMethod->update($validated);
+        $this->siteConfig->clearChapaPaymentMethodsCache();
+
+        return redirect()->route('admin.site-config.index')->with('success', 'Chapa payment method updated successfully');
+    }
+
+    /**
+     * Delete a Chapa payment method.
+     */
+    public function destroyChapaPaymentMethod(ChapaPaymentMethod $chapaPaymentMethod)
+    {
+        $chapaPaymentMethod->delete();
+        $this->siteConfig->clearChapaPaymentMethodsCache();
+
+        return redirect()->route('admin.site-config.index')->with('success', 'Chapa payment method deleted successfully');
     }
 
     /**

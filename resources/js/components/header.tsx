@@ -45,12 +45,29 @@ import { SignupDialog } from "./auth/signup-dialog"
 import { ChooseRoleDialog } from "./auth/choose-role-dialog"
 
 const Header = () => {
-  const { auth, shouldChooseRole = false } = usePage<SharedData>().props
+  const page = usePage<SharedData>()
+  const { auth = { user: null }, shouldChooseRole = false } = page?.props || {}
   const { getTotalItems, isCartDrawerOpen, openCartDrawer, closeCartDrawer } = useCart()
   const { t, i18n } = useTranslation()
   const cartButtonRef = useRef<HTMLButtonElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
+  // Safe route helper that handles cases where route might not be available
+  const safeRoute = (name: string, params?: any, absolute?: boolean): string => {
+    try {
+      // route is available globally via Inertia/Ziggy
+      if (typeof route === 'function') {
+        return route(name, params, absolute)
+      }
+      // Fallback if route is not available
+      console.warn('Route function not available, using fallback')
+      return '#'
+    } catch (error) {
+      console.warn('Route function error:', error)
+      return '#'
+    }
+  }
 
   const normalizeLanguage = (lang: string): string => {
     // Normalize language codes (e.g., 'en-US' -> 'en', 'am-ET' -> 'am')
@@ -62,7 +79,6 @@ const Header = () => {
   }
 
   const [currentLanguage, setCurrentLanguage] = useState(() => normalizeLanguage(i18n.language || 'en'))
-
   const getInitials = (name: string) => {
     if (!name) return "U"
     const parts = name.trim().split(/\s+/)
@@ -166,17 +182,17 @@ const Header = () => {
                     <DropdownMenuContent align="end" className="w-64">
                       <DropdownMenuItem asChild>
                         <a
-                          href={route("profile.edit")}
+                          href={safeRoute("profile.edit")}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-3 px-2 py-2 cursor-pointer"
                         >
                           <Avatar className="h-9 w-9">
-                            <AvatarImage src={(auth.user.avatar as string) ?? undefined} alt={auth.user.name} />
-                            <AvatarFallback>{getInitials(auth.user.name)}</AvatarFallback>
+                            <AvatarImage src={(auth.user?.avatar as string) ?? undefined} alt={auth.user?.name ?? 'User'} />
+                            <AvatarFallback>{getInitials(auth.user?.name ?? 'User')}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground">{auth.user.name}</p>
+                            <p className="truncate text-sm font-medium text-foreground">{auth.user?.name ?? 'User'}</p>
                             <p className="truncate text-xs text-muted-foreground">{t("header.viewProfile")}</p>
                           </div>
                         </a>
@@ -185,32 +201,32 @@ const Header = () => {
                       {[
                         {
                           title: t("header.dashboard"),
-                          href: route("user.dashboard"),
+                          href: safeRoute("user.dashboard"),
                           icon: LayoutDashboard,
                         },
                         {
                           title: t("header.bookmarkedProducts"),
-                          href: route("user.wishlist"),
+                          href: safeRoute("user.wishlist"),
                           icon: Bookmark,
                         },
                         {
                           title: t("header.orders"),
-                          href: route("user.orders"),
+                          href: safeRoute("user.orders"),
                           icon: ShoppingBag,
                         },
                         {
                           title: t("header.requests"),
-                          href: route("user.request"),
+                          href: safeRoute("user.request"),
                           icon: MessageSquare,
                         },
                         {
                           title: t("header.boughtProducts"),
-                          href: route("user.products"),
+                          href: safeRoute("user.products"),
                           icon: Package2,
                         },
                         {
                           title: t("header.settings"),
-                          href: route("profile.edit"),
+                          href: safeRoute("profile.edit"),
                           icon: Settings,
                         },
                       ].map((item) => {
@@ -234,7 +250,7 @@ const Header = () => {
                         className="text-red-600 focus:text-red-600 cursor-pointer"
                         onSelect={(event) => {
                           event.preventDefault()
-                          router.post(route("logout"))
+                          router.post(safeRoute("logout"))
                         }}
                       >
                         <LogOut className="mr-2 h-4 w-4" />
@@ -284,7 +300,7 @@ const Header = () => {
                       {auth.user ? (
                         <div className="flex flex-col space-y-3">
                           <CustomLink
-                            href={route("user.dashboard")}
+                            href={safeRoute("user.dashboard")}
                             variant="outline"
                             className="justify-start"
                             onClick={closeMobileMenu}

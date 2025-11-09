@@ -26,6 +26,7 @@ class PaymentTransaction extends Model
         'checkout_url',
         'gateway_payload',
         'admin_notes',
+        'rejection_reason_code',
         'admin_id',
         'admin_action_at',
     ];
@@ -51,6 +52,11 @@ class PaymentTransaction extends Model
     public function productRequest(): BelongsTo
     {
         return $this->belongsTo(ProductRequest::class);
+    }
+
+    public function rejectionReason(): BelongsTo
+    {
+        return $this->belongsTo(PaymentRejectionReason::class, 'rejection_reason_code', 'reason_code');
     }
 
     // Gateway Status Helpers
@@ -189,14 +195,24 @@ class PaymentTransaction extends Model
         ]);
     }
 
-    public function reject(User $admin, ?string $notes = null): void
+    public function reject(User $admin, ?string $notes = null, ?string $rejectionReasonCode = null): void
     {
         $this->update([
             'admin_status' => 'rejected',
             'admin_id' => $admin->id,
             'admin_notes' => $notes,
+            'rejection_reason_code' => $rejectionReasonCode,
             'admin_action_at' => now(),
         ]);
+    }
+
+    /**
+     * Retrieve the model for route model binding.
+     * This ensures soft-deleted models can still be found for retry operations.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->where($field ?? $this->getRouteKeyName(), $value)->firstOrFail();
     }
 
     // Scopes

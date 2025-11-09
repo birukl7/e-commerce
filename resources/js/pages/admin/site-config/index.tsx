@@ -42,9 +42,20 @@ interface PaymentRow {
     created_at: string;
 }
 
+interface ChapaPaymentMethod {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    logo?: string;
+    is_active: boolean;
+    sort_order: number;
+}
+
 interface SiteConfigProps {
     settings: Record<string, string>;
     offlinePaymentMethods: OfflinePaymentMethod[];
+    chapaPaymentMethods: ChapaPaymentMethod[];
     recentChapaPayments: PaymentRow[];
     recentOfflinePayments: PaymentRow[];
 }
@@ -60,8 +71,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function SiteConfig({ settings, offlinePaymentMethods, recentChapaPayments, recentOfflinePayments }: SiteConfigProps) {
+export default function SiteConfig({ settings, offlinePaymentMethods, chapaPaymentMethods, recentChapaPayments, recentOfflinePayments }: SiteConfigProps) {
     const [showAddPaymentModal, setShowAddPaymentModal] = React.useState(false);
+    const [showAddChapaPaymentModal, setShowAddChapaPaymentModal] = React.useState(false);
     
     const paymentForm = useForm({
         name: '',
@@ -69,6 +81,15 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
         description: '',
         instructions: '',
         details: {} as Record<string, any>,
+    });
+
+    const chapaPaymentForm = useForm({
+        name: '',
+        code: '',
+        description: '',
+        logo: '',
+        is_active: true,
+        sort_order: 0,
     });
     
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -214,7 +235,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
                         <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
                             <Tabs defaultValue="homepage" className="w-full">
                                 <div className="border-b border-gray-200/50 bg-white/30 px-6 py-4">
-                                    <TabsList className="grid w-full grid-cols-6 bg-gray-100/50 p-1 rounded-xl">
+                                    <TabsList className="grid w-full grid-cols-7 bg-gray-100/50 p-1 rounded-xl">
                                         <TabsTrigger value="homepage" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <Globe className="h-4 w-4" />
                                             <span className="hidden sm:inline">Homepage</span>
@@ -226,6 +247,10 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
                                         <TabsTrigger value="footer" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <Palette className="h-4 w-4" />
                                             <span className="hidden sm:inline">Footer</span>
+                                        </TabsTrigger>
+                                        <TabsTrigger value="chapa-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
+                                            <CreditCard className="h-4 w-4" />
+                                            <span className="hidden sm:inline">Chapa Methods</span>
                                         </TabsTrigger>
                                         <TabsTrigger value="offline-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <FileImage className="h-4 w-4" />
@@ -856,6 +881,118 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
                                     </Card>
                                 </TabsContent>
 
+                                {/* Chapa Payment Methods Tab */}
+                                <TabsContent value="chapa-payments" className="space-y-8 mt-0">
+                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                                        <div className="flex items-center gap-3 mb-4">
+                                            <div className="p-2 bg-blue-100 rounded-lg">
+                                                <CreditCard className="h-5 w-5 text-blue-600" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-blue-900">Chapa Payment Methods</h3>
+                                                <p className="text-sm text-blue-700">Manage available Chapa payment methods (Telebirr, CBE, etc.) for online payments</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+                                        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
+                                            <CardTitle className="flex items-center gap-2 text-gray-800">
+                                                <div className="p-1.5 bg-blue-100 rounded-md">
+                                                    <CreditCard className="h-4 w-4 text-blue-600" />
+                                                </div>
+                                                Available Chapa Payment Methods
+                                            </CardTitle>
+                                            <CardDescription>These methods will be shown to customers during Chapa payment selection</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-6">
+                                            <div className="space-y-4">
+                                                {chapaPaymentMethods.length > 0 ? (
+                                                    chapaPaymentMethods.map((method) => (
+                                                        <div key={method.id} className="border rounded-lg p-4 bg-white">
+                                                            <div className="flex items-start gap-4">
+                                                                {method.logo && (
+                                                                    <img
+                                                                        src={method.logo}
+                                                                        alt={method.name}
+                                                                        className="w-12 h-12 object-cover rounded-lg"
+                                                                    />
+                                                                )}
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        <h4 className="font-semibold text-gray-900">{method.name}</h4>
+                                                                        <span className={`px-2 py-1 text-xs rounded-full ${
+                                                                            method.is_active 
+                                                                                ? 'bg-green-100 text-green-800' 
+                                                                                : 'bg-gray-100 text-gray-800'
+                                                                        }`}>
+                                                                            {method.is_active ? 'Active' : 'Inactive'}
+                                                                        </span>
+                                                                        <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                                                            Code: {method.code}
+                                                                        </span>
+                                                                    </div>
+                                                                    {method.description && (
+                                                                        <p className="text-sm text-gray-600 mb-2">{method.description}</p>
+                                                                    )}
+                                                                    <div className="flex items-center gap-2 mt-2">
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                                // TODO: Implement edit functionality
+                                                                                console.log('Edit method', method.id);
+                                                                            }}
+                                                                        >
+                                                                            Edit
+                                                                        </Button>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            size="sm"
+                                                                            onClick={() => {
+                                                                                // TODO: Implement delete functionality
+                                                                                if (confirm(`Are you sure you want to delete ${method.name}?`)) {
+                                                                                    router.delete(route('admin.chapa-payment-methods.destroy', method.id));
+                                                                                }
+                                                                            }}
+                                                                            className="text-red-600 hover:text-red-700"
+                                                                        >
+                                                                            Delete
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div className="text-center py-8 text-gray-500">
+                                                        <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                                                        <p>No Chapa payment methods configured yet.</p>
+                                                        <p className="text-sm mt-1">Add payment methods to allow customers to choose from available options.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Quick Add Form */}
+                                            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                                                <h5 className="font-medium text-gray-900 mb-3">Add Chapa Payment Method</h5>
+                                                <p className="text-sm text-gray-600 mb-4">
+                                                    Add new Chapa payment methods (e.g., Telebirr, CBE, M-Pesa) for customers to use during checkout.
+                                                </p>
+                                                <Button 
+                                                    type="button" 
+                                                    variant="outline"
+                                                    onClick={() => setShowAddChapaPaymentModal(true)}
+                                                    className="w-full"
+                                                >
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Add Chapa Payment Method
+                                                </Button>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+
                                 {/* Offline Payments Tab */}
                                 <TabsContent value="offline-payments" className="space-y-8 mt-0">
                                     <div className="bg-gradient-to-r from-primary-50 to-red-50 rounded-xl p-6 border border-primary-100">
@@ -1250,6 +1387,152 @@ export default function SiteConfig({ settings, offlinePaymentMethods, recentChap
                                         style={{ backgroundColor: '#ef4e2a' }}
                                     >
                                         {paymentForm.processing ? (
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                Creating...
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <Plus className="h-4 w-4" />
+                                                Create Payment Method
+                                            </div>
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Add Chapa Payment Method Modal */}
+                    <Dialog open={showAddChapaPaymentModal} onOpenChange={setShowAddChapaPaymentModal}>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold text-gray-900">Add Chapa Payment Method</DialogTitle>
+                                <DialogDescription className="text-gray-600">
+                                    Create a new Chapa payment method (e.g., Telebirr, CBE) for customers to use during checkout.
+                                </DialogDescription>
+                            </DialogHeader>
+                            
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                chapaPaymentForm.post(route('admin.chapa-payment-methods.store'), {
+                                    onSuccess: () => {
+                                        setShowAddChapaPaymentModal(false);
+                                        chapaPaymentForm.reset();
+                                    }
+                                });
+                            }}>
+                                <div className="space-y-4 py-4">
+                                    <div>
+                                        <Label htmlFor="chapa_name" className="text-sm font-medium text-gray-700">Name *</Label>
+                                        <Input
+                                            id="chapa_name"
+                                            value={chapaPaymentForm.data.name}
+                                            onChange={(e) => chapaPaymentForm.setData('name', e.target.value)}
+                                            placeholder="e.g., Telebirr"
+                                            className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            required
+                                        />
+                                        {chapaPaymentForm.errors.name && (
+                                            <p className="text-sm text-red-600 mt-1">{chapaPaymentForm.errors.name}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="chapa_code" className="text-sm font-medium text-gray-700">Code *</Label>
+                                        <Input
+                                            id="chapa_code"
+                                            value={chapaPaymentForm.data.code}
+                                            onChange={(e) => chapaPaymentForm.setData('code', e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                                            placeholder="e.g., telebirr"
+                                            className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                            required
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Unique code used in API calls (lowercase, no spaces)</p>
+                                        {chapaPaymentForm.errors.code && (
+                                            <p className="text-sm text-red-600 mt-1">{chapaPaymentForm.errors.code}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="chapa_description" className="text-sm font-medium text-gray-700">Description</Label>
+                                        <Textarea
+                                            id="chapa_description"
+                                            value={chapaPaymentForm.data.description}
+                                            onChange={(e) => chapaPaymentForm.setData('description', e.target.value)}
+                                            placeholder="Brief description of the payment method"
+                                            rows={3}
+                                            className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        />
+                                        {chapaPaymentForm.errors.description && (
+                                            <p className="text-sm text-red-600 mt-1">{chapaPaymentForm.errors.description}</p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="chapa_logo" className="text-sm font-medium text-gray-700">Logo URL</Label>
+                                        <Input
+                                            id="chapa_logo"
+                                            type="text"
+                                            value={chapaPaymentForm.data.logo}
+                                            onChange={(e) => chapaPaymentForm.setData('logo', e.target.value)}
+                                            placeholder="e.g., /image/telebirr-logo.png"
+                                            className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                        />
+                                        {chapaPaymentForm.errors.logo && (
+                                            <p className="text-sm text-red-600 mt-1">{chapaPaymentForm.errors.logo}</p>
+                                        )}
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="chapa_sort_order" className="text-sm font-medium text-gray-700">Sort Order</Label>
+                                            <Input
+                                                id="chapa_sort_order"
+                                                type="number"
+                                                value={chapaPaymentForm.data.sort_order}
+                                                onChange={(e) => chapaPaymentForm.setData('sort_order', parseInt(e.target.value) || 0)}
+                                                placeholder="0"
+                                                className="mt-1 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                                                min="0"
+                                            />
+                                            {chapaPaymentForm.errors.sort_order && (
+                                                <p className="text-sm text-red-600 mt-1">{chapaPaymentForm.errors.sort_order}</p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-8">
+                                            <input
+                                                type="checkbox"
+                                                id="chapa_is_active"
+                                                checked={chapaPaymentForm.data.is_active}
+                                                onChange={(e) => chapaPaymentForm.setData('is_active', e.target.checked)}
+                                                className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                                            />
+                                            <Label htmlFor="chapa_is_active" className="text-sm font-medium text-gray-700 cursor-pointer">
+                                                Active
+                                            </Label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <DialogFooter className="flex gap-3 pt-4">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setShowAddChapaPaymentModal(false);
+                                            chapaPaymentForm.reset();
+                                        }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={chapaPaymentForm.processing}
+                                        className="bg-primary hover:bg-primary/90"
+                                    >
+                                        {chapaPaymentForm.processing ? (
                                             <div className="flex items-center gap-2">
                                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                                                 Creating...
