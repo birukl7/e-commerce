@@ -41,14 +41,14 @@ class AdminSiteConfigController extends Controller
             'banner_secondary_image' => 'image/image-4.jpg',
             
             // About Section Settings
-            'about_title' => 'What is ShopHub?',
+            'about_title' => 'What is Serdo?',
             'about_subtitle' => 'Discover our Ethiopian heritage story',
             'about_column1_title' => 'Celebrating Ethiopian Heritage',
-            'about_column1_text' => 'ShopHub is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
+            'about_column1_text' => 'Serdo is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
             'about_column2_title' => 'Supporting Local Artisans',
             'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
             'about_column3_title' => 'Quality & Authenticity',
-            'about_column3_text' => 'Every product on ShopHub is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
+            'about_column3_text' => 'Every product on Serdo is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
             
             // Privacy Policy
             'privacy_policy_content' => $this->getDefaultPrivacyPolicy(),
@@ -269,14 +269,14 @@ class AdminSiteConfigController extends Controller
             'banner_secondary_image' => 'image/image-4.jpg',
             
             // About Section Settings
-            'about_title' => 'What is ShopHub?',
+            'about_title' => 'What is Serdo?',
             'about_subtitle' => 'Discover our Ethiopian heritage story',
             'about_column1_title' => 'Celebrating Ethiopian Heritage',
-            'about_column1_text' => 'ShopHub is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
+            'about_column1_text' => 'Serdo is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
             'about_column2_title' => 'Supporting Local Artisans',
             'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
             'about_column3_title' => 'Quality & Authenticity',
-            'about_column3_text' => 'Every product on ShopHub is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
+            'about_column3_text' => 'Every product on Serdo is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
             
             // Privacy Policy
             'privacy_policy_content' => (new self(app(SiteConfigService::class)))->getDefaultPrivacyPolicy(),
@@ -319,8 +319,8 @@ We implement appropriate security measures to protect your personal information 
 
 If you have any questions about this Privacy Policy, please contact us at:
 
-**ShopHub Ethiopia**
-Email: support@shophub.et
+**Serdo Ethiopia**
+Email: support@serdo.et
 Phone: +251 911 123 456
 Address: Addis Ababa, Ethiopia
 ';

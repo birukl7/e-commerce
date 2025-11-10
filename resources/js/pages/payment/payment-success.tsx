@@ -137,7 +137,7 @@ Thank you for your purchase!
     };
 
     return (
-        <MainLayout title="Payment Successful - ShopHub" >
+        <MainLayout title="Payment Successful - Serdo" >
             <div className="min-h-screen ">
 
                 {/* Success Header with Gradient */}

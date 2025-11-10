@@ -220,7 +220,7 @@ class PaymentController extends Controller
                 'callback_url' => route('payment.callback'),
                 'return_url' => route('payment.return', ['tx_ref' => $txRef]), 
                 'customization' => [
-                    'title' => 'ShopHub Payment',
+                    'title' => 'Serdo Payment',
                     'description' => preg_replace('/[^a-zA-Z0-9\s\._-]/', '', $description), 
                     'logo' => asset('images/logo.png'),
                 ],

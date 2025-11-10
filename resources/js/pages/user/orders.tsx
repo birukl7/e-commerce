@@ -113,40 +113,45 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/user-orders',
     },
 ];
-const defaultMainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/user-dashboard',
-        icon: LayoutDashboard,
-    },
-    {
-        title: 'BookMarked Products',
-        href: '/user-wishlist',
-        icon: Bookmark,
-    },
-    {
-        title: 'Orders',
-        href: '/user-order',
-        icon: ShoppingBag,
-    },
-    {
-        title: 'Requests',
-        href: '/user-request',
-        icon: MessageSquare,
-    },
-    {
-        title: 'Bought Products',
-        href: '/user-products',
-        icon: Package2,
-    },
-    {
-        title: 'Settings',
-        href: '/settings/profile',
-        icon: Settings,
-    },
-];
+
 export default function UserOrders({ orders = [] }: UserOrdersProps) {
     const { t } = useTranslation()
+
+
+
+    const defaultMainNavItems: NavItem[] = [
+        {
+            title: t('header.dashboard'),
+            href: '/user-dashboard',
+            icon: LayoutDashboard,
+        },
+        {
+            title: t('header.bookmarkedProducts'),
+            href: '/user-wishlist',
+            icon: Bookmark,
+        },
+        {
+            title: t('header.orders'),
+            href: '/user-order',
+            icon: ShoppingBag,
+        },
+        {
+            title: t('header.requests'),
+            href: '/user-request',
+            icon: MessageSquare,
+        },
+        {
+            title: t('header.boughtProducts'),
+            href: '/user-products',
+            icon: Package2,
+        },
+        {
+            title: t('header.settings'),
+            href: '/settings/profile',
+            icon: Settings,
+        },
+    ];
+
     const placeholderImage = '/placeholder.svg?height=100&width=100&query=product';
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -384,7 +389,7 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
     };
 
     return (
-        <MainLayout title={t('orders.orderHistory') + ' - ShopHub'} className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
+        <MainLayout title={t('orders.orderHistory') + ' - Serdo'} className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
             <AppLayout
                 logoDisplay=" invisible"
                 sidebarStyle="mt-[20px]"

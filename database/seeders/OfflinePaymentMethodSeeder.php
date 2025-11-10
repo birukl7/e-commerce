@@ -17,7 +17,7 @@ class OfflinePaymentMethodSeeder extends Seeder
                 'description' => 'Transfer money to our CBE bank account and upload the receipt',
                 'instructions' => 'Please transfer the exact amount to our CBE account and upload a clear screenshot of your payment confirmation.',
                 'details' => [
-                    'account_name' => 'ShopHub E-commerce',
+                    'account_name' => 'Serdo E-commerce',
                     'account_number' => '1000123456789',
                     'bank_name' => 'Commercial Bank of Ethiopia',
                     'branch' => 'Main Branch'

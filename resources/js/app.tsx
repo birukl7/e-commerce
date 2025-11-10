@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 import { initializeTheme } from './hooks/use-appearance';
 import './lib/i18n';
 
-const appName = import.meta.env.VITE_APP_NAME || 'ShopHub';
+const appName = import.meta.env.VITE_APP_NAME || 'Serdo';
 
 createInertiaApp({
     title: (title) => title ? `${title} - ${appName}` : appName,

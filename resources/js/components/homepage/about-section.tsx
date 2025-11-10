@@ -23,7 +23,7 @@ export default function AboutSection({ settings }: AboutSectionProps) {
         {/* Header */}
         <div className="text-center mb-12 md:mb-16">
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
-            {settings?.about_title || "What is ShopHub?"}
+            {settings?.about_title || "What is Serdo?"}
           </h2>
           <a
             href="#"
@@ -41,7 +41,7 @@ export default function AboutSection({ settings }: AboutSectionProps) {
               {settings?.about_column1_title || "Celebrating Ethiopian Heritage"}
             </h3>
             <p className="text-gray-700 leading-relaxed mb-4">
-              {settings?.about_column1_text || "ShopHub is Ethiopia's premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today's lifestyle."}
+              {settings?.about_column1_text || "Serdo is Ethiopia's premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today's lifestyle."}
             </p>
           </div>
 
@@ -61,7 +61,7 @@ export default function AboutSection({ settings }: AboutSectionProps) {
               {settings?.about_column3_title || "Quality & Authenticity"}
             </h3>
             <p className="text-gray-700 leading-relaxed">
-              {settings?.about_column3_text || "Every product on ShopHub is carefully curated to ensure authenticity and quality. Whether you're looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service."}
+              {settings?.about_column3_text || "Every product on Serdo is carefully curated to ensure authenticity and quality. Whether you're looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service."}
             </p>
           </div>
         </div>

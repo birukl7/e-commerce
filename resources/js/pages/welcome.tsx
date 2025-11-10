@@ -29,7 +29,7 @@ function WelcomeContent({ settings }: WelcomeProps) {
 
   return (
     <>
-      <Head title="ShopHub - Premium Products" />
+      <Head title="Serdo - Premium Products" />
 
       <div
         className="min-h-screen bg-white text-slate-900"

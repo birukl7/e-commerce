@@ -345,6 +345,7 @@
     "howWeCalculateTax": "Akkamitti kaffaltii hir'isna"
   },
   "payment": {
+    "submitPaymentProof": "Kaffaltii Mirkaneessi Baasi Galchi",
     "selectPaymentMethod": "Karaan Kaffaltii Filadhaa",
     "completeYourPayment": "Kaffaltii Keessan Guutaa",
     "orderId": "ID Ajajaa:",
@@ -488,7 +489,27 @@
     "questionsContactSupport": "Yoo gaafannoon qabaattan, ID galchuu keessan waliin gargaarsa nuu dhaamsiisaa",
     "verificationTimeframe": "Mirkaneessuun hanga waggaa 24 guyyaa hojii keessatti raawwata",
     "needHelpContact": "Gargaarsa barbaaddaa?",
-    "contactSupportLink": "Gareen gargaarsa keenya nuu dhaamsiisaa"
+    "contactSupportLink": "Gareen gargaarsa keenya nuu dhaamsiisaa",
+    "back": "Deebi'aa",
+    "onlinePayment": "Kaffaltii Interneedii",
+    "onlinePaymentDescription": "Amanamummaa interneedii Chapa karaan kaffaltii fayyadamuun kaffali",
+    "offlinePayment": "Kaffaltii Interneedii Alatti",
+    "offlinePaymentDescription": "Darbii baankii waliin kaffali fi mirkaneessi baasi",
+    "offlinePaymentNotAvailable": "Kaffaltii Interneedii Alatti Hin Jiru",
+    "offlinePaymentNotAvailableDesc": "Yeroo ammaa kana karaanwwan kaffaltii interneedii alatti hin jiranu. Kaffaltii interneedii waliin itti fufuu dandeessa.",
+    "continueWithOnlinePayment": "Kaffaltii Interneedii Waliin Itti Fufaa",
+    "goBack": "Deebi'aa",
+    "uploadPaymentProof": "Mirkaneessi Kaffaltii Baasi",
+    "advancePayment": "Kaffaltii Duraanii",
+    "finalPayment": "Kaffaltii Xumuraa",
+    "totalToPay": "Waliigala Kaffaluu:",
+    "chooseHowYouMadePayment": "Akkamitti kaffaltii keessan baasan filadhaa",
+    "paymentInstructions": "Yaada Kaffaltii:",
+    "continueWith": "Itti fufaa",
+    "paymentInformation": "Odeeffannoo Kaffaltii",
+    "usingChapaSecureGateway": "karaan kaffaltii amanamummaa Chapa fayyadamuun",
+    "phonePlaceholder": "fakkeenyaaf, +251911223344 yookaan 0911223344",
+    "payNow": "Amma Kaffali"
   },
   "search": {
     "searchResults": "Baatii Barbaachuu",
@@ -520,6 +541,44 @@
     "previous": "Duraan",
     "page": "Fuula",
     "next": "Itti Aanu"
+  },
+  "tax": {
+    "title": "Akkamitti Kaffaltii Hir'isna",
+    "description": "Kaffaltiiwwan hojjechisan ajajaa keessan irratti gareenwwan kaffaltii fi madaalliwwan qophaa'aman irratti hundeessina. Gadi kan ilaallatu ilaalcha ol'aanaa dha.",
+    "overview": "Ilaalcha",
+    "overviewDescription": "Kaffaltiiwwan madaalliwwan bakka bu'aan (fakkeenyaaf, VAT) yookaan kaffaltiiwwan mirkaneeffaman hirmaachisu danda'u. Kaffaltii xumuraa keessan haalliwwan hundaa kaffaltii irratti hojjaman walitti qabame, gatii gidduu ajajaa keessan irratti hojjetame dha. Kaffaltiiwwan tokko tokko walitti qabame yookaan bakka fi gareen oomishaa irratti garaagarummaa qabaachuu danda'u.",
+    "currentActiveTaxRates": "Madaalliwwan Kaffaltii Ammayyaa Hojjii Keessaa Jiran",
+    "noActiveTaxRates": "Yeroo ammaa kana madaalliwwan kaffaltii hojjii keessaa jiran hin jiranu."
+  },
+  "settings": {
+    "profileInformation": "Odeeffannoo Profaayilii",
+    "updatePersonalDetails": "Odeeffannoo dhuunfaa keessan fooyyeessaa",
+    "name": "Maqaa",
+    "fullName": "Maqaa guutuu",
+    "emailAddress": "Imeelii",
+    "phoneNumber": "Lakkoofsa bilbilaa",
+    "emailUnverified": "Imeelii keessan hin mirkanaa'in.",
+    "clickToResend": "Imeelii mirkaneessaa irra deebi'uun erguuf asitti cuqaasaa.",
+    "verificationLinkSent": "Wabii haaraan gara imeelii keessanitti ergameera.",
+    "saveChanges": "Jijjiirraa olkaa'aa",
+    "saved": "Olkaa'ame",
+    "addressInformation": "Odeeffannoo Teessoo",
+    "manageDefaultShipping": "Teessoo ergamsaa durtii keessan too'achaa",
+    "streetAddress": "Teessoo karaatti",
+    "streetAddressPlaceholder": "123 Main Street",
+    "apartmentSuite": "Apaartimantii / Suweetii",
+    "apartmentSuitePlaceholder": "Apt 4B, Suite 100",
+    "city": "Magaalaa",
+    "cityPlaceholder": "Addis Ababa",
+    "stateRegion": "Naannoo / Kutaa",
+    "stateRegionPlaceholder": "Addis Ababa",
+    "postalCode": "Koodii Postaa",
+    "postalCodePlaceholder": "1000",
+    "country": "Biyya",
+    "countryPlaceholder": "Itoophiyaa",
+    "contactPhone": "Bilbila qunnamtii",
+    "saveAddress": "Teessoo olkaa'aa",
+    "addressUpdated": "Teessoon milkaa'inaan ni fooyya'e."
   }
 }
 

@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Percent, Info } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 type TaxSetting = {
     id: number;
@@ -19,13 +20,15 @@ interface TaxInfoDialogProps {
 }
 
 export default function TaxInfoDialog({ isOpen, onClose, activeTaxes }: TaxInfoDialogProps) {
+    const { t } = useTranslation();
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="w-[95vw] max-w-[calc(100%-2rem)] sm:w-[90vw] sm:max-w-4xl md:w-[85vw] lg:w-[80vw] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="text-2xl">How We Calculate Tax</DialogTitle>
+                    <DialogTitle className="text-2xl">{t('tax.title')}</DialogTitle>
                     <DialogDescription className="text-base">
-                        We apply applicable taxes to your order based on configured tax classes and rates. Below is a high-level overview.
+                        {t('tax.description')}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -34,13 +37,12 @@ export default function TaxInfoDialog({ isOpen, onClose, activeTaxes }: TaxInfoD
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Info className="h-5 w-5" />
-                                Overview
+                                {t('tax.overview')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm text-muted-foreground">
                             <p>
-                                Taxes may include percentage-based rates (e.g., VAT) or fixed fees. Your final tax is the sum of all applicable
-                                rules at checkout, applied to your order subtotal. Some taxes may be compound or vary by location and product class.
+                                {t('tax.overviewDescription')}
                             </p>
                         </CardContent>
                     </Card>
@@ -49,12 +51,12 @@ export default function TaxInfoDialog({ isOpen, onClose, activeTaxes }: TaxInfoD
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2 text-lg">
                                 <Percent className="h-5 w-5" />
-                                Current Active Tax Rates
+                                {t('tax.currentActiveTaxRates')}
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {activeTaxes.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No active tax rates at this time.</p>
+                                <p className="text-sm text-muted-foreground">{t('tax.noActiveTaxRates')}</p>
                             ) : (
                                 <div className="space-y-3">
                                     {activeTaxes.map((tax) => (

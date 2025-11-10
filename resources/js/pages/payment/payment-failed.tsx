@@ -96,7 +96,7 @@ export default function PaymentFailed(props: PaymentFailedProps) {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            <Head title="Payment Failed - ShopHub" />
+            <Head title="Payment Failed - Serdo" />
             <Header />
 
             <div className="mx-auto max-w-2xl px-4 py-12">

@@ -43,13 +43,13 @@ export default function Footer({ settings }: FooterProps) {
         {/* App Download Section */}
         <div className="absolute left-0 top-0 bottom-0 w-full md:w-80 bg-gradient-to-r from-amber-600 to-amber-700 flex flex-col items-center justify-center p-8 md:p-12">
           <div className="bg-amber-500 rounded-lg p-4 mb-6">
-            <span className="text-white font-bold text-2xl">ShopHub</span>
+            <span className="text-white font-bold text-2xl">Serdo PLC</span>
           </div>
           <p className="text-amber-100 text-center mb-4">
             {settings?.footer_brand_description || "Discover Ethiopian treasures and modern essentials"}
           </p>
           <Button className="bg-amber-800 hover:bg-amber-900 text-white px-6 py-3 rounded-full font-medium" size="lg">
-            {settings?.footer_download_text || "Download ShopHub App"}
+            {settings?.footer_download_text || "Download Serdo App"}
           </Button>
         </div>
 
@@ -112,7 +112,7 @@ export default function Footer({ settings }: FooterProps) {
 
           {/* Copyright and Links */}
           <div className="flex flex-wrap items-center gap-4 text-sm text-gray-300">
-            <span>{settings?.footer_copyright_text || "© 2025 ShopHub Ethiopia"}</span>
+            <span>{settings?.footer_copyright_text || "© 2025 Serdo Ethiopia"}</span>
             {bottomLinks.map((link) => (
               <span key={link.name} className="flex items-center gap-4">
                 <Link href={link.href} className="hover:text-white transition-colors">

@@ -48,49 +48,7 @@ interface ProductsPageProps {
   summary: Summary
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/user-dashboard',
-  },
-  {
-    title: 'Bought Products',
-    href: '/user-products',
-  },
-]
 
-const userNavItems: NavItem[] = [
-  {
-    title: 'Dashboard',
-    href: '/user-dashboard',
-    icon: LayoutDashboard,
-  },
-  {
-    title: 'BookMarked Products',
-    href: '/user-wishlist',
-    icon: Bookmark,
-  },
-  {
-    title: 'Orders',
-    href: '/user-order',
-    icon: ShoppingBag,
-  },
-  {
-    title: 'Requests',
-    href: '/user-request',
-    icon: MessageSquare,
-  },
-  {
-    title: 'Bought Products',
-    href: '/user-products',
-    icon: Package2,
-  },
-  {
-    title: 'Settings',
-    href: '/settings/profile',
-    icon: SettingsIcon,
-  },
-]
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('en-ET', {
@@ -140,6 +98,50 @@ const paymentStatusColor = (status: string) => {
 
 export default function BoughtProducts({ purchasedItems, summary }: ProductsPageProps) {
   const { t } = useTranslation()
+
+  const breadcrumbs: BreadcrumbItem[] = [
+    {
+      title: t('header.dashboard'),
+      href: '/user-dashboard',
+    },
+    {
+      title: t('header.boughtProducts'),
+      href: '/user-products',
+    },
+  ]
+  
+  const userNavItems: NavItem[] = [
+    {
+      title: t('header.dashboard'),
+      href: '/user-dashboard',
+      icon: LayoutDashboard,
+    },
+    {
+      title: t('header.bookmarkedProducts'),
+      href: '/user-wishlist',
+      icon: Bookmark,
+    },
+    {
+      title: t('header.orders'),
+      href: '/user-order',
+      icon: ShoppingBag,
+    },
+    {
+      title: t('header.requests'),
+      href: '/user-request',
+      icon: MessageSquare,
+    },
+    {
+      title: t('header.boughtProducts'),
+      href: '/user-products',
+      icon: Package2,
+    },
+    {
+      title: t('header.settings'),
+      href: '/settings/profile',
+      icon: SettingsIcon,
+    },
+  ]
   
   return (
     <MainLayout title={t('products.boughtProducts')} className={''} footerOff={false} contentMarginTop="mt-[60px]">

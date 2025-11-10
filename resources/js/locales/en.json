@@ -345,6 +345,7 @@
     "howWeCalculateTax": "How we calculate tax"
   },
   "payment": {
+    "submitPaymentProof": "Submit",
     "selectPaymentMethod": "Select Payment Method",
     "completeYourPayment": "Complete Your Payment",
     "orderId": "Order ID:",
@@ -488,7 +489,27 @@
     "questionsContactSupport": "If you have questions, contact support with your submission ID",
     "verificationTimeframe": "Verification typically happens within 24 hours during business days",
     "needHelpContact": "Need help?",
-    "contactSupportLink": "Contact our support team"
+    "contactSupportLink": "Contact our support team",
+    "back": "Back",
+    "onlinePayment": "Online Payment",
+    "onlinePaymentDescription": "Pay securely online using Chapa payment gateway",
+    "offlinePayment": "Offline Payment",
+    "offlinePaymentDescription": "Pay via bank transfer and upload proof",
+    "offlinePaymentNotAvailable": "Offline Payment Not Available",
+    "offlinePaymentNotAvailableDesc": "Offline payment methods are not currently available. You can proceed with online payment instead.",
+    "continueWithOnlinePayment": "Continue with Online Payment",
+    "goBack": "Go Back",
+    "uploadPaymentProof": "Upload Payment Proof",
+    "advancePayment": "Advance Payment",
+    "finalPayment": "Final Payment",
+    "totalToPay": "Total to Pay:",
+    "chooseHowYouMadePayment": "Choose how you made the payment",
+    "paymentInstructions": "Payment Instructions:",
+    "continueWith": "Continue with",
+    "paymentInformation": "Payment Information",
+    "usingChapaSecureGateway": "using Chapa secure payment gateway",
+    "phonePlaceholder": "e.g., +251911223344 or 0911223344",
+    "payNow": "Pay Now"
   },
   "search": {
     "searchResults": "Search Results",
@@ -520,6 +541,44 @@
     "previous": "Previous",
     "page": "Page",
     "next": "Next"
+  },
+  "tax": {
+    "title": "How We Calculate Tax",
+    "description": "We apply applicable taxes to your order based on configured tax classes and rates. Below is a high-level overview.",
+    "overview": "Overview",
+    "overviewDescription": "Taxes may include percentage-based rates (e.g., VAT) or fixed fees. Your final tax is the sum of all applicable rules at checkout, applied to your order subtotal. Some taxes may be compound or vary by location and product class.",
+    "currentActiveTaxRates": "Current Active Tax Rates",
+    "noActiveTaxRates": "No active tax rates at this time."
+  },
+  "settings": {
+    "profileInformation": "Profile information",
+    "updatePersonalDetails": "Update your personal details",
+    "name": "Name",
+    "fullName": "Full name",
+    "emailAddress": "Email address",
+    "phoneNumber": "Phone number",
+    "emailUnverified": "Your email address is unverified.",
+    "clickToResend": "Click here to resend the verification email.",
+    "verificationLinkSent": "A new verification link has been sent to your email address.",
+    "saveChanges": "Save changes",
+    "saved": "Saved",
+    "addressInformation": "Address information",
+    "manageDefaultShipping": "Manage your default shipping address",
+    "streetAddress": "Street Address",
+    "streetAddressPlaceholder": "123 Main Street",
+    "apartmentSuite": "Apartment / Suite",
+    "apartmentSuitePlaceholder": "Apt 4B, Suite 100",
+    "city": "City",
+    "cityPlaceholder": "Addis Ababa",
+    "stateRegion": "State / Region",
+    "stateRegionPlaceholder": "Addis Ababa",
+    "postalCode": "Postal Code",
+    "postalCodePlaceholder": "1000",
+    "country": "Country",
+    "countryPlaceholder": "Ethiopia",
+    "contactPhone": "Contact Phone",
+    "saveAddress": "Save address",
+    "addressUpdated": "Address updated successfully."
   }
 }
 

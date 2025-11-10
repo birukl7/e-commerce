@@ -669,7 +669,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                 id="about_title"
                                                 value={data.about_title}
                                                 onChange={(e) => setData('about_title', e.target.value)}
-                                                placeholder="e.g., What is ShopHub?"
+                                                placeholder="e.g., What is Serdo?"
                                             />
                                             {errors.about_title && (
                                                 <p className="text-sm text-red-600">{errors.about_title}</p>
@@ -822,7 +822,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                 id="footer_download_text"
                                                 value={data.footer_download_text}
                                                 onChange={(e) => setData('footer_download_text', e.target.value)}
-                                                placeholder="e.g., Download ShopHub App"
+                                                placeholder="e.g., Download Serdo App"
                                             />
                                             {errors.footer_download_text && (
                                                 <p className="text-sm text-red-600">{errors.footer_download_text}</p>
@@ -870,7 +870,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                 id="footer_copyright_text"
                                                 value={data.footer_copyright_text}
                                                 onChange={(e) => setData('footer_copyright_text', e.target.value)}
-                                                placeholder="e.g., © 2025 ShopHub Ethiopia"
+                                                placeholder="e.g., © 2025 Serdo Ethiopia"
                                             />
                                             {errors.footer_copyright_text && (
                                                 <p className="text-sm text-red-600">{errors.footer_copyright_text}</p>

@@ -345,6 +345,7 @@
     "howWeCalculateTax": "ግብርን እንዴት እንሰላለን"
   },
   "payment": {
+    "submitPaymentProof": "ማረጋገጫ ይጫኑ",
     "selectPaymentMethod": "የክፍያ ዘዴ ይምረጡ",
     "completeYourPayment": "ክፍያዎን ያጠናቅቁ",
     "totalAmount": "ጠቅላላ መጠን:",
@@ -493,7 +494,27 @@
     "questionsContactSupport": "ጥያቄዎች ካሉዎት፣ በመልካም ማመላከቻ መለያዎ ከድጋፍ ያግኙ",
     "verificationTimeframe": "ማረጋገጥ ብዙውን ጊዜ በንግድ ቀናት ውስጥ በ24 ሰዓታት ውስጥ ይከሰታል",
     "needHelpContact": "እርዳታ ይፈልጋሉ?",
-    "contactSupportLink": "የድጋፍ ቡድናችንን ያግኙ"
+    "contactSupportLink": "የድጋፍ ቡድናችንን ያግኙ",
+    "back": "ተመለስ",
+    "onlinePayment": "የመስመር ላይ ክፍያ",
+    "onlinePaymentDescription": "በChapa ደህንነቱ የተጠበቀ የክፍያ መንገድ በመጠቀም በመስመር ላይ ይክፈሉ",
+    "offlinePayment": "ከመስመር ውጭ ክፍያ",
+    "offlinePaymentDescription": "በባንክ ሽግግር ይክፈሉ እና ማረጋገጫ ይስቀሉ",
+    "offlinePaymentNotAvailable": "ከመስመር ውጭ ክፍያ አይገኝም",
+    "offlinePaymentNotAvailableDesc": "ከመስመር ውጭ የክፍያ ዘዴዎች በአሁኑ ጊዜ አይገኙም። በመስመር ላይ ክፍያ መቀጠል ይችላሉ።",
+    "continueWithOnlinePayment": "በመስመር ላይ ክፍያ ይቀጥሉ",
+    "goBack": "ተመለስ",
+    "uploadPaymentProof": "የክፍያ ማረጋገጫ ይስቀሉ",
+    "advancePayment": "ቅድመ-ክፍያ",
+    "finalPayment": "የመጨረሻ ክፍያ",
+    "totalToPay": "ለመክፈል ጠቅላላ:",
+    "chooseHowYouMadePayment": "ክፍያዎን እንዴት እንዳደረጉ ይምረጡ",
+    "paymentInstructions": "የክፍያ መመሪያዎች:",
+    "continueWith": "ይቀጥሉ",
+    "paymentInformation": "የክፍያ መረጃ",
+    "usingChapaSecureGateway": "በChapa ደህንነቱ የተጠበቀ የክፍያ መንገድ በመጠቀም",
+    "phonePlaceholder": "ለምሳሌ፣ +251911223344 ወይም 0911223344",
+    "payNow": "አሁን ይክፈሉ"
   },
   "search": {
     "searchResults": "የፍለጋ ውጤቶች",
@@ -525,6 +546,44 @@
     "previous": "ቀዳሚ",
     "page": "ገጽ",
     "next": "ቀጣይ"
+  },
+  "tax": {
+    "title": "ግብርን እንዴት እንሰላለን",
+    "description": "በተዋቀሩ የግብር ምድቦች እና ተመኖች ላይ በመመስረት በትዕዛዝዎ ላይ ተገቢ የሆኑ ግብሮችን እንተገብራለን። ከዚህ በታች ከፍተኛ ደረጃ አጠቃላይ እይታ ነው።",
+    "overview": "አጠቃላይ እይታ",
+    "overviewDescription": "ግብሮች የተመን መሠረት ተመኖች (ለምሳሌ፣ የእቃ እና አገልግሎት ግብር) ወይም ቋሚ ክፍያዎችን ሊያካትቱ ይችላሉ። የመጨረሻው ግብርዎ በክፍያ ላይ ተገቢ የሆኑ ሁሉም ደንቦች ድምር ነው፣ የሚተገበረውም በትዕዛዝዎ ንዑስ ጠቅላላ ላይ ነው። አንዳንድ ግብሮች የተዋሃዱ ወይም በቦታ እና በምርት ምድብ ሊለያዩ ይችላሉ።",
+    "currentActiveTaxRates": "የአሁኑ ንቁ የግብር ተመኖች",
+    "noActiveTaxRates": "በዚህ ጊዜ ምንም ንቁ የግብር ተመኖች የሉም።"
+  },
+  "settings": {
+    "profileInformation": "የመግለጫ መረጃ",
+    "updatePersonalDetails": "የግል ዝርዝሮችዎን ያዘምኑ",
+    "name": "ስም",
+    "fullName": "ሙሉ ስም",
+    "emailAddress": "የኢሜል አድራሻ",
+    "phoneNumber": "የስልክ ቁጥር",
+    "emailUnverified": "የኢሜል አድራሻዎ አልተረጋገጠም።",
+    "clickToResend": "የማረጋገጫ ኢሜልን እንደገና ለመላክ እዚህ ይጫኑ።",
+    "verificationLinkSent": "አዲስ የማረጋገጫ አገናኝ ወደ ኢሜልዎ ተልኳል።",
+    "saveChanges": "ለውጦችን ያስቀምጡ",
+    "saved": "ተቀምጧል",
+    "addressInformation": "የአድራሻ መረጃ",
+    "manageDefaultShipping": "ነባሪ የመላኪያ አድራሻዎን ያቀናብሩ",
+    "streetAddress": "የመንገድ አድራሻ",
+    "streetAddressPlaceholder": "123 ዋና መንገድ",
+    "apartmentSuite": "አፓርታማ / ቢሮ",
+    "apartmentSuitePlaceholder": "Apt 4B, Suite 100",
+    "city": "ከተማ",
+    "cityPlaceholder": "አዲስ አበባ",
+    "stateRegion": "ክልል / አካባቢ",
+    "stateRegionPlaceholder": "አዲስ አበባ",
+    "postalCode": "የፖስታ ኮድ",
+    "postalCodePlaceholder": "1000",
+    "country": "አገር",
+    "countryPlaceholder": "ኢትዮጵያ",
+    "contactPhone": "የእውቂያ ስልክ",
+    "saveAddress": "አድራሻ አስቀምጥ",
+    "addressUpdated": "አድራሻው ተሳክቶ ተዘምኗል።"
   }
 }
 

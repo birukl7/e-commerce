@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { X, Building, Smartphone, Upload } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface PaymentMethod {
     id: number;
@@ -55,11 +56,62 @@ export default function PaymentDetailsModal({
     totalAmount,
     currency,
 }: PaymentDetailsModalProps) {
+    const { t } = useTranslation();
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (!paymentScreenshot) {
+            setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(paymentScreenshot);
+        setPreviewUrl(url);
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [paymentScreenshot]);
+
     if (!selectedMethod) return null;
+
+    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file');
+            return;
+        }
+        onPaymentScreenshotChange(file);
+    };
+
+    const openFilePicker = () => {
+        fileInputRef.current?.click();
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        if (file && !file.type.startsWith('image/')) {
+            alert('Please upload an image file');
+            return;
+        }
+        onPaymentScreenshotChange(file);
+    };
+
+    const removeFile = () => {
+        onPaymentScreenshotChange(null);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-[95vw] w-[95vw] max-h-[90vh] overflow-y-auto">
+            <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto sm:w-[90vw] md:w-[85vw] lg:w-[75vw] xl:w-[70vw] 2xl:max-w-7xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-3">
                         {selectedMethod.type === 'bank' ? (
@@ -67,45 +119,26 @@ export default function PaymentDetailsModal({
                         ) : (
                             <Smartphone className="h-6 w-6 text-green-600" />
                         )}
-                        Complete Payment Details
+                        {t('payment.uploadPaymentProof')}
                     </DialogTitle>
                     <DialogDescription>
-                        Please provide the required information for your {selectedMethod.name} payment
+                        {t('payment.chooseHowYouMadePayment')}: {selectedMethod.name}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-6">
                     {/* Header Row with Payment Method and Amount */}
-                    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                    <div className="">
                         {/* Selected Payment Method Info */}
-                        <div className="xl:col-span-3">
+                        <div className="w-full">
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="text-lg">Selected Payment Method</CardTitle>
+                                    <CardTitle className="text-lg">{t('payment.selectPaymentMethod')}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div className="flex justify-between flex-col">
                                         <div>
-                                            <div className="flex items-center gap-3 mb-3">
-                                                {selectedMethod.type === 'bank' ? (
-                                                    <Building className="h-5 w-5 text-primary-600" />
-                                                ) : (
-                                                    <Smartphone className="h-5 w-5 text-green-600" />
-                                                )}
-                                                <div>
-                                                    <p className="font-medium">{selectedMethod.name}</p>
-                                                    <p className="text-sm text-gray-600">{selectedMethod.description}</p>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="rounded border bg-gray-50 p-3">
-                                                <h5 className="mb-2 font-medium text-gray-900">Payment Instructions:</h5>
-                                                <p className="text-sm text-gray-700">{selectedMethod.instructions}</p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <h5 className="mb-2 font-medium text-gray-900">Payment Details:</h5>
+                                            <h5 className="mb-2 font-medium text-gray-900">{t('orders.paymentDetails')}</h5>
                                             <div className="rounded border bg-gray-50 p-3">
                                                 <div className="space-y-1 text-sm">
                                                     {Object.entries(selectedMethod.details).map(([key, value]: [string, any]) => (
@@ -117,37 +150,33 @@ export default function PaymentDetailsModal({
                                                 </div>
                                             </div>
                                         </div>
+                                        <Card>
+                                            <CardContent className="pt-2">
+                                                <div className="text-center">
+                                                    <p className="text-sm text-gray-600">{t('payment.totalToPay')}</p>
+                                                    <p className="text-3xl font-bold text-primary-600">{formatPrice(totalAmount)}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
                                     </div>
                                 </CardContent>
                             </Card>
                         </div>
 
-                        {/* Payment Amount */}
-                        <div className="xl:col-span-1">
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="text-center">
-                                        <p className="text-sm text-gray-600">Amount to Pay</p>
-                                        <p className="text-3xl font-bold text-primary-600">{formatPrice(totalAmount)}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </div>
                     </div>
 
                     {/* Payment Details Form */}
-                    <Card>
+                    {/* <Card>
                         <CardHeader>
-                            <CardTitle>Payment Details</CardTitle>
-                            <CardDescription>Provide details about your payment</CardDescription>
+                            <CardTitle>{t('orders.paymentDetails')}</CardTitle>
+                            <CardDescription>{t('payment.paymentInformation')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                                 <div className="xl:col-span-1">
-                                    <Label htmlFor="modal_payment_reference">Payment Reference (Optional)</Label>
+                                    <Label htmlFor="modal_payment_reference">{t('orders.paymentReference')}</Label>
                                     <Input
                                         id="modal_payment_reference"
-                                        placeholder="Transaction ID, reference number, etc."
                                         value={paymentReference}
                                         onChange={(e) => onPaymentReferenceChange(e.target.value)}
                                     />
@@ -157,10 +186,9 @@ export default function PaymentDetailsModal({
                                 </div>
 
                                 <div className="xl:col-span-3">
-                                    <Label htmlFor="modal_payment_notes">Additional Notes (Optional)</Label>
+                                    <Label htmlFor="modal_payment_notes">{t('orders.paymentDetails')}</Label>
                                     <Textarea
                                         id="modal_payment_notes"
-                                        placeholder="Any additional information about your payment..."
                                         rows={4}
                                         value={paymentNotes}
                                         onChange={(e) => onPaymentNotesChange(e.target.value)}
@@ -171,51 +199,60 @@ export default function PaymentDetailsModal({
                                 </div>
                             </div>
                         </CardContent>
-                    </Card>
+                    </Card> */}
 
                     {/* Upload Payment Screenshot */}
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Upload className="h-5 w-5" />
-                                Upload Payment Screenshot
+                                {t('payment.teamReviewScreenshot')}
                             </CardTitle>
-                            <CardDescription>Upload a clear screenshot of your payment confirmation (Max 5MB)</CardDescription>
+                            <CardDescription>{t('payment.proofSubmittedPending')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                                 <div className="xl:col-span-1">
-                                    <Label htmlFor="modal_payment_screenshot">Payment Screenshot *</Label>
-                                    <Input
-                                        id="modal_payment_screenshot"
-                                        type="file"
-                                        accept="image/*"
-                                        required
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            onPaymentScreenshotChange(file || null);
-                                        }}
-                                        className="mt-1"
-                                    />
+                                    {/* <Label htmlFor="modal_payment_screenshot">{t('payment.paymentProofSubmitted')}</Label> */}
+                                    <div
+                                        onDragOver={onDragOver}
+                                        onDrop={onDrop}
+                                        onClick={openFilePicker}
+                                        className="mt-1 flex cursor-pointer flex-col items-center justify-center rounded-md border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-10 text-center hover:bg-gray-100"
+                                    >
+                                        <input
+                                            ref={fileInputRef}
+                                            id="modal_payment_screenshot"
+                                            type="file"
+                                            accept="image/*"
+                                            className="hidden"
+                                            onChange={onFileChange}
+                                        />
+                                        <Upload className="mb-2 h-6 w-6 text-gray-500" />
+                                        <p className="text-sm text-gray-700">{t('checkout.payUploadProof')}</p>
+                                        <p className="text-xs text-gray-500">{t('checkout.bankTransfer')}</p>
+                                        <p className="mt-2 text-xs text-gray-400">PNG, JPG, GIF · 5MB max</p>
+                                    </div>
                                     {errors.payment_screenshot && (
-                                        <p className="mt-1 text-sm text-red-600">{errors.payment_screenshot}</p>
+                                        <p className="mt-2 text-sm text-red-600">{errors.payment_screenshot}</p>
                                     )}
-                                    <p className="mt-2 text-sm text-gray-600">Accepted formats: JPG, PNG, GIF. Maximum size: 5MB</p>
                                 </div>
-                                
-                                {paymentScreenshot && (
-                                    <div className="xl:col-span-2 flex items-center justify-center p-6 bg-green-50 border border-green-200 rounded-lg">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                <Upload className="h-8 w-8 text-green-600" />
+                                {paymentScreenshot && previewUrl && (
+                                    <div className="xl:col-span-2">
+                                        <div className="overflow-hidden rounded-lg border bg-white">
+                                            <div className="flex items-center justify-between border-b px-4 py-2">
+                                                <div className="text-sm text-gray-600 truncate pr-4">
+                                                    {paymentScreenshot.name} · {(paymentScreenshot.size / 1024 / 1024).toFixed(2)} MB
+                                                </div>
+                                              
                                             </div>
-                                            <p className="text-lg font-medium text-green-800">File Selected Successfully</p>
-                                            <p className="text-sm text-green-600 truncate max-w-full mt-1">
-                                                {paymentScreenshot.name}
-                                            </p>
-                                            <p className="text-sm text-green-500 mt-1">
-                                                File size: {(paymentScreenshot.size / 1024 / 1024).toFixed(2)} MB
-                                            </p>
+                                            <div className="max-h-[60vh] overflow-auto bg-gray-50">
+                                                <img
+                                                    src={previewUrl}
+                                                    alt="Payment proof preview"
+                                                    className="mx-auto block h-auto max-w-full"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -233,7 +270,7 @@ export default function PaymentDetailsModal({
                             disabled={isProcessing}
                         >
                             <X className="mr-2 h-4 w-4" />
-                            Cancel & Select Different Method
+                            {t('payment.back')}
                         </Button>
                         <Button
                             type="button"
@@ -241,7 +278,7 @@ export default function PaymentDetailsModal({
                             className="flex-1 bg-primary-600 hover:bg-primary-700"
                             disabled={isProcessing || !paymentScreenshot}
                         >
-                            {isProcessing ? 'Submitting...' : 'Submit Payment Proof'}
+                            {isProcessing ? t('payment.processing') : t('payment.submitPaymentProof')}
                         </Button>
                     </div>
                 </div>

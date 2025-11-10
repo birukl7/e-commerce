@@ -15,7 +15,7 @@ function TermsContent({ settings }: TermsProps) {
   
   return (
     <>
-      <Head title={`${t('terms.title')} - ShopHub`}>
+      <Head title={`${t('terms.title')} - Serdo`}>
       </Head>
       
       <div
@@ -75,8 +75,8 @@ function TermsContent({ settings }: TermsProps) {
                     </p>
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-gray-700">
-                        <strong>ShopHub Ethiopia</strong><br />
-                        {t('terms.supportEmail')} support@shophub.et<br />
+                        <strong>Serdo PLC Ethiopia</strong><br />
+                        {t('terms.supportEmail')} support@serdo.et<br />
                         {t('terms.supportPhone')} +251 911 123 456<br />
                         {t('terms.supportAddress')} Addis Ababa, Ethiopia
                       </p>

@@ -6,6 +6,7 @@ import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxInfoDialog from '@/components/TaxInfoDialog';
+import OfflinePaymentDialog from '@/components/OfflinePaymentDialog';
 import H1 from '@/components/ui/h1';
 import { useTranslation } from 'react-i18next';
 
@@ -22,6 +23,8 @@ function CheckoutContent() {
     const { items, getTotalPrice, removeFromCart, updateQuantity, clearCart, getTotalItems } = useCart();
     const [showPaymentMethods, setShowPaymentMethods] = useState(false);
     const [showTaxInfoDialog, setShowTaxInfoDialog] = useState(false);
+    const [showOfflinePaymentDialog, setShowOfflinePaymentDialog] = useState(false);
+    const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
     const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
     const { t } = useTranslation();
 
@@ -52,7 +55,7 @@ function CheckoutContent() {
     // Update the handlePaymentMethod function in your checkout component
     const handlePaymentMethod = async (method: 'online' | 'offline') => {
         try {
-            // Prepare payment parameters
+            // Generate order ID once and store it
             const orderId = generateOrderId();
             const amount = taxCalc.total; // include taxes in amount
             const currency = 'ETB';
@@ -78,22 +81,34 @@ function CheckoutContent() {
                 // Redirect to Chapa method selection page
                 window.location.href = route('payment.chapa.method') + '?' + params.toString();
             } else {
-                // For offline payment, go to the payment page with offline method pre-selected
-                console.log('Redirecting to offline payment form...');
-                const params = new URLSearchParams({
-                    order_id: orderId,
-                    amount: amount.toString(),
-                    currency: currency,
-                    payment_method: 'offline',
-                    cart_items: JSON.stringify(cartItemsData),
-                });
-                window.location.href = route('payment.show') + '?' + params.toString();
+                // For offline payment, create order first, then open the dialog
+                // The order will be created when the dialog opens by calling the backend
+                // Store the order ID and open the dialog
+                setPendingOrderId(orderId);
+                setShowOfflinePaymentDialog(true);
+                setShowPaymentMethods(false);
             }
         } catch (error) {
             console.error('Payment processing error:', error);
             alert(`Failed to process payment: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
         }
     };
+
+    // Prepare cart items data for the dialog
+    const cartItemsData = items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        image: item.image || '',
+    }));
+
+    // Prepare tax breakdown for the dialog
+    const taxBreakdown = taxCalc.taxes?.map((tax) => ({
+        name: tax.name,
+        amount: tax.amount,
+        rate: tax.type === 'percentage' ? tax.rate : 0, // Only show rate for percentage taxes
+    })) || [];
 
     return (
         <div className="py-8">
@@ -210,7 +225,7 @@ function CheckoutContent() {
                                     {/* Online Payment with Chapa */}
                                     <button
                                         onClick={() => handlePaymentMethod('online')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg"
+                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg cursor-pointer"
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
@@ -226,7 +241,7 @@ function CheckoutContent() {
                                     {/* Offline Payment */}
                                     <button
                                         onClick={() => handlePaymentMethod('offline')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg"
+                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg cursor-pointer"
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
@@ -267,6 +282,24 @@ function CheckoutContent() {
                         isOpen={showTaxInfoDialog}
                         onClose={() => setShowTaxInfoDialog(false)}
                         activeTaxes={activeTaxes}
+                    />
+                )}
+
+                {/* Offline Payment Dialog */}
+                {pendingOrderId && (
+                    <OfflinePaymentDialog
+                        isOpen={showOfflinePaymentDialog}
+                        onClose={() => {
+                            setShowOfflinePaymentDialog(false);
+                            setPendingOrderId(null);
+                        }}
+                        orderId={pendingOrderId}
+                        totalAmount={taxCalc.total}
+                        currency="ETB"
+                        cartItems={cartItemsData}
+                        subtotal={subtotal}
+                        taxBreakdown={taxBreakdown}
+                        paymentType="regular"
                     />
                 )}
             </div>

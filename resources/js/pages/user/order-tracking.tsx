@@ -142,7 +142,7 @@ export default function OrderTracking({ order, timeline, paymentTransaction }: O
     };
 
     return (
-        <MainLayout title={`${t('orderTracking.trackOrder')} #${order.order_number} - ShopHub`}>
+        <MainLayout title={`${t('orderTracking.trackOrder')} #${order.order_number} - Serdo`}>
             <Head title={`${t('orderTracking.trackOrder')} #${order.order_number}`} />
             
             <div className="py-8">

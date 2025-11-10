@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { useTranslation } from "react-i18next"
 
 interface ProductRequest {
   id: number
@@ -54,49 +55,7 @@ interface RequestProps {
   requests: ProductRequest[]
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: "Dashboard",
-    href: "/user-dashboard",
-  },
-  {
-    title: "Requests",
-    href: "/user-request",
-  },
-]
 
-const defaultMainNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/user-dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "BookMarked Products",
-    href: "/user-wishlist",
-    icon: Bookmark,
-  },
-  {
-    title: "Orders",
-    href: "/user-order",
-    icon: ShoppingBag,
-  },
-  {
-    title: "Requests",
-    href: "/user-request",
-    icon: MessageSquare,
-  },
-  {
-    title: "Bought Products",
-    href: "/user-products",
-    icon: Package2,
-  },
-  {
-    title: "Settings",
-    href: "/settings/profile",
-    icon: Settings,
-  },
-]
 
 // Helper function to get status color
 const getStatusColor = (status: string) => {
@@ -175,7 +134,6 @@ const getWorkflowStatusDisplay = (request: ProductRequest) => {
     case 'awaiting_delivery':
       return { text: 'Awaiting Delivery', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' }
     case 'awaiting_final_payment':
-      // Check if product has arrived for more prominent display
       const hasArrived = request.product_arrived_at !== null && request.product_arrived_at !== undefined;
       return { 
         text: hasArrived ? 'Product Arrived - Pay Final Amount' : 'Awaiting Final Payment', 
@@ -211,14 +169,12 @@ const getActionButton = (request: ProductRequest) => {
         className: 'bg-orange-600 hover:bg-orange-700'
       }
     case 'pending_payment_approval':
-      // When payment is processing, don't show action button or show "View Details"
       return {
         text: 'View Details',
         href: route('user.product-requests.show', request.id),
         className: 'bg-blue-600 hover:bg-blue-700'
       }
       case 'awaiting_final_payment':
-        // Check if product has arrived to show more prominent badge
         const hasArrived = request.product_arrived_at !== null && request.product_arrived_at !== undefined;
         return {
           text: hasArrived ? 'Product Arrived - Pay Final Amount' : 'Pay Final Amount',
@@ -241,12 +197,60 @@ const getActionButton = (request: ProductRequest) => {
 }
 
 export default function RequestDashboard({ requests }: RequestProps) {
+
+  const { t } = useTranslation()
+
+  const breadcrumbs: BreadcrumbItem[] = [
+    {
+      title: t("header.dashboard"),
+      href: "/user-dashboard",
+    },
+    {
+      title: t("header.requests"),
+      href: "/user-request",
+    },
+  ]
+  
+  const defaultMainNavItems: NavItem[] = [
+    {
+      title: t("header.dashboard"),
+      href: "/user-dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: t("header.bookmarkedProducts"),
+      href: "/user-wishlist",
+      icon: Bookmark,
+    },
+    {
+      title: t("header.orders"),
+      href: "/user-order",
+      icon: ShoppingBag,
+    },
+    {
+      title: t("header.requests"),
+      href: "/user-request",
+      icon: MessageSquare,
+    },
+    {
+      title: t("header.boughtProducts"),
+      href: "/user-products",
+      icon: Package2,
+    },
+    {
+      title: t("header.settings"),
+      href: "/settings/profile",
+      icon: Settings,
+    },
+  ]
+
+
   const [dialogOpen, setDialogOpen] = useState(false)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [lostInterestDialogs, setLostInterestDialogs] = useState<Record<number, boolean>>({})
 
   const handleDelete = (requestId: number, productName: string) => {
-    if (confirm(`Are you sure you want to delete the request for "${productName}"?`)) {
+    if (confirm(t('reviews.cancel'))) {
       router.delete(route('request.destroy', requestId))
     }
   }
@@ -292,7 +296,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
   }
 
   return (
-    <MainLayout title={"Product Requests"} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
+    <MainLayout title={t('header.requests')} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
       <AppLayout
         logoDisplay=" invisible"
         sidebarStyle="mt-[20px]"
@@ -304,8 +308,8 @@ export default function RequestDashboard({ requests }: RequestProps) {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Product Requests</h1>
-              <p className="text-gray-600">Request products that you'd like to see in our store</p>
+              <h1 className="text-2xl font-bold text-gray-900">{t('header.requests')}</h1>
+              <p className="text-gray-600">{t('request.haveAnIdea')}</p>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
@@ -313,20 +317,20 @@ export default function RequestDashboard({ requests }: RequestProps) {
                   className="flex items-center gap-2  text-white px-4 py-2 rounded-lg  transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  New Request
+                  {t('request.submitRequest')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>Submit Product Request</DialogTitle>
+                  <DialogTitle>{t('request.requestNewProduct')}</DialogTitle>
                   <DialogDescription>
-                    Describe the product you want us to source. Include details and an optional image.
+                    {t('request.describeProductIdea')}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label htmlFor="product_name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product Name *
+                      {t('request.productName')}
                     </label>
                     <input
                       type="text"
@@ -334,7 +338,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
                       value={data.product_name}
                       onChange={(e) => setData("product_name", e.target.value)}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Enter the product name you're looking for"
+                      placeholder={t('request.enterProductName')}
                       required
                     />
                     {errors.product_name && <p className="text-red-600 text-sm mt-1">{errors.product_name}</p>}
@@ -342,7 +346,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
 
                   <div>
                     <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                      Description *
+                      {t('request.description')}
                     </label>
                     <textarea
                       id="description"
@@ -350,7 +354,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
                       onChange={(e) => setData("description", e.target.value)}
                       rows={5}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                      placeholder="Describe the product, specs, brand preferences, etc."
+                      placeholder={t('request.describeProductIdea')}
                       required
                     />
                     {errors.description && <p className="text-red-600 text-sm mt-1">{errors.description}</p>}
@@ -358,12 +362,12 @@ export default function RequestDashboard({ requests }: RequestProps) {
 
                   <div>
                     <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
-                      Product Image (Optional)
+                      {t('request.productImage')}
                     </label>
                     <div className="flex items-center gap-4">
                       <label className="flex items-center gap-2 bg-gray-50 border border-gray-300 rounded-lg px-4 py-2 cursor-pointer hover:bg-gray-100 transition-colors">
                         <Upload className="w-4 h-4" />
-                        <span className="text-sm">Choose Image</span>
+                        <span className="text-sm">{t('request.uploadImage')}</span>
                         <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
                       </label>
                       {imagePreview && (
@@ -397,10 +401,10 @@ export default function RequestDashboard({ requests }: RequestProps) {
                       }}
                       disabled={processing}
                     >
-                      Cancel
+                      {t('reviews.cancel')}
                     </Button>
                     <Button type="submit" disabled={processing}>
-                      {processing ? "Submitting..." : "Submit Request"}
+                      {processing ? t('payment.processing') : t('request.submitRequest')}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -414,7 +418,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
             <div className="space-y-4">
               {requests.map((request) => (
                 <div key={request.id} className="bg-white rounded-xl border border-gray-200 p-6">
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-start justify_between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold text-gray-900">{request.product_name}</h3>
@@ -441,7 +445,7 @@ export default function RequestDashboard({ requests }: RequestProps) {
                         <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm font-medium text-green-800">Price Set by Admin</p>
+                              <p className="text-sm font_medium text-green-800">Price Set by Admin</p>
                               <div className="flex items-center gap-4">
                                 <p className="text-lg font-bold text-green-900">
                                   Total: {request.currency} {request.amount?.toLocaleString()}
@@ -452,37 +456,41 @@ export default function RequestDashboard({ requests }: RequestProps) {
                                   </p>
                                 )}
                                 {request.final_amount && (
-                                  <p className="text-sm text-green-700">
+                                  <p className="text-sm text_green-700">
                                     Final: {request.currency} {request.final_amount?.toLocaleString()}
                                   </p>
                                 )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
-                              {getActionButton(request) && request.workflow_status === 'awaiting_customer_willingness' && !request.lost_interest_at && request.status === 'approved' && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
+                              {(() => { const action = getActionButton(request); return (
                                 <>
-                                  <Link href={getActionButton(request).href}>
-                                    <Button size="sm" className={getActionButton(request).className}>
-                                      {getActionButton(request).text}
-                                    </Button>
-                                  </Link>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => setLostInterestDialogs(prev => ({ ...prev, [request.id]: true }))}
-                                    className="border-red-300 text-red-700 hover:bg-red-50"
-                                  >
-                                    Lost Interest
-                                  </Button>
+                                  {action && request.workflow_status === 'awaiting_customer_willingness' && !request.lost_interest_at && request.status === 'approved' && request.advance_payment_status !== 'paid' && request.advance_payment_status !== 'processing' && (
+                                    <>
+                                      <Link href={action.href}>
+                                        <Button size="sm" className={action.className}>
+                                          {action.text}
+                                        </Button>
+                                      </Link>
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline"
+                                        onClick={() => setLostInterestDialogs(prev => ({ ...prev, [request.id]: true }))}
+                                        className="border-red-300 text-red-700 hover:bg-red-50"
+                                      >
+                                        Lost Interest
+                                      </Button>
+                                    </>
+                                  )}
+                                  {action && (request.workflow_status !== 'awaiting_customer_willingness' || request.status !== 'approved' || request.advance_payment_status === 'paid' || request.advance_payment_status === 'processing' || request.lost_interest_at) && (
+                                    <Link href={action.href}>
+                                      <Button size="sm" className={action.className}>
+                                        {action.text}
+                                      </Button>
+                                    </Link>
+                                  )}
                                 </>
-                              )}
-                              {getActionButton(request) && (request.workflow_status !== 'awaiting_customer_willingness' || request.status !== 'approved' || request.advance_payment_status === 'paid' || request.advance_payment_status === 'processing' || request.lost_interest_at) && (
-                                <Link href={getActionButton(request).href}>
-                                  <Button size="sm" className={getActionButton(request).className}>
-                                    {getActionButton(request).text}
-                                  </Button>
-                                </Link>
-                              )}
+                              ); })()}
                             </div>
                           </div>
                         </div>
@@ -495,21 +503,25 @@ export default function RequestDashboard({ requests }: RequestProps) {
                         </div>
                         {request.status === 'pending' && (
                           <div className="flex items-center gap-2">
-                            <Link href={route('request.edit', request.id)}>
-                              <Button variant="outline" size="sm" className="flex items-center gap-1">
-                                <Edit className="w-4 h-4" />
-                                Edit
-                              </Button>
-                            </Link>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleDelete(request.id, request.product_name)}
-                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                              Delete
-                            </Button>
+                            {(() => { const action = getActionButton(request); return (
+                              <>
+                                <Link href={route('request.edit', request.id)}>
+                                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                                    <Edit className="w-4 h-4" />
+                                    Edit
+                                  </Button>
+                                </Link>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleDelete(request.id, request.product_name)}
+                                  className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Delete
+                                </Button>
+                              </>
+                            ); })()}
                           </div>
                         )}
                       </div>
@@ -559,9 +571,9 @@ export default function RequestDashboard({ requests }: RequestProps) {
                     >
                       <DialogContent>
                         <DialogHeader>
-                          <DialogTitle>Why are you losing interest?</DialogTitle>
+                          <DialogTitle>{t('payment.important')}</DialogTitle>
                           <DialogDescription>
-                            Please help us understand why you're no longer interested in this product request.
+                            {t('request.haveAnIdea')}
                           </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={(e) => {
@@ -574,13 +586,13 @@ export default function RequestDashboard({ requests }: RequestProps) {
                           })
                         }} className="space-y-4">
                           <div className="space-y-2">
-                            <Label htmlFor={`lost_interest_reason_${request.id}`}>Reason *</Label>
+                            <Label htmlFor={`lost_interest_reason_${request.id}`}>{t('payment.reason') || 'Reason *'}</Label>
                             <Select
                               value={lostInterestForm.data.reason}
                               onValueChange={(value) => lostInterestForm.setData('reason', value)}
                             >
                               <SelectTrigger id={`lost_interest_reason_${request.id}`}>
-                                <SelectValue placeholder="Select a reason" />
+                                <SelectValue placeholder={t('payment.reason') || 'Select a reason'} />
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="price_too_high">Price Too High</SelectItem>
@@ -598,13 +610,13 @@ export default function RequestDashboard({ requests }: RequestProps) {
                           
                           {lostInterestForm.data.reason === 'other' && (
                             <div className="space-y-2">
-                              <Label htmlFor={`additional_notes_${request.id}`}>Additional Notes</Label>
+                              <Label htmlFor={`additional_notes_${request.id}`}>{t('payment.notes') || 'Additional Notes'}</Label>
                               <textarea
                                 id={`additional_notes_${request.id}`}
                                 value={lostInterestForm.data.additional_notes}
                                 onChange={(e) => lostInterestForm.setData('additional_notes', e.target.value)}
                                 className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                placeholder="Please provide more details..."
+                                placeholder={t('payment.notes') || 'Please provide more details...'}
                               />
                               {lostInterestForm.errors.additional_notes && (
                                 <p className="text-sm text-red-500">{lostInterestForm.errors.additional_notes}</p>
@@ -621,14 +633,14 @@ export default function RequestDashboard({ requests }: RequestProps) {
                                 lostInterestForm.reset()
                               }}
                             >
-                              Cancel
+                              {t('reviews.cancel')}
                             </Button>
                             <Button
                               type="submit"
                               disabled={lostInterestForm.processing || !lostInterestForm.data.reason}
                               className="bg-red-600 hover:bg-red-700"
                             >
-                              {lostInterestForm.processing ? 'Submitting...' : 'Confirm Lost Interest'}
+                              {lostInterestForm.processing ? t('payment.processing') : (t('payment.confirmation') || 'Confirm Lost Interest')}
                             </Button>
                           </DialogFooter>
                         </form>
@@ -641,16 +653,15 @@ export default function RequestDashboard({ requests }: RequestProps) {
           ) : (
             <div className="flex flex-col items-center justify-center py-16">
               <BrickWall className="w-16 h-16 text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">No requests yet</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('dashboard.noProductRequests')}</h2>
               <p className="text-gray-600 mb-6 text-center max-w-md">
-                Haven't found what you're looking for? Submit a product request and we'll do our best to add it to our
-                store.
+                {t('request.haveAnIdea')}
               </p>
               <Button
-                onClick={() => setShowForm(true)}
+                onClick={() => setDialogOpen(true)}
                 className=" text-white px-6 py-3 rounded-lg  transition-colors font-medium"
               >
-                Submit Your First Request
+                {t('request.requestNewProduct')}
               </Button>
             </div>
           )}

@@ -25,7 +25,7 @@ const Header = () => {
               <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
                 <span className="text-primary-foreground font-bold text-sm">SH</span>
               </div>
-              <span className="text-xl font-bold text-slate-900 dark:text-white">ShopHub</span>
+              <span className="text-xl font-bold text-slate-900 dark:text-white">Serdo</span>
             </Link>
           </div>
 

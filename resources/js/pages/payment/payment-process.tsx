@@ -9,6 +9,7 @@ import MainLayout from '@/layouts/app/main-layout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, Building, CreditCard, Phone, Smartphone, Upload } from 'lucide-react';
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SharedData } from '@/types';
 
 interface TaxBreakdownItem {
@@ -55,6 +56,7 @@ export default function PaymentProcess({
     tax_breakdown,
     offlinePaymentMethods = [],
 }: PaymentProcessProps) {
+    const { t } = useTranslation();
     const { auth } = usePage<SharedData>().props;
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
     const [selectedOfflineMethod, setSelectedOfflineMethod] = useState('');
@@ -146,21 +148,21 @@ export default function PaymentProcess({
     if (!payment_method_type) {
         console.log('No payment method type specified, showing payment method selection');
         return (
-            <MainLayout title="Select Payment Method">
+            <MainLayout title={t('payment.selectPaymentMethod')}>
                 <div className="min-h-screen bg-gray-50 py-8">
-                    <Head title="Select Payment Method" />
+                    <Head title={t('payment.selectPaymentMethod')} />
 
                     <div className="mx-auto max-w-4xl px-4">
                         <div className="mb-8">
                             <div className="mb-4 flex items-center gap-4">
                                 <Button variant="outline" size="sm" onClick={() => window.history.back()}>
                                     <ArrowLeft className="mr-2 h-4 w-4" />
-                                    Back
+                                    {t('payment.back')}
                                 </Button>
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">Select Payment Method</h1>
+                                    <h1 className="text-2xl font-bold text-gray-900">{t('payment.selectPaymentMethod')}</h1>
                                     <p className="text-gray-600">
-                                        Order ID: {order_id} | Amount: {formatPrice(total_amount)}
+                                        {t('payment.orderId')} {order_id} | {t('payment.amount')} {formatPrice(total_amount)}
                                     </p>
                                 </div>
                             </div>
@@ -171,8 +173,8 @@ export default function PaymentProcess({
                             <div className="rounded-lg bg-white p-6 shadow-md">
                                 <div className="text-center">
                                     <CreditCard className="mx-auto mb-4 h-16 w-16 text-blue-400" />
-                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Online Payment</h2>
-                                    <p className="mb-4 text-gray-600">Pay securely online using Chapa payment gateway</p>
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">{t('payment.onlinePayment')}</h2>
+                                    <p className="mb-4 text-gray-600">{t('payment.onlinePaymentDescription')}</p>
                                     <Button
                                         onClick={() =>
                                             (window.location.href = route('payment.show', {
@@ -185,7 +187,7 @@ export default function PaymentProcess({
                                         }
                                         className="w-full"
                                     >
-                                        Pay Online
+                                        {t('payment.payOnline')}
                                     </Button>
                                 </div>
                             </div>
@@ -194,8 +196,8 @@ export default function PaymentProcess({
                             <div className="rounded-lg bg-white p-6 shadow-md">
                                 <div className="text-center">
                                     <Upload className="mx-auto mb-4 h-16 w-16 text-green-400" />
-                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Offline Payment</h2>
-                                    <p className="mb-4 text-gray-600">Pay via bank transfer and upload proof</p>
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">{t('payment.offlinePayment')}</h2>
+                                    <p className="mb-4 text-gray-600">{t('payment.offlinePaymentDescription')}</p>
                                     <Button
                                         onClick={() =>
                                             (window.location.href = route('payment.show', {
@@ -208,7 +210,7 @@ export default function PaymentProcess({
                                         }
                                         className="w-full"
                                     >
-                                        Pay Offline
+                                        {t('payment.payOffline')}
                                     </Button>
                                 </div>
                             </div>
@@ -592,21 +594,21 @@ export default function PaymentProcess({
 
             // Fallback to online payment form if no offline methods are available
             return (
-                <MainLayout title="Payment Processing">
+                <MainLayout title={t('payment.paymentProcessing')}>
                     <div className="min-h-screen bg-gray-50 py-8">
-                        <Head title="Payment Processing" />
+                        <Head title={t('payment.paymentProcessing')} />
 
                         <div className="mx-auto max-w-4xl px-4">
                             <div className="mb-8">
                                 <div className="mb-4 flex items-center gap-4">
                                     <Button variant="outline" size="sm" onClick={() => window.history.back()}>
                                         <ArrowLeft className="mr-2 h-4 w-4" />
-                                        Back
+                                        {t('payment.back')}
                                     </Button>
                                     <div>
-                                        <h1 className="text-2xl font-bold text-gray-900">Payment Processing</h1>
+                                        <h1 className="text-2xl font-bold text-gray-900">{t('payment.paymentProcessing')}</h1>
                                         <p className="text-gray-600">
-                                            Order ID: {order_id} | Amount: {formatPrice(total_amount)}
+                                            {t('payment.orderId')} {order_id} | {t('payment.amount')} {formatPrice(total_amount)}
                                         </p>
                                     </div>
                                 </div>
@@ -615,9 +617,9 @@ export default function PaymentProcess({
                             <div className="rounded-lg bg-white p-6 shadow-md">
                                 <div className="text-center">
                                     <CreditCard className="mx-auto mb-4 h-16 w-16 text-blue-400" />
-                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">Offline Payment Not Available</h2>
+                                    <h2 className="mb-2 text-xl font-semibold text-gray-900">{t('payment.offlinePaymentNotAvailable')}</h2>
                                     <p className="mb-4 text-gray-600">
-                                        Offline payment methods are not currently available. You can proceed with online payment instead.
+                                        {t('payment.offlinePaymentNotAvailableDesc')}
                                     </p>
                                     <div className="space-y-3">
                                         <Button
@@ -631,10 +633,10 @@ export default function PaymentProcess({
                                             }
                                             className="w-full"
                                         >
-                                            Continue with Online Payment
+                                            {t('payment.continueWithOnlinePayment')}
                                         </Button>
                                         <Button variant="outline" onClick={() => window.history.back()} className="w-full">
-                                            Go Back
+                                            {t('payment.goBack')}
                                         </Button>
                                     </div>
                                 </div>
@@ -647,9 +649,9 @@ export default function PaymentProcess({
 
         // Render offline payment form
         return (
-            <MainLayout title="Upload Payment Proof">
+            <MainLayout title={t('payment.uploadPaymentProof')}>
                 <div className="min-h-screen bg-gray-50 py-8">
-                    <Head title="Upload Payment Proof" />
+                    <Head title={t('payment.uploadPaymentProof')} />
 
                     <div className="mx-auto max-w-4xl px-4">
                         {/* Header */}
@@ -657,21 +659,21 @@ export default function PaymentProcess({
                             <div className="mb-4 flex items-center gap-4">
                                 <Button variant="outline" size="sm" onClick={() => window.history.back()}>
                                     <ArrowLeft className="mr-2 h-4 w-4" />
-                                    Back
+                                    {t('payment.back')}
                                 </Button>
                                 <div>
-                                    <h1 className="text-2xl font-bold text-gray-900">Upload Payment Proof</h1>
+                                    <h1 className="text-2xl font-bold text-gray-900">{t('payment.uploadPaymentProof')}</h1>
                                     <div className="space-y-1">
                                         <p className="text-gray-600">
-                                            {payment_type === 'product_request_advance' ? 'Advance Payment' : 
-                                             payment_type === 'product_request_final' ? 'Final Payment' : 
-                                             `Order ID: ${order_id}`}
+                                            {payment_type === 'product_request_advance' ? t('payment.advancePayment') : 
+                                             payment_type === 'product_request_final' ? t('payment.finalPayment') : 
+                                             `${t('payment.orderId')} ${order_id}`}
                                         </p>
                                         {subtotal && tax_breakdown ? (
                                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                                                 <div className="space-y-1 text-sm">
                                                     <div className="flex justify-between">
-                                                        <span>Subtotal:</span>
+                                                        <span>{t('checkout.subtotal')}:</span>
                                                         <span className="font-medium">{formatPrice(subtotal)}</span>
                                                     </div>
                                                     {tax_breakdown.map((tax, idx) => (
@@ -681,14 +683,14 @@ export default function PaymentProcess({
                                                         </div>
                                                     ))}
                                                     <div className="flex justify-between border-t pt-1 font-semibold">
-                                                        <span>Total to Pay:</span>
+                                                        <span>{t('payment.totalToPay')}</span>
                                                         <span className="text-blue-700">{formatPrice(total_amount)}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         ) : (
                                             <p className="text-gray-600">
-                                                Amount: {formatPrice(total_amount)}
+                                                {t('payment.amount')} {formatPrice(total_amount)}
                                             </p>
                                         )}
                                     </div>
@@ -700,8 +702,8 @@ export default function PaymentProcess({
                             {/* Payment Method Selection */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Select Payment Method</CardTitle>
-                                    <CardDescription>Choose how you made the payment</CardDescription>
+                                    <CardTitle>{t('payment.selectPaymentMethod')}</CardTitle>
+                                    <CardDescription>{t('payment.chooseHowYouMadePayment')}</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <RadioGroup value={selectedOfflineMethod} onValueChange={setSelectedOfflineMethod} className="space-y-4">
@@ -729,11 +731,11 @@ export default function PaymentProcess({
 
                                                 {selectedOfflineMethod === method.id.toString() && (
                                                     <div className="ml-6 rounded-lg bg-gray-50 p-4">
-                                                        <h4 className="mb-2 font-medium text-gray-900">Payment Instructions:</h4>
+                                                        <h4 className="mb-2 font-medium text-gray-900">{t('payment.paymentInstructions')}</h4>
                                                         <p className="mb-3 text-sm text-gray-700">{method.instructions}</p>
 
                                                         <div className="rounded border bg-white p-3">
-                                                            <h5 className="mb-2 font-medium text-gray-900">Payment Details:</h5>
+                                                            <h5 className="mb-2 font-medium text-gray-900">{t('payment.paymentDetails')}</h5>
                                                             <div className="space-y-1 text-sm">
                                                                 {Object.entries(method.details).map(([key, value]: [string, any]) => (
                                                                     <div key={key} className="flex justify-between">
@@ -749,7 +751,7 @@ export default function PaymentProcess({
                                                                 onClick={() => handleBankSelection(method.id.toString())}
                                                                 className="w-full bg-primary-600 hover:bg-primary-700"
                                                             >
-                                                                Continue with {method.name}
+                                                                {t('payment.continueWith')} {method.name}
                                                             </Button>
                                                         </div>
                                                     </div>
@@ -802,9 +804,9 @@ export default function PaymentProcess({
 
     // Render regular Chapa payment form
     return (
-        <MainLayout title="Complete Payment">
+        <MainLayout title={t('payment.completeYourPayment')}>
             <div className="min-h-screen bg-gray-50 py-8">
-                <Head title="Complete Payment" />
+                <Head title={t('payment.completeYourPayment')} />
 
                 <div className="mx-auto max-w-2xl px-4">
                     {/* Header */}
@@ -812,15 +814,15 @@ export default function PaymentProcess({
                         <div className="mb-4 flex flex-col items-center justify-center gap-4">
                             <Button variant="outline" size="sm" onClick={() => window.history.back()}>
                                 <ArrowLeft className="mr-2 h-4 w-4" />
-                                Back
+                                {t('payment.back')}
                             </Button>
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Complete Payment</h1>
-                                <p className="text-gray-600">Order ID: {order_id}</p>
+                                <h1 className="text-2xl font-bold text-gray-900">{t('payment.completeYourPayment')}</h1>
+                                <p className="text-gray-600">{t('payment.orderId')} {order_id}</p>
                             </div>
                         </div>
                         <div className="rounded-lg bg-primary-50 p-4">
-                            <p className="text-lg font-semibold text-primary-900">Total Amount: {formatPrice(total_amount)}</p>
+                            <p className="text-lg font-semibold text-primary-900">{t('payment.totalAmount')} {formatPrice(total_amount)}</p>
                         </div>
                     </div>
 
@@ -828,15 +830,15 @@ export default function PaymentProcess({
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <CreditCard className="h-5 w-5" />
-                                Payment Information
+                                {t('payment.paymentInformation')}
                             </CardTitle>
-                            <CardDescription> using Chapa secure payment gateway</CardDescription>
+                            <CardDescription> {t('payment.usingChapaSecureGateway')}</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
                                 <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
                                     <div>
-                                        <Label htmlFor="customer_name">Full Name *</Label>
+                                        <Label htmlFor="customer_name">{t('payment.fullName')}</Label>
                                         <Input
                                             id="customer_name"
                                             required
@@ -849,7 +851,7 @@ export default function PaymentProcess({
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="customer_email">Email *</Label>
+                                        <Label htmlFor="customer_email">{t('payment.emailAddress')}</Label>
                                         <Input
                                             id="customer_email"
                                             type="email"
@@ -866,13 +868,13 @@ export default function PaymentProcess({
                                 <div>
                                     <Label htmlFor="phone_number" className="flex items-center gap-1">
                                         <Phone className="h-4 w-4" />
-                                        Phone Number *
+                                        {t('payment.phoneNumber')}
                                     </Label>
                                     <Input
                                         id="phone_number"
                                         type="tel"
                                         autoComplete="tel"
-                                        placeholder="e.g., +251911223344 or 0911223344"
+                                        placeholder={t('payment.phonePlaceholder')}
                                         required
                                         value={String(chapaForm.data.phone_number || '')}
                                         onChange={(e) => chapaForm.setData('phone_number', e.target.value)}
@@ -881,11 +883,11 @@ export default function PaymentProcess({
                                     {chapaForm.errors.phone_number && (
                                         <p className="mt-1 text-sm text-red-600">{chapaForm.errors.phone_number}</p>
                                     )}
-                                    <p className="mt-1 text-xs text-gray-500">Ethiopian mobile numbers starting with 07 or 09</p>
+                                    <p className="mt-1 text-xs text-gray-500">{t('payment.ethiopianMobile')}</p>
                                 </div>
 
                                 <div>
-                                    <Label htmlFor="payment_method">Payment Method *</Label>
+                                    <Label htmlFor="payment_method">{t('payment.paymentMethod')}</Label>
                                     <RadioGroup
                                         value={String(chapaForm.data.payment_method || 'telebirr')}
                                         onValueChange={(value) => chapaForm.setData('payment_method', value)}
@@ -893,11 +895,11 @@ export default function PaymentProcess({
                                     >
                                         <div className="flex items-center space-x-2">
                                             <RadioGroupItem value="telebirr" id="telebirr" />
-                                            <Label htmlFor="telebirr">Telebirr</Label>
+                                            <Label htmlFor="telebirr">{t('payment.telebirr')}</Label>
                                         </div>
                                         <div className="flex items-center space-x-2">
                                             <RadioGroupItem value="cbe" id="cbe" />
-                                            <Label htmlFor="cbe">CBE Birr</Label>
+                                            <Label htmlFor="cbe">{t('payment.cbeBirr')}</Label>
                                         </div>
                                     </RadioGroup>
                                     {chapaForm.errors.payment_method && (
@@ -912,11 +914,11 @@ export default function PaymentProcess({
                                     disabled={chapaForm.processing}
                                 >
                                     {chapaForm.processing ? (
-                                        'Processing...'
+                                        t('payment.processing')
                                     ) : (
                                         <>
                                             <CreditCard className="mr-2 h-4 w-4" />
-                                            Pay {formatPrice(total_amount)}
+                                            {t('payment.payNow')} {formatPrice(total_amount)}
                                         </>
                                     )}
                                 </Button>

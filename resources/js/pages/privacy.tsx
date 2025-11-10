@@ -15,7 +15,7 @@ function PrivacyContent({ settings }: PrivacyProps) {
   
   return (
     <>
-      <Head title={`${t('privacy.title')} - ShopHub`}>
+      <Head title={`${t('privacy.title')} - Serdo`}>
       </Head>
       
       <div
@@ -98,10 +98,10 @@ function PrivacyContent({ settings }: PrivacyProps) {
                     <div className="bg-gray-50 p-4 rounded-lg">
                       <p className="text-gray-700">
                         <strong>{t('privacy.shopHubEthiopia')}</strong><br />
-                        {t('privacy.email')} privacy@shophub.et<br />
+                        {t('privacy.email')} privacy@serdo.et<br />
                         {t('privacy.phone')} +251 911 123 456<br />
                         {t('privacy.address')} Addis Ababa, Ethiopia<br />
-                        {t('privacy.dataProtectionOfficer')} dpo@shophub.et
+                        {t('privacy.dataProtectionOfficer')} dpo@serdo.et
                       </p>
                     </div>
                   </section>

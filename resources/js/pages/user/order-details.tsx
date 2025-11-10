@@ -140,7 +140,7 @@ export default function OrderDetails({ order, taxBreakdown = [], paymentTransact
     };
 
     return (
-        <MainLayout title={`${t('orders.order')} #${order.order_number} - ShopHub`}>
+        <MainLayout title={`${t('orders.order')} #${order.order_number} - Serdo`}>
             <Head title={`${t('orders.order')} #${order.order_number}`} />
 
             <div className="py-8">

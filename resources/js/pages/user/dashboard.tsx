@@ -55,45 +55,7 @@ interface DashboardProps {
   recentRequests: ProductRequest[]
 }
 
-const breadcrumbs: BreadcrumbItem[] = [
-  {
-    title: "Dashboard",
-    href: "/dashboard",
-  },
-]
 
-const defaultMainNavItems: NavItem[] = [
-  {
-    title: "Dashboard",
-    href: "/user-dashboard",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "BookMarked Products",
-    href: "/user-wishlist",
-    icon: Bookmark,
-  },
-  {
-    title: "Orders",
-    href: "/user-order",
-    icon: ShoppingBag,
-  },
-  {
-    title: "Requests",
-    href: "/user-request",
-    icon: MessageSquare,
-  },
-  {
-    title: "Bought Products",
-    href: "/user-products",
-    icon: Package2,
-  },
-  {
-    title: "Settings",
-    href: "/settings/profile",
-    icon: Settings,
-  },
-]
 
 // Helper function to format Ethiopian Birr
 const formatETB = (amount: number) => {
@@ -139,6 +101,46 @@ const getStatusIcon = (status: string) => {
 
 export default function Dashboard({ stats, recentWishlist, recentRequests }: DashboardProps) {
   const { t } = useTranslation()
+
+  const breadcrumbs: BreadcrumbItem[] = [
+    {
+      title: t("header.dashboard"),
+      href: "/dashboard",
+    },
+  ]
+  
+  const defaultMainNavItems: NavItem[] = [
+    {
+      title: t("header.dashboard"),
+      href: "/user-dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: t("header.bookmarkedProducts"),
+      href: "/user-wishlist",
+      icon: Bookmark,
+    },
+    {
+      title: t("header.orders"),
+      href: "/user-order",
+      icon: ShoppingBag,
+    },
+    {
+      title: t("header.requests"),
+      href: "/user-request",
+      icon: MessageSquare,
+    },
+    {
+      title: t("header.boughtProducts"),
+      href: "/user-products",
+      icon: Package2,
+    },
+    {
+      title: t("header.settings"),
+      href: "/settings/profile",
+      icon: Settings,
+    },
+  ]
   
   return (
     <MainLayout title={t("dashboard.title")} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
