@@ -8,7 +8,6 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import PaymentDetailsModal from './payment-details-modal';
 import { useTranslation } from 'react-i18next';
-import { route } from 'ziggy-js';
 
 interface OfflinePaymentMethod {
     id: number;
@@ -67,6 +66,23 @@ export default function OfflinePaymentDialog({
     const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    // Simple URL builder to avoid Ziggy at build-time
+    const buildUrl = (path: string, params?: Record<string, any>) => {
+        if (!params) return path;
+        const search = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value === undefined || value === null) return;
+            // stringify objects
+            if (typeof value === 'object') {
+                search.set(key, JSON.stringify(value));
+            } else {
+                search.set(key, String(value));
+            }
+        });
+        const qs = search.toString();
+        return qs ? `${path}?${qs}` : path;
+    };
+
     // Form for offline payment submission
     type OfflineFormData = {
         order_id: string;
@@ -94,7 +110,6 @@ export default function OfflinePaymentDialog({
             createOrderIfNeeded();
             fetchOfflinePaymentMethods();
         } else {
-            // Reset state when dialog closes
             setSelectedOfflineMethod('');
             setIsPaymentModalOpen(false);
             setModalPaymentReference('');
@@ -106,35 +121,28 @@ export default function OfflinePaymentDialog({
 
     const createOrderIfNeeded = async () => {
         try {
-            // Create order on backend by calling payment.show endpoint
-            // This ensures the order exists before we try to submit payment
-            // We don't need to handle the response - we just need the order to be created
-            await fetch(route('payment.show', {
+            const url = buildUrl('/payment/process', {
                 order_id: orderId,
                 amount: totalAmount,
                 currency: currency,
                 payment_method: 'offline',
-                cart_items: JSON.stringify(cartItems),
-            }), {
+                cart_items: cartItems,
+            });
+            await fetch(url, {
                 method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
             });
-            // Order should be created now (backend creates it in showPaymentPage)
         } catch (error) {
             console.error('Error ensuring order exists:', error);
-            // Don't block the dialog - the order creation might have succeeded
-            // The submit will fail gracefully if the order doesn't exist
         }
     };
 
     const fetchOfflinePaymentMethods = async () => {
         setIsLoading(true);
         try {
-            // Fetch offline payment methods from API endpoint
-            const response = await fetch(route('payment.offline.methods'), {
+            const url = '/payment/offline/methods';
+            const response = await fetch(url, {
                 method: 'GET',
                 headers: {
                     Accept: 'application/json',
@@ -147,8 +155,6 @@ export default function OfflinePaymentDialog({
                 const data = await response.json();
                 if (data.success && data.methods) {
                     setOfflinePaymentMethods(data.methods);
-                } else {
-                    console.error('Failed to fetch offline payment methods:', data.message);
                 }
             } else {
                 console.error('Failed to fetch offline payment methods:', response.status);
@@ -159,10 +165,6 @@ export default function OfflinePaymentDialog({
             setIsLoading(false);
         }
     };
-
-    // Alternative: Fetch from a dedicated API endpoint
-    // For now, we'll need to get this from the backend via Inertia props
-    // Let's check if we can pass it as a prop or fetch it differently
 
     const formatPrice = (price: number) => {
         return new Intl.NumberFormat('en-US', {
@@ -229,7 +231,7 @@ export default function OfflinePaymentDialog({
             };
 
             Object.entries(formFields).forEach(([key, value]) => {
-                formData.append(key, value);
+                formData.append(key, value as string);
             });
 
             if (paymentScreenshot) {
@@ -242,7 +244,7 @@ export default function OfflinePaymentDialog({
 
             offlineForm.clearErrors();
 
-            const submitUrl = route('payment.offline.submit');
+            const submitUrl = '/payment/offline/submit';
             const response = await fetch(submitUrl, {
                 method: 'POST',
                 body: formData,
@@ -305,7 +307,6 @@ export default function OfflinePaymentDialog({
         }
     };
 
-    // If no offline payment methods are available
     if (!isLoading && offlinePaymentMethods.length === 0 && isOpen) {
         return (
             <Dialog open={isOpen} onOpenChange={onClose}>
@@ -392,8 +393,8 @@ export default function OfflinePaymentDialog({
                                         {offlinePaymentMethods.map((method) => (
                                             <div key={method.id} className="space-y-3">
                                                 <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem
-                                                        value={method.id.toString()}
+                                                    <RadioGroupItem 
+                                                        value={method.id.toString()} 
                                                         id={`method-${method.id}`}
                                                     />
                                                     <Label htmlFor={`method-${method.id}`} className="cursor-pointer flex-1">
@@ -427,9 +428,9 @@ export default function OfflinePaymentDialog({
                                                                 ))}
                                                             </div>
                                                         </div>
-
+                                                        
                                                         <div className="mt-4">
-                                                            <Button
+                                                            <Button 
                                                                 onClick={() => handleBankSelection(method.id.toString())}
                                                                 className="w-full bg-primary-600 hover:bg-primary-700"
                                                             >
