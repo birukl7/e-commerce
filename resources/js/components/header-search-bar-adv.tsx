@@ -3,6 +3,7 @@ import type React from "react"
 import { router } from "@inertiajs/react"
 import { Clock, Search, TrendingUp, X } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 interface Suggestion {
   text: string
@@ -16,10 +17,13 @@ interface SearchBarProps {
 }
 
 export default function SearchBarAdvanced({
-  placeholder = "Search for products...",
+  placeholder = "",
   className = "",
   initialQuery = "",
 }: SearchBarProps) {
+  const { t } = useTranslation()
+  const translatedPlaceholder = t('search.searchPlaceholder', { defaultValue: 'Search for products...' })
+  const effectivePlaceholder = placeholder || translatedPlaceholder
   // const { url } = usePage()
   const [query, setQuery] = useState(initialQuery)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -32,19 +36,19 @@ export default function SearchBarAdvanced({
 
   // Load recent searches from localStorage on mount
   useEffect(() => {
-    console.log("🔄 SearchBar: Loading recent searches from localStorage")
+   
     const saved = localStorage.getItem("recent_searches")
     if (saved) {
       try {
         const parsedSearches = JSON.parse(saved)
-        console.log("✅ SearchBar: Loaded recent searches:", parsedSearches)
+        
         setRecentSearches(parsedSearches)
       } catch (error) {
         console.error("❌ SearchBar: Error parsing recent searches:", error)
         localStorage.removeItem("recent_searches")
       }
     } else {
-      console.log("ℹ️ SearchBar: No recent searches found in localStorage")
+      
     }
   }, [])
 
@@ -52,7 +56,7 @@ export default function SearchBarAdvanced({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        console.log("👆 SearchBar: Clicked outside, closing suggestions")
+       
         setIsOpen(false)
       }
     }
@@ -62,19 +66,19 @@ export default function SearchBarAdvanced({
 
   // Debounced search suggestions
   useEffect(() => {
-    console.log("🔍 SearchBar: Query changed to:", query)
+    
     if (debounceRef.current) {
-      console.log("⏰ SearchBar: Clearing previous debounce timeout")
+     
       clearTimeout(debounceRef.current)
     }
 
     if (query.length >= 2) {
-      console.log("📝 SearchBar: Query length >= 2, setting up debounced search")
+     
       setIsLoading(true)
       debounceRef.current = setTimeout(async () => {
-        console.log("🚀 SearchBar: Executing debounced search for:", query)
+       
         const url = `/search/suggestions?q=${encodeURIComponent(query)}`
-        console.log("📡 SearchBar: Making fetch request to:", url)
+      
 
         try {
           const response = await fetch(url, {
@@ -90,33 +94,31 @@ export default function SearchBarAdvanced({
           }
 
           const data = await response.json()
-          console.log("✅ SearchBar: Suggestions fetch successful")
-          console.log("📦 SearchBar: Received data:", data)
+         
 
           const receivedSuggestions = data.suggestions || []
-          console.log("💡 SearchBar: Received suggestions:", receivedSuggestions)
-          console.log("📊 SearchBar: Suggestions count:", receivedSuggestions.length)
+         
 
           setSuggestions(receivedSuggestions)
           setIsLoading(false)
-          console.log("🔄 SearchBar: Updated suggestions state and stopped loading")
+        
         } catch (error) {
           console.error("❌ SearchBar: Suggestions fetch failed")
           console.error("🚨 SearchBar: Error details:", error)
           setSuggestions([])
           setIsLoading(false)
-          console.log("🔄 SearchBar: Cleared suggestions and stopped loading due to error")
+       
         }
       }, 300)
     } else {
-      console.log("📝 SearchBar: Query too short, clearing suggestions")
+    
       setSuggestions([])
       setIsLoading(false)
     }
 
     return () => {
       if (debounceRef.current) {
-        console.log("🧹 SearchBar: Cleanup - clearing debounce timeout")
+      
         clearTimeout(debounceRef.current)
       }
     }
@@ -124,77 +126,69 @@ export default function SearchBarAdvanced({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("📝 SearchBar: Form submitted with query:", query)
+    
     if (query.trim()) {
       performSearch(query.trim())
-    } else {
-      console.log("⚠️ SearchBar: Empty query, not performing search")
-    }
+    } 
   }
 
   const performSearch = (searchQuery: string) => {
-    console.log("🔍 SearchBar: Performing search for:", searchQuery)
+   
 
     // Add to recent searches
     const updatedRecentSearches = [searchQuery, ...recentSearches.filter((item) => item !== searchQuery)].slice(0, 5)
 
-    console.log("💾 SearchBar: Updated recent searches:", updatedRecentSearches)
+  
     setRecentSearches(updatedRecentSearches)
     localStorage.setItem("recent_searches", JSON.stringify(updatedRecentSearches))
-    console.log("✅ SearchBar: Saved recent searches to localStorage")
+   
 
     // Close suggestions and blur input
     setIsOpen(false)
     inputRef.current?.blur()
 
     // Navigate using Inertia router
-    console.log("🚀 SearchBar: Navigating to search results page")
+   
     router.visit(`/search?q=${encodeURIComponent(searchQuery)}`, {
       method: "get",
       preserveState: false,
       preserveScroll: false,
-      onStart: () => {
-        console.log("🏁 SearchBar: Search navigation started")
-      },
-      onSuccess: () => {
-        console.log("✅ SearchBar: Search navigation successful")
-      },
+     
+    
       onError: (errors) => {
         console.error("❌ SearchBar: Search navigation failed")
         console.error("🚨 SearchBar: Navigation error details:", errors)
       },
-      onFinish: () => {
-        console.log("🏁 SearchBar: Search navigation finished")
-      },
+  
     })
   }
 
   const handleSuggestionClick = (suggestion: Suggestion) => {
-    console.log("👆 SearchBar: Suggestion clicked:", suggestion)
+   
     setQuery(suggestion.text)
     performSearch(suggestion.text)
   }
 
   const handleRecentSearchClick = (searchTerm: string) => {
-    console.log("👆 SearchBar: Recent search clicked:", searchTerm)
+   
     setQuery(searchTerm)
     performSearch(searchTerm)
   }
 
   const clearRecentSearches = () => {
-    console.log("🗑️ SearchBar: Clearing all recent searches")
+  
     setRecentSearches([])
     localStorage.removeItem("recent_searches")
-    console.log("✅ SearchBar: Recent searches cleared")
+   
   }
 
   const removeRecentSearch = (searchTerm: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    console.log("🗑️ SearchBar: Removing recent search:", searchTerm)
+    
     const updated = recentSearches.filter((item) => item !== searchTerm)
     setRecentSearches(updated)
     localStorage.setItem("recent_searches", JSON.stringify(updated))
-    console.log("✅ SearchBar: Recent search removed, updated list:", updated)
+ 
   }
 
   const getSuggestionIcon = (type: string) => {
@@ -209,29 +203,19 @@ export default function SearchBarAdvanced({
   }
 
   const handleInputFocus = () => {
-    console.log("👆 SearchBar: Input focused, opening suggestions")
+   
     setIsOpen(true)
   }
 
   const clearQuery = () => {
-    console.log("🗑️ SearchBar: Clearing query")
+ 
     setQuery("")
     setSuggestions([])
     inputRef.current?.focus()
-    console.log("✅ SearchBar: Query cleared and input focused")
+   
   }
 
-  // Debug current state
-  console.log(
-    "🔄 SearchBar: Current state - query:",
-    query,
-    "isLoading:",
-    isLoading,
-    "suggestions:",
-    suggestions.length,
-    "isOpen:",
-    isOpen,
-  )
+
 
   return (
     <div ref={searchRef} className={`relative w-full ${className}`}>
@@ -244,7 +228,7 @@ export default function SearchBarAdvanced({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={handleInputFocus}
-            placeholder={placeholder}
+            placeholder={effectivePlaceholder}
             className="w-full rounded-lg border border-gray-300 bg-white py-3 pr-12 pl-10 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
           />
           {query && (
@@ -268,10 +252,10 @@ export default function SearchBarAdvanced({
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-sm font-medium text-gray-900">
                   <Clock className="h-4 w-4" />
-                  Recent Searches
+                  {t('search.recentSearches', { defaultValue: 'Recent Searches' })}
                 </h3>
                 <button onClick={clearRecentSearches} className="text-xs text-gray-500 hover:text-gray-700">
-                  Clear all
+                  {t('search.clearAll', { defaultValue: 'Clear all' })}
                 </button>
               </div>
               <div className="space-y-1">
@@ -298,7 +282,7 @@ export default function SearchBarAdvanced({
           {isLoading && query && (
             <div className="p-4 text-center">
               <div className="mx-auto h-6 w-6 animate-spin rounded-full border-b-2 border-blue-500"></div>
-              <p className="mt-2 text-sm text-gray-600">Searching...</p>
+              <p className="mt-2 text-sm text-gray-600">{t('search.searching', { defaultValue: 'Searching...' })}</p>
             </div>
           )}
 
@@ -308,7 +292,7 @@ export default function SearchBarAdvanced({
               <div className="mb-2 px-2">
                 <h3 className="flex items-center gap-2 text-sm font-medium text-gray-900">
                   <TrendingUp className="h-4 w-4" />
-                  Suggestions ({suggestions.length})
+                  {t('search.suggestions', { defaultValue: 'Suggestions' })} ({suggestions.length})
                 </h3>
               </div>
               <div className="space-y-1">
@@ -321,7 +305,9 @@ export default function SearchBarAdvanced({
                     <span className="text-lg">{getSuggestionIcon(suggestion.type)}</span>
                     <div className="flex-1">
                       <span className="text-sm text-gray-900">{suggestion.text}</span>
-                      <span className="ml-2 text-xs text-gray-500 capitalize">in {suggestion.type}s</span>
+                      <span className="ml-2 text-xs text-gray-500 capitalize">
+                        {t('search.inType', { type: suggestion.type, defaultValue: 'in {{type}}s' })}
+                      </span>
                     </div>
                   </button>
                 ))}
@@ -332,9 +318,9 @@ export default function SearchBarAdvanced({
           {/* No Results */}
           {query.length >= 2 && suggestions.length === 0 && !isLoading && (
             <div className="p-4 text-center">
-              <p className="text-sm text-gray-600">No suggestions found for "{query}"</p>
+              <p className="text-sm text-gray-600">{t('search.noSuggestions', { query, defaultValue: 'No suggestions found for "{{query}}"' })}</p>
               <button onClick={() => performSearch(query)} className="mt-2 text-sm text-blue-600 hover:underline">
-                Search anyway
+                {t('search.searchAnyway', { defaultValue: 'Search anyway' })}
               </button>
             </div>
           )}
@@ -344,7 +330,7 @@ export default function SearchBarAdvanced({
             <div className="p-4">
               <h3 className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-900">
                 <TrendingUp className="h-4 w-4" />
-                Popular Searches
+                {t('search.popularSearches', { defaultValue: 'Popular Searches' })}
               </h3>
               <div className="space-y-1">
                 {["Electronics", "Clothing", "Books", "Home & Garden", "Sports"].map((term, index) => (
