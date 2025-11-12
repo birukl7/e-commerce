@@ -49,7 +49,28 @@ class ImageUrlService
         }
         
         if (str_starts_with($imagePath, '/')) {
-            // Absolute path starting with /
+            // Path starting with / - could be:
+            // 1. Old format: /filename.jpg (legacy images in public/image/)
+            // 2. Already formatted: /storage/... or /image/... (handled above)
+            // 3. Public image: /image/filename.jpg
+            
+            // If it's just a filename (no directory), check if it's a legacy image
+            $pathWithoutSlash = ltrim($imagePath, '/');
+            if (!str_contains($pathWithoutSlash, '/')) {
+                // It's just a filename - could be:
+                // - Legacy image in /image/ (symlinked to storage/app/public)
+                // - New image in /storage/products/
+                // Try /image/ first for backward compatibility, then /storage/products/
+                // Since public/image is symlinked to storage/app/public, /image/ works for both
+                return '/image/' . $pathWithoutSlash;
+            }
+            
+            // If it starts with image/, use it as is
+            if (str_starts_with($imagePath, '/image/')) {
+                return $imagePath;
+            }
+            
+            // Otherwise, return as-is (might be a valid absolute path)
             return $imagePath;
         }
         
@@ -58,8 +79,8 @@ class ImageUrlService
             return '/' . $imagePath;
         }
         
-        // Default: assume it's a filename or relative path in the image folder
-        return '/image/' . ltrim($imagePath, '/');
+        // Default: assume it's a filename in the products bucket
+        return '/storage/products/' . ltrim($imagePath, '/');
     }
 
     /**

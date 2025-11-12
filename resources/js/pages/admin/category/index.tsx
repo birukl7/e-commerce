@@ -172,7 +172,7 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
             <div className="relative aspect-video bg-gray-100">
                 {category.image ? (
-                    <img src={`/storage/${category.image}`} alt={category.name} className="h-full w-full object-cover" />
+                    <img src={category.image} alt={category.name} className="h-full w-full object-cover" />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center">
                         <ImageIcon className="h-12 w-12 text-gray-400" />

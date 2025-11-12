@@ -18,6 +18,12 @@ class AdminCategoryController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
+        
+        // Format category images
+        $categories->transform(function ($category) {
+            $category->image = $category->image_url; // Use the accessor
+            return $category;
+        });
             
         $brands = Brand::orderBy('name')->get();
 
@@ -30,6 +36,9 @@ class AdminCategoryController extends Controller
     public function show(Category $category)
     {
         $category->load(['parent', 'children']);
+        
+        // Format category image
+        $category->image = $category->image_url; // Use the accessor
         
         return Inertia::render('admin/category/show', [
             'category' => $category

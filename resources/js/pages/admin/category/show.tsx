@@ -96,7 +96,7 @@ const Show = ({ category }: Props) => {
               <div className="aspect-video bg-gray-100 relative">
                 {category.image ? (
                   <img
-                    src={'/storage/'+category.image || "/placeholder.svg"}
+                    src={category.image || "/placeholder.svg"}
                     alt={category.name}
                     className="w-full h-full object-cover"
                   />

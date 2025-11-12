@@ -167,7 +167,7 @@ const Show = ({ product, categories, brands }: Props) => {
               <div className="aspect-video bg-gray-100 relative flex items-center justify-center">
                 {displayedImage ? (
                   <img
-                    src={`/storage/${displayedImage.image_path}`}
+                    src={displayedImage.image_path}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
@@ -183,7 +183,7 @@ const Show = ({ product, categories, brands }: Props) => {
                   {product.images.map((img, idx) => (
                     <img
                       key={img.id || idx}
-                      src={`/storage/${img.image_path}`}
+                      src={img.image_path}
                       alt={img.alt_text || product.name}
                       className={`w-16 h-16 object-cover rounded border cursor-pointer transition-all ${
                         idx === selectedImageIndex ? "ring-2 ring-blue-500" : "hover:ring-2 hover:ring-gray-300"

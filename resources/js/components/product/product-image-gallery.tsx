@@ -126,7 +126,7 @@ export function ProductImageGallery({ images, productName, productId, price, onA
                             }`}
                         >
                             <img
-                                src={image.url || '/placeholder.svg'}
+                                src={getImageUrl(image.url, { placeholderText: productName, width: 80, height: 80, bucket: "products" })}
                                 alt={image.alt_text || productName}
                                 className="h-full w-full object-cover"
                                 onError={handleImageError}

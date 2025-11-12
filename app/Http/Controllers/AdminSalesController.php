@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\PaymentTransaction;
 use App\Models\Order;
 use App\Services\PaymentFinalizer;
+use App\Services\ImageUrlService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -96,6 +97,18 @@ class AdminSalesController extends Controller
             'shippingAddress',
             'billingAddress'
         ]);
+        
+        // Format image paths for product images
+        if ($order->orderItems) {
+            $order->orderItems->each(function ($item) {
+                if ($item->product && $item->product->images) {
+                    $item->product->images->transform(function ($image) {
+                        $image->image_path = ImageUrlService::formatImageUrl($image->image_path);
+                        return $image;
+                    });
+                }
+            });
+        }
 
         return Inertia::render('admin/sales/order-details', [
             'order' => $order

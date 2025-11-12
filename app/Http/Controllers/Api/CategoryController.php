@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Services\ImageUrlService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -26,13 +27,12 @@ class CategoryController extends Controller
             // Add product count for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                if ($category->image) {
-                    $category->image = asset('image/' . ltrim($category->image, '/'));
-                }
+                $category->image = ImageUrlService::formatImageUrl($category->image);
                 
                 if ($category->children) {
                     $category->children->each(function ($child) {
                         $child->product_count = $this->getProductCount($child);
+                        $child->image = ImageUrlService::formatImageUrl($child->image);
                     });
                 }
             });
@@ -99,9 +99,7 @@ class CategoryController extends Controller
             // Add product count and format image for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                if ($category->image) {
-                    $category->image = $category->image;
-                }
+                $category->image = ImageUrlService::formatImageUrl($category->image);
             });
 
             // If we don't have enough categories with products, fill with any active categories
@@ -117,9 +115,7 @@ class CategoryController extends Controller
 
                 $additionalCategories->each(function ($category) {
                     $category->product_count = $this->getProductCount($category);
-                    if ($category->image) {
-                        $category->image = asset('image/' . $category->image);
-                    }
+                    $category->image = ImageUrlService::formatImageUrl($category->image);
                 });
 
                 $categories = $categories->merge($additionalCategories);
@@ -168,9 +164,7 @@ class CategoryController extends Controller
             // Add product count and format image for each category
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                if ($category->image) {
-                    $category->image = $category->image;
-                }
+                $category->image = ImageUrlService::formatImageUrl($category->image);
             });
 
             // If we don't have enough different categories, get some without the exclusion
@@ -189,9 +183,7 @@ class CategoryController extends Controller
 
                 $additionalCategories->each(function ($category) {
                     $category->product_count = $this->getProductCount($category);
-                    if ($category->image) {
-                        $category->image = asset('image/' . $category->image);
-                    }
+                    $category->image = ImageUrlService::formatImageUrl($category->image);
                 });
 
                 $categories = $categories->merge($additionalCategories);
@@ -233,9 +225,7 @@ class CategoryController extends Controller
 
             $categories->each(function ($category) {
                 $category->product_count = $this->getProductCount($category);
-                if ($category->image) {
-                    $category->image = asset('image/' . ltrim($category->image, '/'));
-                }
+                $category->image = ImageUrlService::formatImageUrl($category->image);
             });
 
             return response()->json([
@@ -281,19 +271,13 @@ class CategoryController extends Controller
                 $category->product_count = $this->getProductCount($category);
                 
                 // Format image URL
-                if ($category->image) {
-                    $category->image = asset('image/' . $category->image);
-                }
+                $category->image = ImageUrlService::formatImageUrl($category->image);
 
                 // Process children if they exist
                 if ($category->children) {
                     $category->children->each(function ($child) {
                         $child->product_count = $this->getProductCount($child);
-                        
-                        // Format image URL for children
-                        if ($child->image) {
-                            $child->image = asset('image/' . ltrim($child->image, '/'));
-                        }
+                        $child->image = ImageUrlService::formatImageUrl($child->image);
                     });
                 }
             });

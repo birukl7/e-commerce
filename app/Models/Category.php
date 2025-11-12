@@ -56,4 +56,13 @@ class Category extends Model
     {
         return $query->whereNotNull('parent_id');
     }
+
+    // Accessors
+    public function getImageUrlAttribute()
+    {
+        if (!$this->image) {
+            return null;
+        }
+        return \App\Services\ImageUrlService::formatImageUrl($this->image);
+    }
 }

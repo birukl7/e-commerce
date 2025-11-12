@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\Category;
 use App\Models\Brand;
+use App\Services\ImageUrlService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
@@ -69,6 +70,17 @@ class AdminProductController extends Controller
         }
 
         $products = $query->paginate(12)->withQueryString();
+        
+        // Transform products to include formatted primary_image and image paths
+        $products->getCollection()->transform(function ($product) {
+            $product->primary_image = $product->primary_image; // This will use the accessor
+            // Format all image paths
+            $product->images->transform(function ($image) {
+                $image->image_path = ImageUrlService::formatImageUrl($image->image_path);
+                return $image;
+            });
+            return $product;
+        });
 
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
@@ -87,6 +99,12 @@ class AdminProductController extends Controller
     public function show(Product $product)
     {
         $product->load(['category', 'brand', 'images', 'attributes', 'tags']);
+        
+        // Format image paths
+        $product->images->transform(function ($image) {
+            $image->image_path = ImageUrlService::formatImageUrl($image->image_path);
+            return $image;
+        });
 
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();

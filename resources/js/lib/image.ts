@@ -26,12 +26,25 @@ export function getImageUrl(rawPath?: string | null, options?: { bucket?: string
   }
 
   // If a bucket is provided, assume filename or relative path under that bucket
+  // Storage paths should use /storage/ not /image/
   if (options?.bucket) {
-    return `/image/${options.bucket}/${path}`;
+    // Check if path already includes the bucket name
+    if (path.startsWith(`${options.bucket}/`)) {
+      return `/storage/${path}`;
+    }
+    return `/storage/${options.bucket}/${path}`;
+  }
+
+  // Check if path looks like a storage path (products/, categories/, brands/, etc.)
+  const storageBuckets = ['products', 'categories', 'brands', 'payment-proofs', 'product-requests', 'offline-payments', 'profile-images'];
+  const isStoragePath = storageBuckets.some(bucket => path.startsWith(`${bucket}/`));
+  
+  if (isStoragePath) {
+    return `/storage/${path}`;
   }
 
   // Default: assume this is already a storage-relative path like categories/foo.jpg
-  return `/image/${path}`;
+  return `/storage/${path}`;
 }
 
 

@@ -143,11 +143,11 @@ export default function AdminOrderShow({ order, orderSummary, taxBreakdown = [] 
   }
 
   const getProductImage = (product: Product) => {
-    const primaryImage = product.images?.find((img) => img.is_primary)
-    if (primaryImage) {
-      return `/storage/${primaryImage.image_path}`
+    const primaryImage = product.images?.find((img) => img.is_primary) || product.images?.[0]
+    if (primaryImage && primaryImage.image_path) {
+      return primaryImage.image_path
     }
-    return "/images/placeholder-product.png"
+    return "/placeholder.svg"
   }
 
   return (

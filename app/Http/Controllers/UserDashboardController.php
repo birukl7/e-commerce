@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\Wishlist;
 use App\Models\ProductRequest;
 use App\Models\Order;
+use App\Services\ImageUrlService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -217,7 +218,7 @@ class UserDashboardController extends Controller
                         'quantity' => $item->quantity,
                         'price' => (float) $item->item_price,
                         'total' => (float) $item->item_price * $item->quantity,
-                        'primary_image' => $item->primary_image ? asset('storage/' . $item->primary_image) : null,
+                        'primary_image' => ImageUrlService::formatImageUrl($item->primary_image),
                     ];
                 })->toArray();
                 
@@ -384,7 +385,7 @@ class UserDashboardController extends Controller
                 'quantity' => $item->quantity,
                 'price' => (float) $item->item_price,
                 'total' => (float) $item->item_total,
-                'primary_image' => $item->primary_image ? asset('storage/' . $item->primary_image) : null,
+                'primary_image' => ImageUrlService::formatImageUrl($item->primary_image),
             ];
         })->toArray();
 
@@ -910,10 +911,7 @@ class UserDashboardController extends Controller
             ->get();
 
         $products = $items->map(function ($item) {
-            $image = null;
-            if ($item->primary_image_path) {
-                $image = asset('storage/' . $item->primary_image_path);
-            }
+            $image = ImageUrlService::formatImageUrl($item->primary_image_path);
 
             return [
                 'order_item_id' => $item->order_item_id,

@@ -209,7 +209,7 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
             <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
                 <div className="relative aspect-square bg-gray-100">
                     {primaryImage ? (
-                        <img src={`/storage/${primaryImage.image_path}`} alt={product.name} className="h-full w-full object-cover" />
+                        <img src={primaryImage.image_path} alt={product.name} className="h-full w-full object-cover" />
                     ) : (
                         <div className="flex h-full w-full items-center justify-center">
                             <ImageIcon className="h-12 w-12 text-gray-400" />

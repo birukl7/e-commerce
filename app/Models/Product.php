@@ -287,7 +287,18 @@ class Product extends Model
 
     public function getPrimaryImageAttribute()
     {
-        return $this->images()->where('is_primary', true)->first();
+        $primaryImage = $this->images()->where('is_primary', true)->first();
+        if ($primaryImage) {
+            return \App\Services\ImageUrlService::formatImageUrl($primaryImage->image_path);
+        }
+        
+        // Fallback to first image if no primary image
+        $firstImage = $this->images()->first();
+        if ($firstImage) {
+            return \App\Services\ImageUrlService::formatImageUrl($firstImage->image_path);
+        }
+        
+        return null;
     }
 
     public function getAverageRatingAttribute()

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\User;
+use App\Services\ImageUrlService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -76,6 +77,16 @@ class AdminOrderController extends Controller
             'items.product:id,name,price,sku',
             'items.product.images:id,product_id,image_path,is_primary'
         ]);
+        
+        // Format image paths for product images
+        $order->items->each(function ($item) {
+            if ($item->product && $item->product->images) {
+                $item->product->images->transform(function ($image) {
+                    $image->image_path = ImageUrlService::formatImageUrl($image->image_path);
+                    return $image;
+                });
+            }
+        });
 
         // Calculate order summary
         $orderSummary = [
