@@ -1,10 +1,34 @@
 'use client';
 
-import AdminLayout from '@/layouts/AdminLayout';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { AlertTriangle, PackageCheck, PackageX, PackageMinus, History, Bell, Package } from 'lucide-react';
+import { AlertTriangle, PackageCheck, PackageX, PackageMinus, History, Bell, Package, BarChart3, ShoppingCart, Tags, MessageSquare, Users, Settings, Percent } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const adminNavItems = [
+    { title: 'Dashboard', href: '/admin-dashboard', icon: BarChart3 },
+    { title: 'Products', href: '/admin/products', icon: ShoppingCart },
+    { title: 'Sales Dashboard', href: '/admin/sales', icon: BarChart3 },
+    { title: 'Categories & Brands', href: '/admin/categories', icon: Tags },
+    { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
+    { title: 'Stock Management', href: '/admin/stock', icon: Package, isActive: true },
+    { title: 'Customers', href: '/admin/customers', icon: Users },
+    { title: 'Tax Settings', href: '/admin/tax/settings', icon: Percent },
+    { title: 'Site Configuration', href: '/site-config', icon: Settings },
+];
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Admin Dashboard',
+        href: '/admin-dashboard',
+    },
+    {
+        title: 'Stock Management',
+        href: '/admin/stock',
+    },
+];
 
 type Tab = {
     name: string;
@@ -45,10 +69,10 @@ export default function StockManagement() {
     ];
 
     return (
-        <AdminLayout>
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title="Stock Management" />
             
-            <div className="px-4 sm:px-6 lg:px-8 w-full max-w-none">
+            <div className="flex w-full flex-col p-6 font-sans">
                 <div className="sm:flex sm:items-center sm:justify-between">
                     <div className="mb-4 sm:mb-0">
                         <h1 className="text-2xl font-semibold text-gray-900">Stock Management</h1>
@@ -119,7 +143,7 @@ export default function StockManagement() {
                     </Tabs>
                 </div>
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }
 
@@ -127,7 +151,7 @@ export default function StockManagement() {
 function StockAlerts({ lowStock = [] as any[], outOfStock = [] as any[], notifications = [] as any[] }) {
     const pendingNotifications = notifications.filter((n: any) => !n.is_notified)
     return (
-        <div className="rounded-lg border bg-card p-6 space-y-8">
+        <div className="rounded-lg border bg-card p-6 space-y-8 w-full">
             <div>
                 <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><PackageX className="h-4 w-4" /> Out of Stock</h2>
                 {outOfStock.length === 0 ? (
@@ -223,7 +247,7 @@ function StockAlerts({ lowStock = [] as any[], outOfStock = [] as any[], notific
 
 function OutOfStock({ products = [] as any[] }) {
     return (
-        <div className="rounded-lg border bg-card p-6">
+        <div className="rounded-lg border bg-card p-6 w-full">
             <h2 className="text-lg font-semibold mb-4">Out of Stock Items</h2>
             {products.length === 0 ? (
                 <p className="text-muted-foreground">No out of stock products.</p>
@@ -257,7 +281,7 @@ function OutOfStock({ products = [] as any[] }) {
 
 function LowStock({ products = [] as any[] }) {
     return (
-        <div className="rounded-lg border bg-card p-6">
+        <div className="rounded-lg border bg-card p-6 w-full">
             <h2 className="text-lg font-semibold mb-4">Low Stock Items</h2>
             {products.length === 0 ? (
                 <p className="text-muted-foreground">No low stock products.</p>

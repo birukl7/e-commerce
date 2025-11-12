@@ -1,10 +1,35 @@
-import AdminLayout from '@/layouts/AdminLayout';
+import AppLayout from '@/layouts/app-layout';
+import type { BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/react';
 import React, { useEffect, useState } from 'react';
 import { Tab } from '@headlessui/react';
 import TaxClassesTab from '@/Pages/Admin/Tax/Tabs/TaxClassesTab';
 import TaxRatesTab from '@/Pages/Admin/Tax/Tabs/TaxRatesTab';
 import TaxSettingsTab from '@/Pages/Admin/Tax/Tabs/TaxSettingsTab';
+import { BarChart3, ShoppingCart, Tags, MessageSquare, Users, Settings, Percent } from 'lucide-react';
+
+const adminNavItems = [
+    { title: 'Dashboard', href: '/admin-dashboard', icon: BarChart3 },
+    { title: 'Products', href: '/admin/products', icon: ShoppingCart },
+    { title: 'Sales Dashboard', href: '/admin/sales', icon: BarChart3 },
+    { title: 'Categories & Brands', href: '/admin/categories', icon: Tags },
+    { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
+    { title: 'Stock Management', href: '/admin/stock', icon: ShoppingCart },
+    { title: 'Customers', href: '/admin/customers', icon: Users },
+    { title: 'Tax Settings', href: '/admin/tax/settings', icon: Percent, isActive: true },
+    { title: 'Site Configuration', href: '/site-config', icon: Settings },
+];
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'Admin Dashboard',
+        href: '/admin-dashboard',
+    },
+    {
+        title: 'Tax Settings',
+        href: '/admin/tax/settings',
+    },
+];
 
 function classNames(...classes: Array<string | boolean | undefined | null>) {
     return classes.filter(Boolean).join(' ');
@@ -34,10 +59,10 @@ export default function TaxSettings({ auth, activeTab, tabs, classes = [], taxRa
     }, [activeTab, tabs]);
 
     return (
-        <AdminLayout title="Tax Settings">
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
             <Head title="Tax Settings" />
 
-            <div className="px-4 sm:px-6 lg:px-8">
+            <div className="flex w-full flex-col p-6 font-sans">
                 <div className="sm:flex sm:items-center sm:justify-between">
                     <div className="mb-4 sm:mb-0">
                         <h1 className="text-2xl font-semibold text-gray-900">Tax Settings</h1>
@@ -70,26 +95,26 @@ export default function TaxSettings({ auth, activeTab, tabs, classes = [], taxRa
                             </Tab.List>
                         </div>
 
-                        <Tab.Panels className="mt-6">
+                        <Tab.Panels className="mt-6 w-full">
                             <Tab.Panel>
-                                <div className="overflow-hidden bg-white shadow sm:rounded-lg">
-                                    <div className="p-4 sm:p-6">
+                                <div className="overflow-hidden bg-white shadow sm:rounded-lg w-full">
+                                    <div className="p-4 sm:p-6 w-full">
                                         <TaxClassesTab classes={classes} taxClasses={taxClasses} />
                                     </div>
                                 </div>
                             </Tab.Panel>
 
                             <Tab.Panel>
-                                <div className="overflow-hidden bg-white shadow sm:rounded-lg">
-                                    <div className="p-4 sm:p-6">
+                                <div className="overflow-hidden bg-white shadow sm:rounded-lg w-full">
+                                    <div className="p-4 sm:p-6 w-full">
                                         <TaxRatesTab taxRates={taxRates} taxClasses={taxClasses} />
                                     </div>
                                 </div>
                             </Tab.Panel>
 
                             <Tab.Panel>
-                                <div className="overflow-hidden bg-white shadow sm:rounded-lg">
-                                    <div className="p-4 sm:p-6">
+                                <div className="overflow-hidden bg-white shadow sm:rounded-lg w-full">
+                                    <div className="p-4 sm:p-6 w-full">
                                         <TaxSettingsTab settings={settings} taxClasses={taxClasses} />
                                     </div>
                                 </div>
@@ -98,7 +123,7 @@ export default function TaxSettings({ auth, activeTab, tabs, classes = [], taxRa
                     </Tab.Group>
                 </div>
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }
 

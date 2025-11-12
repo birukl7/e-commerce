@@ -51,7 +51,7 @@ export default function AdminLayout({ children, title }: AdminLayoutProps) {
                     
                     <div className="relative flex flex-col flex-1 overflow-hidden">
                         <main className="flex-1 overflow-y-auto">
-                            <div className="p-6 mx-auto max-w-7xl">
+                            <div className="p-6 w-full">
                                 {children}
                             </div>
                         </main>
