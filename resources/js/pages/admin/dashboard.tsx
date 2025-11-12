@@ -115,54 +115,73 @@ export default function AdminDashboard({
         return [value, name];
     };
 
-    const categoryChartData = salesByCategory.map((category) => ({
+    // Define color palette for categories (only chart-1 through chart-5 are available)
+    // Using actual color values that match the CSS variables
+    const categoryColors = [
+        'oklch(0.646 0.222 41.116)', // chart-1
+        'oklch(0.6 0.118 184.704)', // chart-2
+        'oklch(0.398 0.07 227.392)', // chart-3
+        'oklch(0.828 0.189 84.429)', // chart-4
+        'oklch(0.769 0.188 70.08)',  // chart-5
+    ];
+
+    const categoryChartData = salesByCategory.map((category, index) => ({
         category: category.category_name,
         sales: category.total_sales,
+        fill: categoryColors[index % categoryColors.length],
     }));
 
+    // Build category chart config dynamically
+    const categoryChartConfig = salesByCategory.reduce((config, category, index) => {
+        const key = category.category_name.toLowerCase().replace(/\s+/g, '_');
+        config[key] = {
+            label: category.category_name,
+            color: categoryColors[index % categoryColors.length],
+        };
+        return config;
+    }, {} as ChartConfig);
+
     const requestStatusData = [
-        { name: 'Pending', value: productRequestSummary?.pending || 0, fill: 'hsl(var(--chart-2))' },
-        { name: 'Reviewed', value: productRequestSummary?.reviewed || 0, fill: 'hsl(var(--chart-3))' },
-        { name: 'Approved', value: productRequestSummary?.approved || 0, fill: 'hsl(var(--chart-4))' },
-        { name: 'Rejected', value: productRequestSummary?.rejected || 0, fill: 'hsl(var(--chart-5))' },
+        { name: 'Pending', value: productRequestSummary?.pending || 0, fill: 'oklch(0.6 0.118 184.704)' },
+        { name: 'Reviewed', value: productRequestSummary?.reviewed || 0, fill: 'oklch(0.398 0.07 227.392)' },
+        { name: 'Approved', value: productRequestSummary?.approved || 0, fill: 'oklch(0.828 0.189 84.429)' },
+        { name: 'Rejected', value: productRequestSummary?.rejected || 0, fill: 'oklch(0.769 0.188 70.08)' },
     ].filter(item => item.value > 0); // Only show segments with data
+
+    // Build request status chart config with proper keys matching the data
+    const requestStatusChartConfig = requestStatusData.reduce((config, item) => {
+        const key = item.name.toLowerCase();
+        config[key] = {
+            label: item.name,
+            color: item.fill,
+        };
+        return config;
+    }, {} as ChartConfig);
+
+    // Format month labels properly
+    const formatMonthLabel = (month: string) => {
+        if (!month) return '';
+        // Handle formats like "2024-01" or "2024-12"
+        const parts = month.split('-');
+        if (parts.length === 2) {
+            const year = parts[0];
+            const monthNum = parseInt(parts[1], 10);
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return `${monthNames[monthNum - 1]} ${year.slice(-2)}`;
+        }
+        return month.slice(0, 3);
+    };
 
     const registrationTrendData = customerRegistrationTrends.map((trend) => ({
         month: trend.month,
+        monthLabel: formatMonthLabel(trend.month),
         registrations: trend.count,
     }));
-
-    // Chart configurations with theme-aware colors
-    const categoryChartConfig = {
-        sales: {
-            label: "Sales",
-            color: "hsl(var(--chart-1))",
-        },
-    } satisfies ChartConfig;
-
-    const requestStatusChartConfig = {
-        pending: {
-            label: "Pending",
-            color: "hsl(var(--chart-2))",
-        },
-        reviewed: {
-            label: "Reviewed", 
-            color: "hsl(var(--chart-3))",
-        },
-        approved: {
-            label: "Approved",
-            color: "hsl(var(--chart-4))",
-        },
-        rejected: {
-            label: "Rejected",
-            color: "hsl(var(--chart-5))",
-        },
-    } satisfies ChartConfig;
 
     const registrationChartConfig = {
         registrations: {
             label: "Registrations",
-            color: "hsl(var(--chart-1))",
+            color: "oklch(0.646 0.222 41.116)",
         },
     } satisfies ChartConfig;
 
@@ -184,15 +203,15 @@ export default function AdminDashboard({
                             <DollarSign className="h-4 w-4 text-primary" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{formatCurrency(stats.totalSales)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatCurrency(stats?.totalSales || 0)}</div>
                             <div className="flex items-center gap-1 text-xs">
-                                {stats.salesChange >= 0 ? (
+                                {(stats?.salesChange ?? 0) >= 0 ? (
                                     <TrendingUp className="h-3 w-3 text-primary" />
                                 ) : (
                                     <TrendingDown className="h-3 w-3 text-destructive" />
                                 )}
-                                <span className={`font-medium ${stats.salesChange >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                                    {Math.abs(stats.salesChange)}%
+                                <span className={`font-medium ${(stats?.salesChange ?? 0) >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                                    {Math.abs(stats?.salesChange ?? 0)}%
                                 </span>
                                 <span className="text-muted-foreground">from last month</span>
                             </div>
@@ -205,7 +224,7 @@ export default function AdminDashboard({
                             <ShoppingCart className="h-4 w-4 text-primary" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{stats.totalOrders}</div>
+                            <div className="text-2xl font-bold text-foreground">{stats?.totalOrders ?? 0}</div>
                             <div className="flex items-center gap-1 text-xs">
                                 <TrendingUp className="h-3 w-3 text-primary" />
                                 <span className="font-medium text-primary">Active</span>
@@ -220,7 +239,7 @@ export default function AdminDashboard({
                             <Users className="h-4 w-4 text-primary" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{stats.activeCustomers}</div>
+                            <div className="text-2xl font-bold text-foreground">{stats?.activeCustomers ?? 0}</div>
                             <div className="flex items-center gap-1 text-xs">
                                 <TrendingUp className="h-3 w-3 text-primary" />
                                 <span className="font-medium text-primary">Registered</span>
@@ -235,7 +254,7 @@ export default function AdminDashboard({
                             <AlertTriangle className="h-4 w-4 text-destructive" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-destructive">{stats.lowStockProducts}</div>
+                            <div className="text-2xl font-bold text-destructive">{stats?.lowStockProducts ?? 0}</div>
                             <div className="flex items-center gap-1 text-xs">
                                 <TrendingDown className="h-3 w-3 text-destructive" />
                                 <span className="text-muted-foreground">Products need restocking</span>
@@ -250,7 +269,7 @@ export default function AdminDashboard({
                             <CardTitle className="text-sm font-medium text-muted-foreground">Total Transactions</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{paymentStats.total_transactions}</div>
+                            <div className="text-2xl font-bold text-foreground">{paymentStats?.total_transactions ?? 0}</div>
                         </CardContent>
                     </Card>
 
@@ -259,7 +278,7 @@ export default function AdminDashboard({
                             <CardTitle className="text-sm font-medium text-muted-foreground">Successful Payments</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-600">{paymentStats.successful_payments}</div>
+                            <div className="text-2xl font-bold text-green-600">{paymentStats?.successful_payments ?? 0}</div>
                         </CardContent>
                     </Card>
 
@@ -268,7 +287,7 @@ export default function AdminDashboard({
                             <CardTitle className="text-sm font-medium text-muted-foreground">Failed Payments</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-red-600">{paymentStats.failed_payments}</div>
+                            <div className="text-2xl font-bold text-red-600">{paymentStats?.failed_payments ?? 0}</div>
                         </CardContent>
                     </Card>
 
@@ -277,7 +296,7 @@ export default function AdminDashboard({
                             <CardTitle className="text-sm font-medium text-muted-foreground">Today's Revenue</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{formatCurrency(paymentStats.today_revenue)}</div>
+                            <div className="text-2xl font-bold text-foreground">{formatCurrency(paymentStats?.today_revenue || 0)}</div>
                         </CardContent>
                     </Card>
                 </div>
@@ -308,9 +327,25 @@ export default function AdminDashboard({
                                         tickFormatter={(value) => `ETB ${value}`}
                                     />
                                     <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Bar dataKey="sales" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                                    <Bar dataKey="sales" radius={[4, 4, 0, 0]} fill="transparent">
+                                        {categoryChartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                                        ))}
+                                    </Bar>
                                 </BarChart>
                             </ChartContainer>
+                            {/* Custom Legend for Categories */}
+                            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                                {categoryChartData.map((entry, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <div 
+                                            className="h-3 w-3 rounded-sm"
+                                            style={{ backgroundColor: entry.fill }}
+                                        />
+                                        <span className="text-xs text-muted-foreground">{entry.category}</span>
+                                    </div>
+                                ))}
+                            </div>
                         </CardContent>
                     </Card>
 
@@ -322,31 +357,40 @@ export default function AdminDashboard({
                         </CardHeader>
                         <CardContent>
                             {requestStatusData.length > 0 ? (
-                                <ChartContainer config={requestStatusChartConfig} className="h-[200px]">
-                                    <PieChart>
-                                        <Pie
-                                            data={requestStatusData}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={60}
-                                            innerRadius={20}
-                                            paddingAngle={2}
-                                            label={false}
-                                        >
-                                            {requestStatusData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                            ))}
-                                        </Pie>
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                        <ChartLegend 
-                                            verticalAlign="bottom" 
-                                            height={36}
-                                            content={<ChartLegendContent />} 
-                                        />
-                                    </PieChart>
-                                </ChartContainer>
+                                <>
+                                    <ChartContainer config={requestStatusChartConfig} className="h-[200px]">
+                                        <PieChart>
+                                            <Pie
+                                                data={requestStatusData}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="40%"
+                                                outerRadius={60}
+                                                innerRadius={20}
+                                                paddingAngle={2}
+                                                label={false}
+                                            >
+                                                {requestStatusData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Pie>
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                        </PieChart>
+                                    </ChartContainer>
+                                    {/* Custom Legend for Pie Chart */}
+                                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                                        {requestStatusData.map((entry, index) => (
+                                            <div key={index} className="flex items-center gap-2">
+                                                <div 
+                                                    className="h-3 w-3 rounded-full"
+                                                    style={{ backgroundColor: entry.fill }}
+                                                />
+                                                <span className="text-xs text-muted-foreground">{entry.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
                             ) : (
                                 <div className="flex items-center justify-center h-[200px] text-muted-foreground">
                                     <p>No product request data available</p>
@@ -365,23 +409,34 @@ export default function AdminDashboard({
                             <ChartContainer config={registrationChartConfig} className="h-[200px]">
                                 <BarChart data={registrationTrendData.slice(-6)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                     <XAxis 
-                                        dataKey="month" 
+                                        dataKey="monthLabel" 
                                         tickLine={false}
                                         axisLine={false}
                                         tickMargin={8}
                                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                        tickFormatter={(value) => value.slice(0, 3)}
                                     />
                                     <YAxis 
                                         tickLine={false}
                                         axisLine={false}
                                         tickMargin={8}
                                         tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                        allowDecimals={false}
                                     />
-                                    <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Bar dataKey="registrations" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
+                                    <ChartTooltip 
+                                        content={<ChartTooltipContent />}
+                                        formatter={(value: number) => [`${value} users`, 'Registrations']}
+                                    />
+                                    <Bar dataKey="registrations" fill="oklch(0.646 0.222 41.116)" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ChartContainer>
+                            {/* Custom Legend for Customer Growth */}
+                            <div className="flex items-center justify-center gap-2 pt-4">
+                                <div 
+                                    className="h-3 w-3 rounded-sm"
+                                    style={{ backgroundColor: 'oklch(0.646 0.222 41.116)' }}
+                                />
+                                <span className="text-xs text-muted-foreground">Registrations</span>
+                            </div>
                         </CardContent>
                     </Card>
                 </div>
