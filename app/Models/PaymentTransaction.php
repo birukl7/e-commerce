@@ -44,9 +44,49 @@ class PaymentTransaction extends Model
         return $this->belongsTo(User::class, 'admin_id');
     }
 
+    /**
+     * Relationship to Order model.
+     * 
+     * Note: This relationship expects order_id to be numeric.
+     * If order_id is stored as order_number string, use OrderLookupService
+     * to find the order and normalize the payment transaction.
+     * 
+     * @return BelongsTo
+     */
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'order_id', 'id');
+    }
+
+    /**
+     * Get the order for this payment transaction.
+     * Handles both numeric IDs and order number strings automatically.
+     * 
+     * @return Order|null
+     */
+    public function getOrder(): ?Order
+    {
+        return app(\App\Services\OrderLookupService::class)->getOrderForPayment($this);
+    }
+
+    /**
+     * Check if this payment transaction has a valid order.
+     * 
+     * @return bool
+     */
+    public function hasOrder(): bool
+    {
+        return $this->getOrder() !== null;
+    }
+
+    /**
+     * Normalize the order_id to store numeric ID instead of order_number string.
+     * 
+     * @return bool True if normalization occurred, false if already normalized or no order found
+     */
+    public function normalizeOrderId(): bool
+    {
+        return app(\App\Services\OrderLookupService::class)->ensurePaymentOrderIdNormalized($this);
     }
 
     public function productRequest(): BelongsTo

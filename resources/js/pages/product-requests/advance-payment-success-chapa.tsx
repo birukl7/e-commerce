@@ -36,33 +36,14 @@ export default function AdvancePaymentSuccessChapa({
   };
 
   const handleDownloadReceipt = () => {
-    const receiptContent = `
-Advance Payment Receipt
-
-Product Request ID: #${productRequest.id}
-Transaction ID: ${transaction_id || productRequest.payment_reference || 'N/A'}
-Date: ${new Date().toLocaleString()}
-Product: ${productRequest.product_name}
-
-Payment Details:
-- Advance Amount Paid: ${formatCurrency(amount || productRequest.advance_amount, productRequest.currency)}
-- Payment Method: Chapa (Online)
-- Status: ${productRequest.advance_payment_status === 'processing' ? 'Pending Admin Approval' : productRequest.advance_payment_status}
-
-${productRequest.final_amount ? `Remaining Amount: ${formatCurrency(productRequest.final_amount, productRequest.currency)}` : ''}
-
-Thank you for your payment!
-    `.trim();
-
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `advance-payment-receipt-${productRequest.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    try {
+      // Use backend PDF endpoint for product request receipt
+      const receiptUrl = route('product-requests.receipt', [productRequest.id, 'advance']);
+      window.open(receiptUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    }
   };
 
   return (

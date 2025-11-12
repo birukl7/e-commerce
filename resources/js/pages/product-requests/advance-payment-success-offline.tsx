@@ -35,33 +35,14 @@ export default function AdvancePaymentSuccessOffline({
   };
 
   const handleDownloadReceipt = () => {
-    const receiptContent = `
-Advance Payment Receipt (Offline)
-
-Product Request ID: #${productRequest.id}
-Submission Reference: ${submission_ref}
-Date: ${new Date().toLocaleString()}
-Product: ${productRequest.product_name}
-
-Payment Details:
-- Advance Amount Paid: ${formatCurrency(amount, productRequest.currency)}
-- Payment Method: ${payment_method} (Pay & Upload Proof)
-- Status: Pending Admin Approval
-
-${productRequest.final_amount ? `Remaining Amount: ${formatCurrency(productRequest.final_amount, productRequest.currency)}` : ''}
-
-Thank you for your payment!
-    `.trim();
-
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `advance-payment-receipt-${productRequest.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    try {
+      // Use backend PDF endpoint for product request receipt
+      const receiptUrl = route('product-requests.receipt', [productRequest.id, 'advance']);
+      window.open(receiptUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    }
   };
 
   return (

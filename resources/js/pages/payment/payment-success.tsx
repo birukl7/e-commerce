@@ -10,7 +10,8 @@ import { useEffect, useState } from 'react';
 import ProductImages, { ProductItem } from '@/components/ProductImages';
 
 interface PaymentSuccessProps {
-    order_id: string | null;
+    order_id: string | number | null; // Can be numeric ID or order_number string
+    order_number?: string; // Order number for display
     transaction_id: string;
     amount: number;
     currency: string;
@@ -30,6 +31,7 @@ interface PaymentSuccessProps {
 
 function PaymentSuccessContent({
     order_id,
+    order_number,
     transaction_id,
     amount,
     currency = 'ETB',
@@ -101,39 +103,20 @@ function PaymentSuccessContent({
     }, []);
 
     const handleDownloadReceipt = () => {
-        // Create receipt content
-        const receiptContent = `
-Payment Receipt
+        try {
+            if (!order_id) {
+                alert('Order ID is required to download receipt. Please contact support.');
+                return;
+            }
 
-Order ID: ${order_id}
-Transaction ID: ${transaction_id}
-Date: ${formatDate()}
-Customer: ${customer_name}
-Email: ${customer_email}
-
-Payment Details:
-- Amount: ${formatPrice(amount)}
-- Payment Method: ${payment_method}
-- Status: ${pending_payment_approval ? 'Pending Admin Approval' : 'Completed'}
-
-Items:
-${order_items.map((item) => `- ${item.name} (Qty: ${item.quantity}) - ${formatPrice(item.price * item.quantity)}`).join('\n')}
-
-Total: ${formatPrice(amount)}
-
-Thank you for your purchase!
-        `.trim();
-
-        // Create blob and download
-        const blob = new Blob([receiptContent], { type: 'text/plain' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `receipt-${order_id}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+            // Open the receipt download route in a new window/tab
+            // This will trigger the PDF download from the backend
+            const receiptUrl = route('user.orders.receipt', order_id);
+            window.open(receiptUrl, '_blank');
+        } catch (error) {
+            console.error('Error downloading receipt:', error);
+            alert('Failed to download receipt. Please try again.');
+        }
     };
 
     return (
@@ -156,9 +139,9 @@ Thank you for your purchase!
                         <p className="text-xl text-gray-700 mb-2">
                             Thank you for your purchase, <span className="font-semibold text-gray-900">{customer_name}</span>
                         </p>
-                        {order_id && (
+                        {(order_number || order_id) && (
                             <p className="text-sm text-gray-500">
-                                Order #{order_id}
+                                Order #{order_number || order_id}
                             </p>
                         )}
                         

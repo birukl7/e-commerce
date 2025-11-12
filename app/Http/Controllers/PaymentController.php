@@ -860,7 +860,7 @@ class PaymentController extends Controller
                 'amount' => (float)$request->amount,
                 'currency' => $request->currency,
                 'cart_items' => $cartItems,
-                'payment_type' => $request->payment_type,
+                'payment_type' => $request->payment_type ?: 'regular', // Default to 'regular' if not provided
                 'product_request_id' => $request->product_request_id,
                 'product_name' => $productName,
                 'description' => $request->description,
@@ -978,8 +978,18 @@ class PaymentController extends Controller
             }
 
             // Generate transaction reference based on payment type
-            $paymentType = $request->input('payment_type', 'regular');
+            // Default to 'regular' if payment_type is null or empty
+            $paymentType = $request->input('payment_type');
+            if (empty($paymentType)) {
+                $paymentType = 'regular';
+            }
             $productRequestId = $request->input('product_request_id');
+            
+            \Log::info('Payment type determined', [
+                'payment_type_from_request' => $request->input('payment_type'),
+                'payment_type_final' => $paymentType,
+                'is_regular' => $paymentType === 'regular',
+            ] + $logContext);
             
             // Use appropriate prefix for product request payments
             if ($paymentType === 'product_request_advance' && $productRequestId) {
@@ -1081,8 +1091,17 @@ class PaymentController extends Controller
             try {
                 // For product request payments, we don't need to create/update orders
                 $order = null;
+                \Log::info('Checking payment type for order creation', [
+                    'payment_type' => $paymentType,
+                    'order_id_from_request' => $request->order_id,
+                    'will_create_order' => $paymentType === 'regular',
+                ] + $logContext);
+                
                 if ($paymentType === 'regular') {
                     // Create or get the order with cart items for regular payments
+                    \Log::info('Looking up order by order_number', [
+                        'order_number' => $request->order_id,
+                    ] + $logContext);
                     $order = Order::where('order_number', $request->order_id)->first();
                     
                     if ($order) {
@@ -1112,12 +1131,21 @@ class PaymentController extends Controller
                             $cartItems
                         );
                         
-                        if (!$order) {
-                            throw new \Exception('Failed to create order');
+                        if (!$order || !$order->id) {
+                            \Log::error('Failed to create order - createOrderFromCart returned null or invalid order', [
+                                'order_id' => $request->order_id,
+                                'subtotal' => $subtotal,
+                                'amount' => $request->amount,
+                                'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
+                            ] + $logContext);
+                            DB::rollBack();
+                            throw new \Exception('Failed to create order. Please try again.');
                         }
                         \Log::info('Order created successfully', [
                             'order_id' => $order->id,
-                            'order_number' => $order->order_number
+                            'order_number' => $order->order_number,
+                            'total_amount' => $order->total_amount,
+                            'user_id' => $order->user_id,
                         ] + $logContext);
                     }
                 }
@@ -1229,15 +1257,77 @@ class PaymentController extends Controller
                     // For product request payments, use null for order_id
                     $orderIdForTransaction = null;
                     if ($paymentType === 'regular') {
-                        if (!isset($order)) {
-                            \Log::error('Order not found when creating payment transaction for regular payment', [
+                        // Double-check that order exists and is valid
+                        if (!$order || !$order->id) {
+                            \Log::error('Order not found or invalid when creating payment transaction for regular payment', [
                                 'order_id' => $request->order_id,
                                 'tx_ref' => $txRef,
+                                'payment_type' => $paymentType,
+                                'order_exists' => $order !== null,
+                                'order_has_id' => $order && isset($order->id),
+                                'order_variable' => $order ? ['id' => $order->id, 'order_number' => $order->order_number] : null,
                             ] + $logContext);
-                            throw new \Exception('Order not found. Cannot create payment transaction without an order.');
+                            
+                            // Try to find the order one more time
+                            $order = Order::where('order_number', $request->order_id)->first();
+                            
+                            // If still not found, create it now as a last resort
+                            // This handles edge cases where order creation might have failed silently
+                            if (!$order) {
+                                \Log::warning('Order not found, attempting to create it now as last resort', [
+                                    'order_id' => $request->order_id,
+                                    'amount' => $amountWithTax,
+                                    'subtotal' => $subtotal,
+                                    'currency' => $request->currency,
+                                    'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
+                                    'has_cart_items' => !empty($cartItems),
+                                ] + $logContext);
+                                
+                                // Ensure we have cart items - if not, we can't create the order properly
+                                if (empty($cartItems) || !is_array($cartItems)) {
+                                    \Log::error('Cannot create order without cart items', [
+                                        'cart_items' => $cartItems,
+                                    ] + $logContext);
+                                    DB::rollBack();
+                                    throw new \Exception('Cannot create order: cart items are missing. Please try again.');
+                                }
+                                
+                                $order = $this->createOrderFromCart(
+                                    $request->order_id,
+                                    $subtotal ?? $request->amount,
+                                    $request->currency,
+                                    $cartItems
+                                );
+                                
+                                if (!$order || !$order->id) {
+                                    \Log::error('Failed to create order on retry - createOrderFromCart returned null', [
+                                        'order_id' => $request->order_id,
+                                    ] + $logContext);
+                                    DB::rollBack();
+                                    throw new \Exception('Order not found and could not be created. Cannot proceed with payment.');
+                                }
+                                
+                                \Log::info('Order created successfully on retry', [
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'total_amount' => $order->total_amount,
+                                ]);
+                            } else {
+                                \Log::warning('Order found on retry lookup', [
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                ]);
+                            }
                         }
+                        
                         // Use numeric order ID (not order_number string) for proper foreign key relationship
                         $orderIdForTransaction = $order->id;
+                        
+                        \Log::info('Setting order_id for payment transaction', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'tx_ref' => $txRef,
+                        ] + $logContext);
                     }
                     
                     // Check if this is a retry payment - look for existing transaction that was reset during retry
@@ -2190,162 +2280,25 @@ class PaymentController extends Controller
                 'gateway_payload' => $transaction->gateway_payload,
             ]);
 
-            // First, try to find the order using the reference from the transaction
-            $order = null;
-            $searchMethods = [];
+            // Use OrderLookupService for consistent order lookup and normalization
+            // This handles all cases: numeric order_id, string order_number, NULL order_id, etc.
+            $orderLookupService = app(\App\Services\OrderLookupService::class);
+            $order = $orderLookupService->getOrderForPayment($transaction);
             
-            // Method 0: Check gateway_payload for order_number or order_id
-            if (!$order && $transaction->gateway_payload) {
-                $payload = is_array($transaction->gateway_payload) 
-                    ? $transaction->gateway_payload 
-                    : (is_string($transaction->gateway_payload) ? json_decode($transaction->gateway_payload, true) : []);
-                
-                if (isset($payload['order_number'])) {
-                    $searchMethods[] = 'gateway_payload order_number';
-                    $order = Order::where('order_number', $payload['order_number'])->first();
-                    if ($order) {
-                        \Log::info('Order found from gateway_payload order_number', [
-                            'tx_ref' => $txRef,
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                        ]);
-                    }
-                }
-                if (!$order && isset($payload['order_id']) && is_numeric($payload['order_id'])) {
-                    $searchMethods[] = 'gateway_payload order_id';
-                    $order = Order::find($payload['order_id']);
-                    if ($order) {
-                        \Log::info('Order found from gateway_payload order_id', [
-                            'tx_ref' => $txRef,
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                        ]);
-                    }
-                }
-            }
-            
-            // Method 1: If order_id is numeric, search by ID first (most reliable)
-            if (!$order && is_numeric($transaction->order_id)) {
-                $searchMethods[] = 'numeric ID match';
-                $order = Order::find($transaction->order_id);
-                if ($order) {
-                    \Log::info('Order found by numeric ID match', [
-                        'tx_ref' => $txRef,
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'transaction_order_id' => $transaction->order_id
-                    ]);
-                }
-            }
-            
-            // Method 2: Search by order_number (exact match) - this should work now
-            if (!$order && !empty($transaction->order_id)) {
-                $searchMethods[] = 'order_number exact match';
-                $order = Order::where('order_number', $transaction->order_id)->first();
-                if ($order) {
-                    \Log::info('Order found by exact order_number match', [
-                        'tx_ref' => $txRef,
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'transaction_order_id' => $transaction->order_id
-                    ]);
-                }
-            }
-            
-            // Method 3: Try timestamp-based lookup for ORDER-XXXX-1234567890 format
-            if (!$order && preg_match('/^ORDER-[A-Z0-9]+-(\d+)$/', $transaction->order_id, $matches)) {
-                $timestamp = $matches[1];
-                $searchMethods[] = 'timestamp-based lookup';
-                $start = date('Y-m-d H:i:s', ($timestamp / 1000) - 10);
-                $end = date('Y-m-d H:i:s', ($timestamp / 1000) + 10);
-                
-                \Log::debug('Using timestamp-based order lookup', [
+            if ($order) {
+                \Log::info('Order found using OrderLookupService', [
                     'tx_ref' => $txRef,
-                    'timestamp' => $timestamp,
-                    'start' => $start,
-                    'end' => $end,
-                    'order_reference' => $transaction->order_id
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'transaction_order_id' => $transaction->order_id,
                 ]);
-                
-                $order = Order::whereBetween('created_at', [$start, $end])
-                    ->orderBy('created_at', 'desc')
-                    ->first();
-                    
-                if ($order) {
-                    \Log::info('Order found by timestamp-based lookup', [
-                        'tx_ref' => $txRef,
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'transaction_order_id' => $transaction->order_id
-                    ]);
-                }
-            }
-
-            // If order still not found, try to find the most recent order for this user
-            if (!$order) {
-                $searchMethods[] = 'recent user order by amount';
-                $searchTime = $transaction->created_at ? $transaction->created_at->subMinutes(10) : now()->subMinutes(30);
-                
-                \Log::debug('Order not found by reference, trying to find most recent order for user by amount', [
+            } else {
+                \Log::warning('Order not found using OrderLookupService', [
                     'tx_ref' => $txRef,
-                    'user_id' => $transaction->user_id,
-                    'search_time' => $searchTime->toDateTimeString(),
-                    'transaction_amount' => $transaction->amount,
-                    'attempted_methods' => $searchMethods
+                    'transaction_order_id' => $transaction->order_id,
+                    'customer_email' => $transaction->customer_email,
+                    'amount' => $transaction->amount,
                 ]);
-                
-                $query = Order::where('created_at', '>=', $searchTime)
-                    ->where('total_amount', $transaction->amount)
-                    ->orderBy('created_at', 'desc');
-                
-                if ($transaction->user_id) {
-                    $query->where('user_id', $transaction->user_id);
-                }
-                
-                $order = $query->first();
-                
-                if ($order) {
-                    \Log::info('Found recent order for user by amount match', [
-                        'order_id' => $order->id,
-                        'order_number' => $order->order_number,
-                        'order_amount' => $order->total_amount,
-                        'transaction_amount' => $transaction->amount,
-                        'created_at' => $order->created_at,
-                        'tx_ref' => $txRef
-                    ]);
-                    
-                    // Update the transaction with the found order number for consistency
-                    if ($transaction->order_id !== $order->order_number) {
-                        $transaction->order_id = $order->order_number;
-                        $transaction->save();
-                    }
-                } else {
-                    // Last resort: find any recent order for user (without amount match)
-                    $searchMethods[] = 'recent user order (any amount)';
-                    $query = Order::where('created_at', '>=', $searchTime)
-                        ->orderBy('created_at', 'desc');
-                    
-                    if ($transaction->user_id) {
-                        $query->where('user_id', $transaction->user_id);
-                    }
-                    
-                    $order = $query->first();
-                    
-                    if ($order) {
-                        \Log::info('Found recent order for user (amount mismatch, but using it)', [
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number,
-                            'order_amount' => $order->total_amount,
-                            'transaction_amount' => $transaction->amount,
-                            'created_at' => $order->created_at,
-                            'tx_ref' => $txRef
-                        ]);
-                        
-                        // Update the transaction with the found order number
-                        $transaction->order_id = $order->order_number;
-                        $transaction->save();
-                    }
-                }
             }
             
             // Check if this is a product request payment FIRST (before checking order)
@@ -2586,41 +2539,17 @@ class PaymentController extends Controller
                     $transaction->status = 'completed';
                     $transaction->save();
                     
-                    // Try one more time to find order by multiple methods
-                    if ($transaction->customer_email) {
-                        // Method 1: Try by user_id, amount, and time window
-                        $order = Order::where('user_id', $transaction->user_id ?? null)
-                            ->where('total_amount', $transaction->amount)
-                            ->where('created_at', '>=', $transaction->created_at->subMinutes(30))
-                            ->orderBy('created_at', 'desc')
-                            ->first();
-                        
-                        // Method 2: If transaction->order_id is a string (order_number), try that
-                        if (!$order && !empty($transaction->order_id) && !is_numeric($transaction->order_id)) {
-                            $order = Order::where('order_number', $transaction->order_id)
-                                ->where('user_id', $transaction->user_id ?? null)
-                                ->first();
-                        }
-                        
-                        // Method 3: Try to find by amount and user within a wider time window
-                        if (!$order) {
-                            $order = Order::where('user_id', $transaction->user_id ?? null)
-                                ->where('total_amount', $transaction->amount)
-                                ->where('created_at', '>=', $transaction->created_at->subHours(2))
-                                ->orderBy('created_at', 'desc')
-                                ->first();
-                        }
-                            
-                        if ($order) {
-                            // Update transaction with found order (store as order_number for consistency)
-                            $transaction->order_id = $order->order_number;
-                            $transaction->save();
-                            \Log::info('Order found after Chapa verification', [
-                                'order_id' => $order->id,
-                                'order_number' => $order->order_number,
-                                'transaction_order_id_updated' => $transaction->order_id,
-                            ]);
-                        }
+                    // Refresh transaction and try again with OrderLookupService
+                    // This will use the updated gateway_status and try amount/time matching
+                    $transaction->refresh();
+                    $order = $orderLookupService->getOrderForPayment($transaction);
+                    
+                    if ($order) {
+                        \Log::info('Order found after Chapa verification using OrderLookupService', [
+                            'order_id' => $order->id,
+                            'order_number' => $order->order_number,
+                            'transaction_order_id_normalized' => $transaction->order_id,
+                        ]);
                     }
                 }
                 
@@ -2783,7 +2712,8 @@ class PaymentController extends Controller
                 $orderItems = $this->getOrderItemsForDisplay($order->id);
                 
                 return Inertia::render('payment/payment-success', [
-                    'order_id' => $order->order_number,
+                    'order_id' => $order->id, // Use numeric ID for route model binding
+                    'order_number' => $order->order_number, // Also pass order_number for display
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'payment_method' => 'Chapa',

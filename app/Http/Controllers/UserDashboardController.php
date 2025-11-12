@@ -633,8 +633,47 @@ class UserDashboardController extends Controller
         $actualStatus = $order->status;
         $actualPaymentStatus = $order->payment_status;
 
-        if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
-            $actualPaymentStatus = 'paid';
+        // Get payment transaction to check actual admin approval status
+        $paymentTransaction = \App\Models\PaymentTransaction::with('rejectionReason')
+            ->where('order_id', $order->id)
+            ->first();
+        
+        // Use OrderLookupService to find payment transaction if order_id lookup fails
+        if (!$paymentTransaction && $order->id) {
+            // Try to find payment transaction using OrderLookupService
+            $orderLookupService = app(\App\Services\OrderLookupService::class);
+            // This won't work directly, so let's try a different approach
+            $paymentTransaction = \App\Models\PaymentTransaction::where(function($query) use ($order) {
+                $query->where('order_id', $order->id)
+                      ->orWhere('order_id', $order->order_number);
+            })->with('rejectionReason')->first();
+        }
+
+        // Determine actual payment status based on payment transaction admin_status
+        // This is more accurate than relying on order.payment_status alone
+        $isPaymentApproved = false;
+        $isPaymentReceived = false;
+        
+        if ($paymentTransaction) {
+            // Payment is received if gateway shows paid or proof uploaded
+            $isPaymentReceived = in_array($paymentTransaction->gateway_status, ['paid', 'proof_uploaded']);
+            
+            // Payment is approved only if admin_status is 'approved'
+            $isPaymentApproved = $paymentTransaction->admin_status === 'approved';
+            
+            // Update actualPaymentStatus based on payment transaction state
+            if ($isPaymentReceived && $isPaymentApproved) {
+                $actualPaymentStatus = 'paid';
+            } elseif ($isPaymentReceived && !$isPaymentApproved && !$paymentTransaction->isAdminRejected()) {
+                $actualPaymentStatus = 'pending_approval';
+            } elseif ($paymentTransaction->isAdminRejected()) {
+                $actualPaymentStatus = 'rejected';
+            }
+        } else {
+            // Fallback: if order status suggests payment was processed but no transaction found
+            if (in_array($actualStatus, ['processing', 'shipped', 'delivered'], true) && $actualPaymentStatus === 'pending') {
+                $actualPaymentStatus = 'paid';
+            }
         }
 
         $timeline = [];
@@ -647,9 +686,6 @@ class UserDashboardController extends Controller
             'completed' => true,
         ];
 
-        $paymentTransaction = \App\Models\PaymentTransaction::with('rejectionReason')
-            ->where('order_id', $order->id)
-            ->first();
         $paymentMethodType = 'Unknown Payment';
         $resolvedPaymentMethod = $order->payment_method ?: 'N/A';
 
@@ -673,22 +709,35 @@ class UserDashboardController extends Controller
             }
         }
 
-        if ($actualPaymentStatus === 'paid') {
+        // Show payment received step if payment was received (gateway shows paid/proof_uploaded)
+        if ($isPaymentReceived) {
             $timeline[] = [
                 'status' => 'payment_received',
                 'title' => 'Payment Received',
                 'description' => "Payment received via {$paymentMethodType}",
-                'date' => $order->updated_at,
+                'date' => $paymentTransaction ? $paymentTransaction->created_at : $order->updated_at,
                 'completed' => true,
             ];
 
-            $timeline[] = [
-                'status' => 'admin_approved',
-                'title' => 'Payment Approved',
-                'description' => 'Payment has been reviewed and approved by admin',
-                'date' => $order->updated_at,
-                'completed' => true,
-            ];
+            // Show payment approved step only if admin has actually approved
+            if ($isPaymentApproved) {
+                $timeline[] = [
+                    'status' => 'admin_approved',
+                    'title' => 'Payment Approved',
+                    'description' => 'Payment has been reviewed and approved by admin',
+                    'date' => $paymentTransaction->updated_at ?? $order->updated_at,
+                    'completed' => true,
+                ];
+            } else {
+                // Show pending approval step if payment received but not approved
+                $timeline[] = [
+                    'status' => 'pending_payment_approval',
+                    'title' => 'Pending Payment Approval',
+                    'description' => 'Payment is being reviewed by admin for approval',
+                    'date' => null,
+                    'completed' => false,
+                ];
+            }
         } elseif ($actualPaymentStatus === 'pending_approval') {
             $timeline[] = [
                 'status' => 'payment_received',

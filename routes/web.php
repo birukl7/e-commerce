@@ -420,6 +420,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/user/orders/{order}', [UserDashboardController::class, 'showOrder'])->name('user.orders.show');
     Route::get('/user/orders/{order}/track', [UserDashboardController::class, 'trackOrder'])->name('user.orders.track');
     Route::get('/user/orders/{order}/tracking-data', [UserDashboardController::class, 'trackOrderData'])->name('user.orders.track-data');
+    Route::get('/user/orders/{order}/receipt', [\App\Http\Controllers\ReceiptController::class, 'download'])->name('user.orders.receipt');
+    Route::get('/receipts/transaction/{txRef}', [\App\Http\Controllers\ReceiptController::class, 'downloadByTransaction'])->name('receipts.transaction');
+    Route::get('/product-requests/{productRequest}/receipt/{paymentType}', [\App\Http\Controllers\ReceiptController::class, 'downloadProductRequest'])->name('product-requests.receipt');
     
     // Product Request routes
     Route::get('/request', [RequestController::class, 'index'])->name('request.index');

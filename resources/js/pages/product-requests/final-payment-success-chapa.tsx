@@ -36,32 +36,14 @@ export default function FinalPaymentSuccessChapa({
   };
 
   const handleDownloadReceipt = () => {
-    const receiptContent = `
-Final Payment Receipt
-
-Product Request ID: #${productRequest.id}
-Order ID: ${productRequest.order_id || 'N/A'}
-Transaction ID: ${transaction_id || productRequest.payment_reference || 'N/A'}
-Date: ${new Date().toLocaleString()}
-Product: ${productRequest.product_name}
-
-Payment Details:
-- Final Amount Paid: ${formatCurrency(amount || productRequest.final_amount, productRequest.currency)}
-- Payment Method: Chapa (Online)
-- Status: ${productRequest.final_payment_status === 'processing' ? 'Pending Admin Approval' : productRequest.final_payment_status}
-
-Thank you for your payment! Your order is now complete.
-    `.trim();
-
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `final-payment-receipt-${productRequest.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    try {
+      // Use backend PDF endpoint for product request receipt
+      const receiptUrl = route('product-requests.receipt', [productRequest.id, 'final']);
+      window.open(receiptUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    }
   };
 
   return (

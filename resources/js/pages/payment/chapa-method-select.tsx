@@ -137,7 +137,7 @@ export default function ChapaMethodSelect({
     amount: amount || 0,
     currency: currency || "ETB",
     cart_items: JSON.stringify(cart_items || []),
-    payment_type: payment_type || "",
+    payment_type: payment_type || "regular", // Default to 'regular' if not provided
     product_request_id: product_request_id || undefined,
     description: description || "",
   })

@@ -82,53 +82,9 @@ class PaymentFinalizer
 
         return DB::transaction(function () use ($payment) {
             try {
-                // First try to get order via relationship
-                $order = $payment->order;
-                
-                // If not found, try to find by order ID directly (numeric id)
-                if (!$order && $payment->order_id) {
-                    $order = Order::find($payment->order_id);
-                    Log::info('Looked up order by ID', [
-                        'payment_id' => $payment->id,
-                        'order_id' => $payment->order_id,
-                        'found' => $order ? 'yes' : 'no'
-                    ]);
-                }
-
-                // If still not found and order_id looks like an order number string, try by order_number
-                if (!$order && is_string($payment->order_id)) {
-                    $order = Order::where('order_number', $payment->order_id)->first();
-                    Log::info('Looked up order by order_number', [
-                        'payment_id' => $payment->id,
-                        'order_number' => $payment->order_id,
-                        'found' => $order ? 'yes' : 'no'
-                    ]);
-                    // If found, normalize payment to store numeric order_id for future lookups
-                    if ($order && $payment->order_id !== $order->id) {
-                        $payment->order_id = $order->id;
-                        $payment->save();
-                        Log::info('Normalized payment.order_id to numeric ID', [
-                            'payment_id' => $payment->id,
-                            'normalized_order_id' => $payment->order_id
-                        ]);
-                    }
-                }
-
-                // If still not found, try to find by order_number in gateway_payload
-                if (!$order && !empty($payment->gateway_payload['order_number'])) {
-                    $order = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
-                    
-                    if ($order) {
-                        // Update the payment with the correct order_id
-                        $payment->order_id = $order->id;
-                        $payment->save();
-                        Log::info('Updated payment with correct order_id from gateway payload', [
-                            'payment_id' => $payment->id,
-                            'order_id' => $order->id,
-                            'order_number' => $order->order_number
-                        ]);
-                    }
-                }
+                // Use OrderLookupService for consistent order lookup and normalization
+                $orderLookupService = app(\App\Services\OrderLookupService::class);
+                $order = $orderLookupService->getOrderForPayment($payment);
 
                 // Handle product request payments
                 if ($payment->product_request_id) {
@@ -279,21 +235,33 @@ class PaymentFinalizer
                 }
 
                 if (!$order) {
+                    // For regular payments (not product requests), orders should exist
+                    // If order not found, it might be because order_id wasn't set properly
+                    // OrderLookupService should have found it by amount/time, but if it didn't,
+                    // we can't proceed without an order
                     Log::error('Order not found for payment', [
                         'payment_id' => $payment->id,
                         'order_id' => $payment->order_id,
                         'gateway_payload' => $payment->gateway_payload ?? [],
                         'payment_method' => $payment->payment_method,
+                        'product_request_id' => $payment->product_request_id,
                         'created_at' => $payment->created_at,
                         'updated_at' => $payment->updated_at
                     ]);
                     
-                    // Dump the payment model to see all its attributes
-                    Log::error('Payment model dump', [
-                        'payment_attributes' => $payment->getAttributes(),
-                        'relations' => $payment->getRelations()
-                    ]);
+                    // For regular payments, we need an order - can't finalize without it
+                    // For product request payments, order will be created above
+                    if (!$payment->product_request_id) {
+                        Log::error('Cannot finalize regular payment without order', [
+                            'payment_id' => $payment->id,
+                            'customer_email' => $payment->customer_email,
+                            'amount' => $payment->amount,
+                        ]);
+                        return false;
+                    }
                     
+                    // If we get here, it's a product request payment that should have created an order
+                    // but didn't - this is an error state
                     return false;
                 }
 
@@ -366,17 +334,9 @@ class PaymentFinalizer
                 $this->handleGatewayPaid($payment);
 
                 try {
-                    // Try to resolve order for email context without changing order state
-                    $order = $payment->order;
-                    if (!$order && is_numeric($payment->order_id)) {
-                        $order = Order::find($payment->order_id);
-                    }
-                    if (!$order && is_string($payment->order_id)) {
-                        $order = Order::where('order_number', $payment->order_id)->first();
-                    }
-                    if (!$order && !empty($payment->gateway_payload['order_number'])) {
-                        $order = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
-                    }
+                    // Use OrderLookupService for consistent order lookup
+                    $orderLookupService = app(\App\Services\OrderLookupService::class);
+                    $order = $orderLookupService->getOrderForPayment($payment);
 
                     if ($order) {
                         Log::info('Sending payment confirmation email after gateway paid', [
@@ -460,8 +420,8 @@ class PaymentFinalizer
                     return false;
                 }
 
-                // Reload the order to get the latest status
-                $order = $payment->order;
+                // Reload the order to get the latest status using OrderLookupService
+                $order = $orderLookupService->getOrderForPayment($payment);
                 
                 if ($order) {
                     // Emails are already sent inside finalizeOrder(). Avoid duplicates here.
@@ -524,11 +484,15 @@ class PaymentFinalizer
         ]);
 
         // Notify user of payment rejection
-        if ($payment->order) {
+        // Use OrderLookupService to get order (handles both numeric ID and order_number string)
+        $orderLookupService = app(\App\Services\OrderLookupService::class);
+        $order = $orderLookupService->getOrderForPayment($payment);
+        
+        if ($order) {
             $message = 'Your payment was rejected. Reason: ' . $rejectionReasonText . 
                       ' You can retry the payment from your order details page.';
             $this->notificationService->sendOrderStatusUpdate(
-                $payment->order, 
+                $order, 
                 'payment_failed', 
                 $message
             );
@@ -678,19 +642,23 @@ class PaymentFinalizer
      */
     protected function handleOrderCancellation(PaymentTransaction $payment): void
     {
-        if (!$payment->order) {
+        // Use OrderLookupService to get order (handles both numeric ID and order_number string)
+        $orderLookupService = app(\App\Services\OrderLookupService::class);
+        $order = $orderLookupService->getOrderForPayment($payment);
+        
+        if (!$order) {
             return;
         }
 
         $cancellationReason = 'Payment rejected: ' . ($payment->admin_notes ?? 'No reason provided');
         
-        $payment->order->update([
+        $order->update([
             'status' => 'cancelled',
             'cancellation_reason' => $cancellationReason
         ]);
         
         $this->notificationService->sendOrderStatusUpdate(
-            $payment->order,
+            $order,
             'cancelled',
             'Your order has been cancelled. Reason: ' . $cancellationReason
         );

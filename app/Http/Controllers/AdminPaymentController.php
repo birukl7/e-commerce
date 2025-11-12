@@ -29,9 +29,17 @@ class AdminPaymentController extends Controller
         ]);
         
         try {
+        // Note: Using leftJoin on order_id may fail if order_id is stored as order_number string
+        // The join will work for numeric IDs, but for string order_numbers, the relationship won't match
+        // This is acceptable for listing purposes - individual payment views use OrderLookupService
+        // We use a raw join condition to handle both numeric IDs and order_number strings
         $query = DB::table('payment_transactions as pt')
             ->leftJoin('users as u', 'pt.customer_email', '=', 'u.email')
-            ->leftJoin('orders as o', 'pt.order_id', '=', 'o.id')
+            ->leftJoin('orders as o', function($join) {
+                // Try to join on numeric ID first, then fallback to order_number
+                $join->on(DB::raw('CAST(pt.order_id AS UNSIGNED)'), '=', 'o.id')
+                     ->orOn('pt.order_id', '=', 'o.order_number');
+            })
             ->leftJoin('users as admin', 'pt.admin_id', '=', 'admin.id')
             ->select([
                 'pt.*',
@@ -175,7 +183,7 @@ class AdminPaymentController extends Controller
      */
     public function show($paymentId)
     {
-        $payment = PaymentTransaction::with(['admin', 'order', 'productRequest'])
+        $payment = PaymentTransaction::with(['admin', 'productRequest'])
             ->where('id', $paymentId)
             ->first();
 
@@ -188,6 +196,10 @@ class AdminPaymentController extends Controller
         if ($payment->isAdminUnseen()) {
             $payment->markSeen(Auth::user());
         }
+
+        // Get order using OrderLookupService (handles both numeric ID and order_number string)
+        $orderLookupService = app(\App\Services\OrderLookupService::class);
+        $order = $orderLookupService->getOrderForPayment($payment);
 
         // Determine if this is a product request payment
         $isProductRequestPayment = $payment->product_request_id !== null;
@@ -205,8 +217,9 @@ class AdminPaymentController extends Controller
 
         // Get additional data same as before...
         $orderItems = [];
-        if ($payment->order_id && !$isProductRequestPayment) {
+        if ($order && !$isProductRequestPayment) {
             // Only load order items for regular orders, not product requests
+            // Use numeric order ID (order->id) for the query
             $orderItems = DB::table('order_items as oi')
                 ->join('products as p', 'oi.product_id', '=', 'p.id')
                 ->leftJoin('product_images as pi', function($join) {
@@ -219,7 +232,7 @@ class AdminPaymentController extends Controller
                     'p.slug as product_slug',
                     'pi.image_path as primary_image',
                 ])
-                ->where('oi.order_id', $payment->order_id)
+                ->where('oi.order_id', $order->id)
                 ->get();
         }
 

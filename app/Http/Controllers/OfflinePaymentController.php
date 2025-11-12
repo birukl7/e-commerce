@@ -327,8 +327,11 @@ class OfflinePaymentController extends Controller
                     }
                 } else {
                     // If rejected, update order status directly
-                    if ($submission->order) {
-                        $order = $submission->order;
+                    // Use OrderLookupService to get order (handles both numeric ID and order_number string)
+                    $orderLookupService = app(\App\Services\OrderLookupService::class);
+                    $order = $orderLookupService->getOrderForPayment($submission);
+                    
+                    if ($order) {
                         $order->payment_status = 'failed';
                         $order->save();
                         

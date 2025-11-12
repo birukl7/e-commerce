@@ -36,32 +36,14 @@ export default function FinalPaymentSuccessOffline({
   };
 
   const handleDownloadReceipt = () => {
-    const receiptContent = `
-Final Payment Receipt (Offline)
-
-Product Request ID: #${productRequest.id}
-Order ID: ${productRequest.order_id || 'N/A'}
-Submission Reference: ${submission_ref}
-Date: ${new Date().toLocaleString()}
-Product: ${productRequest.product_name}
-
-Payment Details:
-- Final Amount Paid: ${formatCurrency(amount, productRequest.currency)}
-- Payment Method: ${payment_method} (Pay & Upload Proof)
-- Status: Pending Admin Approval
-
-Thank you for your payment! Your order will be complete once verified.
-    `.trim();
-
-    const blob = new Blob([receiptContent], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `final-payment-receipt-${productRequest.id}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
+    try {
+      // Use backend PDF endpoint for product request receipt
+      const receiptUrl = route('product-requests.receipt', [productRequest.id, 'final']);
+      window.open(receiptUrl, '_blank');
+    } catch (error) {
+      console.error('Error downloading receipt:', error);
+      alert('Failed to download receipt. Please try again.');
+    }
   };
 
   return (

@@ -247,11 +247,14 @@ class ChapaWebhookController extends Controller
 
     /**
      * Handle regular order payments
+     * Uses OrderLookupService for consistent order lookup and normalization.
      */
     private function handleRegularOrderPayment($payment, $gatewayStatus, $txRef, $logContext)
     {
-        if ($payment->order) {
-            $order = $payment->order;
+        $orderLookupService = app(\App\Services\OrderLookupService::class);
+        $order = $orderLookupService->getOrderForPayment($payment);
+        
+        if ($order) {
             $oldStatus = $order->payment_status;
             
             // Update order payment status
@@ -272,6 +275,13 @@ class ChapaWebhookController extends Controller
                 'old_payment_status' => $oldStatus,
                 'new_payment_status' => $gatewayStatus,
                 'order_status' => $order->status
+            ] + $logContext);
+        } else {
+            Log::warning('Order not found for payment in webhook', [
+                'payment_id' => $payment->id,
+                'order_id' => $payment->order_id,
+                'tx_ref' => $txRef,
+                'gateway_payload' => $payment->gateway_payload ?? []
             ] + $logContext);
         }
     }
