@@ -6,13 +6,13 @@ use App\Events\OrderCreated;
 use App\Events\OrderCreatedFromAdvance;
 use App\Events\OrderStatusChanged;
 use App\Events\ShipmentCreated;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Support\Facades\Queue;
+use App\Jobs\SendAdvanceOrderConfirmationEmail;
 use App\Jobs\SendOrderConfirmationEmail;
 use App\Jobs\SendOrderStatusUpdateEmail;
 use App\Jobs\SendShipmentCreatedEmail;
-use App\Jobs\SendAdvanceOrderConfirmationEmail;
 use App\Models\NotificationOutbox;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Support\Facades\Log;
 
 class SendOrderNotifications implements ShouldQueue
 {
@@ -25,8 +25,13 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
-                \Log::info('[SendOrderNotifications] Queue OrderConfirmation', ['order_id' => $order->id]);
-                Queue::push(new SendOrderConfirmationEmail($order));
+                Log::info('[SendOrderNotifications] Dispatching SendOrderConfirmationEmail', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                ]);
+                
+                SendOrderConfirmationEmail::dispatch($order)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -38,8 +43,14 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
-                \Log::info('[SendOrderNotifications] Queue OrderStatusUpdate', ['order_id' => $order->id, 'new_status' => $event->newStatus]);
-                Queue::push(new SendOrderStatusUpdateEmail($order, $event->newStatus, 'Your order status has been updated.'));
+                Log::info('[SendOrderNotifications] Dispatching SendOrderStatusUpdateEmail', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'new_status' => $event->newStatus,
+                ]);
+                
+                SendOrderStatusUpdateEmail::dispatch($order, $event->newStatus, 'Your order status has been updated.')
+                    ->onQueue('emails');
             }
             return;
         }
@@ -51,8 +62,14 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
-                \Log::info('[SendOrderNotifications] Queue ShipmentCreated', ['order_id' => $order->id, 'tracking' => $event->trackingNumber]);
-                Queue::push(new SendShipmentCreatedEmail($order, $user, $event->trackingNumber));
+                Log::info('[SendOrderNotifications] Dispatching SendShipmentCreatedEmail', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                    'tracking_number' => $event->trackingNumber,
+                ]);
+                
+                SendShipmentCreatedEmail::dispatch($order, $user, $event->trackingNumber)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -64,8 +81,13 @@ class SendOrderNotifications implements ShouldQueue
             $order = $event->order;
             $user = $order->user;
             if ($order && $user) {
-                \Log::info('[SendOrderNotifications] Queue AdvanceOrderConfirmation', ['order_id' => $order->id]);
-                Queue::push(new SendAdvanceOrderConfirmationEmail($order, $user));
+                Log::info('[SendOrderNotifications] Dispatching SendAdvanceOrderConfirmationEmail', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number ?? null,
+                ]);
+                
+                SendAdvanceOrderConfirmationEmail::dispatch($order, $user)
+                    ->onQueue('emails');
             }
             return;
         }

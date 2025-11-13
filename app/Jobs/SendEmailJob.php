@@ -9,6 +9,11 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 
+/**
+ * @deprecated This job is deprecated and no longer used.
+ * Use specific mail jobs like SendAccountActivityEmail, SendOrderConfirmationEmail, etc.
+ * This job will be removed in a future version.
+ */
 class SendEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;

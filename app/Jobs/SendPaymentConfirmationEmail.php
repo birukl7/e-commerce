@@ -3,36 +3,45 @@
 namespace App\Jobs;
 
 use App\Mail\PaymentConfirmation;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\Order;
+use App\Models\PaymentTransaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-class SendPaymentConfirmationEmail implements ShouldQueue
+class SendPaymentConfirmationEmail extends BaseMailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    public function __construct(
+        public PaymentTransaction $payment,
+        public User $user,
+        public Order $order
+    ) {}
 
-    protected $payment;
-    protected $user;
-    protected $order;
-
-    public function __construct($payment, $user, $order)
+    public function handle(): void
     {
-        $this->payment = $payment;
-        $this->user = $user;
-        $this->order = $order;
-    }
+        $this->logJobStart([
+            'payment_id' => $this->payment->id,
+            'tx_ref' => $this->payment->tx_ref ?? null,
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number ?? null,
+            'user_email' => $this->user->email,
+        ]);
 
-    public function handle()
-    {
         try {
             Mail::to($this->user->email)
                 ->send(new PaymentConfirmation($this->order, $this->payment));
-        } catch (\Exception $e) {
-            \Log::error('Failed to send payment confirmation email: ' . $e->getMessage());
-            throw $e; // Re-throw to mark job as failed
+            
+            $this->logJobComplete([
+                'payment_id' => $this->payment->id,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id,
+            ]);
+        } catch (\Throwable $e) {
+            $this->handleError($e, [
+                'payment_id' => $this->payment->id ?? null,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id ?? null,
+                'user_email' => $this->user->email ?? null,
+            ]);
         }
     }
 }

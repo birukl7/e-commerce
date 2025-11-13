@@ -47,6 +47,15 @@ class SendPaymentNotifications implements ShouldQueue
         }
 
         if ($event instanceof PaymentFailed) {
+            // Check idempotency for PaymentFailed
+            $failedKey = $this->makeKeyForFailed($event);
+            if (!$this->reserveOutboxKey($failedKey, $event)) {
+                if (app()->environment('testing')) {
+                    \Log::info('[SendPaymentNotifications] Duplicate/outbox key exists for PaymentFailed; skipping', ['key' => $failedKey]);
+                }
+                return; // Already processed
+            }
+            
             if (app()->environment('testing')) {
                 \Log::info('[SendPaymentNotifications] Handling PaymentFailed', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
             }
@@ -64,7 +73,8 @@ class SendPaymentNotifications implements ShouldQueue
                 if (app()->environment('testing')) {
                     \Log::info('[SendPaymentNotifications] Dispatch SendPaymentConfirmationEmail');
                 }
-                dispatch(new SendPaymentConfirmationEmail($payment, $user, $order));
+                SendPaymentConfirmationEmail::dispatch($payment, $user, $order)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -76,7 +86,8 @@ class SendPaymentNotifications implements ShouldQueue
                 if (app()->environment('testing')) {
                     \Log::info('[SendPaymentNotifications] Dispatch SendAdvancePaymentConfirmationEmail');
                 }
-                dispatch(new SendAdvancePaymentConfirmationEmail($payment, $user, $productRequest));
+                SendAdvancePaymentConfirmationEmail::dispatch($payment, $user, $productRequest)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -91,7 +102,8 @@ class SendPaymentNotifications implements ShouldQueue
                 if (app()->environment('testing')) {
                     \Log::info('[SendPaymentNotifications] Dispatch SendPaymentApprovedEmail');
                 }
-                dispatch(new SendPaymentApprovedEmail($payment, $user, $order));
+                SendPaymentApprovedEmail::dispatch($payment, $user, $order)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -103,7 +115,8 @@ class SendPaymentNotifications implements ShouldQueue
                 if (app()->environment('testing')) {
                     \Log::info('[SendPaymentNotifications] Dispatch SendAdvancePaymentApprovedEmail');
                 }
-                dispatch(new SendAdvancePaymentApprovedEmail($payment, $user, $productRequest));
+                SendAdvancePaymentApprovedEmail::dispatch($payment, $user, $productRequest)
+                    ->onQueue('emails');
             }
             return;
         }
@@ -119,7 +132,8 @@ class SendPaymentNotifications implements ShouldQueue
         }
 
         if ($user) {
-            dispatch(new SendPaymentFailedEmail($payment, $user));
+            SendPaymentFailedEmail::dispatch($payment, $user)
+                ->onQueue('emails');
         }
     }
 
@@ -130,6 +144,14 @@ class SendPaymentNotifications implements ShouldQueue
         $ctx = $event->context ?? 'checkout';
         $txRef = $payment->tx_ref ?? 'unknown';
         return "payment:{$txRef}:{$type}:{$ctx}";
+    }
+
+    private function makeKeyForFailed($event): string
+    {
+        $payment = $event->payment;
+        $ctx = $event->context ?? 'checkout';
+        $txRef = $payment->tx_ref ?? 'unknown';
+        return "payment:{$txRef}:failed:{$ctx}";
     }
 
     private function reserveOutboxKey(string $key, $event): bool

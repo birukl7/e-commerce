@@ -2,42 +2,42 @@
 
 namespace App\Jobs;
 
-use App\Mail\AdvanceOrderConfirmation;
-use App\Models\Order;
+use App\Mail\ProductRequestNotification;
+use App\Models\ProductRequest;
 use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-class SendAdvanceOrderConfirmationEmail extends BaseMailJob
+class SendProductRequestSubmittedEmail extends BaseMailJob
 {
     public function __construct(
-        public Order $order,
+        public ProductRequest $productRequest,
         public User $user
     ) {}
 
     public function handle(): void
     {
         $this->logJobStart([
-            'order_id' => $this->order->id,
-            'order_number' => $this->order->order_number,
+            'product_request_id' => $this->productRequest->id,
             'user_email' => $this->user->email,
         ]);
 
         try {
             Mail::to($this->user->email)
-                ->send(new AdvanceOrderConfirmation($this->order));
+                ->send(new ProductRequestNotification(
+                    $this->productRequest,
+                    $this->user,
+                    'submitted'
+                ));
             
             $this->logJobComplete([
-                'order_id' => $this->order->id,
-                'order_number' => $this->order->order_number,
+                'product_request_id' => $this->productRequest->id,
             ]);
         } catch (\Throwable $e) {
             $this->handleError($e, [
-                'order_id' => $this->order->id ?? null,
-                'order_number' => $this->order->order_number ?? null,
+                'product_request_id' => $this->productRequest->id ?? null,
                 'user_email' => $this->user->email ?? null,
             ]);
         }
     }
 }
-
 

@@ -18,8 +18,8 @@ class PaymentConfirmation extends Mailable
 
     public function __construct(Order $order, PaymentTransaction $transaction)
     {
-        $this->order = $order;
-        $this->user = $order->user;
+        $this->order = $order->load('user');
+        $this->user = $this->order->user;
         $this->transaction = $transaction;
     }
 

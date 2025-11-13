@@ -3,26 +3,46 @@
 namespace App\Jobs;
 
 use App\Mail\PaymentApproved;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\Order;
+use App\Models\PaymentTransaction;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-class SendPaymentApprovedEmail implements ShouldQueue
+class SendPaymentApprovedEmail extends BaseMailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public function __construct(
-        public $payment,
-        public $user,
-        public $order
+        public PaymentTransaction $payment,
+        public User $user,
+        public Order $order
     ) {}
 
     public function handle(): void
     {
-        Mail::to($this->user->email)->send(new PaymentApproved($this->order, $this->payment));
+        $this->logJobStart([
+            'payment_id' => $this->payment->id,
+            'tx_ref' => $this->payment->tx_ref ?? null,
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number ?? null,
+            'user_email' => $this->user->email,
+        ]);
+
+        try {
+            Mail::to($this->user->email)
+                ->send(new PaymentApproved($this->order, $this->payment));
+            
+            $this->logJobComplete([
+                'payment_id' => $this->payment->id,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id,
+            ]);
+        } catch (\Throwable $e) {
+            $this->handleError($e, [
+                'payment_id' => $this->payment->id ?? null,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id ?? null,
+                'user_email' => $this->user->email ?? null,
+            ]);
+        }
     }
 }
 

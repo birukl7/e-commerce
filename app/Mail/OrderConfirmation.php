@@ -16,8 +16,8 @@ class OrderConfirmation extends Mailable
 
     public function __construct(Order $order)
     {
-        $this->order = $order;
-        $this->user = $order->user;
+        $this->order = $order->load('user');
+        $this->user = $this->order->user;
     }
 
     public function build()

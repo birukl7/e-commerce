@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
+use App\Jobs\SendAccountActivityEmail;
 use App\Jobs\SendOrderConfirmationEmail;
 use App\Jobs\SendOrderStatusUpdateEmail;
 use App\Jobs\SendPaymentConfirmationEmail;
-use App\Jobs\SendEmailJob;
-use App\Mail\AccountActivity;
 use App\Models\Order;
 use App\Models\PaymentTransaction;
 use App\Models\User;
@@ -14,6 +13,12 @@ use Illuminate\Support\Facades\Log;
 
 class NotificationService
 {
+    /**
+     * Send order confirmation email.
+     *
+     * @param Order $order
+     * @return void
+     */
     public function sendOrderConfirmation(Order $order): void
     {
         Log::info('[NotificationService] Dispatching SendOrderConfirmationEmail', [
@@ -21,11 +26,19 @@ class NotificationService
             'order_number' => $order->order_number,
             'user_email' => $order->user->email ?? null,
         ]);
+        
         SendOrderConfirmationEmail::dispatch($order)
-            ->delay(now()->addSeconds(2))
             ->onQueue('emails');
     }
 
+    /**
+     * Send order status update email.
+     *
+     * @param Order $order
+     * @param string $status
+     * @param string $message
+     * @return void
+     */
     public function sendOrderStatusUpdate(Order $order, string $status, string $message = ''): void
     {
         Log::info('[NotificationService] Dispatching SendOrderStatusUpdateEmail', [
@@ -34,11 +47,18 @@ class NotificationService
             'status' => $status,
             'has_message' => $message !== '',
         ]);
+        
         SendOrderStatusUpdateEmail::dispatch($order, $status, $message)
-            ->delay(now()->addSeconds(5))
             ->onQueue('emails');
     }
 
+    /**
+     * Send payment confirmation email.
+     *
+     * @param Order $order
+     * @param PaymentTransaction $transaction
+     * @return void
+     */
     public function sendPaymentConfirmation(Order $order, PaymentTransaction $transaction): void
     {
         Log::info('[NotificationService] Dispatching SendPaymentConfirmationEmail', [
@@ -48,23 +68,28 @@ class NotificationService
             'tx_ref' => $transaction->tx_ref ?? null,
             'user_email' => $order->user->email ?? null,
         ]);
+        
         SendPaymentConfirmationEmail::dispatch($transaction, $order->user, $order)
-            ->delay(now()->addSeconds(8))
             ->onQueue('emails');
     }
 
+    /**
+     * Send account activity notification email.
+     *
+     * @param User $user
+     * @param string $activityType
+     * @param array $data
+     * @return void
+     */
     public function sendAccountActivity(User $user, string $activityType, array $data = []): void
     {
-        $this->sendEmail($user->email, new AccountActivity($user, $activityType, $data));
-    }
-
-    protected function sendEmail(string $email, $mailable): void
-    {
-        try {
-            SendEmailJob::dispatch($mailable, $email)
-                ->onQueue('emails');
-        } catch (\Exception $e) {
-            Log::error('Failed to queue email: ' . $e->getMessage());
-        }
+        Log::info('[NotificationService] Dispatching SendAccountActivityEmail', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'activity_type' => $activityType,
+        ]);
+        
+        SendAccountActivityEmail::dispatch($user, $activityType, $data)
+            ->onQueue('emails');
     }
 }

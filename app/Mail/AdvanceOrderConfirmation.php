@@ -13,6 +13,8 @@ class AdvanceOrderConfirmation extends Mailable
 
     public function __construct(public Order $order)
     {
+        // Eager load user relationship
+        $this->order->load('user');
     }
 
     public function build()
