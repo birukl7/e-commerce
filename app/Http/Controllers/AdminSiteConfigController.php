@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Models\OfflinePaymentMethod;
 use App\Models\ChapaPaymentMethod;
-use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
@@ -67,29 +66,11 @@ class AdminSiteConfigController extends Controller
         
         // Load Chapa payment methods
         $chapaPaymentMethods = ChapaPaymentMethod::ordered()->get();
-        
-        // Load recent payment data for dashboard with fresh data
-        // Use tx_ref patterns to distinguish payment types:
-        // Chapa: TX-xxxxx (from PaymentController)
-        // Offline: OFFLINE-xxxxx (from offline submission)
-        $recentChapaPayments = PaymentTransaction::where('tx_ref', 'like', 'TX-%')
-            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
-            
-        $recentOfflinePayments = PaymentTransaction::where('tx_ref', 'like', 'OFFLINE-%')
-            ->select(['id', 'tx_ref', 'order_id', 'customer_name', 'customer_email', 'amount', 'currency', 'payment_method', 'gateway_status', 'admin_status', 'created_at'])
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
 
         return Inertia::render('admin/site-config/index', [
             'settings' => $settings,
             'offlinePaymentMethods' => $offlinePaymentMethods,
             'chapaPaymentMethods' => $chapaPaymentMethods,
-            'recentChapaPayments' => $recentChapaPayments,
-            'recentOfflinePayments' => $recentOfflinePayments,
         ]);
     }
 

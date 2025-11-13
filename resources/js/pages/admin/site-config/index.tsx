@@ -28,20 +28,6 @@ interface OfflinePaymentMethod {
     sort_order: number;
 }
 
-interface PaymentRow {
-    id: number;
-    tx_ref: string;
-    order_id: string | null;
-    customer_name: string;
-    customer_email: string;
-    amount: number;
-    currency: string;
-    payment_method: string;
-    gateway_status: 'pending' | 'proof_uploaded' | 'paid' | 'failed' | 'refunded';
-    admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
-    created_at: string;
-}
-
 interface ChapaPaymentMethod {
     id: number;
     name: string;
@@ -56,8 +42,6 @@ interface SiteConfigProps {
     settings: Record<string, string>;
     offlinePaymentMethods: OfflinePaymentMethod[];
     chapaPaymentMethods: ChapaPaymentMethod[];
-    recentChapaPayments: PaymentRow[];
-    recentOfflinePayments: PaymentRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -71,7 +55,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function SiteConfig({ settings, offlinePaymentMethods, chapaPaymentMethods, recentChapaPayments, recentOfflinePayments }: SiteConfigProps) {
+export default function SiteConfig({ settings, offlinePaymentMethods, chapaPaymentMethods }: SiteConfigProps) {
     const [showAddPaymentModal, setShowAddPaymentModal] = React.useState(false);
     const [showAddChapaPaymentModal, setShowAddChapaPaymentModal] = React.useState(false);
     
@@ -284,7 +268,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                         <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
                             <Tabs defaultValue="homepage" className="w-full">
                                 <div className="border-b border-gray-200/50 bg-white/30 px-6 py-4">
-                                    <TabsList className="grid w-full grid-cols-7 bg-gray-100/50 p-1 rounded-xl">
+                                    <TabsList className="grid w-full grid-cols-6 bg-gray-100/50 p-1 rounded-xl">
                                         <TabsTrigger value="homepage" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <Globe className="h-4 w-4" />
                                             <span className="hidden sm:inline">Homepage</span>
@@ -304,10 +288,6 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                         <TabsTrigger value="offline-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <FileImage className="h-4 w-4" />
                                             <span className="hidden sm:inline">Offline Submit</span>
-                                        </TabsTrigger>
-                                        <TabsTrigger value="payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <CreditCard className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Payments</span>
                                         </TabsTrigger>
                                         <TabsTrigger value="legal" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
                                             <FileText className="h-4 w-4" />
@@ -488,222 +468,6 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                     </Card>
                         </TabsContent>
 
-                        {/* Payments Management Tab */}
-                        <TabsContent value="payments" className="space-y-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <CreditCard className="h-5 w-5" />
-                                        Payments (Quick Review)
-                                    </CardTitle>
-                                    <CardDescription>Review and take action on recent Chapa and Offline payments</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <Tabs defaultValue="chapa">
-                                        <TabsList>
-                                            <TabsTrigger value="chapa">Chapa</TabsTrigger>
-                                            <TabsTrigger value="offline">Offline</TabsTrigger>
-                                        </TabsList>
-                                        <TabsContent value="chapa">
-                                            <div className="overflow-x-auto mt-4">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="text-left py-2">Tx Ref</th>
-                                                            <th className="text-left py-2">Order</th>
-                                                            <th className="text-left py-2">Customer</th>
-                                                            <th className="text-left py-2">Amount</th>
-                                                            <th className="text-left py-2">Gateway</th>
-                                                            <th className="text-left py-2">Admin</th>
-                                                            <th className="text-left py-2">Date</th>
-                                                            <th className="text-left py-2">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {recentChapaPayments.map(p => (
-                                                            <tr key={p.id} className="border-b hover:bg-muted/30">
-                                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
-                                                                <td className="py-2">{p.order_id ?? '-'}</td>
-                                                                <td className="py-2">
-                                                                    <div className="flex flex-col">
-                                                                        <span>{p.customer_name}</span>
-                                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="py-2">{new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency === 'ETB' ? 'USD' : p.currency }).format(p.amount).replace('$', p.currency + ' ')}</td>
-                                                                <td className="py-2">
-                                                                    {p.gateway_status === 'paid' && <Badge className="bg-green-100 text-green-800">paid</Badge>}
-                                                                    {p.gateway_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">pending</Badge>}
-                                                                    {p.gateway_status === 'failed' && <Badge className="bg-red-100 text-red-800">failed</Badge>}
-                                                                </td>
-                                                                <td className="py-2">
-                                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
-                                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
-                                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
-                                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
-                                                                </td>
-                                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
-                                                                <td className="py-2">
-                                                                    <div className="flex gap-2">
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            variant="outline" 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                console.log('Mark seen clicked for Chapa payment:', p.id);
-                                                                                router.post(`/admin/payments/${p.id}/mark-seen`, {}, {
-                                                                                    onSuccess: (page) => {
-                                                                                        console.log('Mark seen success, reloading...');
-                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
-                                                                                    },
-                                                                                    onError: (errors) => {
-                                                                                        console.error('Mark seen failed:', errors);
-                                                                                        alert('Failed to mark as seen: ' + JSON.stringify(errors));
-                                                                                    }
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            Mark seen
-                                                                        </Button>
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                console.log('Approve clicked for Chapa payment:', p.id);
-                                                                                router.post(`/admin/payments/${p.id}/approve`, {}, {
-                                                                                    onSuccess: (page) => {
-                                                                                        console.log('Approve success, reloading...');
-                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
-                                                                                    },
-                                                                                    onError: (errors) => {
-                                                                                        console.error('Approve failed:', errors);
-                                                                                        alert('Failed to approve: ' + JSON.stringify(errors));
-                                                                                    }
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            Approve
-                                                                        </Button>
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            variant="destructive" 
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                console.log('Reject clicked for Chapa payment:', p.id);
-                                                                                router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from site config' }, {
-                                                                                    onSuccess: (page) => {
-                                                                                        console.log('Reject success, reloading...');
-                                                                                        router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] });
-                                                                                    },
-                                                                                    onError: (errors) => {
-                                                                                        console.error('Reject failed:', errors);
-                                                                                        alert('Failed to reject: ' + JSON.stringify(errors));
-                                                                                    }
-                                                                                });
-                                                                            }}
-                                                                        >
-                                                                            Reject
-                                                                        </Button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                        {recentChapaPayments.length === 0 && (
-                                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </TabsContent>
-                                        <TabsContent value="offline">
-                                            <div className="overflow-x-auto mt-4">
-                                                <table className="w-full text-sm">
-                                                    <thead>
-                                                        <tr className="border-b">
-                                                            <th className="text-left py-2">Tx Ref</th>
-                                                            <th className="text-left py-2">Order</th>
-                                                            <th className="text-left py-2">Customer</th>
-                                                            <th className="text-left py-2">Amount</th>
-                                                            <th className="text-left py-2">Gateway</th>
-                                                            <th className="text-left py-2">Admin</th>
-                                                            <th className="text-left py-2">Date</th>
-                                                            <th className="text-left py-2">Actions</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {recentOfflinePayments.map(p => (
-                                                            <tr key={p.id} className="border-b hover:bg-muted/30">
-                                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
-                                                                <td className="py-2">{p.order_id ?? '-'}</td>
-                                                                <td className="py-2">
-                                                                    <div className="flex flex-col">
-                                                                        <span>{p.customer_name}</span>
-                                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td className="py-2">{new Intl.NumberFormat('en-US', { style: 'currency', currency: p.currency === 'ETB' ? 'USD' : p.currency }).format(p.amount).replace('$', p.currency + ' ')}</td>
-                                                                <td className="py-2">
-                                                                    {p.gateway_status === 'proof_uploaded' && <Badge className="bg-blue-100 text-blue-800">proof uploaded</Badge>}
-                                                                </td>
-                                                                <td className="py-2">
-                                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
-                                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
-                                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
-                                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
-                                                                </td>
-                                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
-                                                                <td className="py-2">
-                                                                    <div className="flex gap-2">
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            variant="outline" 
-                                                                            type="button"
-                                                                            onClick={() => router.post(`/admin/payments/${p.id}/mark-seen`, {}, {
-                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
-                                                                                onError: (errors) => console.error('Mark seen failed:', errors)
-                                                                            })}
-                                                                        >
-                                                                            Mark seen
-                                                                        </Button>
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            type="button"
-                                                                            onClick={() => router.post(`/admin/payments/${p.id}/approve`, {}, {
-                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
-                                                                                onError: (errors) => console.error('Approve failed:', errors)
-                                                                            })}
-                                                                        >
-                                                                            Approve
-                                                                        </Button>
-                                                                        <Button 
-                                                                            size="sm" 
-                                                                            variant="destructive" 
-                                                                            type="button"
-                                                                            onClick={() => router.post(`/admin/payments/${p.id}/reject`, { notes: 'Rejected from site config' }, {
-                                                                                onSuccess: () => router.reload({ only: ['recentChapaPayments', 'recentOfflinePayments'] }),
-                                                                                onError: (errors) => console.error('Reject failed:', errors)
-                                                                            })}
-                                                                        >
-                                                                            Reject
-                                                                        </Button>
-                                                                    </div>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                        {recentOfflinePayments.length === 0 && (
-                                                            <tr><td colSpan={8} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
-                                                        )}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                    <div className="mt-4 text-right">
-                                        <Link href="/admin/sales" className="text-sm text-primary hover:underline">Go to Sales Dashboard →</Link>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
 
                         {/* About Section Tab */}
                         <TabsContent value="about" className="space-y-6">
