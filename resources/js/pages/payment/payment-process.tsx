@@ -18,6 +18,16 @@ interface TaxBreakdownItem {
     rate: number;
 }
 
+interface ChapaPaymentMethod {
+    id: number;
+    name: string;
+    code: string;
+    description?: string;
+    logo?: string;
+    is_active: boolean;
+    sort_order: number;
+}
+
 interface PaymentProcessProps {
     order_id: string;
     total_amount: number;
@@ -39,6 +49,7 @@ interface PaymentProcessProps {
         instructions: string;
         details: any;
     }>;
+    chapaPaymentMethods?: ChapaPaymentMethod[];
 }
 
 export default function PaymentProcess({
@@ -55,6 +66,7 @@ export default function PaymentProcess({
     tax_amount,
     tax_breakdown,
     offlinePaymentMethods = [],
+    chapaPaymentMethods = [],
 }: PaymentProcessProps) {
     const { t } = useTranslation();
     const { auth } = usePage<SharedData>().props;
@@ -223,7 +235,7 @@ export default function PaymentProcess({
 
     // Form for regular Chapa payment
     const chapaForm = useForm({
-        payment_method: 'telebirr',
+        payment_method: chapaPaymentMethods.length > 0 ? chapaPaymentMethods[0].code : '',
         customer_name: customer_name,
         customer_email: customer_email,
         phone_number: getUserPhone(), // Add phone number from user profile
@@ -888,20 +900,27 @@ export default function PaymentProcess({
 
                                 <div>
                                     <Label htmlFor="payment_method">{t('payment.paymentMethod')}</Label>
-                                    <RadioGroup
-                                        value={String(chapaForm.data.payment_method || 'telebirr')}
-                                        onValueChange={(value) => chapaForm.setData('payment_method', value)}
-                                        className="mt-2"
-                                    >
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="telebirr" id="telebirr" />
-                                            <Label htmlFor="telebirr">{t('payment.telebirr')}</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="cbe" id="cbe" />
-                                            <Label htmlFor="cbe">{t('payment.cbeBirr')}</Label>
-                                        </div>
-                                    </RadioGroup>
+                                    {chapaPaymentMethods.length > 0 ? (
+                                        <RadioGroup
+                                            value={String(chapaForm.data.payment_method || chapaPaymentMethods[0]?.code || '')}
+                                            onValueChange={(value) => chapaForm.setData('payment_method', value)}
+                                            className="mt-2 space-y-2"
+                                        >
+                                            {chapaPaymentMethods.map((method) => (
+                                                <div key={method.id} className="flex items-center space-x-2">
+                                                    <RadioGroupItem value={method.code} id={method.code} />
+                                                    <Label htmlFor={method.code} className="cursor-pointer">
+                                                        {method.name}
+                                                        {method.description && (
+                                                            <span className="ml-2 text-xs text-gray-500">({method.description})</span>
+                                                        )}
+                                                    </Label>
+                                                </div>
+                                            ))}
+                                        </RadioGroup>
+                                    ) : (
+                                        <p className="mt-2 text-sm text-gray-500">No payment methods available. Please contact support.</p>
+                                    )}
                                     {chapaForm.errors.payment_method && (
                                         <p className="mt-1 text-sm text-red-600">{chapaForm.errors.payment_method}</p>
                                     )}
