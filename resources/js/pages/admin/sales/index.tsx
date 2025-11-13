@@ -4,8 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import type { BreadcrumbItem, SharedData } from '@/types';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { useMemo } from 'react';
 import { 
     BarChart3, 
     CreditCard, 
@@ -26,15 +27,6 @@ import {
     Settings
 } from 'lucide-react';
 
-const adminNavItems = [
-    { title: 'Dashboard', href: '/admin-dashboard', icon: BarChart3 },
-    { title: 'Products', href: '/admin/products', icon: ShoppingCart },
-    { title: 'Sales Dashboard', href: '/admin/sales', icon: BarChart3, isActive: true },
-    { title: 'Categories & Brands', href: '/admin/categories', icon: Tags },
-    { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
-    { title: 'Customers', href: '/admin/customers', icon: Users },
-    { title: 'Site Configuration', href: '/site-config', icon: Settings },
-];
 
 interface PaymentTransaction {
     id: number;
@@ -110,6 +102,24 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function AdminSalesIndex({ payments, orders, stats, filters }: AdminSalesProps) {
+    const { unseenPaymentsCount } = usePage<SharedData & { unseenPaymentsCount?: number }>().props;
+    
+    const adminNavItems = useMemo(() => [
+        { title: 'Dashboard', href: '/admin-dashboard', icon: BarChart3 },
+        { title: 'Products', href: '/admin/products', icon: ShoppingCart },
+        { 
+            title: 'Sales Dashboard', 
+            href: '/admin/sales', 
+            icon: BarChart3, 
+            isActive: true,
+            badge: unseenPaymentsCount && unseenPaymentsCount > 0 ? unseenPaymentsCount : undefined
+        },
+        { title: 'Categories & Brands', href: '/admin/categories', icon: Tags },
+        { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
+        { title: 'Customers', href: '/admin/customers', icon: Users },
+        { title: 'Site Configuration', href: '/site-config', icon: Settings },
+    ], [unseenPaymentsCount]);
+    
     const searchForm = useForm({
         search: filters.search || '',
     });

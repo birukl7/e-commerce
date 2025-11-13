@@ -58,10 +58,31 @@ class HandleInertiaRequests extends Middleware
         // Add admin menu structure for authenticated admin users
         if ($request->user() && $this->isAdminRoute($request)) {
             $adminMenuService = app(AdminMenuService::class);
+            
+            // Get unseen payments count
+            $unseenPaymentsCount = \Illuminate\Support\Facades\DB::table('payment_transactions')
+                ->where('admin_status', 'unseen')
+                ->count();
+            
+            // Get flat menu items and add badge to Sales Dashboard
+            $flatItems = $adminMenuService->getFlatMenuItems();
+            foreach ($flatItems as &$item) {
+                // Check if this is the Sales Dashboard item by href or title
+                $isSalesDashboard = (isset($item['href']) && (str_contains($item['href'], 'admin/sales') || str_contains($item['href'], '/admin/sales'))) ||
+                                   (isset($item['title']) && $item['title'] === 'Sales Dashboard');
+                if ($isSalesDashboard && $unseenPaymentsCount > 0) {
+                    $item['badge'] = $unseenPaymentsCount;
+                }
+            }
+            unset($item);
+            
             $sharedData['adminMenu'] = [
                 'structure' => $adminMenuService->getAdminMenuStructure(),
-                'flatItems' => $adminMenuService->getFlatMenuItems(),
+                'flatItems' => $flatItems,
             ];
+            
+            // Add unseen payments count for admin routes
+            $sharedData['unseenPaymentsCount'] = $unseenPaymentsCount;
         }
 
         return $sharedData;

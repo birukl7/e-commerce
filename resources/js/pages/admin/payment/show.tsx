@@ -6,10 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CreditCard, Mail, MapPin, Package, Phone, CheckCircle, XCircle, Eye, Clock, AlertTriangle, Ban, TrendingDown, FileImage, User } from 'lucide-react';
+import { ArrowLeft, Calendar, CreditCard, Mail, MapPin, Package, Phone, CheckCircle, XCircle, Eye, Clock, AlertTriangle, Ban, TrendingDown, FileImage, User, X } from 'lucide-react';
 import { useState } from 'react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
@@ -98,6 +99,7 @@ interface Props {
 
 export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null, rejectionReasons = [] }: Props) {
     const [activeAction, setActiveAction] = useState<'approve' | 'reject' | null>(null);
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
     const breadcrumbs: BreadcrumbItem[] = [
         {
@@ -397,18 +399,12 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                         {payment.gateway_payload.screenshot_path && (
                                             <div className="md:col-span-2 space-y-2">
                                                 <Label className="text-sm font-medium text-muted-foreground">Payment Proof</Label>
-                                                <a
-                                                    href={`/storage/${payment.gateway_payload.screenshot_path}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="inline-block"
-                                                >
-                                                    <img
-                                                        src={`/storage/${payment.gateway_payload.screenshot_path}`}
-                                                        alt="Offline payment proof"
-                                                        className="max-h-72 rounded-md border object-contain bg-white"
-                                                    />
-                                                </a>
+                                                <img
+                                                    src={`/storage/${payment.gateway_payload.screenshot_path}`}
+                                                    alt="Offline payment proof"
+                                                    className="max-h-72 rounded-md border object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                                                    onClick={() => setSelectedImage(`/storage/${payment.gateway_payload.screenshot_path}`)}
+                                                />
                                             </div>
                                         )}
                                     </div>
@@ -489,7 +485,8 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                                 <img
                                                     src={`/storage/${productRequest.image}`}
                                                     alt={productRequest.product_name}
-                                                    className="max-h-48 rounded-md border object-contain bg-white"
+                                                    className="max-h-48 rounded-md border object-contain bg-white cursor-pointer hover:opacity-90 transition-opacity"
+                                                    onClick={() => setSelectedImage(`/storage/${productRequest.image}`)}
                                                 />
                                             </div>
                                         )}
@@ -658,7 +655,8 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                                     <img
                                                         src={item.primary_image || '/placeholder.svg'}
                                                         alt={item.product_name}
-                                                        className="h-16 w-16 rounded-md object-cover"
+                                                        className="h-16 w-16 rounded-md object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                                        onClick={() => setSelectedImage(item.primary_image || '/placeholder.svg')}
                                                     />
                                                 )}
                                                 <div className="flex-1 space-y-1">
@@ -858,6 +856,28 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                     </div>
                 </div>
             </div>
+
+            {/* Full Screen Image Modal */}
+            <Dialog open={selectedImage !== null} onOpenChange={(open) => !open && setSelectedImage(null)}>
+                <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full p-0 bg-black/95 border-none [&>button]:hidden">
+                    <div className="relative w-full h-full flex items-center justify-center p-4">
+                        <button
+                            onClick={() => setSelectedImage(null)}
+                            className="absolute top-4 right-4 z-50 rounded-full bg-black/50 hover:bg-black/70 text-white p-2 transition-colors"
+                            aria-label="Close"
+                        >
+                            <X className="h-6 w-6" />
+                        </button>
+                        {selectedImage && (
+                            <img
+                                src={selectedImage}
+                                alt="Full screen view"
+                                className="max-w-full max-h-full object-contain"
+                            />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </AppLayout>
     );
 }

@@ -87,7 +87,7 @@ class TaxSettingsController extends Controller
                 break;
         }
 
-        return Inertia::render('admin/tax/settings', $data);
+        return Inertia::render('admin/Tax/settings', $data);
     }
 
     /**

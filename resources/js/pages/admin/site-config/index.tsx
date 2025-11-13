@@ -92,7 +92,12 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
         sort_order: 0,
     });
     
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const [removedImages, setRemovedImages] = React.useState<{
+        banner_main_image?: boolean;
+        banner_secondary_image?: boolean;
+    }>({});
+
+    const { data, setData, post, processing, errors, reset, transform } = useForm({
         // Homepage Banner
         banner_main_title: settings.banner_main_title || '',
         banner_main_subtitle: settings.banner_main_subtitle || '',
@@ -131,21 +136,65 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Transform data to send existing image paths when no new file is selected
+        transform((formData) => {
+            const transformed: any = { ...formData };
+            
+            // Handle banner_main_image
+            if (removedImages.banner_main_image) {
+                transformed.banner_main_image = '';
+            } else if (!formData.banner_main_image || !(formData.banner_main_image instanceof File)) {
+                // No new file selected, send existing image path
+                transformed.banner_main_image = settings.banner_main_image || '';
+            }
+            // If it's a File, keep it for upload (Inertia will handle it)
+            
+            // Handle banner_secondary_image
+            if (removedImages.banner_secondary_image) {
+                transformed.banner_secondary_image = '';
+            } else if (!formData.banner_secondary_image || !(formData.banner_secondary_image instanceof File)) {
+                // No new file selected, send existing image path
+                transformed.banner_secondary_image = settings.banner_secondary_image || '';
+            }
+            // If it's a File, keep it for upload (Inertia will handle it)
+            
+            return transformed;
+        });
+        
         post('/site-config', {
             preserveScroll: true,
+            forceFormData: true,
             onSuccess: () => {
-                // Reset file inputs after successful upload
+                // Reset file inputs and removed images after successful upload
                 setData(prev => ({
                     ...prev,
                     banner_main_image: null,
                     banner_secondary_image: null,
                 }));
+                setRemovedImages({});
             },
         });
     };
 
     const handleFileChange = (field: 'banner_main_image' | 'banner_secondary_image', file: File | null) => {
         setData(field, file);
+        // Clear removed flag if a new file is selected
+        if (file) {
+            setRemovedImages(prev => {
+                const updated = { ...prev };
+                delete updated[field];
+                return updated;
+            });
+        }
+    };
+
+    const handleImageRemove = (field: 'banner_main_image' | 'banner_secondary_image') => {
+        setData(field, null);
+        setRemovedImages(prev => ({
+            ...prev,
+            [field]: true,
+        }));
     };
 
     return (
@@ -353,7 +402,8 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                     <ImageUpload
                                                         label="Banner Image"
                                                         onFileSelect={(file) => handleFileChange('banner_main_image', file)}
-                                                        currentImage={settings.banner_main_image}
+                                                        onRemove={() => handleImageRemove('banner_main_image')}
+                                                        currentImage={removedImages.banner_main_image ? undefined : settings.banner_main_image}
                                                         accept="image/*"
                                                         maxSize={5 * 1024 * 1024}
                                                         className="h-full"
@@ -423,7 +473,8 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                     <ImageUpload
                                                         label="Banner Image"
                                                         onFileSelect={(file) => handleFileChange('banner_secondary_image', file)}
-                                                        currentImage={settings.banner_secondary_image}
+                                                        onRemove={() => handleImageRemove('banner_secondary_image')}
+                                                        currentImage={removedImages.banner_secondary_image ? undefined : settings.banner_secondary_image}
                                                         accept="image/*"
                                                         maxSize={5 * 1024 * 1024}
                                                         className="h-full"

@@ -24,10 +24,10 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
     
     const handleSubmit = (e) => {
         e.preventDefault();
-        const data = form.data();
         
         if (editingRate) {
-            router.put(route('admin.tax.rates.update', editingRate.id), data, {
+            form.put(route('admin.tax.rates.update', editingRate.id), {
+                preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);
                     setEditingRate(null);
@@ -35,7 +35,8 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                 },
             });
         } else {
-            router.post(route('admin.tax.rates.store'), data, {
+            form.post(route('admin.tax.rates.store'), {
+                preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);
                     form.reset();

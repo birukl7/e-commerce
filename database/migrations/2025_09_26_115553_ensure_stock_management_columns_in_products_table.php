@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -16,19 +17,27 @@ return new class extends Migration
             if (!Schema::hasColumn('products', 'low_stock_threshold')) {
                 $table->integer('low_stock_threshold')->default(5)->after('manage_stock');
             }
+        });
 
-            // Update stock_status enum values if needed
-            if (Schema::hasColumn('products', 'stock_status')) {
-                // Use a raw query to modify the column type
-                // This is a more compatible approach than using Doctrine
+        // Update stock_status enum values if needed, skip on SQLite
+        if (Schema::hasColumn('products', 'stock_status')) {
+            $driver = Schema::getConnection()->getDriverName();
+
+            if ($driver === 'mysql') {
                 DB::statement("
                     ALTER TABLE products 
                     MODIFY COLUMN stock_status 
                     ENUM('in_stock', 'out_of_stock', 'on_backorder', 'low_stock') 
                     NOT NULL DEFAULT 'in_stock'
                 ");
+            } elseif ($driver === 'pgsql') {
+                // Postgres: emulate enum using CHECK constraint (optional - no-op for safety)
+                // You may implement an ALTER TYPE here if stock_status is a domain/enum in your schema
+            } else {
+                // SQLite and other drivers: no-op to avoid unsupported ALTER/MODIFY/ENUM
+                // Keep existing column definition and enforce values at application level
             }
-        });
+        }
     }
 
     /**

@@ -98,18 +98,48 @@ class AdminSiteConfigController extends Controller
      */
     public function update(Request $request)
     {
-        $validated = $request->validate([
+        // Get existing settings to check if images exist
+        $existingBannerMainImage = $this->siteConfig->get('site.banner_main_image');
+        $existingBannerSecondaryImage = $this->siteConfig->get('site.banner_secondary_image');
+        
+        // Handle file uploads first if they exist
+        $bannerMainImagePath = null;
+        $bannerSecondaryImagePath = null;
+        
+        if ($request->hasFile('banner_main_image')) {
+            $bannerMainImagePath = $request->file('banner_main_image')->store('images', 'public');
+        }
+        
+        if ($request->hasFile('banner_secondary_image')) {
+            $bannerSecondaryImagePath = $request->file('banner_secondary_image')->store('images', 'public');
+        }
+        
+        // Build validation rules - only validate as string if no file was uploaded
+        $validationRules = [
             // Homepage Banner
             'banner_main_title' => 'required|string|max:255',
             'banner_main_subtitle' => 'required|string|max:255',
             'banner_main_button_text' => 'required|string|max:100',
             'banner_main_button_link' => 'required|string|max:255',
-            'banner_main_image' => 'required|string|max:255',
             'banner_secondary_title' => 'required|string|max:255',
             'banner_secondary_button_text' => 'required|string|max:100',
             'banner_secondary_button_link' => 'required|string|max:255',
-            'banner_secondary_image' => 'required|string|max:255',
-            
+        ];
+        
+        // Only validate image fields as strings if no file was uploaded
+        if (!$request->hasFile('banner_main_image')) {
+            $validationRules['banner_main_image'] = $existingBannerMainImage 
+                ? 'nullable|string|max:255' 
+                : 'required|string|max:255';
+        }
+        
+        if (!$request->hasFile('banner_secondary_image')) {
+            $validationRules['banner_secondary_image'] = $existingBannerSecondaryImage 
+                ? 'nullable|string|max:255' 
+                : 'required|string|max:255';
+        }
+        
+        $validationRules = array_merge($validationRules, [
             // About Section
             'about_title' => 'required|string|max:255',
             'about_subtitle' => 'required|string|max:255',
@@ -129,12 +159,43 @@ class AdminSiteConfigController extends Controller
             'auto_approve_gateway_payments' => 'boolean',
             'tax_rate' => 'numeric|min:0|max:1',
         ]);
+        
+        $validated = $request->validate($validationRules);
 
         // Save each setting
         foreach ($validated as $key => $value) {
             $settingKey = "site.{$key}";
             
-            // Determine the type based on the key
+            // Handle image fields specially
+            if ($key === 'banner_main_image') {
+                if ($bannerMainImagePath) {
+                    // New file was uploaded
+                    $this->siteConfig->set($settingKey, $bannerMainImagePath, 'string', 'system');
+                } elseif ($value === '' || $value === null) {
+                    // Image was removed
+                    $this->siteConfig->set($settingKey, '', 'string', 'system');
+                } elseif (is_string($value) && $value !== '') {
+                    // Existing image path was sent (no change)
+                    $this->siteConfig->set($settingKey, $value, 'string', 'system');
+                }
+                continue;
+            }
+            
+            if ($key === 'banner_secondary_image') {
+                if ($bannerSecondaryImagePath) {
+                    // New file was uploaded
+                    $this->siteConfig->set($settingKey, $bannerSecondaryImagePath, 'string', 'system');
+                } elseif ($value === '' || $value === null) {
+                    // Image was removed
+                    $this->siteConfig->set($settingKey, '', 'string', 'system');
+                } elseif (is_string($value) && $value !== '') {
+                    // Existing image path was sent (no change)
+                    $this->siteConfig->set($settingKey, $value, 'string', 'system');
+                }
+                continue;
+            }
+            
+            // Determine the type based on the key for other fields
             $type = match($key) {
                 'payment_methods', 'admin_menu_groups' => 'json',
                 'manual_payment_enabled', 'require_admin_approval', 'auto_approve_gateway_payments' => 'boolean',

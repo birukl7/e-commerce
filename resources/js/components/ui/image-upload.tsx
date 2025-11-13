@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 
 interface ImageUploadProps {
   onFileSelect: (file: File | null) => void;
+  onRemove?: () => void;
   currentImage?: string;
   className?: string;
   label?: string;
@@ -15,6 +16,7 @@ interface ImageUploadProps {
 
 export default function ImageUpload({
   onFileSelect,
+  onRemove,
   currentImage,
   className = '',
   label = 'Upload Image',
@@ -67,6 +69,10 @@ export default function ImageUpload({
     setPreview(null);
     setError('');
     onFileSelect(null);
+    // Call onRemove if provided (for handling current image removal)
+    if (onRemove) {
+      onRemove();
+    }
   };
 
   const displayImage = preview || currentImage;

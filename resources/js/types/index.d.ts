@@ -29,6 +29,7 @@ export interface NavItem {
     isActive?: boolean;
     children?: NavItem[];
     tabs?: NavTab[];
+    badge?: number | string;
 }
 
 export interface SharedData {
