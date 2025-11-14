@@ -55,13 +55,6 @@ abstract class BaseMailJob implements ShouldQueue
     public $backoff = [5, 10, 20, 30];
 
     /**
-     * The name of the queue the job should be sent to.
-     * 
-     * @var string
-     */
-    public $queue = 'emails';
-
-    /**
      * Log job start with context.
      * 
      * @param array $context Additional context to include in log

@@ -48,6 +48,15 @@ class OrderStatusUpdate extends Mailable
     {
         $subject = trans('emails.order_status_update', ['id' => $this->order->id]);
         
+        \Log::debug('[OrderStatusUpdate] Building mailable', [
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number ?? null,
+            'user_email' => $this->user->email ?? null,
+            'status' => $this->status,
+            'has_message' => $this->updateMessage !== '',
+            'subject' => $subject,
+        ]);
+        
         return $this->subject($subject)
                     ->view('emails.orders.status-update')
                     ->with([

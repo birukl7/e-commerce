@@ -19,8 +19,22 @@ class SendOrderConfirmationEmail extends BaseMailJob
         ]);
 
         try {
+            $mailable = new OrderConfirmation($this->order);
+            \Log::info('[SendOrderConfirmationEmail] Mailable created, sending email', [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'recipient_email' => $this->order->user->email,
+                'subject' => $mailable->subject ?? 'N/A',
+            ]);
+            
             Mail::to($this->order->user->email)
-                ->send(new OrderConfirmation($this->order));
+                ->send($mailable);
+            
+            \Log::info('[SendOrderConfirmationEmail] Email sent successfully', [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'recipient_email' => $this->order->user->email,
+            ]);
             
             $this->logJobComplete([
                 'order_id' => $this->order->id,

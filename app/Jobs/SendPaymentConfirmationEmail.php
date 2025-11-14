@@ -27,8 +27,26 @@ class SendPaymentConfirmationEmail extends BaseMailJob
         ]);
 
         try {
+            $mailable = new PaymentConfirmation($this->order, $this->payment);
+            \Log::info('[SendPaymentConfirmationEmail] Mailable created, sending email', [
+                'payment_id' => $this->payment->id,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number ?? null,
+                'recipient_email' => $this->user->email,
+                'payment_method' => $this->payment->payment_method ?? null,
+                'subject' => $mailable->subject ?? 'N/A',
+            ]);
+            
             Mail::to($this->user->email)
-                ->send(new PaymentConfirmation($this->order, $this->payment));
+                ->send($mailable);
+            
+            \Log::info('[SendPaymentConfirmationEmail] Email sent successfully', [
+                'payment_id' => $this->payment->id,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'order_id' => $this->order->id,
+                'recipient_email' => $this->user->email,
+            ]);
             
             $this->logJobComplete([
                 'payment_id' => $this->payment->id,

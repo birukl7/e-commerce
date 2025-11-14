@@ -18,11 +18,25 @@ class OrderConfirmation extends Mailable
     {
         $this->order = $order->load('user');
         $this->user = $this->order->user;
+        
+        // Ensure user exists
+        if (!$this->user) {
+            throw new \RuntimeException("Order #{$this->order->id} has no associated user");
+        }
     }
 
     public function build()
     {
-        return $this->subject(trans('emails.order_confirmation', ['id' => $this->order->id]))
+        $subject = trans('emails.order_confirmation', ['id' => $this->order->id]);
+        
+        \Log::debug('[OrderConfirmation] Building mailable', [
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number ?? null,
+            'user_email' => $this->user->email ?? null,
+            'subject' => $subject,
+        ]);
+        
+        return $this->subject($subject)
                     ->view('emails.orders.confirmation')
                     ->with([
                         'order' => $this->order,

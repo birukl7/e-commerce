@@ -25,8 +25,25 @@ class SendOrderStatusUpdateEmail extends BaseMailJob
         ]);
 
         try {
+            $mailable = new OrderStatusUpdate($this->order, $this->status, $this->message);
+            \Log::info('[SendOrderStatusUpdateEmail] Mailable created, sending email', [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'status' => $this->status,
+                'recipient_email' => $this->order->user->email,
+                'subject' => $mailable->subject ?? 'N/A',
+                'has_message' => $this->message !== '',
+            ]);
+            
             Mail::to($this->order->user->email)
-                ->send(new OrderStatusUpdate($this->order, $this->status, $this->message));
+                ->send($mailable);
+            
+            \Log::info('[SendOrderStatusUpdateEmail] Email sent successfully', [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'status' => $this->status,
+                'recipient_email' => $this->order->user->email,
+            ]);
             
             $this->logJobComplete([
                 'order_id' => $this->order->id,
