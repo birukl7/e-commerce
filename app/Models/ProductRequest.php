@@ -467,7 +467,7 @@ class ProductRequest extends Model
             
             // If payment is processing (awaiting payment approval), return appropriate status
             if ($advanceStatus === 'processing') {
-                return 'pending_payment_approval';
+                return 'awaiting_admin_approval';
             }
             
             // If payment hasn't been paid yet, customer is awaiting to pay advance
@@ -496,7 +496,7 @@ class ProductRequest extends Model
                 
                 // If final payment is processing (awaiting payment approval), return appropriate status
                 if ($finalStatus === 'processing') {
-                    return 'pending_payment_approval';
+                    return 'awaiting_admin_approval';
                 }
                 
                 // If final payment hasn't been paid yet, customer is awaiting to pay final

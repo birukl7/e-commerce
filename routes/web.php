@@ -392,7 +392,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Main dashboard
+    // Main dashboard - alias for backward compatibility with tests
+    Route::get('/dashboard', [UserDashboardController::class, 'index'])->name('dashboard');
     Route::get('/user-dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard');
    
     // User dashboard (if different from main dashboard)
