@@ -15,7 +15,10 @@ class AdvancePaymentApproved extends Mailable
     public function __construct(
         public ProductRequest $productRequest,
         public PaymentTransaction $transaction
-    ) {}
+    ) {
+        // Eager load user relationship
+        $this->productRequest->load('user');
+    }
 
     public function build()
     {

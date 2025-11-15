@@ -6,6 +6,7 @@ return [
     'order_status_update' => 'Order Status Updated - Order #:id',
     'shipment_created' => 'Shipment Created - Order #:id',
     'payment_failed' => 'Payment Failed',
+    'payment_confirmation' => 'Payment Confirmation - Order #:id',
     'payment_approved' => 'Payment Approved - Order #:id',
     'advance_payment_approved' => 'Advance Payment Approved - Request #:id',
 ];

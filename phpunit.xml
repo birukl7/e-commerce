@@ -33,5 +33,8 @@
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
+        <env name="CHAPA_SECRET_KEY" value="test_secret_key"/>
+        <env name="CHAPA_PUBLIC_KEY" value="test_public_key"/>
+        <env name="CHAPA_BASE_URL" value="https://api.chapa.co/v1"/>
     </php>
 </phpunit>

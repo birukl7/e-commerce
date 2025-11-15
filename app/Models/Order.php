@@ -78,7 +78,10 @@ class Order extends Model
         parent::boot();
         
         static::creating(function ($order) {
-            $order->order_number = 'ORD-' . strtoupper(uniqid());
+            // Only auto-generate order_number if not already set
+            if (empty($order->order_number)) {
+                $order->order_number = 'ORD-' . strtoupper(uniqid());
+            }
         });
 
         // When order is created, decrease stock if payment is paid

@@ -8,6 +8,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\TaxSetting;
 use App\Models\OfflinePaymentMethod;
+use App\Models\ChapaPaymentMethod;
 use App\Services\TaxService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -53,6 +54,35 @@ function createTestTaxSettings(): array
 }
 
 /**
+ * Ensure Telebirr payment method exists for testing
+ * Note: createChapaPaymentMethods() may already exist from ChapaPaymentFlowTest.php
+ */
+if (!function_exists('ensureTelebirrPaymentMethod')) {
+    function ensureTelebirrPaymentMethod(): ChapaPaymentMethod
+    {
+        // Use updateOrCreate to ensure it exists and is active
+        $method = ChapaPaymentMethod::updateOrCreate(
+            ['code' => 'telebirr'],
+            [
+                'name' => 'Telebirr',
+                'description' => 'Pay with your Telebirr mobile wallet',
+                'is_active' => true,
+                'sort_order' => 1,
+            ]
+        );
+        
+        // Ensure it's active (in case it existed but was inactive)
+        $method->update(['is_active' => true]);
+        
+        // Refresh to ensure it's loaded from database
+        $method->refresh();
+        
+        return $method;
+    }
+}
+
+
+/**
  * Calculate expected tax for a given amount
  */
 function calculateExpectedTax(float $subtotal, array $taxSettings): array
@@ -67,6 +97,7 @@ function calculateExpectedTax(float $subtotal, array $taxSettings): array
 
 test('advance payment chapa does not calculate tax before sending to chapa api', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -79,8 +110,14 @@ test('advance payment chapa does not calculate tax before sending to chapa api',
         'currency' => 'ETB',
     ]);
 
-    // Mock Chapa API response - match the base URL from ChapaService (https://api.chapa.co/v1/)
+    // Mock Chapa API response - match the exact URL pattern used by PaymentController
     Http::fake([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => [
+                'checkout_url' => 'https://checkout.chapa.co/checkout/test123',
+            ],
+        ], 200),
         'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => [
@@ -130,6 +167,7 @@ test('advance payment chapa does not calculate tax before sending to chapa api',
 
 test('advance payment chapa uses wrong amount when tax calculation fails', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -142,9 +180,13 @@ test('advance payment chapa uses wrong amount when tax calculation fails', funct
     ]);
 
     // Mock Chapa API
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -271,6 +313,7 @@ test('advance payment offline stores wrong amount when tax is not calculated', f
 
 test('final payment chapa does not calculate tax before sending to chapa api', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -285,9 +328,13 @@ test('final payment chapa does not calculate tax before sending to chapa api', f
         'currency' => 'ETB',
     ]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -333,6 +380,7 @@ test('final payment chapa does not calculate tax before sending to chapa api', f
 
 test('final payment chapa uses subtotal instead of total with tax', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -347,9 +395,13 @@ test('final payment chapa uses subtotal instead of total with tax', function () 
         'currency' => 'ETB',
     ]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -435,6 +487,7 @@ test('final payment offline does not calculate tax before storing transaction', 
 
 test('normal purchase chapa does not calculate tax correctly for order', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $order = Order::factory()->create([
@@ -493,9 +546,13 @@ test('normal purchase chapa does not calculate tax correctly for order', functio
     $expectedTax = calculateExpectedTax($subtotal, [$tax1, $tax2]);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -553,6 +610,7 @@ test('normal purchase chapa does not calculate tax correctly for order', functio
 
 test('normal purchase chapa uses order subtotal instead of total with tax', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     createTestTaxSettings();
     
     $order = Order::factory()->create([
@@ -606,9 +664,13 @@ test('normal purchase chapa uses order subtotal instead of total with tax', func
         'total' => 1000.00,
     ]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -746,6 +808,7 @@ test('normal purchase offline does not store tax breakdown in transaction', func
 
 test('payment transaction does not store tax breakdown in gateway_payload', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -757,9 +820,13 @@ test('payment transaction does not store tax breakdown in gateway_payload', func
         'currency' => 'ETB',
     ]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -800,6 +867,7 @@ test('payment transaction does not store tax breakdown in gateway_payload', func
 
 test('payment transaction stores incorrect tax amounts', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -813,9 +881,13 @@ test('payment transaction stores incorrect tax amounts', function () {
 
     $expectedTax = calculateExpectedTax(1000.00, [$tax1, $tax2]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -853,6 +925,7 @@ test('payment transaction stores incorrect tax amounts', function () {
 
 test('payment handles zero active taxes correctly', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     
     // Deactivate all taxes
     TaxSetting::query()->update(['is_active' => false]);
@@ -866,9 +939,13 @@ test('payment handles zero active taxes correctly', function () {
         'currency' => 'ETB',
     ]);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -899,6 +976,7 @@ test('payment handles zero active taxes correctly', function () {
 
 test('payment handles multiple active taxes correctly', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     
     // Deactivate all existing taxes first
     TaxSetting::query()->update(['is_active' => false]);
@@ -926,9 +1004,13 @@ test('payment handles multiple active taxes correctly', function () {
     $expectedTax = calculateExpectedTax(1000.00, $taxes);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -960,6 +1042,7 @@ test('payment handles multiple active taxes correctly', function () {
 
 test('payment calculates tax correctly for very small amounts', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -974,9 +1057,13 @@ test('payment calculates tax correctly for very small amounts', function () {
     $expectedTax = calculateExpectedTax(1.00, [$tax1, $tax2]);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -1002,6 +1089,7 @@ test('payment calculates tax correctly for very small amounts', function () {
 
 test('payment calculates tax correctly for very large amounts', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -1016,9 +1104,13 @@ test('payment calculates tax correctly for very large amounts', function () {
     $expectedTax = calculateExpectedTax(1000000.00, [$tax1, $tax2]);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -1048,6 +1140,7 @@ test('payment calculates tax correctly for very large amounts', function () {
 
 test('tax calculation is consistent across different payment methods', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     $offlineMethod = OfflinePaymentMethod::factory()->create();
     
@@ -1064,9 +1157,13 @@ test('tax calculation is consistent across different payment methods', function 
     $expectedTotal = $expectedTax['total'];
 
     // Test Chapa payment
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -1138,6 +1235,7 @@ test('tax calculation is consistent across different payment methods', function 
 
 test('tax calculation matches TaxService output exactly', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -1152,9 +1250,13 @@ test('tax calculation matches TaxService output exactly', function () {
     $taxService = app(TaxService::class);
     $expectedTax = $taxService->calculateTaxes(1000.00);
 
-    // Mock Chapa API - use wildcard to catch all HTTP calls
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
-        '*' => Http::response([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
+        'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
         ], 200),
@@ -1194,6 +1296,7 @@ test('tax calculation matches TaxService output exactly', function () {
 
 test('ProductRequestPaymentController advance payment calculates tax correctly', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -1208,8 +1311,12 @@ test('ProductRequestPaymentController advance payment calculates tax correctly',
     $expectedTax = calculateExpectedTax(1000.00, [$tax1, $tax2]);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - ChapaService uses https://api.chapa.co/v1/transaction/initialize
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
         'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
@@ -1248,6 +1355,7 @@ test('ProductRequestPaymentController advance payment calculates tax correctly',
 
 test('ProductRequestPaymentController final payment calculates tax correctly', function () {
     $user = User::factory()->create();
+    ensureTelebirrPaymentMethod(); // Ensure payment method exists
     [$tax1, $tax2] = createTestTaxSettings();
     
     $productRequest = ProductRequest::factory()->create([
@@ -1265,8 +1373,12 @@ test('ProductRequestPaymentController final payment calculates tax correctly', f
     $expectedTax = calculateExpectedTax(2000.00, [$tax1, $tax2]);
     $expectedTotal = $expectedTax['total'];
 
-    // Mock Chapa API - ChapaService uses https://api.chapa.co/v1/transaction/initialize
+    // Mock Chapa API - match exact URL pattern
     Http::fake([
+        'api.chapa.co/v1/transaction/initialize' => Http::response([
+            'status' => 'success',
+            'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],
+        ], 200),
         'api.chapa.co/*' => Http::response([
             'status' => 'success',
             'data' => ['checkout_url' => 'https://checkout.chapa.co/test'],

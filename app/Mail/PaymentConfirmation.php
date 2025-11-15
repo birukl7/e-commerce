@@ -18,14 +18,26 @@ class PaymentConfirmation extends Mailable
 
     public function __construct(Order $order, PaymentTransaction $transaction)
     {
-        $this->order = $order;
-        $this->user = $order->user;
+        $this->order = $order->load('user');
+        $this->user = $this->order->user;
         $this->transaction = $transaction;
     }
 
     public function build()
     {
-        return $this->subject('Payment Confirmation - Order #' . $this->order->id)
+        $subject = trans('emails.payment_confirmation', ['id' => $this->order->id]);
+        
+        \Log::debug('[PaymentConfirmation] Building mailable', [
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number ?? null,
+            'payment_id' => $this->transaction->id ?? null,
+            'tx_ref' => $this->transaction->tx_ref ?? null,
+            'user_email' => $this->user->email ?? null,
+            'payment_method' => $this->transaction->payment_method ?? null,
+            'subject' => $subject,
+        ]);
+        
+        return $this->subject($subject)
                     ->view('emails.payments.confirmation')
                     ->with([
                         'order' => $this->order,

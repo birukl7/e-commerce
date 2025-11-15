@@ -15,7 +15,10 @@ class PaymentApproved extends Mailable
     public function __construct(
         public Order $order,
         public PaymentTransaction $transaction
-    ) {}
+    ) {
+        // Eager load user relationship
+        $this->order->load('user');
+    }
 
     public function build()
     {

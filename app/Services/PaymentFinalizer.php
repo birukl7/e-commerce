@@ -275,6 +275,14 @@ class PaymentFinalizer
                 $this->processInventoryChanges($order);
                 
                 // Send payment confirmation and order confirmation emails
+                Log::info('[PaymentFinalizer] Dispatching email notifications for finalized order', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'payment_id' => $payment->id,
+                    'payment_method' => $payment->payment_method,
+                    'user_email' => $order->user->email ?? null,
+                ]);
+                
                 $this->notificationService->sendPaymentConfirmation($order, $payment);
                 $this->notificationService->sendOrderConfirmation($order);
                 
@@ -284,6 +292,11 @@ class PaymentFinalizer
                     'processing', 
                     'Your payment has been confirmed and your order is being processed.'
                 );
+                
+                Log::info('[PaymentFinalizer] All email notifications dispatched', [
+                    'order_id' => $order->id,
+                    'payment_id' => $payment->id,
+                ]);
 
                 Log::info('Order finalized successfully', [
                     'order_id' => $order->id,
@@ -620,7 +633,14 @@ class PaymentFinalizer
      */
     protected function notifyAdminsOfPendingReview(PaymentTransaction $payment): void
     {
-        $admins = User::role('admin')->where('is_active', true)->get();
+        $adminQuery = User::role('admin');
+        
+        // Check if is_active column exists before using it
+        if (\Schema::hasColumn('users', 'is_active')) {
+            $adminQuery->where('is_active', true);
+        }
+        
+        $admins = $adminQuery->get();
         
         foreach ($admins as $admin) {
             $this->notificationService->sendAccountActivity(

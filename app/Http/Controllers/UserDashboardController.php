@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\Wishlist;
 use App\Models\ProductRequest;
 use App\Models\Order;
+use App\Models\ChapaPaymentMethod;
 use App\Services\ImageUrlService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -239,7 +240,7 @@ class UserDashboardController extends Controller
             $paymentMethodType = 'Unknown';
             if ($order->payment_method === 'offline') {
                 $paymentMethodType = 'Offline';
-            } elseif (in_array($order->payment_method, ['chapa', 'telebirr', 'cbe', 'paypal'])) {
+            } elseif ($this->isChapaPaymentMethod($order->payment_method)) {
                 $paymentMethodType = 'Online';
             } elseif ($txRef) {
                 if (str_starts_with($txRef, 'TX-')) {
@@ -703,7 +704,7 @@ class UserDashboardController extends Controller
         } else {
             if (str_starts_with((string) $resolvedPaymentMethod, 'OFFLINE-') || $resolvedPaymentMethod === 'offline') {
                 $paymentMethodType = 'Offline Payment';
-            } elseif (str_starts_with((string) $resolvedPaymentMethod, 'TX-') || in_array($resolvedPaymentMethod, ['chapa', 'telebirr', 'cbe', 'paypal'], true)) {
+            } elseif (str_starts_with((string) $resolvedPaymentMethod, 'TX-') || $this->isChapaPaymentMethod($resolvedPaymentMethod)) {
                 $paymentMethodType = 'Chapa Online Payment';
             } elseif ($resolvedPaymentMethod !== 'N/A') {
                 $paymentMethodType = $this->formatPaymentMethod($resolvedPaymentMethod);
@@ -958,4 +959,18 @@ class UserDashboardController extends Controller
         return $method;
     }
     
+    /**
+     * Check if a payment method is a Chapa payment method
+     */
+    private function isChapaPaymentMethod($method): bool
+    {
+        if ($method === 'chapa') {
+            return true;
+        }
+        
+        // Check if the method code exists in ChapaPaymentMethod table
+        return ChapaPaymentMethod::where('code', $method)
+            ->where('is_active', true)
+            ->exists();
+    }
 }

@@ -3,26 +3,45 @@
 namespace App\Jobs;
 
 use App\Mail\AdvancePaymentConfirmation;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\PaymentTransaction;
+use App\Models\ProductRequest;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-class SendAdvancePaymentConfirmationEmail implements ShouldQueue
+class SendAdvancePaymentConfirmationEmail extends BaseMailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
     public function __construct(
-        public $payment,
-        public $user,
-        public $productRequest
+        public PaymentTransaction $payment,
+        public User $user,
+        public ProductRequest $productRequest
     ) {}
 
     public function handle(): void
     {
-        Mail::to($this->user->email)->send(new AdvancePaymentConfirmation($this->productRequest, $this->payment));
+        $this->logJobStart([
+            'payment_id' => $this->payment->id,
+            'tx_ref' => $this->payment->tx_ref ?? null,
+            'product_request_id' => $this->productRequest->id,
+            'user_email' => $this->user->email,
+        ]);
+
+        try {
+            Mail::to($this->user->email)
+                ->send(new AdvancePaymentConfirmation($this->productRequest, $this->payment));
+            
+            $this->logJobComplete([
+                'payment_id' => $this->payment->id,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'product_request_id' => $this->productRequest->id,
+            ]);
+        } catch (\Throwable $e) {
+            $this->handleError($e, [
+                'payment_id' => $this->payment->id ?? null,
+                'tx_ref' => $this->payment->tx_ref ?? null,
+                'product_request_id' => $this->productRequest->id ?? null,
+                'user_email' => $this->user->email ?? null,
+            ]);
+        }
     }
 }
 

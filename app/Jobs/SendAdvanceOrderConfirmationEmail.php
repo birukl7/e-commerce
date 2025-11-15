@@ -3,22 +3,40 @@
 namespace App\Jobs;
 
 use App\Mail\AdvanceOrderConfirmation;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\Order;
+use App\Models\User;
 use Illuminate\Support\Facades\Mail;
 
-class SendAdvanceOrderConfirmationEmail implements ShouldQueue
+class SendAdvanceOrderConfirmationEmail extends BaseMailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
-
-    public function __construct(public $order, public $user) {}
+    public function __construct(
+        public Order $order,
+        public User $user
+    ) {}
 
     public function handle(): void
     {
-        Mail::to($this->user->email)->send(new AdvanceOrderConfirmation($this->order));
+        $this->logJobStart([
+            'order_id' => $this->order->id,
+            'order_number' => $this->order->order_number,
+            'user_email' => $this->user->email,
+        ]);
+
+        try {
+            Mail::to($this->user->email)
+                ->send(new AdvanceOrderConfirmation($this->order));
+            
+            $this->logJobComplete([
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+            ]);
+        } catch (\Throwable $e) {
+            $this->handleError($e, [
+                'order_id' => $this->order->id ?? null,
+                'order_number' => $this->order->order_number ?? null,
+                'user_email' => $this->user->email ?? null,
+            ]);
+        }
     }
 }
 

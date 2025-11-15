@@ -11,6 +11,9 @@ use App\Events\OrderStatusChanged;
 use App\Events\ShipmentCreated;
 use App\Listeners\SendOrderNotifications;
 use App\Events\OrderCreatedFromAdvance;
+use App\Events\ProductRequestCreated;
+use App\Events\ProductRequestStatusChanged;
+use App\Listeners\SendProductRequestNotifications;
 use App\Listeners\LogSentMail;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
@@ -38,6 +41,12 @@ class EventServiceProvider extends ServiceProvider
         ],
         OrderCreatedFromAdvance::class => [
             SendOrderNotifications::class,
+        ],
+        ProductRequestCreated::class => [
+            SendProductRequestNotifications::class,
+        ],
+        ProductRequestStatusChanged::class => [
+            SendProductRequestNotifications::class,
         ],
         MessageSent::class => [
             LogSentMail::class,

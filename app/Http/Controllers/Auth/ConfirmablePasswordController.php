@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +17,7 @@ class ConfirmablePasswordController extends Controller
      */
     public function show(): Response
     {
-        return Inertia::render('Auth/ConfirmPassword');
+        return Inertia::render('auth/confirm-password');
     }
 
     /**

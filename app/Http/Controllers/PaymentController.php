@@ -12,6 +12,7 @@ use App\Models\OfflinePaymentSubmission;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PaymentTransaction;
+use App\Models\ChapaPaymentMethod;
 use Illuminate\Support\Facades\Storage;
 use App\Services\ImageUrlService;
 use App\Services\PaymentFinalizer;
@@ -202,6 +203,9 @@ class PaymentController extends Controller
                     // For Chapa payment (when explicitly specified), render Chapa payment form
                     Log::info('Rendering Chapa payment form');
 
+                    // Get active Chapa payment methods
+                    $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
+
                     return Inertia::render('payment/payment-process', [
                         'order_id' => $orderId,
                         'total_amount' => floatval($amount),
@@ -210,6 +214,7 @@ class PaymentController extends Controller
                         'customer_name' => $customerName,
                         'payment_method_type' => 'chapa', // Explicitly set to 'chapa' to show Chapa form directly
                         'offlinePaymentMethods' => collect(), // Empty collection
+                        'chapaPaymentMethods' => $chapaPaymentMethods,
                         'payment_type' => $request->get('payment_type', 'regular'),
                         'product_request_id' => $request->get('product_request_id'),
                         'description' => $request->get('description'),
@@ -847,13 +852,8 @@ class PaymentController extends Controller
             // Get active Chapa payment methods
             $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
             
-            // Fallback to default methods if none configured
-            if (empty($chapaPaymentMethods)) {
-                $chapaPaymentMethods = [
-                    ['id' => 1, 'name' => 'Telebirr', 'code' => 'telebirr', 'description' => 'Pay with Telebirr', 'logo' => null],
-                    ['id' => 2, 'name' => 'CBE', 'code' => 'cbe', 'description' => 'Pay with Commercial Bank of Ethiopia', 'logo' => null],
-                ];
-            }
+            // No fallback - methods should be seeded in database
+            // If empty, it means seeder hasn't been run yet
 
             return Inertia::render('payment/chapa-method-select', [
                 'order_id' => $request->order_id,
@@ -905,9 +905,17 @@ class PaymentController extends Controller
                 throw new \Exception('User not authenticated');
             }
 
+            // Get valid payment method codes from database
+            $validPaymentMethods = ChapaPaymentMethod::where('is_active', true)
+                ->pluck('code')
+                ->toArray();
+            
+            // Add 'chapa' as a valid option (used for routing, not as a specific method)
+            $validPaymentMethods[] = 'chapa';
+            
             // Validate required fields (accept phone_number if provided)
             $validated = $request->validate([
-                'payment_method' => 'required|in:chapa,telebirr,cbe,paypal',
+                'payment_method' => ['required', 'in:' . implode(',', $validPaymentMethods)],
                 'order_id' => 'required|string',
                 'amount' => 'required|numeric|min:1',
                 'currency' => 'required|string|in:ETB,USD',

@@ -13,6 +13,8 @@ class ShipmentCreated extends Mailable
 
     public function __construct(public Order $order, public ?string $trackingNumber = null)
     {
+        // Eager load user relationship
+        $this->order->load('user');
     }
 
     public function build()

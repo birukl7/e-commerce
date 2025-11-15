@@ -3,48 +3,59 @@
 namespace App\Jobs;
 
 use App\Mail\OrderStatusUpdate;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use App\Models\Order;
 use Illuminate\Support\Facades\Mail;
 
-class SendOrderStatusUpdateEmail implements ShouldQueue
+class SendOrderStatusUpdateEmail extends BaseMailJob
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    public function __construct(
+        public Order $order,
+        public string $status,
+        public string $message = ''
+    ) {}
 
-    protected $order;
-    protected $status;
-    protected $message;
-    public $tries = 5;
-    public $backoff = [5, 10, 20, 30];
-
-    public function __construct($order, $status, $message = '')
+    public function handle(): void
     {
-        $this->order = $order;
-        $this->status = $status;
-        $this->message = $message;
-    }
-
-    public function handle()
-    {
-        \Log::info('[SendOrderStatusUpdateEmail] Handling job', [
+        $this->logJobStart([
             'order_id' => $this->order->id,
             'order_number' => $this->order->order_number,
             'status' => $this->status,
             'has_message' => $this->message !== '',
             'user_email' => $this->order->user->email ?? null,
         ]);
+
         try {
-            Mail::to($this->order->user->email)
-                ->send(new OrderStatusUpdate($this->order, $this->status, $this->message));
-        } catch (\Throwable $e) {
-            \Log::error('[SendOrderStatusUpdateEmail] Send failed', [
+            $mailable = new OrderStatusUpdate($this->order, $this->status, $this->message);
+            \Log::info('[SendOrderStatusUpdateEmail] Mailable created, sending email', [
                 'order_id' => $this->order->id,
-                'error' => $e->getMessage()
+                'order_number' => $this->order->order_number,
+                'status' => $this->status,
+                'recipient_email' => $this->order->user->email,
+                'subject' => $mailable->subject ?? 'N/A',
+                'has_message' => $this->message !== '',
             ]);
-            throw $e;
+            
+            Mail::to($this->order->user->email)
+                ->send($mailable);
+            
+            \Log::info('[SendOrderStatusUpdateEmail] Email sent successfully', [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'status' => $this->status,
+                'recipient_email' => $this->order->user->email,
+            ]);
+            
+            $this->logJobComplete([
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number,
+                'status' => $this->status,
+            ]);
+        } catch (\Throwable $e) {
+            $this->handleError($e, [
+                'order_id' => $this->order->id,
+                'order_number' => $this->order->order_number ?? null,
+                'status' => $this->status,
+            ]);
         }
     }
 }

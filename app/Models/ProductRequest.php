@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use App\Mail\ProductRequestNotification;
+use App\Events\OrderCreatedFromAdvance;
+use App\Events\ProductRequestCreated;
+use App\Events\ProductRequestStatusChanged;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Auth;
-use App\Events\OrderCreatedFromAdvance;
 
 class ProductRequest extends Model
 {
@@ -467,7 +467,7 @@ class ProductRequest extends Model
             
             // If payment is processing (awaiting payment approval), return appropriate status
             if ($advanceStatus === 'processing') {
-                return 'pending_payment_approval';
+                return 'awaiting_admin_approval';
             }
             
             // If payment hasn't been paid yet, customer is awaiting to pay advance
@@ -496,7 +496,7 @@ class ProductRequest extends Model
                 
                 // If final payment is processing (awaiting payment approval), return appropriate status
                 if ($finalStatus === 'processing') {
-                    return 'pending_payment_approval';
+                    return 'awaiting_admin_approval';
                 }
                 
                 // If final payment hasn't been paid yet, customer is awaiting to pay final
@@ -531,56 +531,31 @@ class ProductRequest extends Model
     protected static function booted()
     {
         static::created(function ($productRequest) {
-            // Send notification when a new request is created
-            Mail::to($productRequest->user->email)
-                ->send(new ProductRequestNotification(
-                    $productRequest,
-                    $productRequest->user,
-                    'submitted'
-                ));
-            
-            // Optionally notify admin about new request (Spatie roles)
+            // Dispatch event for product request creation
             try {
-                $admin = null;
-                // Try common admin role names
-                foreach (['admin', 'administrator', 'super-admin', 'super admin'] as $roleName) {
-                    $admin = \App\Models\User::role($roleName)->first();
-                    if ($admin) break;
-                }
-
-                // Fallback: any user with a role containing 'admin'
-                if (!$admin) {
-                    $admin = \App\Models\User::whereHas('roles', function($q) {
-                        $q->where('name', 'like', '%admin%');
-                    })->first();
-                }
-
-                if ($admin) {
-                    Mail::to($admin->email)
-                        ->send(new ProductRequestNotification(
-                            $productRequest,
-                            $admin,
-                            'admin_notification',
-                            $admin
-                        ));
-                }
+                event(new ProductRequestCreated($productRequest));
             } catch (\Throwable $e) {
-                // Silently skip admin notification if roles are not set up
+                \Illuminate\Support\Facades\Log::warning(
+                    'ProductRequestCreated event dispatch failed: ' . $e->getMessage()
+                );
             }
         });
 
         static::updated(function ($productRequest) {
             // Check if status was changed
             if ($productRequest->isDirty('status')) {
+                $oldStatus = $productRequest->getOriginal('status');
+                $newStatus = $productRequest->status;
                 $admin = $productRequest->admin ?? Auth::user();
                 
-                Mail::to($productRequest->user->email)
-                    ->send(new ProductRequestNotification(
-                        $productRequest,
-                        $productRequest->user,
-                        'status_updated',
-                        $admin
-                    ));
+                // Dispatch event for status change
+                try {
+                    event(new ProductRequestStatusChanged($productRequest, $oldStatus, $newStatus, $admin));
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning(
+                        'ProductRequestStatusChanged event dispatch failed: ' . $e->getMessage()
+                    );
+                }
             }
         });
     }

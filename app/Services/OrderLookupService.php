@@ -25,14 +25,15 @@ class OrderLookupService
     public function findOrderFromPayment(PaymentTransaction $payment): ?Order
     {
         // Method 1: Try relationship first (works if order_id is numeric)
-        if ($payment->order_id) {
-            $order = $payment->order;
-            if ($order) {
-                return $order;
-            }
-
-            // Method 2: Try numeric ID lookup
+        if ($payment->order_id !== null && $payment->order_id !== '') {
+            // Only try relationship if order_id looks numeric (to avoid unnecessary queries)
             if (is_numeric($payment->order_id)) {
+                $order = $payment->order;
+                if ($order) {
+                    return $order;
+                }
+                
+                // Method 2: Try numeric ID lookup directly
                 $order = Order::find($payment->order_id);
                 if ($order) {
                     return $order;
@@ -40,8 +41,10 @@ class OrderLookupService
             }
 
             // Method 3: Try order_number lookup (if order_id is stored as string)
-            if (is_string($payment->order_id) && !is_numeric($payment->order_id)) {
-                $order = Order::where('order_number', $payment->order_id)->first();
+            // Check both string type and non-numeric content
+            $orderIdValue = (string)$payment->order_id;
+            if (!is_numeric($orderIdValue) && $orderIdValue !== '') {
+                $order = Order::where('order_number', $orderIdValue)->first();
                 if ($order) {
                     // Normalize payment transaction to store numeric ID
                     $this->normalizePaymentOrderId($payment, $order);
@@ -52,11 +55,11 @@ class OrderLookupService
 
         // Method 4: Try gateway_payload for order_number
         if (!empty($payment->gateway_payload['order_number'])) {
-            $order = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
-            if ($order) {
+            $orderFromPayload = Order::where('order_number', $payment->gateway_payload['order_number'])->first();
+            if ($orderFromPayload) {
                 // Normalize payment transaction to store numeric ID
-                $this->normalizePaymentOrderId($payment, $order);
-                return $order;
+                $this->normalizePaymentOrderId($payment, $orderFromPayload);
+                return $orderFromPayload;
             }
         }
 
@@ -135,12 +138,17 @@ class OrderLookupService
     public function normalizePaymentOrderId(PaymentTransaction $payment, Order $order): bool
     {
         $numericId = (string)$order->id;
+        $currentOrderId = $payment->order_id ? (string)$payment->order_id : null;
         
         // Only update if order_id is not already the numeric ID
-        if ($payment->order_id !== $numericId) {
+        // Compare as strings to handle both string and numeric types
+        if ($currentOrderId !== $numericId) {
             $oldOrderId = $payment->order_id;
             $payment->order_id = $numericId;
             $payment->save();
+            
+            // Refresh the payment to ensure the change is persisted
+            $payment->refresh();
 
             Log::info('Normalized payment transaction order_id to numeric ID', [
                 'payment_id' => $payment->id,
@@ -195,6 +203,12 @@ class OrderLookupService
      */
     public function getOrderForPayment(PaymentTransaction $payment): ?Order
     {
+        // Refresh payment to ensure we have the latest data from database
+        // But only if it's already persisted (has an id)
+        if ($payment->exists) {
+            $payment->refresh();
+        }
+        
         $order = $this->findOrderFromPayment($payment);
         
         // If order found but payment not normalized (or order_id is NULL), normalize it
