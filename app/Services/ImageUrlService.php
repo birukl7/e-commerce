@@ -42,8 +42,9 @@ class ImageUrlService
         
         if (str_starts_with($imagePath, 'products/') || 
             str_starts_with($imagePath, 'categories/') || 
-            str_starts_with($imagePath, 'brands/')) {
-            // Storage path from Laravel store() method (products/filename.jpg)
+            str_starts_with($imagePath, 'brands/') ||
+            str_starts_with($imagePath, 'images/')) {
+            // Storage path from Laravel store() method (products/filename.jpg, images/filename.jpg, etc.)
             // These are stored in storage/app/public/ and need /storage/ prefix
             return '/storage/' . $imagePath;
         }
@@ -95,6 +96,55 @@ class ImageUrlService
             fn($path) => self::formatImageUrl($path),
             $imagePaths
         );
+    }
+
+    /**
+     * Normalize image path to storage format (remove /storage/ prefix, etc.)
+     * Converts formatted paths back to raw storage paths for database storage
+     * 
+     * @param string|null $imagePath The formatted image path
+     * @return string|null The normalized storage path
+     */
+    public static function normalizeToStoragePath(?string $imagePath): ?string
+    {
+        if (!$imagePath) {
+            return null;
+        }
+
+        $imagePath = trim($imagePath);
+
+        // If it's a full URL, return as-is (can't normalize)
+        if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
+            return $imagePath;
+        }
+
+        // Remove /storage/ prefix if present
+        if (str_starts_with($imagePath, '/storage/')) {
+            return ltrim($imagePath, '/storage/');
+        }
+
+        // Remove /image/ prefix if present (legacy format)
+        if (str_starts_with($imagePath, '/image/')) {
+            $pathWithoutPrefix = ltrim($imagePath, '/image/');
+            // If it's just a filename, assume it's in images/ bucket
+            if (!str_contains($pathWithoutPrefix, '/')) {
+                return 'images/' . $pathWithoutPrefix;
+            }
+            return $pathWithoutPrefix;
+        }
+
+        // Remove storage/ prefix if present (without leading slash)
+        if (str_starts_with($imagePath, 'storage/')) {
+            return ltrim($imagePath, 'storage/');
+        }
+
+        // If it starts with / and is just a filename, assume images/ bucket
+        if (str_starts_with($imagePath, '/') && !str_contains(ltrim($imagePath, '/'), '/')) {
+            return 'images/' . ltrim($imagePath, '/');
+        }
+
+        // Already in storage format (images/filename.jpg, products/filename.jpg, etc.)
+        return $imagePath;
     }
 }
 

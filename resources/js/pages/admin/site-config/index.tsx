@@ -96,6 +96,11 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
         banner_main_image?: boolean;
         banner_secondary_image?: boolean;
     }>({});
+    
+    const [uploadProgress, setUploadProgress] = React.useState<{
+        banner_main_image?: number;
+        banner_secondary_image?: number;
+    }>({});
 
     const { data, setData, post, processing, errors, reset, transform } = useForm({
         // Homepage Banner
@@ -120,14 +125,32 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
         about_column3_text: settings.about_column3_text || '',
         about_cta_text: settings.about_cta_text || '',
         about_cta_button_text: settings.about_cta_button_text || '',
+        about_cta_button_link: settings.about_cta_button_link || '',
         
         // Footer
         footer_brand_description: settings.footer_brand_description || '',
         footer_download_text: settings.footer_download_text || '',
+        footer_download_link: settings.footer_download_link || '',
         footer_location_text: settings.footer_location_text || '',
         footer_language_text: settings.footer_language_text || '',
         footer_currency_text: settings.footer_currency_text || '',
         footer_copyright_text: settings.footer_copyright_text || '',
+        footer_columns: (() => {
+            try {
+                const cols = settings.footer_columns ? (typeof settings.footer_columns === 'string' ? JSON.parse(settings.footer_columns) : settings.footer_columns) : [];
+                return Array.isArray(cols) ? cols : [];
+            } catch {
+                return [];
+            }
+        })(),
+        social_links: (() => {
+            try {
+                const links = settings.social_links ? (typeof settings.social_links === 'string' ? JSON.parse(settings.social_links) : settings.social_links) : {};
+                return typeof links === 'object' && links !== null ? links : {};
+            } catch {
+                return {};
+            }
+        })(),
         
         // Legal Content
         privacy_policy_content: settings.privacy_policy_content || '',
@@ -159,12 +182,34 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
             }
             // If it's a File, keep it for upload (Inertia will handle it)
             
+            // Convert footer_columns array to JSON string
+            if (formData.footer_columns && Array.isArray(formData.footer_columns)) {
+                transformed.footer_columns = JSON.stringify(formData.footer_columns);
+            }
+            
+            // Convert social_links object to JSON string
+            if (formData.social_links && typeof formData.social_links === 'object') {
+                transformed.social_links = JSON.stringify(formData.social_links);
+            }
+            
             return transformed;
         });
         
         post('/site-config', {
             preserveScroll: true,
             forceFormData: true,
+            onProgress: (progress) => {
+                // Calculate progress percentage
+                const percentage = progress && progress.total ? Math.round((progress.loaded / progress.total) * 100) : 0;
+                
+                // Determine which image is being uploaded based on form data
+                if (data.banner_main_image instanceof File) {
+                    setUploadProgress(prev => ({ ...prev, banner_main_image: percentage }));
+                }
+                if (data.banner_secondary_image instanceof File) {
+                    setUploadProgress(prev => ({ ...prev, banner_secondary_image: percentage }));
+                }
+            },
             onSuccess: () => {
                 // Reset file inputs and removed images after successful upload
                 setData(prev => ({
@@ -173,6 +218,11 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                     banner_secondary_image: null,
                 }));
                 setRemovedImages({});
+                setUploadProgress({});
+            },
+            onError: () => {
+                // Clear progress on error
+                setUploadProgress({});
             },
         });
     };
@@ -407,6 +457,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                         accept="image/*"
                                                         maxSize={5 * 1024 * 1024}
                                                         className="h-full"
+                                                        uploadProgress={uploadProgress.banner_main_image}
                                                     />
                                                     {errors.banner_main_image && (
                                                         <p className="text-sm text-red-600 mt-2">{errors.banner_main_image}</p>
@@ -478,6 +529,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                         accept="image/*"
                                                         maxSize={5 * 1024 * 1024}
                                                         className="h-full"
+                                                        uploadProgress={uploadProgress.banner_secondary_image}
                                                     />
                                                     {errors.banner_secondary_image && (
                                                         <p className="text-sm text-red-600 mt-2">{errors.banner_secondary_image}</p>
@@ -842,16 +894,29 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                             )}
                                         </div>
                                     </div>
+                                    <div>
+                                        <Label htmlFor="about_cta_button_link">CTA Button Link</Label>
+                                        <Input
+                                            id="about_cta_button_link"
+                                            value={data.about_cta_button_link}
+                                            onChange={(e) => setData('about_cta_button_link', e.target.value)}
+                                            placeholder="e.g., /contact or https://example.com/contact"
+                                        />
+                                        {errors.about_cta_button_link && (
+                                            <p className="text-sm text-red-600">{errors.about_cta_button_link}</p>
+                                        )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </TabsContent>
 
                         {/* Footer Tab */}
                         <TabsContent value="footer" className="space-y-6">
+                            {/* Basic Footer Settings */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle>Footer Settings</CardTitle>
-                                    <CardDescription>Configure footer content and settings</CardDescription>
+                                    <CardTitle>Basic Footer Settings</CardTitle>
+                                    <CardDescription>Configure basic footer content</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -877,6 +942,18 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                             />
                                             {errors.footer_download_text && (
                                                 <p className="text-sm text-red-600">{errors.footer_download_text}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="footer_download_link">Download Button Link</Label>
+                                            <Input
+                                                id="footer_download_link"
+                                                value={data.footer_download_link}
+                                                onChange={(e) => setData('footer_download_link', e.target.value)}
+                                                placeholder="e.g., https://play.google.com/store/apps or /download"
+                                            />
+                                            {errors.footer_download_link && (
+                                                <p className="text-sm text-red-600">{errors.footer_download_link}</p>
                                             )}
                                         </div>
                                         <div>
@@ -928,9 +1005,178 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                             )}
                                         </div>
                                     </div>
-                                                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
+                                </CardContent>
+                            </Card>
+
+                            {/* Footer Columns */}
+                            <Card>
+                                <CardHeader>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <CardTitle>Footer Columns</CardTitle>
+                                            <CardDescription>Manage footer link columns (max 5 columns)</CardDescription>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                                if (data.footer_columns.length < 5) {
+                                                    setData('footer_columns', [
+                                                        ...data.footer_columns,
+                                                        { title: '', links: [] }
+                                                    ]);
+                                                }
+                                            }}
+                                            disabled={data.footer_columns.length >= 5}
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Add Column
+                                        </Button>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    {data.footer_columns.map((column: any, columnIndex: number) => (
+                                        <div key={columnIndex} className="border rounded-lg p-4 bg-gray-50">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h4 className="font-semibold text-gray-900">Column {columnIndex + 1}</h4>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        const newColumns = data.footer_columns.filter((_: any, i: number) => i !== columnIndex);
+                                                        setData('footer_columns', newColumns);
+                                                    }}
+                                                    className="text-red-600 hover:text-red-700"
+                                                >
+                                                    <X className="h-4 w-4 mr-2" />
+                                                    Remove Column
+                                                </Button>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <Label>Column Title</Label>
+                                                    <Input
+                                                        value={column.title || ''}
+                                                        onChange={(e) => {
+                                                            const newColumns = [...data.footer_columns];
+                                                            newColumns[columnIndex] = { ...newColumns[columnIndex], title: e.target.value };
+                                                            setData('footer_columns', newColumns);
+                                                        }}
+                                                        placeholder="e.g., Shop, Sell, About, Help"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <Label>Links</Label>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                const newColumns = [...data.footer_columns];
+                                                                newColumns[columnIndex] = {
+                                                                    ...newColumns[columnIndex],
+                                                                    links: [...(newColumns[columnIndex].links || []), { text: '', url: '' }]
+                                                                };
+                                                                setData('footer_columns', newColumns);
+                                                            }}
+                                                        >
+                                                            <Plus className="h-3 w-3 mr-1" />
+                                                            Add Link
+                                                        </Button>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {(column.links || []).map((link: any, linkIndex: number) => (
+                                                            <div key={linkIndex} className="flex gap-2 items-start">
+                                                                <div className="flex-1 grid grid-cols-2 gap-2">
+                                                                    <Input
+                                                                        value={link.text || ''}
+                                                                        onChange={(e) => {
+                                                                            const newColumns = [...data.footer_columns];
+                                                                            const newLinks = [...(newColumns[columnIndex].links || [])];
+                                                                            newLinks[linkIndex] = { ...newLinks[linkIndex], text: e.target.value };
+                                                                            newColumns[columnIndex] = { ...newColumns[columnIndex], links: newLinks };
+                                                                            setData('footer_columns', newColumns);
+                                                                        }}
+                                                                        placeholder="Link text"
+                                                                    />
+                                                                    <Input
+                                                                        value={link.url || ''}
+                                                                        onChange={(e) => {
+                                                                            const newColumns = [...data.footer_columns];
+                                                                            const newLinks = [...(newColumns[columnIndex].links || [])];
+                                                                            newLinks[linkIndex] = { ...newLinks[linkIndex], url: e.target.value };
+                                                                            newColumns[columnIndex] = { ...newColumns[columnIndex], links: newLinks };
+                                                                            setData('footer_columns', newColumns);
+                                                                        }}
+                                                                        placeholder="Link URL (e.g., /shop or https://...)"
+                                                                    />
+                                                                </div>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => {
+                                                                        const newColumns = [...data.footer_columns];
+                                                                        const newLinks = (newColumns[columnIndex].links || []).filter((_: any, i: number) => i !== linkIndex);
+                                                                        newColumns[columnIndex] = { ...newColumns[columnIndex], links: newLinks };
+                                                                        setData('footer_columns', newColumns);
+                                                                    }}
+                                                                    className="text-red-600 hover:text-red-700"
+                                                                >
+                                                                    <X className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                        {(!column.links || column.links.length === 0) && (
+                                                            <p className="text-sm text-gray-500 italic">No links added yet. Click "Add Link" to add one.</p>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {data.footer_columns.length === 0 && (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <p>No footer columns added yet.</p>
+                                            <p className="text-sm mt-1">Click "Add Column" to create your first footer column.</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            {/* Social Media Links */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Social Media Links</CardTitle>
+                                    <CardDescription>Configure social media links for the footer</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {['facebook', 'instagram', 'twitter', 'youtube', 'linkedin', 'tiktok'].map((platform) => (
+                                            <div key={platform}>
+                                                <Label htmlFor={`social_${platform}`} className="capitalize">
+                                                    {platform === 'twitter' ? 'X (Twitter)' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                                                </Label>
+                                                <Input
+                                                    id={`social_${platform}`}
+                                                    value={data.social_links[platform] || ''}
+                                                    onChange={(e) => {
+                                                        setData('social_links', {
+                                                            ...data.social_links,
+                                                            [platform]: e.target.value
+                                                        });
+                                                    }}
+                                                    placeholder={`https://${platform}.com/yourpage`}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </TabsContent>
 
                                 {/* Chapa Payment Methods Tab */}
                                 <TabsContent value="chapa-payments" className="space-y-8 mt-0">
@@ -1189,7 +1435,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                     </div>
                                 </CardContent>
                             </Card>
-                                </TabsContent>
+                        </TabsContent>
                             </Tabs>
                         </div>
 

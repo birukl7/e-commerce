@@ -15,6 +15,7 @@ import {
   Heading3
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import React from 'react'
 
 interface RichTextEditorProps {
   content: string
@@ -186,9 +187,14 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        // Configure StarterKit to preserve all formatting
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+      }),
     ],
-    content,
+    content: content || '',
     onUpdate: ({ editor }) => {
       onUpdate(editor.getHTML())
     },
@@ -196,8 +202,25 @@ export default function RichTextEditor({
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none min-h-[200px] p-4',
       },
+      // Transform pasted HTML to ensure lists and headings are preserved
+      transformPastedHTML(html) {
+        // TipTap StarterKit includes paste rules that will automatically
+        // convert HTML lists (<ul>, <ol>) and headings (<h1>-<h6>) to the
+        // correct ProseMirror nodes. We just need to pass the HTML through.
+        return html
+      },
     },
   })
+
+  // Update editor content when prop changes
+  React.useEffect(() => {
+    if (editor && content !== undefined) {
+      const currentContent = editor.getHTML()
+      if (currentContent !== content) {
+        editor.commands.setContent(content || '')
+      }
+    }
+  }, [content, editor])
 
   return (
     <div className={cn("border border-gray-200 rounded-md", className)}>
@@ -205,7 +228,6 @@ export default function RichTextEditor({
       <EditorContent 
         editor={editor} 
         className="min-h-[200px] max-h-[400px] overflow-y-auto"
-        placeholder={placeholder}
       />
     </div>
   )

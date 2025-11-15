@@ -9,7 +9,8 @@ use App\Models\PaymentTransaction;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
-use App\Services\SiteConfigService; 
+use App\Services\SiteConfigService;
+use App\Services\ImageUrlService; 
 
 class AdminSiteConfigController extends Controller
 {
@@ -25,42 +26,72 @@ class AdminSiteConfigController extends Controller
      */
     public function index()
     {
-        $settings = Setting::pluck('value', 'key')->toArray();
+        // Fetch settings with 'site.' prefix and map them to remove the prefix
+        $dbSettings = Setting::where('key', 'like', 'site.%')
+            ->get()
+            ->mapWithKeys(function ($setting) {
+                // Remove 'site.' prefix from key
+                $key = str_replace('site.', '', $setting->key);
+                $value = $setting->getTypedValue();
+                
+                // Parse JSON fields if they're strings
+                if (in_array($key, ['footer_columns', 'social_links']) && is_string($value)) {
+                    try {
+                        $value = json_decode($value, true);
+                    } catch (\Exception $e) {
+                        // If parsing fails, keep original value
+                    }
+                }
+                
+                return [$key => $value];
+            })
+            ->toArray();
+
+            // dd($dbSettings);
         
-        // Ensure all required settings exist with defaults
-        $defaultSettings = [
-            // Homepage Banner Settings
-            'banner_main_title' => 'Back to school',
-            'banner_main_subtitle' => 'For the first day and beyond',
-            'banner_main_button_text' => 'Shop school supplies',
-            'banner_main_button_link' => '/categories/school-supplies',
-            'banner_main_image' => 'image/image-3.jpg',
-            'banner_secondary_title' => 'Teacher Appreciation Gifts',
-            'banner_secondary_button_text' => 'Shop now',
-            'banner_secondary_button_link' => '/categories/gifts',
-            'banner_secondary_image' => 'image/image-4.jpg',
+        // // Ensure all required settings exist with defaults
+        // $defaultSettings = [
+        //     // Homepage Banner Settings
+        //     'banner_main_title' => 'Back to school',
+        //     'banner_main_subtitle' => 'For the first day and beyond',
+        //     'banner_main_button_text' => 'Shop school supplies',
+        //     'banner_main_button_link' => '/categories/school-supplies',
+        //     'banner_main_image' => 'image/image-3.jpg',
+        //     'banner_secondary_title' => 'Teacher Appreciation Gifts',
+        //     'banner_secondary_button_text' => 'Shop now',
+        //     'banner_secondary_button_link' => '/categories/gifts',
+        //     'banner_secondary_image' => 'image/image-4.jpg',
             
-            // About Section Settings
-            'about_title' => 'What is Serdo?',
-            'about_subtitle' => 'Discover our Ethiopian heritage story',
-            'about_column1_title' => 'Celebrating Ethiopian Heritage',
-            'about_column1_text' => 'Serdo is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
-            'about_column2_title' => 'Supporting Local Artisans',
-            'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
-            'about_column3_title' => 'Quality & Authenticity',
-            'about_column3_text' => 'Every product on Serdo is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
+        //     // About Section Settings
+        //     'about_title' => 'What is Serdo?',
+        //     'about_subtitle' => 'Discover our Ethiopian heritage story',
+        //     'about_column1_title' => 'Celebrating Ethiopian Heritage',
+        //     'about_column1_text' => 'Serdo is Ethiopia\'s premier marketplace, connecting artisans and modern creators with customers worldwide. We showcase the rich cultural heritage of Ethiopia through traditional crafts like Jebena coffee pots, handwoven textiles, and contemporary Ethiopian art, while also offering modern products for today\'s lifestyle.',
+        //     'about_column2_title' => 'Supporting Local Artisans',
+        //     'about_column2_text' => 'From the highlands of Ethiopia to your home, we bring you authentic Ethiopian craftsmanship. Our platform empowers local artisans, coffee farmers, and modern entrepreneurs to reach global markets while preserving traditional techniques and promoting sustainable practices.',
+        //     'about_column3_title' => 'Quality & Authenticity',
+        //     'about_column3_text' => 'Every product on Serdo is carefully curated to ensure authenticity and quality. Whether you\'re looking for traditional Ethiopian coffee ceremonies, contemporary Ethiopian fashion, or modern tech products, we guarantee genuine craftsmanship and exceptional service.',
             
-            // Privacy Policy
-            'privacy_policy_content' => $this->getDefaultPrivacyPolicy(),
+        //     // Privacy Policy
+        //     'privacy_policy_content' => $this->getDefaultPrivacyPolicy(),
             
-            // Payment Settings
-            'manual_payment_enabled' => true,
-            'require_admin_approval' => true,
-            'auto_approve_gateway_payments' => false,
-            'tax_rate' => 0.15,
-        ];
+        //     // Payment Settings
+        //     'manual_payment_enabled' => true,
+        //     'require_admin_approval' => true,
+        //     'auto_approve_gateway_payments' => false,
+        //     'tax_rate' => 0.15,
+        // ];
         
-        $settings = array_merge($defaultSettings, $settings);
+        // // Merge defaults with database settings (database settings take precedence)
+        // $settings = array_merge($defaultSettings, $dbSettings);
+        
+        // Format image paths for display
+        if (!empty($dbSettings['banner_main_image'])) {
+            $dbSettings['banner_main_image'] = ImageUrlService::formatImageUrl($dbSettings['banner_main_image']) ?? $dbSettings['banner_main_image'];
+        }
+        if (!empty($dbSettings['banner_secondary_image'])) {
+            $dbSettings['banner_secondary_image'] = ImageUrlService::formatImageUrl($dbSettings['banner_secondary_image']) ?? $dbSettings['banner_secondary_image'];
+        }
         
         // Load offline payment methods
         $offlinePaymentMethods = OfflinePaymentMethod::orderBy('sort_order')->get();
@@ -85,7 +116,7 @@ class AdminSiteConfigController extends Controller
             ->get();
 
         return Inertia::render('admin/site-config/index', [
-            'settings' => $settings,
+            'settings' => $dbSettings,
             'offlinePaymentMethods' => $offlinePaymentMethods,
             'chapaPaymentMethods' => $chapaPaymentMethods,
             'recentChapaPayments' => $recentChapaPayments,
@@ -127,16 +158,13 @@ class AdminSiteConfigController extends Controller
         ];
         
         // Only validate image fields as strings if no file was uploaded
+        // Make them optional so updating one doesn't require the other
         if (!$request->hasFile('banner_main_image')) {
-            $validationRules['banner_main_image'] = $existingBannerMainImage 
-                ? 'nullable|string|max:255' 
-                : 'required|string|max:255';
+            $validationRules['banner_main_image'] = 'nullable|string|max:255';
         }
         
         if (!$request->hasFile('banner_secondary_image')) {
-            $validationRules['banner_secondary_image'] = $existingBannerSecondaryImage 
-                ? 'nullable|string|max:255' 
-                : 'required|string|max:255';
+            $validationRules['banner_secondary_image'] = 'nullable|string|max:255';
         }
         
         $validationRules = array_merge($validationRules, [
@@ -149,6 +177,20 @@ class AdminSiteConfigController extends Controller
             'about_column2_text' => 'required|string|max:2000',
             'about_column3_title' => 'required|string|max:255',
             'about_column3_text' => 'required|string|max:2000',
+            'about_cta_text' => 'nullable|string|max:500',
+            'about_cta_button_text' => 'nullable|string|max:100',
+            'about_cta_button_link' => 'nullable|string|max:255',
+            
+            // Footer Settings
+            'footer_brand_description' => 'nullable|string|max:500',
+            'footer_download_text' => 'nullable|string|max:100',
+            'footer_download_link' => 'nullable|string|max:255',
+            'footer_location_text' => 'nullable|string|max:100',
+            'footer_language_text' => 'nullable|string|max:100',
+            'footer_currency_text' => 'nullable|string|max:50',
+            'footer_copyright_text' => 'nullable|string|max:255',
+            'footer_columns' => 'nullable|string|max:5000', // JSON string
+            'social_links' => 'nullable|string|max:2000', // JSON string
             
             // Privacy Policy
             'privacy_policy_content' => 'required|string',
@@ -161,43 +203,64 @@ class AdminSiteConfigController extends Controller
         ]);
         
         $validated = $request->validate($validationRules);
+        
+        // Handle image file uploads FIRST (before processing validated data)
+        // Files are not in $validated array, so they need to be handled separately
+        if ($bannerMainImagePath) {
+            // New file was uploaded - save the new path
+            $this->siteConfig->set('site.banner_main_image', $bannerMainImagePath, 'string', 'system');
+        }
+        
+        if ($bannerSecondaryImagePath) {
+            // New file was uploaded - save the new path
+            $this->siteConfig->set('site.banner_secondary_image', $bannerSecondaryImagePath, 'string', 'system');
+        }
 
         // Save each setting
         foreach ($validated as $key => $value) {
             $settingKey = "site.{$key}";
             
-            // Handle image fields specially
-            if ($key === 'banner_main_image') {
-                if ($bannerMainImagePath) {
-                    // New file was uploaded
-                    $this->siteConfig->set($settingKey, $bannerMainImagePath, 'string', 'system');
-                } elseif ($value === '' || $value === null) {
-                    // Image was removed
-                    $this->siteConfig->set($settingKey, '', 'string', 'system');
-                } elseif (is_string($value) && $value !== '') {
-                    // Existing image path was sent (no change)
-                    $this->siteConfig->set($settingKey, $value, 'string', 'system');
+            // Skip image fields - they're handled above if files were uploaded,
+            // or below if they're string values (existing paths)
+            if ($key === 'banner_main_image' || $key === 'banner_secondary_image') {
+                // Only process if no file was uploaded (meaning it's a string path)
+                if ($key === 'banner_main_image' && !$bannerMainImagePath) {
+                    if ($value === '') {
+                        // Explicitly removed (empty string sent) - clear the image
+                        $this->siteConfig->set($settingKey, '', 'string', 'system');
+                    } elseif ($value !== null && is_string($value) && $value !== '') {
+                        // Existing image path was sent (no change) - normalize to storage format
+                        $normalizedPath = ImageUrlService::normalizeToStoragePath($value);
+                        // Only update if the normalized path is different from what's stored
+                        $currentValue = $this->siteConfig->get($settingKey);
+                        if ($normalizedPath !== $currentValue) {
+                            $this->siteConfig->set($settingKey, $normalizedPath, 'string', 'system');
+                        }
+                    }
                 }
-                continue;
-            }
-            
-            if ($key === 'banner_secondary_image') {
-                if ($bannerSecondaryImagePath) {
-                    // New file was uploaded
-                    $this->siteConfig->set($settingKey, $bannerSecondaryImagePath, 'string', 'system');
-                } elseif ($value === '' || $value === null) {
-                    // Image was removed
-                    $this->siteConfig->set($settingKey, '', 'string', 'system');
-                } elseif (is_string($value) && $value !== '') {
-                    // Existing image path was sent (no change)
-                    $this->siteConfig->set($settingKey, $value, 'string', 'system');
+                
+                if ($key === 'banner_secondary_image' && !$bannerSecondaryImagePath) {
+                    if ($value === '') {
+                        // Explicitly removed (empty string sent) - clear the image
+                        $this->siteConfig->set($settingKey, '', 'string', 'system');
+                    } elseif ($value !== null && is_string($value) && $value !== '') {
+                        // Existing image path was sent (no change) - normalize to storage format
+                        $normalizedPath = ImageUrlService::normalizeToStoragePath($value);
+                        // Only update if the normalized path is different from what's stored
+                        $currentValue = $this->siteConfig->get($settingKey);
+                        if ($normalizedPath !== $currentValue) {
+                            $this->siteConfig->set($settingKey, $normalizedPath, 'string', 'system');
+                        }
+                    }
                 }
+                
+                // Skip to next iteration (don't process image fields as regular settings)
                 continue;
             }
             
             // Determine the type based on the key for other fields
             $type = match($key) {
-                'payment_methods', 'admin_menu_groups' => 'json',
+                'payment_methods', 'admin_menu_groups', 'footer_columns', 'social_links' => 'json',
                 'manual_payment_enabled', 'require_admin_approval', 'auto_approve_gateway_payments' => 'boolean',
                 'tax_rate' => 'decimal',
                 default => 'string'
@@ -205,6 +268,9 @@ class AdminSiteConfigController extends Controller
             
             $this->siteConfig->set($settingKey, $value, $type, 'system');
         }
+
+        // Ensure cache is cleared after all updates
+        $this->siteConfig->clearCache();
 
         return redirect('/site-config')->with('success', 'Settings updated successfully');
     }

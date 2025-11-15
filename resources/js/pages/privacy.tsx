@@ -35,7 +35,7 @@ function PrivacyContent({ settings }: PrivacyProps) {
               
               {settings?.privacy_policy_content ? (
                 <div 
-                  className="prose prose-lg max-w-none text-gray-700"
+                  className="prose prose-lg max-w-none text-gray-700 prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-ul:list-disc prose-ul:pl-6 prose-ol:list-decimal prose-ol:pl-6 prose-li:text-gray-700 prose-strong:text-gray-900 prose-strong:font-semibold prose-em:text-gray-800 prose-blockquote:border-l-4 prose-blockquote:border-gray-300 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-600 prose-h1:text-3xl prose-h1:font-bold prose-h1:mb-4 prose-h2:text-2xl prose-h2:font-semibold prose-h2:mb-4 prose-h3:text-xl prose-h3:font-semibold prose-h3:mb-3 prose-a:text-blue-600 prose-a:underline hover:prose-a:text-blue-800"
                   dangerouslySetInnerHTML={{ __html: settings.privacy_policy_content }}
                 />
               ) : (
