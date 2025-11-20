@@ -13,6 +13,7 @@ interface AboutSectionProps {
     about_column3_text?: string;
     about_cta_text?: string;
     about_cta_button_text?: string;
+    about_cta_button_link?: string;
   };
 }
 
@@ -71,13 +72,25 @@ export default function AboutSection({ settings }: AboutSectionProps) {
           <p className="text-gray-700 text-lg md:text-xl mb-6">
             {settings?.about_cta_text || "Questions about our products or Ethiopian culture?"}
           </p>
-          <Button
-            variant="outline"
-            size="lg"
-            className="px-8 py-3 text-gray-700 border-gray-400 hover:bg-gray-100 hover:border-gray-500 bg-transparent transition-colors"
-          >
-            {settings?.about_cta_button_text || "Contact Our Team"}
-          </Button>
+          {settings?.about_cta_button_link ? (
+            <Link href={settings.about_cta_button_link}>
+              <Button
+                variant="outline"
+                size="lg"
+                className="px-8 py-3 text-gray-700 border-gray-400 hover:bg-gray-100 hover:border-gray-500 bg-transparent transition-colors"
+              >
+                {settings?.about_cta_button_text || "Contact Our Team"}
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              variant="outline"
+              size="lg"
+              className="px-8 py-3 text-gray-700 border-gray-400 hover:bg-gray-100 hover:border-gray-500 bg-transparent transition-colors"
+            >
+              {settings?.about_cta_button_text || "Contact Our Team"}
+            </Button>
+          )}
         </div>
       </div>
     </section>

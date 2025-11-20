@@ -3,6 +3,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, X, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { getImageUrl } from '@/lib/image';
 
 interface ImageUploadProps {
   onFileSelect: (file: File | null) => void;
@@ -12,6 +13,7 @@ interface ImageUploadProps {
   label?: string;
   accept?: string;
   maxSize?: number; // in bytes
+  uploadProgress?: number; // 0-100
 }
 
 export default function ImageUpload({
@@ -22,6 +24,7 @@ export default function ImageUpload({
   label = 'Upload Image',
   accept = 'image/*',
   maxSize = 5 * 1024 * 1024, // 5MB default
+  uploadProgress,
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
@@ -150,6 +153,21 @@ export default function ImageUpload({
             <ImageIcon className="h-4 w-4" />
             Current: {currentImage.split('/').pop()}
           </span>
+        </div>
+      )}
+
+      {uploadProgress !== undefined && uploadProgress > 0 && uploadProgress < 100 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>Uploading...</span>
+            <span>{uploadProgress}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-primary h-2 rounded-full transition-all duration-300"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
         </div>
       )}
 

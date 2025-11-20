@@ -73,6 +73,7 @@ class UserSeeder extends Seeder
         $adminRole = Role::where('name', 'admin')->first();
         $superAdminRole = Role::where('name', 'super_admin')->first();
 
+        
         for ($i = 0; $i < 20; $i++) {
             $name = $ethiopianNames[$i];
             $address = $ethiopianAddresses[$i];

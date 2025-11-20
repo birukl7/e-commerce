@@ -6,25 +6,46 @@ interface FooterProps {
   settings?: {
     footer_brand_description?: string;
     footer_download_text?: string;
+    footer_download_link?: string;
     footer_location_text?: string;
     footer_language_text?: string;
     footer_currency_text?: string;
     footer_copyright_text?: string;
+    footer_columns?: Array<{
+      title: string;
+      links: Array<{
+        text: string;
+        url: string;
+      }>;
+    }>;
+    social_links?: {
+      facebook?: string;
+      instagram?: string;
+      twitter?: string;
+      youtube?: string;
+      linkedin?: string;
+      tiktok?: string;
+    };
   };
 }
 
-const footerLinks = {
+// Default footer links (fallback if no settings)
+const defaultFooterLinks = {
   Shop: ["Traditional Crafts", "Modern Products", "Ethiopian Coffee", "Handmade Textiles", "Art Gallery"],
   Sell: ["Become a Seller", "Artisan Program", "Coffee Partnership", "Craft Workshops", "Seller Support"],
   About: ["Our Story", "Ethiopian Heritage", "Sustainability", "Press & Media", "Careers", "Contact Us"],
   Help: ["Customer Support", "Shipping Info", "Returns Policy", "Size Guide"],
 }
 
-const socialLinks = [
-  { icon: Instagram, href: "#", label: "Instagram" },
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Youtube, href: "#", label: "YouTube" },
-]
+// Social media icon mapping
+const socialIcons: Record<string, any> = {
+  facebook: Facebook,
+  instagram: Instagram,
+  twitter: Instagram, // Using Instagram as placeholder, you can add Twitter icon
+  youtube: Youtube,
+  linkedin: Instagram, // Placeholder
+  tiktok: Instagram, // Placeholder
+}
 
 const bottomLinks = [
   { name: "Terms of Service", href: "/terms" },
@@ -48,43 +69,148 @@ export default function Footer({ settings }: FooterProps) {
           <p className="text-amber-100 text-center mb-4">
             {settings?.footer_brand_description || "Discover Ethiopian treasures and modern essentials"}
           </p>
-          <Button className="bg-amber-800 hover:bg-amber-900 text-white px-6 py-3 rounded-full font-medium" size="lg">
-            {settings?.footer_download_text || "Download Serdo App"}
-          </Button>
+          {settings?.footer_download_link ? (
+            <Link href={settings.footer_download_link}>
+              <Button className="bg-amber-800 hover:bg-amber-900 text-white px-6 py-3 rounded-full font-medium" size="lg">
+                {settings?.footer_download_text || "Download Serdo App"}
+              </Button>
+            </Link>
+          ) : (
+            <Button className="bg-amber-800 hover:bg-amber-900 text-white px-6 py-3 rounded-full font-medium" size="lg">
+              {settings?.footer_download_text || "Download Serdo App"}
+            </Button>
+          )}
         </div>
 
         {/* Links Section */}
         <div className="pl-0 md:pl-80 py-12 px-4 md:px-8">
           <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
-              {Object.entries(footerLinks).map(([category, links]) => (
-                <div key={category}>
-                  <h3 className="font-semibold text-lg mb-4">{category}</h3>
-                  <ul className="space-y-3">
-                    {links.map((link) => (
-                      <li key={link}>
-                        <a href="#" className="text-gray-300 hover:text-white transition-colors text-sm">
-                          {link}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            {/* Dynamic Footer Columns */}
+            {settings?.footer_columns && settings.footer_columns.length > 0 ? (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                {settings.footer_columns.map((column, index) => (
+                  <div key={index}>
+                    <h3 className="font-semibold text-lg mb-4">{column.title}</h3>
+                    <ul className="space-y-3">
+                      {column.links && column.links.map((link, linkIndex) => (
+                        <li key={linkIndex}>
+                          <Link 
+                            href={link.url || '#'} 
+                            className="text-gray-300 hover:text-white transition-colors text-sm"
+                          >
+                            {link.text}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              // Fallback to default links if no columns configured
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                {Object.entries(defaultFooterLinks).map(([category, links]) => (
+                  <div key={category}>
+                    <h3 className="font-semibold text-lg mb-4">{category}</h3>
+                    <ul className="space-y-3">
+                      {links.map((link) => (
+                        <li key={link}>
+                          <a href="#" className="text-gray-300 hover:text-white transition-colors text-sm">
+                            {link}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Social Media Icons */}
             <div className="flex justify-center md:justify-end gap-4 mt-8 md:mt-0 md:absolute md:top-12 md:right-8">
-              {socialLinks.map(({ icon: Icon, href, label }) => (
-                <a
-                  key={label}
-                  href={href}
-                  className="text-gray-300 hover:text-white transition-colors p-2"
-                  aria-label={label}
-                >
-                  <Icon className="w-5 h-5" />
-                </a>
-              ))}
+              {settings?.social_links ? (
+                <>
+                  {settings.social_links.facebook && (
+                    <a
+                      href={settings.social_links.facebook}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="Facebook"
+                    >
+                      <Facebook className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings.social_links.instagram && (
+                    <a
+                      href={settings.social_links.instagram}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="Instagram"
+                    >
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings.social_links.twitter && (
+                    <a
+                      href={settings.social_links.twitter}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="Twitter"
+                    >
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings.social_links.youtube && (
+                    <a
+                      href={settings.social_links.youtube}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="YouTube"
+                    >
+                      <Youtube className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings.social_links.linkedin && (
+                    <a
+                      href={settings.social_links.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="LinkedIn"
+                    >
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                  {settings.social_links.tiktok && (
+                    <a
+                      href={settings.social_links.tiktok}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gray-300 hover:text-white transition-colors p-2"
+                      aria-label="TikTok"
+                    >
+                      <Instagram className="w-5 h-5" />
+                    </a>
+                  )}
+                </>
+              ) : (
+                // Fallback to default social links
+                <>
+                  <a href="#" className="text-gray-300 hover:text-white transition-colors p-2" aria-label="Instagram">
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="text-gray-300 hover:text-white transition-colors p-2" aria-label="Facebook">
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="text-gray-300 hover:text-white transition-colors p-2" aria-label="YouTube">
+                    <Youtube className="w-5 h-5" />
+                  </a>
+                </>
+              )}
               {/* Ethiopian flag colors icon placeholder */}
               <a href="#" className="text-gray-300 hover:text-white transition-colors p-2" aria-label="Ethiopian Heritage">
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

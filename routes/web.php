@@ -37,6 +37,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Models\Product;
+use App\Models\Setting;
+use App\Services\SiteConfigService;
+use App\Services\ImageUrlService;
 
 
 /**
@@ -86,21 +89,58 @@ Route::get('/', function () {
         $latestProducts = collect();
     }
 
-    $settings = [
+    // Fetch settings from database
+    // Get all settings with 'site.' prefix and map them to remove the prefix
+    $dbSettings = Setting::where('key', 'like', 'site.%')
+        ->get()
+        ->mapWithKeys(function ($setting) {
+            // Remove 'site.' prefix from key
+            $key = str_replace('site.', '', $setting->key);
+            $value = $setting->getTypedValue();
+            
+            // Parse JSON fields if they're strings
+            if (in_array($key, ['footer_columns', 'social_links']) && is_string($value)) {
+                try {
+                    $value = json_decode($value, true);
+                } catch (\Exception $e) {
+                    // If parsing fails, keep original value
+                }
+            }
+            
+            return [$key => $value];
+        })
+        ->toArray();
+    
+    // Default settings (used as fallback if not in database)
+    $defaultSettings = [
+        'banner_main_title' => 'Back to school',
+        'banner_main_subtitle' => 'For the first day and beyond',
+        'banner_main_button_text' => 'Shop school supplies',
+        'banner_main_button_link' => '/categories/school-supplies',
+        'banner_main_image' => 'image/image-3.jpg',
+        'banner_secondary_title' => 'Teacher Appreciation Gifts',
+        'banner_secondary_button_text' => 'Shop now',
+        'banner_secondary_button_link' => '/categories/gifts',
+        'banner_secondary_image' => 'image/image-4.jpg',
+    ];
+    
+    // Merge defaults with database settings (database settings take precedence)
+    $bannerSettings = array_merge($defaultSettings, $dbSettings);
+    
+    // Format image paths using ImageUrlService
+    if (!empty($bannerSettings['banner_main_image'])) {
+        $bannerSettings['banner_main_image'] = ImageUrlService::formatImageUrl($bannerSettings['banner_main_image']) ?? $bannerSettings['banner_main_image'];
+    }
+    if (!empty($bannerSettings['banner_secondary_image'])) {
+        $bannerSettings['banner_secondary_image'] = ImageUrlService::formatImageUrl($bannerSettings['banner_secondary_image']) ?? $bannerSettings['banner_secondary_image'];
+    }
+    
+    $settings = array_merge([
         'site_name' => config('app.name'),
         'featured_products' => $featuredProducts,
         'latest_products' => $latestProducts,
-        'banner_main_title' => 'Welcome to ' . config('app.name'),
-        'banner_main_subtitle' => 'Discover amazing products at great prices',
         'footer_content' => '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.',
-        'banner_main_button_text' => 'Shop Now',
-        'banner_main_button_link' => '/products',
-        'banner_main_image' => '/image/image-3.jpg',
-        'banner_secondary_title' => 'New Arrivals',
-        'banner_secondary_button_text' => 'View Collection',
-        'banner_secondary_button_link' => '/new-arrivals',
-        'banner_secondary_image' => '/image/image-4.jpg'
-    ];
+    ], $bannerSettings);
     
     return Inertia::render('welcome', [
         'settings' => $settings,
@@ -113,18 +153,36 @@ Route::get('/', function () {
 
 // Legal pages
 Route::get('/terms', function () {
-    $settings = [
+    // Fetch settings from database
+    $dbSettings = Setting::where('key', 'like', 'site.%')
+        ->get()
+        ->mapWithKeys(function ($setting) {
+            $key = str_replace('site.', '', $setting->key);
+            return [$key => $setting->getTypedValue()];
+        })
+        ->toArray();
+    
+    $settings = array_merge([
         'site_name' => config('app.name'),
-        'terms_content' => config('site.terms_content', 'Terms and conditions content goes here.')
-    ];
+    ], $dbSettings);
+    
     return Inertia::render('terms', ['settings' => $settings]);
 })->name('terms');
 
 Route::get('/privacy', function () {
-    $settings = [
+    // Fetch settings from database
+    $dbSettings = Setting::where('key', 'like', 'site.%')
+        ->get()
+        ->mapWithKeys(function ($setting) {
+            $key = str_replace('site.', '', $setting->key);
+            return [$key => $setting->getTypedValue()];
+        })
+        ->toArray();
+    
+    $settings = array_merge([
         'site_name' => config('app.name'),
-        'privacy_policy_content' => config('site.privacy_policy_content', 'Privacy policy content goes here.')
-    ];
+    ], $dbSettings);
+    
     return Inertia::render('privacy', ['settings' => $settings]);
 })->name('privacy');
 
