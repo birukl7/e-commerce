@@ -10,20 +10,44 @@ use App\Jobs\SendProductRequestSubmittedEmail;
 use App\Models\NotificationOutbox;
 use App\Models\User;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 class SendProductRequestNotifications implements ShouldQueue
 {
+    use InteractsWithQueue, SerializesModels;
+    
+    public $queue = 'default';
+    
     public function handle($event): void
     {
-        if ($event instanceof ProductRequestCreated) {
-            $this->handleProductRequestCreated($event);
-            return;
-        }
+        try {
+            Log::info('[SendProductRequestNotifications] Listener triggered', [
+                'event_type' => get_class($event),
+                'product_request_id' => $event->productRequest->id ?? null,
+            ]);
+            
+            if ($event instanceof ProductRequestCreated) {
+                $this->handleProductRequestCreated($event);
+                return;
+            }
 
-        if ($event instanceof ProductRequestStatusChanged) {
-            $this->handleProductRequestStatusChanged($event);
-            return;
+            if ($event instanceof ProductRequestStatusChanged) {
+                $this->handleProductRequestStatusChanged($event);
+                return;
+            }
+            
+            Log::warning('[SendProductRequestNotifications] Unhandled event type', [
+                'event_type' => get_class($event),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[SendProductRequestNotifications] Error processing event', [
+                'event_type' => get_class($event),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e; // Re-throw to mark job as failed
         }
     }
 
@@ -132,6 +156,10 @@ class SendProductRequestNotifications implements ShouldQueue
             ]);
             return true;
         } catch (\Throwable $e) {
+            Log::debug('[SendProductRequestNotifications] Outbox key reservation failed (likely duplicate)', [
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
             // Unique constraint violation means already processed
             return false;
         }

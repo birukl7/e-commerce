@@ -12,82 +12,124 @@ use App\Jobs\SendAdvancePaymentApprovedEmail;
 use App\Jobs\SendPaymentFailedEmail;
 use App\Models\NotificationOutbox;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class SendPaymentNotifications implements ShouldQueue
 {
+    use InteractsWithQueue, SerializesModels;
+    
+    public $queue = 'default';
+    
     public function handle($event): void
     {
-        $payment = $event->payment;
-        $context = $event->context ?? 'checkout';
+        try {
+            $payment = $event->payment;
+            $context = $event->context ?? 'checkout';
 
-        $key = $this->makeKey($event);
+            Log::info('[SendPaymentNotifications] Listener triggered', [
+                'event_type' => get_class($event),
+                'payment_id' => $payment->id ?? null,
+                'tx_ref' => $payment->tx_ref ?? null,
+                'context' => $context,
+            ]);
 
-        if (!$this->reserveOutboxKey($key, $event)) {
-            if (app()->environment('testing')) {
-                \Log::info('[SendPaymentNotifications] Duplicate/outbox key exists; skipping', ['key' => $key]);
-            }
-            return; // Already processed
-        }
+            $key = $this->makeKey($event);
 
-        if ($event instanceof PaymentCompleted) {
-            if (app()->environment('testing')) {
-                \Log::info('[SendPaymentNotifications] PaymentCompleted received (no customer email sent). Awaiting admin approval.', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
-            }
-            // Intentionally do not send customer emails on gateway completion.
-            // Final completion and customer notification happen on admin approval.
-            return;
-        }
-
-        if ($event instanceof PaymentApproved) {
-            if (app()->environment('testing')) {
-                \Log::info('[SendPaymentNotifications] Handling PaymentApproved', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
-            }
-            $this->onPaymentApproved($payment, $context);
-            return;
-        }
-
-        if ($event instanceof PaymentFailed) {
-            // Check idempotency for PaymentFailed
-            $failedKey = $this->makeKeyForFailed($event);
-            if (!$this->reserveOutboxKey($failedKey, $event)) {
-                if (app()->environment('testing')) {
-                    \Log::info('[SendPaymentNotifications] Duplicate/outbox key exists for PaymentFailed; skipping', ['key' => $failedKey]);
-                }
+            if (!$this->reserveOutboxKey($key, $event)) {
+                Log::info('[SendPaymentNotifications] Duplicate/outbox key exists; skipping', ['key' => $key]);
                 return; // Already processed
             }
-            
-            if (app()->environment('testing')) {
-                \Log::info('[SendPaymentNotifications] Handling PaymentFailed', ['context' => $context, 'tx_ref' => $payment->tx_ref]);
+
+            if ($event instanceof PaymentCompleted) {
+                Log::info('[SendPaymentNotifications] PaymentCompleted received (no customer email sent). Awaiting admin approval.', [
+                    'context' => $context,
+                    'tx_ref' => $payment->tx_ref ?? null,
+                ]);
+                // Intentionally do not send customer emails on gateway completion.
+                // Final completion and customer notification happen on admin approval.
+                return;
             }
-            $this->onPaymentFailed($payment, $context);
-            return;
+
+            if ($event instanceof PaymentApproved) {
+                Log::info('[SendPaymentNotifications] Handling PaymentApproved', [
+                    'context' => $context,
+                    'tx_ref' => $payment->tx_ref ?? null,
+                ]);
+                $this->onPaymentApproved($payment, $context);
+                return;
+            }
+
+            if ($event instanceof PaymentFailed) {
+                // Check idempotency for PaymentFailed
+                $failedKey = $this->makeKeyForFailed($event);
+                if (!$this->reserveOutboxKey($failedKey, $event)) {
+                    Log::info('[SendPaymentNotifications] Duplicate/outbox key exists for PaymentFailed; skipping', ['key' => $failedKey]);
+                    return; // Already processed
+                }
+                
+                Log::info('[SendPaymentNotifications] Handling PaymentFailed', [
+                    'context' => $context,
+                    'tx_ref' => $payment->tx_ref ?? null,
+                ]);
+                $this->onPaymentFailed($payment, $context);
+                return;
+            }
+            
+            Log::warning('[SendPaymentNotifications] Unhandled event type', [
+                'event_type' => get_class($event),
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('[SendPaymentNotifications] Error processing event', [
+                'event_type' => get_class($event),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e; // Re-throw to mark job as failed
         }
     }
 
     private function onPaymentCompleted($payment, string $context): void
     {
         if ($context === 'checkout') {
-            $order = $payment->order;
-            $user = $order?->user;
+            $order = $payment->order ?? null;
+            $user = $order?->user ?? null;
             if ($order && $user) {
-                if (app()->environment('testing')) {
-                    \Log::info('[SendPaymentNotifications] Dispatch SendPaymentConfirmationEmail');
-                }
+                Log::info('[SendPaymentNotifications] Dispatching SendPaymentConfirmationEmail', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $order->id,
+                    'user_email' => $user->email ?? null,
+                ]);
                 SendPaymentConfirmationEmail::dispatch($payment, $user, $order)
                     ->onQueue('emails');
+            } else {
+                Log::warning('[SendPaymentNotifications] Missing order or user for PaymentCompleted', [
+                    'payment_id' => $payment->id,
+                    'has_order' => !is_null($order),
+                    'has_user' => !is_null($user),
+                ]);
             }
             return;
         }
 
         if ($context === 'advance') {
-            $productRequest = $payment->productRequest;
-            $user = $productRequest?->user;
+            $productRequest = $payment->productRequest ?? null;
+            $user = $productRequest?->user ?? null;
             if ($productRequest && $user) {
-                if (app()->environment('testing')) {
-                    \Log::info('[SendPaymentNotifications] Dispatch SendAdvancePaymentConfirmationEmail');
-                }
+                Log::info('[SendPaymentNotifications] Dispatching SendAdvancePaymentConfirmationEmail', [
+                    'payment_id' => $payment->id,
+                    'product_request_id' => $productRequest->id,
+                    'user_email' => $user->email ?? null,
+                ]);
                 SendAdvancePaymentConfirmationEmail::dispatch($payment, $user, $productRequest)
                     ->onQueue('emails');
+            } else {
+                Log::warning('[SendPaymentNotifications] Missing productRequest or user for PaymentCompleted', [
+                    'payment_id' => $payment->id,
+                    'has_product_request' => !is_null($productRequest),
+                    'has_user' => !is_null($user),
+                ]);
             }
             return;
         }
@@ -96,27 +138,43 @@ class SendPaymentNotifications implements ShouldQueue
     private function onPaymentApproved($payment, string $context): void
     {
         if ($context === 'checkout') {
-            $order = $payment->order;
-            $user = $order?->user;
+            $order = $payment->order ?? null;
+            $user = $order?->user ?? null;
             if ($order && $user) {
-                if (app()->environment('testing')) {
-                    \Log::info('[SendPaymentNotifications] Dispatch SendPaymentApprovedEmail');
-                }
+                Log::info('[SendPaymentNotifications] Dispatching SendPaymentApprovedEmail', [
+                    'payment_id' => $payment->id,
+                    'order_id' => $order->id,
+                    'user_email' => $user->email ?? null,
+                ]);
                 SendPaymentApprovedEmail::dispatch($payment, $user, $order)
                     ->onQueue('emails');
+            } else {
+                Log::warning('[SendPaymentNotifications] Missing order or user for PaymentApproved', [
+                    'payment_id' => $payment->id,
+                    'has_order' => !is_null($order),
+                    'has_user' => !is_null($user),
+                ]);
             }
             return;
         }
 
         if ($context === 'advance') {
-            $productRequest = $payment->productRequest;
-            $user = $productRequest?->user;
+            $productRequest = $payment->productRequest ?? null;
+            $user = $productRequest?->user ?? null;
             if ($productRequest && $user) {
-                if (app()->environment('testing')) {
-                    \Log::info('[SendPaymentNotifications] Dispatch SendAdvancePaymentApprovedEmail');
-                }
+                Log::info('[SendPaymentNotifications] Dispatching SendAdvancePaymentApprovedEmail', [
+                    'payment_id' => $payment->id,
+                    'product_request_id' => $productRequest->id,
+                    'user_email' => $user->email ?? null,
+                ]);
                 SendAdvancePaymentApprovedEmail::dispatch($payment, $user, $productRequest)
                     ->onQueue('emails');
+            } else {
+                Log::warning('[SendPaymentNotifications] Missing productRequest or user for PaymentApproved', [
+                    'payment_id' => $payment->id,
+                    'has_product_request' => !is_null($productRequest),
+                    'has_user' => !is_null($user),
+                ]);
             }
             return;
         }
@@ -126,14 +184,24 @@ class SendPaymentNotifications implements ShouldQueue
     {
         $user = null;
         if ($context === 'checkout') {
-            $user = $payment->order?->user;
+            $user = $payment->order?->user ?? null;
         } elseif ($context === 'advance') {
-            $user = $payment->productRequest?->user;
+            $user = $payment->productRequest?->user ?? null;
         }
 
         if ($user) {
+            Log::info('[SendPaymentNotifications] Dispatching SendPaymentFailedEmail', [
+                'payment_id' => $payment->id,
+                'user_email' => $user->email ?? null,
+                'context' => $context,
+            ]);
             SendPaymentFailedEmail::dispatch($payment, $user)
                 ->onQueue('emails');
+        } else {
+            Log::warning('[SendPaymentNotifications] Missing user for PaymentFailed', [
+                'payment_id' => $payment->id,
+                'context' => $context,
+            ]);
         }
     }
 
@@ -166,6 +234,10 @@ class SendPaymentNotifications implements ShouldQueue
             ]);
             return true;
         } catch (\Throwable $e) {
+            Log::debug('[SendPaymentNotifications] Outbox key reservation failed (likely duplicate)', [
+                'key' => $key,
+                'error' => $e->getMessage(),
+            ]);
             // Unique constraint violation means already processed
             return false;
         }
