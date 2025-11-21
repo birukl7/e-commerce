@@ -109,8 +109,9 @@ echo "\n";
 // 4. Check Event/Listener Registration
 echo "4. EVENT/LISTENER REGISTRATION\n";
 echo "   " . str_repeat("-", 50) . "\n";
-$eventServiceProvider = app(\App\Providers\EventServiceProvider::class);
-$listeners = $eventServiceProvider->listens;
+try {
+    $eventServiceProvider = app(\App\Providers\EventServiceProvider::class);
+    $listeners = $eventServiceProvider->listens;
 
 $requiredEvents = [
     'App\Events\OrderCreated',
@@ -118,17 +119,20 @@ $requiredEvents = [
     'App\Events\ProductRequestCreated',
 ];
 
-foreach ($requiredEvents as $event) {
-    if (isset($listeners[$event])) {
-        echo "   ✓ {$event}\n";
-        foreach ($listeners[$event] as $listener) {
-            $isQueued = in_array('Illuminate\Contracts\Queue\ShouldQueue', class_implements($listener));
-            $status = $isQueued ? " (queued)" : " (sync)";
-            echo "     → {$listener}{$status}\n";
+    foreach ($requiredEvents as $event) {
+        if (isset($listeners[$event])) {
+            echo "   ✓ {$event}\n";
+            foreach ($listeners[$event] as $listener) {
+                $isQueued = in_array('Illuminate\Contracts\Queue\ShouldQueue', class_implements($listener));
+                $status = $isQueued ? " (queued)" : " (sync)";
+                echo "     → {$listener}{$status}\n";
+            }
+        } else {
+            echo "   ❌ {$event} - NOT REGISTERED\n";
         }
-    } else {
-        echo "   ❌ {$event} - NOT REGISTERED\n";
     }
+} catch (\Exception $e) {
+    echo "   ⚠️  Could not check event/listener registration: " . $e->getMessage() . "\n";
 }
 echo "\n";
 
