@@ -20,6 +20,74 @@ class OfflinePaymentController extends Controller
     ) {}
 
     /**
+     * Extract shipping address data from request or user's saved address
+     */
+    private function extractShippingAddressData($shippingAddress, $user)
+    {
+        $data = [
+            'shipping_fullname' => $user->name,
+            'shipping_email' => $user->email,
+            'shipping_phone' => $user->phone,
+            'shipping_address' => null,
+            'shipping_city' => null,
+            'shipping_country' => 'Ethiopia',
+            'billing_fullname' => $user->name,
+            'billing_email' => $user->email,
+            'billing_phone' => $user->phone,
+            'billing_address' => null,
+            'billing_city' => null,
+            'billing_country' => 'Ethiopia',
+        ];
+
+        // If shipping address is provided (from checkout form)
+        if ($shippingAddress) {
+            // Handle both object and array formats
+            if (is_string($shippingAddress)) {
+                $shippingAddress = json_decode($shippingAddress, true);
+            }
+
+            if (is_array($shippingAddress)) {
+                // Extract from checkout form format
+                $fullName = trim(($shippingAddress['firstName'] ?? '') . ' ' . ($shippingAddress['lastName'] ?? ''));
+                if (empty($fullName)) {
+                    $fullName = $user->name;
+                }
+
+                $data['shipping_fullname'] = $fullName;
+                $data['shipping_email'] = $shippingAddress['email'] ?? $user->email;
+                $data['shipping_phone'] = $shippingAddress['phone'] ?? $user->phone;
+                $data['shipping_address'] = $shippingAddress['address'] ?? null;
+                $data['shipping_city'] = $shippingAddress['city'] ?? null;
+                $data['shipping_country'] = $shippingAddress['country'] ?? 'Ethiopia';
+                
+                // Use same data for billing (can be updated later if needed)
+                $data['billing_fullname'] = $data['shipping_fullname'];
+                $data['billing_email'] = $data['shipping_email'];
+                $data['billing_phone'] = $data['shipping_phone'];
+                $data['billing_address'] = $data['shipping_address'];
+                $data['billing_city'] = $data['shipping_city'];
+                $data['billing_country'] = $data['shipping_country'];
+            }
+        } else {
+            // Try to get from user's default saved address
+            $defaultAddress = $user->addresses()->where('is_default', true)->first();
+            if ($defaultAddress) {
+                $data['shipping_address'] = $defaultAddress->address_line_1 . 
+                    ($defaultAddress->address_line_2 ? ', ' . $defaultAddress->address_line_2 : '');
+                $data['shipping_city'] = $defaultAddress->city;
+                $data['shipping_country'] = $defaultAddress->country;
+                $data['shipping_phone'] = $defaultAddress->phone ?? $user->phone;
+                
+                $data['billing_address'] = $data['shipping_address'];
+                $data['billing_city'] = $data['shipping_city'];
+                $data['billing_country'] = $data['shipping_country'];
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Submit offline payment proof
      */
     public function submit(Request $request)
@@ -73,6 +141,10 @@ class OfflinePaymentController extends Controller
                 if (!$order) {
                     Log::info('Order not found, creating new one', ['order_id' => $request->order_id] + $logContext);
                     
+                    // Extract shipping address from request
+                    $shippingAddress = $request->get('shipping_address');
+                    $shippingData = $this->extractShippingAddressData($shippingAddress, auth()->user());
+                    
                     // Create basic order for offline payment
                     $order = Order::create([
                         'order_number' => $request->order_id,
@@ -87,20 +159,8 @@ class OfflinePaymentController extends Controller
                         'discount_amount' => 0,
                         'total_amount' => $request->amount,
                         'shipping_method' => 'standard',
-                        'shipping_fullname' => auth()->user()->name,
-                        'shipping_email' => auth()->user()->email,
-                        'shipping_phone' => auth()->user()->phone,
-                        'billing_fullname' => auth()->user()->name,
-                        'billing_email' => auth()->user()->email,
-                        'billing_phone' => auth()->user()->phone,
-                        'billing_address' => auth()->user()->address ?? '',
-                        'shipping_address' => auth()->user()->address ?? '',
-                        'shipping_city' => auth()->user()->city ?? '',
-                        'billing_city' => auth()->user()->city ?? '',
-                        'shipping_country' => auth()->user()->country ?? 'Ethiopia',
-                        'billing_country' => auth()->user()->country ?? 'Ethiopia',
                         'notes' => 'Order created via offline payment',
-                    ]);
+                    ] + $shippingData);
                     
                     Log::info('New order created for offline payment', [
                         'order_id' => $order->id,

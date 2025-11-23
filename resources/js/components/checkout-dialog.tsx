@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useCart } from "@/contexts/cart-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent } from "@/components/ui/card"
 import { CheckCircle, CreditCard, Smartphone, Wallet, ArrowLeft, ArrowRight, X, Upload, FileImage } from "lucide-react"
-import { router } from "@inertiajs/react"
+import { router, route } from "@inertiajs/react"
 
 interface OfflinePaymentMethod {
   id: number
@@ -38,6 +38,19 @@ interface AddressForm {
   country: string
 }
 
+interface SavedAddress {
+  id: number
+  address_line_1: string
+  address_line_2?: string
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  phone?: string
+  is_default: boolean
+  type: string
+}
+
 const paymentMethods = [
   {
     id: "chapa",
@@ -60,6 +73,12 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
   const [isProcessing, setIsProcessing] = useState(false)
   const { items, getTotalPrice, clearCart } = useCart()
 
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
+  const [selectedAddressId, setSelectedAddressId] = useState<number | null>(null)
+  const [useNewAddress, setUseNewAddress] = useState(false)
+  const [saveNewAddress, setSaveNewAddress] = useState(false)
+  const [loadingAddresses, setLoadingAddresses] = useState(false)
+
   const [addressForm, setAddressForm] = useState<AddressForm>({
     firstName: "",
     lastName: "",
@@ -69,8 +88,98 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
     city: "",
     state: "",
     zipCode: "",
-    country: "",
+    country: "Ethiopia",
   })
+
+  // Fetch saved addresses when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchSavedAddresses()
+    }
+  }, [isOpen])
+
+  const fetchSavedAddresses = async () => {
+    try {
+      setLoadingAddresses(true)
+      const response = await fetch(route('settings.addresses.index'), {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        credentials: 'same-origin',
+      })
+
+      if (response.ok) {
+        const addresses = await response.json()
+        setSavedAddresses(addresses || [])
+        
+        // Auto-select default address if available
+        const defaultAddress = addresses?.find((addr: SavedAddress) => addr.is_default)
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress.id)
+          setUseNewAddress(false)
+          populateFormFromAddress(defaultAddress)
+        } else if (addresses?.length > 0) {
+          setSelectedAddressId(addresses[0].id)
+          setUseNewAddress(false)
+          populateFormFromAddress(addresses[0])
+        } else {
+          setUseNewAddress(true)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching addresses:', error)
+      setUseNewAddress(true)
+    } finally {
+      setLoadingAddresses(false)
+    }
+  }
+
+  const populateFormFromAddress = (address: SavedAddress) => {
+    // Get user info from page props if available
+    const userInfo = (window as any).Laravel?.user || {}
+    const nameParts = (userInfo.name || "").split(' ') || []
+    
+    setAddressForm({
+      firstName: nameParts[0] || "",
+      lastName: nameParts.slice(1).join(' ') || "",
+      email: userInfo.email || "",
+      phone: address.phone || userInfo.phone || "",
+      address: address.address_line_1 + (address.address_line_2 ? ', ' + address.address_line_2 : ''),
+      city: address.city,
+      state: address.state,
+      zipCode: address.postal_code,
+      country: address.country || "Ethiopia",
+    })
+  }
+
+  const handleAddressSelect = (addressId: number | null) => {
+    if (addressId === null) {
+      setUseNewAddress(true)
+      setSelectedAddressId(null)
+      // Clear form for new address
+      setAddressForm({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        address: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        country: "Ethiopia",
+      })
+    } else {
+      setUseNewAddress(false)
+      setSelectedAddressId(addressId)
+      const address = savedAddresses.find(addr => addr.id === addressId)
+      if (address) {
+        populateFormFromAddress(address)
+      }
+    }
+  }
 
   const handleInputChange = (field: keyof AddressForm, value: string) => {
     setAddressForm((prev) => ({ ...prev, [field]: value }))
@@ -161,6 +270,9 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
   const handleClose = () => {
     setCurrentStep(1)
     setSelectedPayment("")
+    setSelectedAddressId(null)
+    setUseNewAddress(false)
+    setSaveNewAddress(false)
     setAddressForm({
       firstName: "",
       lastName: "",
@@ -170,7 +282,7 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
       city: "",
       state: "",
       zipCode: "",
-      country: "",
+      country: "Ethiopia",
     })
     onClose()
   }
@@ -236,7 +348,67 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
             {currentStep === 1 && (
               <div className="space-y-6">
                 <h3 className="text-lg font-semibold">Shipping Address</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                {/* Saved Addresses Selection */}
+                {savedAddresses.length > 0 && !useNewAddress && (
+                  <div className="space-y-3">
+                    <Label>Select a saved address</Label>
+                    <RadioGroup value={selectedAddressId?.toString() || ''} onValueChange={(value) => handleAddressSelect(value ? parseInt(value) : null)}>
+                      {savedAddresses.map((address) => (
+                        <div key={address.id} className="border rounded-lg p-4 cursor-pointer hover:bg-slate-50">
+                          <div className="flex items-start space-x-3">
+                            <RadioGroupItem value={address.id.toString()} id={`address-${address.id}`} />
+                            <Label htmlFor={`address-${address.id}`} className="cursor-pointer flex-1">
+                              <div className="font-medium">
+                                {address.address_line_1}
+                                {address.address_line_2 && `, ${address.address_line_2}`}
+                              </div>
+                              <div className="text-sm text-slate-600">
+                                {address.city}, {address.state} {address.postal_code}
+                              </div>
+                              <div className="text-sm text-slate-600">{address.country}</div>
+                              {address.is_default && (
+                                <span className="inline-block mt-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">Default</span>
+                              )}
+                            </Label>
+                          </div>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleAddressSelect(null)}
+                      className="w-full"
+                    >
+                      Use a different address
+                    </Button>
+                  </div>
+                )}
+
+                {/* New Address Form */}
+                {(useNewAddress || savedAddresses.length === 0) && (
+                  <div className="space-y-4">
+                    {savedAddresses.length > 0 && (
+                      <div className="flex items-center justify-between">
+                        <Label>Enter new address</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setUseNewAddress(false)
+                            if (savedAddresses.length > 0) {
+                              const defaultAddr = savedAddresses.find(a => a.is_default) || savedAddresses[0]
+                              handleAddressSelect(defaultAddr.id)
+                            }
+                          }}
+                        >
+                          Use saved address
+                        </Button>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
@@ -319,7 +491,22 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
                       placeholder="Enter your country"
                     />
                   </div>
-                </div>
+                    {savedAddresses.length === 0 && (
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id="saveAddress"
+                          checked={saveNewAddress}
+                          onChange={(e) => setSaveNewAddress(e.target.checked)}
+                          className="rounded"
+                        />
+                        <Label htmlFor="saveAddress" className="text-sm cursor-pointer">
+                          Save this address to my profile
+                        </Label>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

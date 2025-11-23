@@ -117,7 +117,8 @@ class PaymentController extends Controller
                     }
                 } else {
                     // Create new order with items
-                    $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems);
+                    $shippingAddress = $request->get('shipping_address');
+                    $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems, $shippingAddress);
                     if (!$order) {
                         DB::rollBack();
                         return redirect()->route('checkout')->with('error', 'Failed to create order. Please try again.');
@@ -1132,11 +1133,13 @@ class PaymentController extends Controller
                     } else {
                         \Log::info('Creating new order with cart items', $logContext);
                         // createOrderFromCart calculates tax internally, so pass subtotal, not total with tax
+                        $shippingAddress = $request->get('shipping_address');
                         $order = $this->createOrderFromCart(
                             $request->order_id,
                             $subtotal ?? $request->amount, // Pass subtotal, not total with tax
                             $request->currency,
-                            $cartItems
+                            $cartItems,
+                            $shippingAddress
                         );
                         
                         if (!$order || !$order->id) {
@@ -1300,11 +1303,13 @@ class PaymentController extends Controller
                                     throw new \Exception('Cannot create order: cart items are missing. Please try again.');
                                 }
                                 
+                                $shippingAddress = $request->get('shipping_address');
                                 $order = $this->createOrderFromCart(
                                     $request->order_id,
                                     $subtotal ?? $request->amount,
                                     $request->currency,
-                                    $cartItems
+                                    $cartItems,
+                                    $shippingAddress
                                 );
                                 
                                 if (!$order || !$order->id) {
@@ -1627,7 +1632,84 @@ class PaymentController extends Controller
     //     }
     // }
 
-    private function createOrderFromCart($orderId, $amount, $currency, $cartItems = null)
+    /**
+     * Extract shipping address data from request or user's saved address
+     */
+    private function extractShippingAddressData($shippingAddress, $user)
+    {
+        $data = [
+            'shipping_fullname' => $user->name,
+            'shipping_email' => $user->email,
+            'shipping_phone' => $user->phone,
+            'shipping_address' => null,
+            'shipping_city' => null,
+            'shipping_country' => 'Ethiopia',
+            'billing_fullname' => $user->name,
+            'billing_email' => $user->email,
+            'billing_phone' => $user->phone,
+            'billing_address' => null,
+            'billing_city' => null,
+            'billing_country' => 'Ethiopia',
+        ];
+
+        // If shipping address is provided (from checkout form)
+        if ($shippingAddress) {
+            // Handle both object and array formats
+            if (is_string($shippingAddress)) {
+                $shippingAddress = json_decode($shippingAddress, true);
+            }
+
+            if (is_array($shippingAddress)) {
+                // Extract from checkout form format
+                $fullName = trim(($shippingAddress['firstName'] ?? '') . ' ' . ($shippingAddress['lastName'] ?? ''));
+                if (empty($fullName)) {
+                    $fullName = $user->name;
+                }
+
+                $data['shipping_fullname'] = $fullName;
+                $data['shipping_email'] = $shippingAddress['email'] ?? $user->email;
+                $data['shipping_phone'] = $shippingAddress['phone'] ?? $user->phone;
+                $data['shipping_address'] = $shippingAddress['address'] ?? null;
+                $data['shipping_city'] = $shippingAddress['city'] ?? null;
+                $data['shipping_country'] = $shippingAddress['country'] ?? 'Ethiopia';
+                
+                // Use same data for billing (can be updated later if needed)
+                $data['billing_fullname'] = $data['shipping_fullname'];
+                $data['billing_email'] = $data['shipping_email'];
+                $data['billing_phone'] = $data['shipping_phone'];
+                $data['billing_address'] = $data['shipping_address'];
+                $data['billing_city'] = $data['shipping_city'];
+                $data['billing_country'] = $data['shipping_country'];
+            }
+        } else {
+            // Try to get from user's default saved address
+            $defaultAddress = $user->addresses()->where('is_default', true)->first();
+            if ($defaultAddress) {
+                $data['shipping_address'] = $defaultAddress->address_line_1 . 
+                    ($defaultAddress->address_line_2 ? ', ' . $defaultAddress->address_line_2 : '');
+                $data['shipping_city'] = $defaultAddress->city;
+                $data['shipping_country'] = $defaultAddress->country;
+                $data['shipping_phone'] = $defaultAddress->phone ?? $user->phone;
+                
+                $data['billing_address'] = $data['shipping_address'];
+                $data['billing_city'] = $data['shipping_city'];
+                $data['billing_country'] = $data['shipping_country'];
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Update shipping address on existing order
+     */
+    private function updateOrderShippingAddress($order, $shippingAddress, $user)
+    {
+        $shippingData = $this->extractShippingAddressData($shippingAddress, $user);
+        $order->update($shippingData);
+    }
+
+    private function createOrderFromCart($orderId, $amount, $currency, $cartItems = null, $shippingAddress = null)
     {
         $user = auth()->user();
         if (!$user) {
@@ -1648,6 +1730,10 @@ class PaymentController extends Controller
             ->first();
             
         if ($existingOrder) {
+            // Update shipping address if provided and order doesn't have one
+            if ($shippingAddress && (!$existingOrder->shipping_address || !$existingOrder->shipping_city)) {
+                $this->updateOrderShippingAddress($existingOrder, $shippingAddress, $user);
+            }
             \Log::info('Order already exists, returning existing order', [
                 'order_id' => $existingOrder->id,
                 'order_number' => $existingOrder->order_number,
@@ -1679,6 +1765,9 @@ class PaymentController extends Controller
             // Calculate taxes based on subtotal (pre-tax)
             $taxCalculation = $this->taxService->calculateTaxes($subtotalForTax);
             
+            // Extract shipping address data
+            $shippingData = $this->extractShippingAddressData($shippingAddress, $user);
+            
             // Create the order with tax calculations
             $order = Order::create([
                 'order_number' => $orderId,
@@ -1693,7 +1782,7 @@ class PaymentController extends Controller
                 'discount_amount' => 0,
                 'total_amount' => $taxCalculation['total'],
                 'shipping_method' => 'standard',
-            ]);
+            ] + $shippingData);
 
             \Log::info('Order created successfully', [
                 'order_id' => $order->id,

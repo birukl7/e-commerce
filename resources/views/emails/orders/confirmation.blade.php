@@ -145,7 +145,7 @@
                 </tr>
                 <tr>
                     <th>Total Amount:</th>
-                    <td>{{ number_format($order->total ?? 0, 2) }} ETB</td>
+                    <td>{{ number_format($order->total_amount ?? 0, 2) }} ETB</td>
                 </tr>
             </table>
         </div>

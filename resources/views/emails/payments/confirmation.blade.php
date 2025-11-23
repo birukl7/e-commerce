@@ -139,7 +139,7 @@
                     </tr>
                     <tr>
                         <th>Order Total:</th>
-                        <td>{{ isset($order->total) ? number_format($order->total, 2) : '0.00' }} ETB</td>
+                        <td>{{ isset($order->total_amount) ? number_format($order->total_amount, 2) : '0.00' }} ETB</td>
                     </tr>
                 </table>
                 
