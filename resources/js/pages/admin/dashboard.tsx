@@ -309,43 +309,51 @@ export default function AdminDashboard({
                             <CardDescription>Revenue breakdown by product categories</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <ChartContainer config={categoryChartConfig} className="h-[200px]">
-                                <BarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                    <XAxis 
-                                        dataKey="category" 
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                        tickFormatter={(value) => value.length > 8 ? value.slice(0, 8) + '...' : value}
-                                    />
-                                    <YAxis 
-                                        tickLine={false}
-                                        axisLine={false}
-                                        tickMargin={8}
-                                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                                        tickFormatter={(value) => `ETB ${value}`}
-                                    />
-                                    <ChartTooltip content={<ChartTooltipContent />} />
-                                    <Bar dataKey="sales" radius={[4, 4, 0, 0]} fill="transparent">
-                                        {categoryChartData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                            {categoryChartData.length > 0 && categoryChartData.some(item => item.sales > 0) ? (
+                                <>
+                                    <ChartContainer config={categoryChartConfig} className="h-[200px]">
+                                        <BarChart data={categoryChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                            <XAxis 
+                                                dataKey="category" 
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tickMargin={8}
+                                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                                tickFormatter={(value) => value.length > 8 ? value.slice(0, 8) + '...' : value}
+                                            />
+                                            <YAxis 
+                                                tickLine={false}
+                                                axisLine={false}
+                                                tickMargin={8}
+                                                tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                                                tickFormatter={(value) => `ETB ${value}`}
+                                            />
+                                            <ChartTooltip content={<ChartTooltipContent />} />
+                                            <Bar dataKey="sales" radius={[4, 4, 0, 0]} fill="transparent">
+                                                {categoryChartData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ChartContainer>
+                                    {/* Custom Legend for Categories */}
+                                    <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
+                                        {categoryChartData.filter(item => item.sales > 0).map((entry, index) => (
+                                            <div key={index} className="flex items-center gap-2">
+                                                <div 
+                                                    className="h-3 w-3 rounded-sm"
+                                                    style={{ backgroundColor: entry.fill }}
+                                                />
+                                                <span className="text-xs text-muted-foreground">{entry.category}</span>
+                                            </div>
                                         ))}
-                                    </Bar>
-                                </BarChart>
-                            </ChartContainer>
-                            {/* Custom Legend for Categories */}
-                            <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-                                {categoryChartData.map((entry, index) => (
-                                    <div key={index} className="flex items-center gap-2">
-                                        <div 
-                                            className="h-3 w-3 rounded-sm"
-                                            style={{ backgroundColor: entry.fill }}
-                                        />
-                                        <span className="text-xs text-muted-foreground">{entry.category}</span>
                                     </div>
-                                ))}
-                            </div>
+                                </>
+                            ) : (
+                                <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                                    <p>No sales data available</p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
 

@@ -66,11 +66,25 @@ class AdminDashboardController extends Controller
                                 ->get();
         
         // 4. Data for Radar Chart: Sales by Category
+        // Show all categories, but only sum sales from orders with completed payments
+        // This ensures all categories appear even if they have zero sales
         $salesByCategory = Category::leftJoin('products', 'categories.id', '=', 'products.category_id')
                                 ->leftJoin('order_items', 'products.id', '=', 'order_items.product_id')
                                 ->leftJoin('orders', 'order_items.order_id', '=', 'orders.id')
-                                ->where('orders.payment_status', 'paid')
-                                ->select('categories.name as category_name', DB::raw('COALESCE(SUM(order_items.total), 0) as total_sales'))
+                                ->leftJoin('payment_transactions', function($join) {
+                                    $join->on('payment_transactions.order_id', '=', 'orders.id')
+                                         ->where('payment_transactions.status', '=', 'completed');
+                                })
+                                ->select(
+                                    'categories.name as category_name',
+                                    DB::raw("COALESCE(SUM(
+                                        CASE 
+                                            WHEN orders.payment_status = 'paid' OR payment_transactions.id IS NOT NULL 
+                                            THEN order_items.total 
+                                            ELSE 0 
+                                        END
+                                    ), 0) as total_sales")
+                                )
                                 ->groupBy('categories.id', 'categories.name')
                                 ->get();
 
