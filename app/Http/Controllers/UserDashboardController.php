@@ -380,8 +380,10 @@ class UserDashboardController extends Controller
         ]);
         
         // Check if user owns the order
+        // Use loose comparison (==) to handle type differences (string vs int)
+        // Order user_id might be stored as string in some cases
         $canAccess = false;
-        if ($isAuthenticated && $order->user_id === $userId) {
+        if ($isAuthenticated && (int)$order->user_id === (int)$userId) {
             $canAccess = true;
             \Log::info('User authorized to view order', [
                 'order_id' => $order->id,
@@ -688,7 +690,8 @@ class UserDashboardController extends Controller
             abort(404, 'Order not found');
         }
         
-        if ($order->user_id !== auth()->id()) {
+        // Use type casting to handle string vs int differences
+        if ((int)$order->user_id !== (int)auth()->id()) {
             abort(403, 'Unauthorized');
         }
 
@@ -710,7 +713,8 @@ class UserDashboardController extends Controller
             abort(404, 'Order not found');
         }
         
-        if ($order->user_id !== auth()->id()) {
+        // Use type casting to handle string vs int differences
+        if ((int)$order->user_id !== (int)auth()->id()) {
             abort(403, 'Unauthorized');
         }
 

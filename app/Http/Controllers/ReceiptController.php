@@ -43,9 +43,14 @@ class ReceiptController extends Controller
         }
         
         // Check if user owns the order
+        // Use type casting to handle string vs int differences
         $canAccess = false;
-        if ($isAuthenticated && $order->user_id === $userId) {
+        if ($isAuthenticated && (int)$order->user_id === (int)$userId) {
             $canAccess = true;
+            \Log::info('User authorized to download receipt', [
+                'order_id' => $order->id,
+                'user_id' => $userId,
+            ]);
         } elseif (!$isAuthenticated) {
             // For email links: redirect to login with receipt redirect
             \Log::info('Unauthenticated user attempting to download receipt from email link', [
@@ -144,7 +149,8 @@ class ReceiptController extends Controller
         }
 
         // Ensure user can only download their own receipts
-        if ($order->user_id !== Auth::id()) {
+        // Use type casting to handle string vs int differences
+        if ((int)$order->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized');
         }
 
