@@ -55,25 +55,48 @@ echo ""
 
 # 2. Check cron job
 echo "2. Cron Job Configuration:"
-crontab -l 2>/dev/null | grep -q "queue-worker-manager" 
-if [ $? -eq 0 ]; then
-    echo "   ✓ Cron job found"
-    echo "   Cron job:"
-    crontab -l 2>/dev/null | grep "queue-worker-manager" | sed 's/^/   /'
-    
-    # Check if it's running frequently enough
-    CRON_SCHEDULE=$(crontab -l 2>/dev/null | grep "queue-worker-manager" | awk '{print $1}')
-    if [[ "$CRON_SCHEDULE" == "*/2"* ]] || [[ "$CRON_SCHEDULE" == "*"* ]]; then
-        echo "   ✓ Running frequently (every 2 min or every minute)"
-    else
-        echo "   ⚠️  May not run frequently enough: $CRON_SCHEDULE"
-        echo "   → Should be */2 * * * * (every 2 minutes) or * * * * * (every minute)"
-    fi
+echo "   Checking crontab..."
+CRONTAB_OUTPUT=$(crontab -l 2>/dev/null)
+
+if [ -z "$CRONTAB_OUTPUT" ]; then
+    echo "   ❌ No cron jobs found at all!"
+    echo "   → Your cron jobs may have been deleted"
+    echo "   → Go to cPanel → Cron Jobs to add them back"
 else
-    echo "   ❌ Cron job NOT found!"
-    echo "   → Add cron job in cPanel:"
-    echo "     Schedule: */2 * * * *"
-    echo "     Command: cd ~/e-commerce.biruklemma.com/biruklir && bash queue-worker-manager.sh >> storage/logs/queue-manager.log 2>&1"
+    echo "   Total cron jobs found: $(echo "$CRONTAB_OUTPUT" | grep -v '^#' | grep -v '^$' | wc -l)"
+    echo ""
+    echo "   All cron jobs:"
+    echo "$CRONTAB_OUTPUT" | grep -v '^#' | grep -v '^$' | nl -v 1 | sed 's/^/     /'
+    echo ""
+    
+    # Check for queue-worker-manager
+    if echo "$CRONTAB_OUTPUT" | grep -q "queue-worker-manager"; then
+        echo "   ✓ Queue worker manager cron job found"
+        echo "   Manager cron job:"
+        echo "$CRONTAB_OUTPUT" | grep "queue-worker-manager" | sed 's/^/     /'
+        
+        # Check if it's running frequently enough
+        CRON_SCHEDULE=$(echo "$CRONTAB_OUTPUT" | grep "queue-worker-manager" | awk '{print $1}')
+        if [[ "$CRON_SCHEDULE" == "*/2"* ]] || [[ "$CRON_SCHEDULE" == "*"* ]]; then
+            echo "   ✓ Running frequently (every 2 min or every minute)"
+        else
+            echo "   ⚠️  May not run frequently enough: $CRON_SCHEDULE"
+            echo "   → Should be */2 * * * * (every 2 minutes) or * * * * * (every minute)"
+        fi
+    else
+        echo "   ❌ Queue worker manager cron job NOT found!"
+        echo "   → Add cron job in cPanel:"
+        echo "     Schedule: */2 * * * *"
+        echo "     Command: cd ~/e-commerce.biruklemma.com/biruklir && bash queue-worker-manager.sh >> storage/logs/queue-manager.log 2>&1"
+    fi
+    
+    # Check for other queue-related cron jobs
+    if echo "$CRONTAB_OUTPUT" | grep -q "queue:work"; then
+        echo ""
+        echo "   ⚠️  Found direct queue:work cron job (may conflict with manager):"
+        echo "$CRONTAB_OUTPUT" | grep "queue:work" | sed 's/^/     /'
+        echo "   → Consider removing this and using the manager script instead"
+    fi
 fi
 echo ""
 
