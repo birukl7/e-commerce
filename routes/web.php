@@ -785,3 +785,5 @@ Route::get('/test-simple-email', function () {
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';
+
+// Note: Test API routes are now in routes/api.php to bypass CSRF protection

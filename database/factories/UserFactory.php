@@ -41,4 +41,30 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    /**
+     * Indicate that the user should have customer role.
+     */
+    public function customer(): static
+    {
+        return $this->afterCreating(function ($user) {
+            $customerRole = \Spatie\Permission\Models\Role::firstOrCreate(
+                ['name' => 'customer', 'guard_name' => 'web']
+            );
+            $user->assignRole($customerRole);
+        });
+    }
+
+    /**
+     * Indicate that the user should have admin role.
+     */
+    public function admin(): static
+    {
+        return $this->afterCreating(function ($user) {
+            $adminRole = \Spatie\Permission\Models\Role::firstOrCreate(
+                ['name' => 'super_admin', 'guard_name' => 'web']
+            );
+            $user->assignRole($adminRole);
+        });
+    }
 }

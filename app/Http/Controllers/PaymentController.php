@@ -206,6 +206,36 @@ class PaymentController extends Controller
 
                     // Get active Chapa payment methods
                     $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
+                    
+                    // Log payment methods for debugging
+                    Log::info('Chapa payment methods retrieved', [
+                        'count' => count($chapaPaymentMethods),
+                        'methods' => $chapaPaymentMethods,
+                        'order_id' => $orderId,
+                        'user_id' => $user->id
+                    ]);
+                    
+                    // If no methods found, log warning and check database directly
+                    if (empty($chapaPaymentMethods)) {
+                        $allMethods = \App\Models\ChapaPaymentMethod::all();
+                        $activeMethods = \App\Models\ChapaPaymentMethod::active()->get();
+                        
+                        Log::warning('No active Chapa payment methods found', [
+                            'total_methods_in_db' => $allMethods->count(),
+                            'active_methods_in_db' => $activeMethods->count(),
+                            'all_methods' => $allMethods->toArray(),
+                            'active_methods' => $activeMethods->toArray(),
+                            'cache_key' => 'chapa_payment_methods_active'
+                        ]);
+                        
+                        // Clear cache and try again
+                        $this->siteConfig->clearChapaPaymentMethodsCache();
+                        $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
+                        
+                        Log::info('Retried after cache clear', [
+                            'count' => count($chapaPaymentMethods)
+                        ]);
+                    }
 
                     return Inertia::render('payment/payment-process', [
                         'order_id' => $orderId,
@@ -452,39 +482,81 @@ class PaymentController extends Controller
                         'user_id' => $user->id
                     ] + $logContext);
                     
-                    // First, try to find the most recent pending/processing order for this user
+                    // PRIORITY 1: Try to match by exact order_number first (most reliable)
                     $order = Order::with(['items'])
+                        ->where('order_number', $orderNumber)
                         ->where('user_id', $user->id)
-                        ->whereIn('status', ['pending', 'processing'])
-                        ->where('payment_status', 'pending')
-                        ->orderBy('created_at', 'desc')
                         ->first();
 
-                    // If no recent pending order found, try to match by order number
+                    // PRIORITY 2: If not found, try case-insensitive search
                     if (!$order) {
-                        // Try exact match first
                         $order = Order::with(['items'])
-                            ->where('order_number', $orderNumber)
+                            ->whereRaw('LOWER(order_number) = ?', [strtolower($orderNumber)])
                             ->where('user_id', $user->id)
                             ->first();
-
-                        // If not found, try case-insensitive search
-                        if (!$order) {
-                            $order = Order::with(['items'])
-                                ->whereRaw('LOWER(order_number) = ?', [strtolower($orderNumber)])
-                                ->where('user_id', $user->id)
-                                ->first();
-                        }
                     }
 
-                    // If still not found, log all recent orders for debugging
+                    // PRIORITY 3: If still not found, try to find the most recent pending/processing order for this user
+                    if (!$order) {
+                        $order = Order::with(['items'])
+                            ->where('user_id', $user->id)
+                            ->whereIn('status', ['pending', 'processing'])
+                            ->where('payment_status', 'pending')
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                    }
+                    
+                    // PRIORITY 4: If still not found, try any recent order for this user (more lenient)
+                    if (!$order) {
+                        $order = Order::with(['items'])
+                            ->where('user_id', $user->id)
+                            ->orderBy('created_at', 'desc')
+                            ->first();
+                    }
+
+                    // PRIORITY 5: If still not found, try to create the order from cart items as last resort
+                    if (!$order) {
+                        $cartItems = $request->get('cart_items');
+                        if (is_string($cartItems)) {
+                            $cartItems = json_decode($cartItems, true);
+                        }
+                        
+                        if (!empty($cartItems) && is_array($cartItems)) {
+                            \Log::warning('Order not found, attempting to create it now as last resort', [
+                                'order_number' => $orderNumber,
+                                'user_id' => $user->id,
+                                'cart_items_count' => count($cartItems)
+                            ] + $logContext);
+                            
+                            try {
+                                $order = $this->createOrderFromCart($orderNumber, $validated['amount'], $validated['currency'], $cartItems);
+                                if ($order) {
+                                    // Refresh to ensure items relationship is loaded
+                                    $order->refresh();
+                                    $order->load('items');
+                                    \Log::info('Order created successfully as fallback', [
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'items_count' => $order->items->count()
+                                    ] + $logContext);
+                                }
+                            } catch (\Exception $e) {
+                                \Log::error('Failed to create order as fallback', [
+                                    'error' => $e->getMessage(),
+                                    'trace' => $e->getTraceAsString()
+                                ] + $logContext);
+                            }
+                        }
+                    }
+                    
+                    // If still not found after all attempts, log and return error
                     if (!$order) {
                         $recentOrders = Order::where('user_id', $user->id)
                             ->orderBy('created_at', 'desc')
                             ->limit(5)
                             ->get(['id', 'order_number', 'status', 'payment_status', 'created_at']);
 
-                        \Log::error('Order not found for offline payment', [
+                        \Log::error('Order not found for offline payment after all lookup attempts', [
                             'requested_order_number' => $orderNumber,
                             'user_id' => $user->id,
                             'recent_orders' => $recentOrders->toArray(),
@@ -853,8 +925,34 @@ class PaymentController extends Controller
             // Get active Chapa payment methods
             $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
             
-            // No fallback - methods should be seeded in database
-            // If empty, it means seeder hasn't been run yet
+            // Log payment methods for debugging
+            \Log::info('Chapa method select - payment methods retrieved', [
+                'count' => count($chapaPaymentMethods),
+                'methods' => $chapaPaymentMethods,
+                'order_id' => $request->order_id
+            ]);
+            
+            // If no methods found, log warning and check database directly
+            if (empty($chapaPaymentMethods)) {
+                $allMethods = \App\Models\ChapaPaymentMethod::all();
+                $activeMethods = \App\Models\ChapaPaymentMethod::active()->get();
+                
+                \Log::warning('No active Chapa payment methods found in showChapaMethodSelect', [
+                    'total_methods_in_db' => $allMethods->count(),
+                    'active_methods_in_db' => $activeMethods->count(),
+                    'all_methods' => $allMethods->toArray(),
+                    'active_methods' => $activeMethods->toArray(),
+                    'cache_key' => 'chapa_payment_methods_active'
+                ]);
+                
+                // Clear cache and try again
+                $this->siteConfig->clearChapaPaymentMethodsCache();
+                $chapaPaymentMethods = $this->siteConfig->getChapaPaymentMethods();
+                
+                \Log::info('Retried after cache clear in showChapaMethodSelect', [
+                    'count' => count($chapaPaymentMethods)
+                ]);
+            }
 
             return Inertia::render('payment/chapa-method-select', [
                 'order_id' => $request->order_id,
@@ -1131,7 +1229,16 @@ class PaymentController extends Controller
                             'currency' => $request->currency,
                         ]);
                     } else {
-                        \Log::info('Creating new order with cart items', $logContext);
+                        \Log::info('Creating new order with cart items', [
+                            'order_id' => $request->order_id,
+                            'subtotal' => $subtotal,
+                            'amount' => $request->amount,
+                            'currency' => $request->currency,
+                            'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
+                            'cart_items_type' => gettype($cartItems),
+                            'has_shipping_address' => $request->has('shipping_address'),
+                        ] + $logContext);
+                        
                         // createOrderFromCart calculates tax internally, so pass subtotal, not total with tax
                         $shippingAddress = $request->get('shipping_address');
                         $order = $this->createOrderFromCart(
@@ -1143,14 +1250,30 @@ class PaymentController extends Controller
                         );
                         
                         if (!$order || !$order->id) {
-                            \Log::error('Failed to create order - createOrderFromCart returned null or invalid order', [
-                                'order_id' => $request->order_id,
-                                'subtotal' => $subtotal,
-                                'amount' => $request->amount,
-                                'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
-                            ] + $logContext);
-                            DB::rollBack();
-                            throw new \Exception('Failed to create order. Please try again.');
+                            // Check if order already exists (might be a race condition)
+                            $existingOrderCheck = Order::where('order_number', $request->order_id)
+                                ->where('user_id', $user->id)
+                                ->first();
+                            
+                            if ($existingOrderCheck) {
+                                \Log::warning('Order already exists but createOrderFromCart returned null - using existing order', [
+                                    'order_id' => $request->order_id,
+                                    'existing_order_id' => $existingOrderCheck->id,
+                                    'existing_order_number' => $existingOrderCheck->order_number,
+                                ] + $logContext);
+                                $order = $existingOrderCheck;
+                            } else {
+                                \Log::error('Failed to create order - createOrderFromCart returned null or invalid order', [
+                                    'order_id' => $request->order_id,
+                                    'subtotal' => $subtotal,
+                                    'amount' => $request->amount,
+                                    'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
+                                    'user_id' => $user->id,
+                                    'check_existing_order' => $existingOrderCheck ? 'found' : 'not_found',
+                                ] + $logContext);
+                                DB::rollBack();
+                                throw new \Exception('Failed to create order. Please try again.');
+                            }
                         }
                         \Log::info('Order created successfully', [
                             'order_id' => $order->id,
@@ -1768,8 +1891,8 @@ class PaymentController extends Controller
             // Extract shipping address data
             $shippingData = $this->extractShippingAddressData($shippingAddress, $user);
             
-            // Create the order with tax calculations
-            $order = Order::create([
+            // Prepare order data
+            $orderData = [
                 'order_number' => $orderId,
                 'user_id' => $user->id,
                 'status' => 'processing',
@@ -1782,7 +1905,77 @@ class PaymentController extends Controller
                 'discount_amount' => 0,
                 'total_amount' => $taxCalculation['total'],
                 'shipping_method' => 'standard',
-            ] + $shippingData);
+            ] + $shippingData;
+            
+            \Log::info('Attempting to create order', [
+                'order_number' => $orderId,
+                'user_id' => $user->id,
+                'order_data_keys' => array_keys($orderData),
+                'subtotal' => $subtotalForTax,
+                'total_amount' => $taxCalculation['total']
+            ]);
+            
+            // Create the order with tax calculations
+            try {
+                $order = Order::create($orderData);
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Check if it's a duplicate key error (order_number already exists)
+                $errorCode = $e->errorInfo[1] ?? null;
+                $errorMessage = $e->getMessage();
+                
+                // MySQL duplicate entry error code is 1062, PostgreSQL is 23505
+                if ($errorCode == 1062 || $errorCode == 23505 || str_contains($errorMessage, 'Duplicate entry') || str_contains($errorMessage, 'duplicate key')) {
+                    \Log::warning('Order number already exists, attempting to retrieve existing order', [
+                        'order_number' => $orderId,
+                        'user_id' => $user->id,
+                        'error_code' => $errorCode,
+                    ]);
+                    
+                    // Try to find the existing order
+                    $existingOrder = Order::where('order_number', $orderId)
+                        ->where('user_id', $user->id)
+                        ->first();
+                    
+                    if ($existingOrder) {
+                        \Log::info('Found existing order with same order_number, returning it', [
+                            'order_id' => $existingOrder->id,
+                            'order_number' => $existingOrder->order_number,
+                        ]);
+                        return $existingOrder;
+                    } else {
+                        // Order exists but belongs to different user - generate new order number
+                        $newOrderId = 'ORDER-' . Str::upper(Str::random(8)) . '-' . time();
+                        \Log::warning('Order number exists for different user, generating new order number', [
+                            'old_order_number' => $orderId,
+                            'new_order_number' => $newOrderId,
+                        ]);
+                        $orderData['order_number'] = $newOrderId;
+                        $order = Order::create($orderData);
+                    }
+                } else {
+                    // Other database error
+                    \Log::error('Database error creating order', [
+                        'order_number' => $orderId,
+                        'user_id' => $user->id,
+                        'error_code' => $e->getCode(),
+                        'error_message' => $e->getMessage(),
+                        'sql_state' => $e->errorInfo[0] ?? null,
+                        'driver_code' => $e->errorInfo[1] ?? null,
+                        'error_info' => $e->errorInfo ?? null,
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    throw $e;
+                }
+            } catch (\Exception $e) {
+                \Log::error('General error creating order', [
+                    'order_number' => $orderId,
+                    'user_id' => $user->id,
+                    'error_message' => $e->getMessage(),
+                    'error_class' => get_class($e),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
 
             \Log::info('Order created successfully', [
                 'order_id' => $order->id,
@@ -1890,14 +2083,30 @@ class PaymentController extends Controller
             return $order;
 
         } catch (\Exception $e) {
-            \Log::error('Order creation failed: ' . $e->getMessage(), [
+            \Log::error('Order creation failed in createOrderFromCart', [
                 'order_id' => $orderId,
                 'user_id' => $user->id,
                 'amount' => $amount,
                 'currency' => $currency,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'cart_items_count' => is_array($cartItems) ? count($cartItems) : 0,
+                'has_shipping_address' => !empty($shippingAddress),
             ]);
+            
+            // If it's a database query exception, log more details
+            if ($e instanceof \Illuminate\Database\QueryException) {
+                \Log::error('Database Query Exception details', [
+                    'error_info' => $e->errorInfo ?? null,
+                    'sql_state' => $e->errorInfo[0] ?? null,
+                    'driver_code' => $e->errorInfo[1] ?? null,
+                    'driver_message' => $e->errorInfo[2] ?? null,
+                ]);
+            }
+            
             return null;
         }
     }

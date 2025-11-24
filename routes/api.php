@@ -63,3 +63,9 @@ Route::prefix('product-requests')->name('api.product-requests.')->group(function
         });
     });
 });
+
+// Test API routes (only in testing/local environment)
+// These routes are in api.php to bypass CSRF protection
+if (app()->environment(['testing', 'local']) || env('APP_ENV') === 'testing') {
+    require __DIR__.'/test-api.php';
+}
