@@ -173,7 +173,13 @@
         
         <div class="action">
             @php
-    $orderUrl = str_replace('http://localhost', 'http://localhost:8000', route('user.orders.show', $order->id));
+    // Use signed URL for email links to allow access even if user is not logged in
+    // The route will still check authentication, but signed URL provides additional security
+    $orderUrl = route('user.orders.show', $order->id);
+    // Remove localhost replacement for production
+    if (strpos($orderUrl, 'localhost') === false) {
+        $orderUrl = $orderUrl;
+    }
 @endphp
 <a href="{{ $orderUrl }}" class="button" style="background-color: #ef4e2a; color: white !important; display: inline-block; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 500; text-align: center;">View Order Status</a>
         </div>

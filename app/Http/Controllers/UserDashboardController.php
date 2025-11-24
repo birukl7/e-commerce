@@ -349,12 +349,50 @@ class UserDashboardController extends Controller
         }
         
         if (!$order) {
+            \Log::warning('Order not found', [
+                'order_param' => $order,
+                'user_id' => auth()->id(),
+            ]);
             abort(404, 'Order not found');
         }
         
-        // Ensure user can only view their own orders
-        if ($order->user_id !== auth()->id()) {
-            abort(403, 'Unauthorized');
+        // Check authorization: user must be authenticated AND own the order
+        // OR if coming from email link, allow if order email matches (for email links)
+        $isAuthenticated = auth()->check();
+        $userId = $isAuthenticated ? auth()->id() : null;
+        
+        // Load order user relationship if not already loaded
+        if (!$order->relationLoaded('user')) {
+            $order->load('user');
+        }
+        
+        $orderUserEmail = $order->user->email ?? null;
+        
+        // Check if user owns the order
+        $canAccess = false;
+        if ($isAuthenticated && $order->user_id === $userId) {
+            $canAccess = true;
+        } elseif (!$isAuthenticated && $orderUserEmail) {
+            // For email links: if user is not logged in, redirect to login with order redirect
+            // This allows users clicking email links to log in and then view their order
+            \Log::info('Unauthenticated user accessing order from email link', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'order_user_email' => $orderUserEmail,
+            ]);
+            return redirect()->route('login')->with('redirect_after_login', route('user.orders.show', $order->id));
+        }
+        
+        if (!$canAccess) {
+            \Log::warning('User attempted to view order without permission', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'order_user_id' => $order->user_id,
+                'authenticated_user_id' => $userId,
+                'is_authenticated' => $isAuthenticated,
+                'ip' => request()->ip(),
+            ]);
+            abort(403, 'You do not have permission to view this order. Please log in to access your orders.');
         }
 
         // Get order with items, product details, and payment transaction

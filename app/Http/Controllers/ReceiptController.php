@@ -26,12 +26,45 @@ class ReceiptController extends Controller
         }
         
         if (!$order) {
+            \Log::warning('Order not found for receipt download', [
+                'order_param' => $order,
+                'user_id' => Auth::id(),
+            ]);
             abort(404, 'Order not found');
         }
         
-        // Ensure user can only download their own receipts
-        if ($order->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized');
+        // Check authorization: user must be authenticated AND own the order
+        $isAuthenticated = Auth::check();
+        $userId = $isAuthenticated ? Auth::id() : null;
+        
+        // Load order user relationship if not already loaded
+        if (!$order->relationLoaded('user')) {
+            $order->load('user');
+        }
+        
+        // Check if user owns the order
+        $canAccess = false;
+        if ($isAuthenticated && $order->user_id === $userId) {
+            $canAccess = true;
+        } elseif (!$isAuthenticated) {
+            // For email links: redirect to login with receipt redirect
+            \Log::info('Unauthenticated user attempting to download receipt from email link', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+            ]);
+            return redirect()->route('login')->with('redirect_after_login', route('user.orders.receipt', $order->id));
+        }
+        
+        if (!$canAccess) {
+            \Log::warning('User attempted to download receipt without permission', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number,
+                'order_user_id' => $order->user_id,
+                'authenticated_user_id' => $userId,
+                'is_authenticated' => $isAuthenticated,
+                'ip' => request()->ip(),
+            ]);
+            abort(403, 'You do not have permission to download this receipt. Please log in to access your receipts.');
         }
 
         // Get payment transaction for this order
