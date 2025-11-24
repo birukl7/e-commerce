@@ -357,7 +357,6 @@ class UserDashboardController extends Controller
         }
         
         // Check authorization: user must be authenticated AND own the order
-        // OR if coming from email link, allow if order email matches (for email links)
         $isAuthenticated = auth()->check();
         $userId = $isAuthenticated ? auth()->id() : null;
         
@@ -368,14 +367,29 @@ class UserDashboardController extends Controller
         
         $orderUserEmail = $order->user->email ?? null;
         
+        // Debug logging
+        \Log::info('Order access check', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'order_user_id' => $order->user_id,
+            'authenticated_user_id' => $userId,
+            'is_authenticated' => $isAuthenticated,
+            'order_user_email' => $orderUserEmail,
+            'request_url' => request()->fullUrl(),
+            'referer' => request()->header('referer'),
+        ]);
+        
         // Check if user owns the order
         $canAccess = false;
         if ($isAuthenticated && $order->user_id === $userId) {
             $canAccess = true;
-        } elseif (!$isAuthenticated && $orderUserEmail) {
-            // For email links: if user is not logged in, redirect to login with order redirect
-            // This allows users clicking email links to log in and then view their order
-            \Log::info('Unauthenticated user accessing order from email link', [
+            \Log::info('User authorized to view order', [
+                'order_id' => $order->id,
+                'user_id' => $userId,
+            ]);
+        } elseif (!$isAuthenticated) {
+            // For email links or direct access: if user is not logged in, redirect to login with order redirect
+            \Log::info('Unauthenticated user accessing order, redirecting to login', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'order_user_email' => $orderUserEmail,
@@ -390,7 +404,9 @@ class UserDashboardController extends Controller
                 'order_user_id' => $order->user_id,
                 'authenticated_user_id' => $userId,
                 'is_authenticated' => $isAuthenticated,
+                'order_user_email' => $orderUserEmail,
                 'ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
             ]);
             abort(403, 'You do not have permission to view this order. Please log in to access your orders.');
         }
