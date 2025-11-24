@@ -66,6 +66,15 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    /**
+     * Get the route key for the model.
+     * This allows routes to use order_number instead of id
+     */
+    public function getRouteKeyName()
+    {
+        return 'order_number';
+    }
+
     // Scopes
     public function scopeByStatus($query, $status)
     {

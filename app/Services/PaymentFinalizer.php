@@ -283,8 +283,9 @@ class PaymentFinalizer
                     'user_email' => $order->user->email ?? null,
                 ]);
                 
-                $this->notificationService->sendPaymentConfirmation($order, $payment);
-                $this->notificationService->sendOrderConfirmation($order);
+                // Send payment and order confirmation emails immediately (critical)
+                $this->notificationService->sendPaymentConfirmation($order, $payment, sync: true);
+                $this->notificationService->sendOrderConfirmation($order, sync: true);
                 
                 // Notify user of status change
                 $this->notificationService->sendOrderStatusUpdate(
@@ -352,13 +353,14 @@ class PaymentFinalizer
                     $order = $orderLookupService->getOrderForPayment($payment);
 
                     if ($order) {
-                        Log::info('Sending payment confirmation email after gateway paid', [
+                        Log::info('Sending payment confirmation email after gateway paid (immediate)', [
                             'payment_id' => $payment->id,
                             'order_id' => $order->id,
                             'order_number' => $order->order_number,
                             'payment_method' => $payment->payment_method,
                         ]);
-                        $this->notificationService->sendPaymentConfirmation($order, $payment);
+                        // Send immediately (synchronously) for critical payment confirmations
+                        $this->notificationService->sendPaymentConfirmation($order, $payment, sync: true);
                     } else {
                         Log::warning('Order not resolved for payment confirmation email after gateway paid', [
                             'payment_id' => $payment->id,

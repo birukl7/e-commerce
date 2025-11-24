@@ -339,8 +339,19 @@ class UserDashboardController extends Controller
         ]);
     }
 
-    public function showOrder(Order $order)
+    public function showOrder($order)
     {
+        // Handle both numeric ID and order_number string
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+        } else {
+            $order = Order::where('order_number', $order)->first();
+        }
+        
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+        
         // Ensure user can only view their own orders
         if ($order->user_id !== auth()->id()) {
             abort(403, 'Unauthorized');
@@ -610,8 +621,19 @@ class UserDashboardController extends Controller
         ]);
     }
 
-    public function trackOrder(Order $order)
+    public function trackOrder($order)
     {
+        // Handle both numeric ID and order_number string
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+        } else {
+            $order = Order::where('order_number', $order)->first();
+        }
+        
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+        
         if ($order->user_id !== auth()->id()) {
             abort(403, 'Unauthorized');
         }
@@ -621,8 +643,19 @@ class UserDashboardController extends Controller
         return Inertia::render('user/order-tracking', $trackingData);
     }
 
-    public function trackOrderData(Order $order)
+    public function trackOrderData($order)
     {
+        // Handle both numeric ID and order_number string
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+        } else {
+            $order = Order::where('order_number', $order)->first();
+        }
+        
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+        
         if ($order->user_id !== auth()->id()) {
             abort(403, 'Unauthorized');
         }

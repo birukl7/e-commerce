@@ -16,8 +16,19 @@ class ReceiptController extends Controller
     /**
      * Download receipt as PDF for an order
      */
-    public function download(Order $order)
+    public function download($order)
     {
+        // Handle both numeric ID and order_number string
+        if (is_numeric($order)) {
+            $order = Order::find($order);
+        } else {
+            $order = Order::where('order_number', $order)->first();
+        }
+        
+        if (!$order) {
+            abort(404, 'Order not found');
+        }
+        
         // Ensure user can only download their own receipts
         if ($order->user_id !== Auth::id()) {
             abort(403, 'Unauthorized');
