@@ -495,7 +495,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Enhanced workflow routes
     Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
     Route::post('/request/{productRequest}/lost-interest', [RequestController::class, 'markLostInterest'])->name('request.lost-interest');
-    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
+    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])
+        ->middleware('can:confirmWillingness,productRequest')
+        ->name('request.confirm-willingness');
     
     // User product request routes
     Route::get('/user/product-requests', [RequestController::class, 'index'])->name('user.product-requests.index');

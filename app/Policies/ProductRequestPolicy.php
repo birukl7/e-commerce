@@ -91,4 +91,15 @@ class ProductRequestPolicy
     {
         return $user->hasRole('admin');
     }
+
+    /**
+     * Determine whether the user can confirm willingness to buy.
+     * Only the owner can confirm willingness when the request is approved.
+     */
+    public function confirmWillingness(User $user, ProductRequest $productRequest): bool
+    {
+        return $user->id === $productRequest->user_id && 
+               $productRequest->status === 'approved' &&
+               !$productRequest->isTerminated();
+    }
 }

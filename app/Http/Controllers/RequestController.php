@@ -373,9 +373,8 @@ class RequestController extends Controller
      */
     public function confirmWillingness(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized action.');
-        }
+        // Check authorization using policy
+        $this->authorize('confirmWillingness', $productRequest);
 
         if ($productRequest->status !== 'approved') {
             return redirect()->route('request.index')
