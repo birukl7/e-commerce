@@ -46,25 +46,34 @@ class ProductRequestPolicy
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
-        \Log::info('ProductRequestPolicy::update called', [
+        \Log::info('=== ProductRequestPolicy::update CALLED ===', [
             'user_id' => $user->id,
+            'user_email' => $user->email,
             'product_request_id' => $productRequest->id,
             'product_request_user_id' => $productRequest->user_id,
             'status' => $productRequest->status,
+            'is_terminated' => $productRequest->isTerminated(),
             'method' => request()->method(),
             'path' => request()->path(),
             'uri' => request()->getRequestUri(),
+            'route_name' => request()->route()?->getName(),
+            'action' => request()->route()?->getActionName(),
         ]);
         
         // Must own the request
         if ($user->id !== $productRequest->user_id) {
-            \Log::warning('ProductRequestPolicy::update - User does not own request');
+            \Log::error('ProductRequestPolicy::update - DENIED: User does not own request', [
+                'user_id' => $user->id,
+                'product_request_user_id' => $productRequest->user_id,
+            ]);
             return false;
         }
         
+        \Log::info('ProductRequestPolicy::update - User owns request, checking status...');
+        
         // Allow if request is pending (normal update via PUT/PATCH)
         if ($productRequest->status === 'pending') {
-            \Log::info('ProductRequestPolicy::update - Allowing pending request');
+            \Log::info('ProductRequestPolicy::update - ALLOWED: Status is pending');
             return true;
         }
         
@@ -75,14 +84,16 @@ class ProductRequestPolicy
         if ($productRequest->status === 'approved' && 
             !$productRequest->isTerminated() &&
             request()->isMethod('POST')) {
-            \Log::info('ProductRequestPolicy::update - Allowing POST for approved request');
+            \Log::info('ProductRequestPolicy::update - ALLOWED: POST request for approved, non-terminated request');
             return true;
         }
         
-        \Log::warning('ProductRequestPolicy::update - Denied', [
+        \Log::error('ProductRequestPolicy::update - DENIED: Conditions not met', [
             'status' => $productRequest->status,
             'is_terminated' => $productRequest->isTerminated(),
             'method' => request()->method(),
+            'expected_status' => 'approved',
+            'expected_method' => 'POST',
         ]);
         
         return false;

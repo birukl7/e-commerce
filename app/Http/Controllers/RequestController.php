@@ -373,41 +373,69 @@ class RequestController extends Controller
      */
     public function confirmWillingness(ProductRequest $productRequest)
     {
-        Log::info('confirmWillingness method called', [
+        Log::info('=== confirmWillingness METHOD CALLED ===', [
             'product_request_id' => $productRequest->id,
             'user_id' => Auth::id(),
+            'user_email' => Auth::user()?->email,
             'product_request_user_id' => $productRequest->user_id,
             'status' => $productRequest->status,
+            'is_terminated' => $productRequest->isTerminated(),
+            'willingness_confirmed_at' => $productRequest->willingness_confirmed_at,
+            'route_name' => request()->route()?->getName(),
+            'method' => request()->method(),
+            'path' => request()->path(),
+            'ip' => request()->ip(),
         ]);
         
         // Manual authorization check - same pattern as acceptPrice and markLostInterest
         if ($productRequest->user_id !== Auth::id()) {
-            Log::warning('confirmWillingness - Unauthorized', [
+            Log::error('confirmWillingness - UNAUTHORIZED: User does not own request', [
                 'product_request_id' => $productRequest->id,
-                'user_id' => Auth::id(),
+                'authenticated_user_id' => Auth::id(),
+                'authenticated_user_email' => Auth::user()?->email,
                 'product_request_user_id' => $productRequest->user_id,
+                'ip' => request()->ip(),
             ]);
             abort(403, 'Unauthorized action.');
         }
+        
+        Log::info('confirmWillingness - Authorization passed, checking status...');
 
         if ($productRequest->status !== 'approved') {
+            Log::warning('confirmWillingness - Status check failed', [
+                'product_request_id' => $productRequest->id,
+                'status' => $productRequest->status,
+                'expected' => 'approved',
+            ]);
             return redirect()->route('request.index')
                 ->with('error', 'This request has not been approved yet.');
         }
 
+        Log::info('confirmWillingness - Status is approved, refreshing model...');
+        
         // Refresh to get latest status before marking willingness
         $productRequest->refresh();
 
         // Prevent workflow updates if request is terminated
         if ($productRequest->isTerminated()) {
+            Log::warning('confirmWillingness - Request is terminated', [
+                'product_request_id' => $productRequest->id,
+                'lost_interest_at' => $productRequest->lost_interest_at,
+            ]);
             return redirect()->route('request.index')
                 ->with('error', 'Cannot confirm willingness: This request has been terminated.');
         }
         
+        Log::info('confirmWillingness - All checks passed, marking willingness...');
         $productRequest->markCustomerWillingness();
         
         // Refresh again to get updated willingness status
         $productRequest->refresh();
+
+        Log::info('confirmWillingness - SUCCESS: Willingness confirmed', [
+            'product_request_id' => $productRequest->id,
+            'willingness_confirmed_at' => $productRequest->willingness_confirmed_at,
+        ]);
 
         return redirect()->route('product-requests.advance-payment.show', $productRequest->id)
             ->with('success', 'Thank you for confirming your willingness to buy. Please proceed with advance payment.');

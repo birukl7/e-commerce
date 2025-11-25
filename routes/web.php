@@ -28,6 +28,9 @@ use App\Http\Controllers\Admin\TaxSettingController;
 use App\Http\Controllers\Admin\StockNotificationController;
 use App\Http\Controllers\Admin\AdminTaxController;
 use App\Http\Controllers\Admin\AdminStockController;
+use App\Models\ProductRequest;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 use App\Http\Controllers\Admin\AdminSupplierController;
 use App\Http\Controllers\OutOfStockNotificationController;
 // use App\Http\Controller\AdminProductRequestController;
@@ -496,6 +499,37 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
     Route::post('/request/{productRequest}/lost-interest', [RequestController::class, 'markLostInterest'])->name('request.lost-interest');
     Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
+    
+    // Debug route to check authorization status (remove after debugging)
+    Route::get('/debug/confirm-willingness/{productRequest}', function (ProductRequest $productRequest) {
+        $user = Auth::user();
+        $canUpdate = Gate::allows('update', $productRequest);
+        $canConfirmWillingness = Gate::allows('confirmWillingness', $productRequest);
+        
+        \Log::info('DEBUG: Authorization check for confirm willingness', [
+            'product_request_id' => $productRequest->id,
+            'user_id' => $user?->id,
+            'product_request_user_id' => $productRequest->user_id,
+            'status' => $productRequest->status,
+            'is_terminated' => $productRequest->isTerminated(),
+            'can_update' => $canUpdate,
+            'can_confirm_willingness' => $canConfirmWillingness,
+        ]);
+        
+        return response()->json([
+            'product_request_id' => $productRequest->id,
+            'authenticated_user_id' => $user?->id,
+            'product_request_user_id' => $productRequest->user_id,
+            'status' => $productRequest->status,
+            'is_terminated' => $productRequest->isTerminated(),
+            'willingness_confirmed_at' => $productRequest->willingness_confirmed_at,
+            'authorization' => [
+                'can_update' => $canUpdate,
+                'can_confirm_willingness' => $canConfirmWillingness,
+                'user_owns_request' => $user && $user->id === $productRequest->user_id,
+            ],
+        ]);
+    })->name('debug.confirm-willingness');
     
     // User product request routes
     Route::get('/user/product-requests', [RequestController::class, 'index'])->name('user.product-requests.index');
