@@ -27,14 +27,18 @@ createInertiaApp({
 // This will set light / dark mode on load...
 initializeTheme();
 
-// Global OAuth success handler - ensures message is received even if LoginDialog isn't mounted
+// Global OAuth success handler - backup handler in case HTML handler doesn't work
+// This is a secondary handler that runs after React loads
+let oauthHandledByReact = false;
 window.addEventListener('message', (event: MessageEvent) => {
     // Only accept messages from the same origin
     if (event.origin !== window.location.origin) {
         return;
     }
 
-    if (event.data?.type === 'oauth-success') {
+    if (event.data?.type === 'oauth-success' && !oauthHandledByReact) {
+        oauthHandledByReact = true;
+        console.log('[OAuth React] Success message received in React handler');
         const redirectUrl: string = event.data.redirectUrl || '/';
         
         // Dispatch custom event to close any open auth modals
@@ -43,6 +47,6 @@ window.addEventListener('message', (event: MessageEvent) => {
         // Force a full page reload to ensure auth state is refreshed
         setTimeout(() => {
             window.location.href = redirectUrl;
-        }, 200);
+        }, 300);
     }
-});
+}, false);

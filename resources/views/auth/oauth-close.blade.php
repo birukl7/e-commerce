@@ -87,22 +87,40 @@
                 
                 if (isPopup) {
                     try {
+                        const targetOrigin = window.location.origin;
+                        console.log('[OAuth Popup] Sending message to parent:', {
+                            message: message,
+                            origin: targetOrigin,
+                            hasOpener: !!window.opener,
+                            openerClosed: window.opener ? window.opener.closed : 'N/A'
+                        });
+                        
                         // Send message to parent window multiple times to ensure it's received
-                        window.opener.postMessage(message, window.location.origin);
+                        window.opener.postMessage(message, targetOrigin);
                         messageSent = true;
+                        console.log('[OAuth Popup] Message sent (attempt 1)');
                         
                         // Send again after short delays as backup
                         setTimeout(function() {
                             if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage(message, window.location.origin);
+                                window.opener.postMessage(message, targetOrigin);
+                                console.log('[OAuth Popup] Message sent (attempt 2)');
                             }
-                        }, 50);
+                        }, 100);
                         
                         setTimeout(function() {
                             if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage(message, window.location.origin);
+                                window.opener.postMessage(message, targetOrigin);
+                                console.log('[OAuth Popup] Message sent (attempt 3)');
                             }
-                        }, 200);
+                        }, 300);
+                        
+                        setTimeout(function() {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage(message, targetOrigin);
+                                console.log('[OAuth Popup] Message sent (attempt 4)');
+                            }
+                        }, 500);
                         
                         // Try to close immediately
                         setTimeout(function() {

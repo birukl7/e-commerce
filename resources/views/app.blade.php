@@ -26,6 +26,38 @@
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
+        
+        {{-- Global OAuth message handler - must be set up before React loads --}}
+        <script>
+            (function() {
+                let oauthHandled = false;
+                
+                // Set up OAuth message listener immediately
+                window.addEventListener('message', function(event) {
+                    // Only accept messages from the same origin
+                    if (event.origin !== window.location.origin) {
+                        return;
+                    }
+
+                    if (event.data && event.data.type === 'oauth-success' && !oauthHandled) {
+                        oauthHandled = true;
+                        console.log('[OAuth Global] Success message received in HTML handler');
+                        const redirectUrl = event.data.redirectUrl || '/';
+                        
+                        // Dispatch custom event for React components to close modals
+                        window.dispatchEvent(new CustomEvent('oauth:success', { 
+                            detail: { redirectUrl: redirectUrl } 
+                        }));
+                        
+                        // Give React components time to close modals, then reload
+                        setTimeout(function() {
+                            console.log('[OAuth Global] Reloading to:', redirectUrl);
+                            window.location.href = redirectUrl;
+                        }, 300);
+                    }
+                }, false);
+            })();
+        </script>
     </head>
     <body class="font-sans antialiased">
         @inertia

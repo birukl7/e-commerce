@@ -66,22 +66,25 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
       }
 
       if (event.data?.type === "oauth-success") {
+        console.log('[LoginDialog] OAuth success message received')
         // Close modal immediately
         setOpen(false)
       }
     }
 
     // Also listen for the custom event from global handler
-    const customEventHandler = () => {
+    const customEventHandler = (event: Event) => {
+      console.log('[LoginDialog] OAuth success custom event received', event)
+      // Close modal immediately
       setOpen(false)
     }
 
     window.addEventListener("message", messageHandler)
-    window.addEventListener("oauth:success", customEventHandler)
+    window.addEventListener("oauth:success", customEventHandler as EventListener)
     
     return () => {
       window.removeEventListener("message", messageHandler)
-      window.removeEventListener("oauth:success", customEventHandler)
+      window.removeEventListener("oauth:success", customEventHandler as EventListener)
     }
   }, [])
 
