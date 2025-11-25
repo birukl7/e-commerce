@@ -59,6 +59,7 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
+      // Only accept messages from the same origin
       if (event.origin !== window.location.origin) {
         return
       }
@@ -66,7 +67,11 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
       if (event.data?.type === "oauth-success") {
         const redirectUrl: string = event.data.redirectUrl || (route("home") as string)
         setOpen(false)
-        router.visit(redirectUrl)
+        
+        // Small delay to ensure popup closes first, then navigate
+        setTimeout(() => {
+          router.visit(redirectUrl)
+        }, 150)
       }
     }
 
@@ -89,6 +94,28 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
       "google-oauth",
       `scrollbars=yes,width=${popupWidth},height=${popupHeight},top=${top},left=${left}`
     )
+
+    if (popup) {
+      // Store popup reference for cleanup
+      ;(window as any).__oauthPopup = popup
+      
+      // Poll to check if popup was closed manually
+      const pollTimer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(pollTimer)
+          delete (window as any).__oauthPopup
+        }
+      }, 500)
+      
+      // Clean up after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollTimer)
+        if (!popup.closed) {
+          popup.close()
+        }
+        delete (window as any).__oauthPopup
+      }, 5 * 60 * 1000)
+    }
 
     popup?.focus()
   }
