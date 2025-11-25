@@ -58,25 +58,31 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
   }
 
   useEffect(() => {
-    const handler = (event: MessageEvent) => {
+    // Listen for OAuth success messages
+    const messageHandler = (event: MessageEvent) => {
       // Only accept messages from the same origin
       if (event.origin !== window.location.origin) {
         return
       }
 
       if (event.data?.type === "oauth-success") {
-        const redirectUrl: string = event.data.redirectUrl || (route("home") as string)
+        // Close modal immediately
         setOpen(false)
-        
-        // Small delay to ensure popup closes first, then navigate
-        setTimeout(() => {
-          router.visit(redirectUrl)
-        }, 150)
       }
     }
 
-    window.addEventListener("message", handler)
-    return () => window.removeEventListener("message", handler)
+    // Also listen for the custom event from global handler
+    const customEventHandler = () => {
+      setOpen(false)
+    }
+
+    window.addEventListener("message", messageHandler)
+    window.addEventListener("oauth:success", customEventHandler)
+    
+    return () => {
+      window.removeEventListener("message", messageHandler)
+      window.removeEventListener("oauth:success", customEventHandler)
+    }
   }, [])
 
   const handleGoogle = () => {
@@ -211,4 +217,5 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
     </Dialog>
   )
 }
+
 
