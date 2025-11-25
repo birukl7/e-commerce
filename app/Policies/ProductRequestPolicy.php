@@ -57,8 +57,9 @@ class ProductRequestPolicy
         }
         
         // For approved requests, allow POST requests for workflow actions
-        // (confirm willingness, lost interest, etc.)
+        // (confirm willingness, lost interest, accept price, etc.)
         // The controller methods will handle specific authorization and validation
+        // We allow all POST requests here to avoid route detection issues during policy resolution
         if ($productRequest->status === 'approved' && 
             !$productRequest->isTerminated() &&
             request()->isMethod('POST')) {
