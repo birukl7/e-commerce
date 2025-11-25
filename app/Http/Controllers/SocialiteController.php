@@ -55,9 +55,27 @@ class SocialiteController extends Controller
             
             // Get the user - use stateless if it was a popup
             $socialite = Socialite::driver('google');
-            $googleUser = $useStateless 
-                ? $socialite->stateless()->user()
-                : $socialite->user();
+            
+            try {
+                $googleUser = $useStateless 
+                    ? $socialite->stateless()->user()
+                    : $socialite->user();
+            } catch (InvalidStateException $stateException) {
+                // Session state lost - try stateless as fallback
+                Log::warning('Google OAuth state mismatch, trying stateless fallback', [
+                    'error' => $stateException->getMessage(),
+                    'url' => $request->fullUrl(),
+                    'has_code' => $request->has('code'),
+                    'session_id' => $request->session()->getId(),
+                ]);
+                
+                if ($request->has('code')) {
+                    // Try stateless authentication as fallback
+                    $googleUser = $socialite->stateless()->user();
+                } else {
+                    throw $stateException; // Re-throw if no code
+                }
+            }
 
             $redirectUrl = route('home');
             $shouldPromptForRole = false;
@@ -96,11 +114,17 @@ class SocialiteController extends Controller
                 $request->session()->flash('choose_role_pending', true);
             }
 
-            Auth::login($user);
+            Auth::login($user, true); // Remember user
 
-            $isPopup = $request->session()->pull('oauth_popup');
+            $isPopup = $request->session()->pull('oauth_popup', false);
             $request->session()->forget('oauth_popup_initiated');
             $request->session()->forget('oauth_use_stateless');
+
+            Log::info('Google OAuth successful', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'is_popup' => $isPopup,
+            ]);
 
             if ($isPopup) {
                 return response()->view('auth.oauth-close', [
@@ -113,19 +137,18 @@ class SocialiteController extends Controller
 
         } catch (InvalidStateException $e) {
             // Handle state mismatch - common in popup windows or session issues
-            Log::error('Google OAuth InvalidStateException', [
+            Log::error('Google OAuth InvalidStateException (final catch)', [
                 'error' => $e->getMessage(),
                 'url' => $request->fullUrl(),
                 'session_id' => $request->session()->getId(),
                 'has_session' => $request->hasSession(),
+                'has_code' => $request->has('code'),
             ]);
 
-            // If it's a popup, try stateless authentication as fallback
-            $isPopup = $request->session()->get('oauth_popup', false);
-            
-            if ($isPopup && $request->has('code')) {
+            // Try stateless as final fallback if we have a code
+            if ($request->has('code')) {
                 try {
-                    // Retry with stateless (no state validation) - less secure but works in popups
+                    Log::info('Attempting stateless fallback for Google OAuth');
                     $googleUser = Socialite::driver('google')->stateless()->user();
                     
                     $redirectUrl = route('home');
@@ -165,34 +188,48 @@ class SocialiteController extends Controller
                         $request->session()->flash('choose_role_pending', true);
                     }
 
-                    Auth::login($user);
+                    Auth::login($user, true);
                     $request->session()->forget('oauth_popup');
                     $request->session()->forget('oauth_popup_initiated');
+                    $request->session()->forget('oauth_use_stateless');
 
-                    return response()->view('auth.oauth-close', [
-                        'redirectUrl' => $redirectUrl,
-                        'next' => $shouldPromptForRole ? 'choose-role' : null,
+                    $isPopup = $request->session()->get('oauth_popup', false);
+                    
+                    Log::info('Google OAuth stateless fallback successful', [
+                        'user_id' => $user->id,
+                        'email' => $user->email,
                     ]);
+
+                    if ($isPopup) {
+                        return response()->view('auth.oauth-close', [
+                            'redirectUrl' => $redirectUrl,
+                            'next' => $shouldPromptForRole ? 'choose-role' : null,
+                        ]);
+                    }
+
+                    return redirect($redirectUrl);
                 } catch (Exception $statelessException) {
                     Log::error('Google OAuth stateless fallback failed', [
                         'error' => $statelessException->getMessage(),
+                        'trace' => $statelessException->getTraceAsString(),
                     ]);
                 }
             }
 
             // If all else fails, redirect with error message
             return redirect()->route('login')
-                ->with('error', 'Authentication failed. Please try signing in again. If the problem persists, try using a regular browser window instead of a popup.');
+                ->with('error', 'Authentication failed due to session state mismatch. Please try signing in again.');
                 
         } catch (Exception $e) {
             Log::error('Google OAuth Exception', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'url' => $request->fullUrl(),
+                'exception_class' => get_class($e),
             ]);
 
             return redirect()->route('login')
-                ->with('error', 'An error occurred during authentication. Please try again.');
+                ->with('error', 'An error occurred during authentication: ' . $e->getMessage());
         }
     }
 }

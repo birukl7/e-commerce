@@ -375,9 +375,34 @@ class UserDashboardController extends Controller
             'authenticated_user_id' => $userId,
             'is_authenticated' => $isAuthenticated,
             'order_user_email' => $orderUserEmail,
+            'authenticated_user_email' => $isAuthenticated ? auth()->user()->email : null,
             'request_url' => request()->fullUrl(),
             'referer' => request()->header('referer'),
         ]);
+        
+        // If user is authenticated but doesn't own the order, check if email matches
+        // This handles cases where user might be logged in as wrong account
+        if ($isAuthenticated && (int)$order->user_id !== (int)$userId) {
+            $authenticatedEmail = auth()->user()->email ?? null;
+            if ($orderUserEmail && $authenticatedEmail && strtolower($orderUserEmail) === strtolower($authenticatedEmail)) {
+                \Log::warning('Email matches but user_id mismatch - possible data inconsistency', [
+                    'order_id' => $order->id,
+                    'order_user_id' => $order->user_id,
+                    'authenticated_user_id' => $userId,
+                    'order_user_email' => $orderUserEmail,
+                    'authenticated_user_email' => $authenticatedEmail,
+                ]);
+                // Still deny access - user_id is the source of truth
+            } else {
+                \Log::warning('User attempting to access order belonging to different user', [
+                    'order_id' => $order->id,
+                    'order_user_id' => $order->user_id,
+                    'authenticated_user_id' => $userId,
+                    'order_user_email' => $orderUserEmail,
+                    'authenticated_user_email' => $authenticatedEmail,
+                ]);
+            }
+        }
         
         // Check if user owns the order
         // Use loose comparison (==) to handle type differences (string vs int)
@@ -400,17 +425,26 @@ class UserDashboardController extends Controller
         }
         
         if (!$canAccess) {
+            $authenticatedEmail = $isAuthenticated ? auth()->user()->email : null;
             \Log::warning('User attempted to view order without permission', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'order_user_id' => $order->user_id,
-                'authenticated_user_id' => $userId,
-                'is_authenticated' => $isAuthenticated,
                 'order_user_email' => $orderUserEmail,
+                'authenticated_user_id' => $userId,
+                'authenticated_user_email' => $authenticatedEmail,
+                'is_authenticated' => $isAuthenticated,
+                'email_match' => $orderUserEmail && $authenticatedEmail ? (strtolower($orderUserEmail) === strtolower($authenticatedEmail)) : false,
                 'ip' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
-            abort(403, 'You do not have permission to view this order. Please log in to access your orders.');
+            
+            // Provide more helpful error message
+            if ($isAuthenticated) {
+                abort(403, 'This order belongs to a different account. Please log out and log in with the account that placed this order (' . ($orderUserEmail ?? 'the order owner') . ').');
+            } else {
+                abort(403, 'You do not have permission to view this order. Please log in to access your orders.');
+            }
         }
 
         // Get order with items, product details, and payment transaction
