@@ -180,22 +180,21 @@ const Header = () => {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-64">
-                      <DropdownMenuItem asChild>
-                        <a
-                          href={safeRoute("profile.edit")}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-3 px-2 py-2 cursor-pointer"
-                        >
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={(auth.user?.avatar as string) ?? undefined} alt={auth.user?.name ?? 'User'} />
-                            <AvatarFallback>{getInitials(auth.user?.name ?? 'User')}</AvatarFallback>
-                          </Avatar>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-foreground">{auth.user?.name ?? 'User'}</p>
-                            <p className="truncate text-xs text-muted-foreground">{t("header.viewProfile")}</p>
-                          </div>
-                        </a>
+                      <DropdownMenuItem 
+                        className="cursor-pointer"
+                        onSelect={(e) => {
+                          e.preventDefault()
+                          router.visit(safeRoute("profile.edit"))
+                        }}
+                      >
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={(auth.user?.avatar as string) ?? undefined} alt={auth.user?.name ?? 'User'} />
+                          <AvatarFallback>{getInitials(auth.user?.name ?? 'User')}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-foreground">{auth.user?.name ?? 'User'}</p>
+                          <p className="truncate text-xs text-muted-foreground">{t("header.viewProfile")}</p>
+                        </div>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {[
@@ -232,14 +231,16 @@ const Header = () => {
                       ].map((item) => {
                         const Icon = item.icon
                         return (
-                          <DropdownMenuItem key={item.title} asChild>
-                            <Link
-                              href={item.href}
-                              className="flex items-center gap-3 cursor-pointer"
-                            >
-                              <Icon className="h-4 w-4" />
-                              <span className="text-sm">{item.title}</span>
-                            </Link>
+                          <DropdownMenuItem 
+                            key={item.title}
+                            className="cursor-pointer"
+                            onSelect={(e) => {
+                              e.preventDefault()
+                              router.visit(item.href)
+                            }}
+                          >
+                            <Icon className="h-4 w-4" />
+                            <span className="text-sm">{item.title}</span>
                           </DropdownMenuItem>
                         )
                       })}
@@ -263,14 +264,13 @@ const Header = () => {
                 )}
 
                 {/* Desktop Wishlist */}
-                <a
-                  href="/user-wishlist"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
+                  onClick={() => router.visit("/user-wishlist")}
                   className={cn(buttonVariants({ variant: "ghost", size: "icon" }))}
                 >
                   <Heart className="h-5 w-5" />
-                </a>
+                </button>
               </div>
 
               {/* Mobile Hamburger Menu */}
