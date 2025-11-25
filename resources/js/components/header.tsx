@@ -233,15 +233,13 @@ const Header = () => {
                         const Icon = item.icon
                         return (
                           <DropdownMenuItem key={item.title} asChild>
-                            <a
+                            <Link
                               href={item.href}
-                              target="_blank"
-                              rel="noopener noreferrer"
                               className="flex items-center gap-3 cursor-pointer"
                             >
                               <Icon className="h-4 w-4" />
                               <span className="text-sm">{item.title}</span>
-                            </a>
+                            </Link>
                           </DropdownMenuItem>
                         )
                       })}

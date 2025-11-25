@@ -51,12 +51,21 @@ class ProductRequestPolicy
         }
         
         // Allow confirming willingness for approved requests
-        // Check if this is the confirm-willingness route by checking the request path
-        $path = request()->path();
+        // Check multiple ways to identify this is the confirm-willingness action
+        $request = request();
+        $path = $request->path();
+        $routeName = $request->route()?->getName();
+        $action = $request->route()?->getActionName();
+        
+        $isConfirmWillingness = 
+            str_contains($path, '/confirm-willingness') ||
+            $routeName === 'request.confirm-willingness' ||
+            str_contains($action ?? '', 'confirmWillingness');
+        
         if ($user->id === $productRequest->user_id && 
             $productRequest->status === 'approved' &&
             !$productRequest->isTerminated() &&
-            str_contains($path, '/confirm-willingness')) {
+            $isConfirmWillingness) {
             return true;
         }
         
