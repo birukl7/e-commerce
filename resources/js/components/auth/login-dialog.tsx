@@ -108,13 +108,51 @@ export function LoginDialog({ trigger }: LoginDialogProps) {
       // Store popup reference for cleanup
       ;(window as any).__oauthPopup = popup
       
-      // Poll to check if popup was closed manually
+      // Poll for OAuth success in localStorage (most reliable method)
+      const checkOAuthSuccess = () => {
+        try {
+          const oauthData = localStorage.getItem('oauth_success')
+          if (oauthData) {
+            const data = JSON.parse(oauthData)
+            // Check if this is a recent notification (within last 10 seconds)
+            if (Date.now() - data.timestamp < 10000) {
+              console.log('[LoginDialog] OAuth success detected via localStorage')
+              localStorage.removeItem('oauth_success')
+              setOpen(false)
+              // Reload page to refresh auth state
+              window.location.reload()
+              return true
+            }
+          }
+        } catch (e) {
+          console.warn('[LoginDialog] Error checking localStorage:', e)
+        }
+        return false
+      }
+      
+      // Poll every 200ms for OAuth success
       const pollTimer = setInterval(() => {
         if (popup.closed) {
+          // Popup closed - check for success flag
+          if (checkOAuthSuccess()) {
+            clearInterval(pollTimer)
+            delete (window as any).__oauthPopup
+            return
+          }
+          // If popup closed but no success flag, user might have cancelled
           clearInterval(pollTimer)
           delete (window as any).__oauthPopup
+        } else {
+          // Popup still open - check for success flag anyway (in case it set the flag before closing)
+          if (checkOAuthSuccess()) {
+            clearInterval(pollTimer)
+            if (!popup.closed) {
+              popup.close()
+            }
+            delete (window as any).__oauthPopup
+          }
         }
-      }, 500)
+      }, 200)
       
       // Clean up after 5 minutes
       setTimeout(() => {

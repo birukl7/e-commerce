@@ -32,30 +32,53 @@
             (function() {
                 let oauthHandled = false;
                 
-                // Set up OAuth message listener immediately
+                function handleOAuthSuccess(redirectUrl) {
+                    if (oauthHandled) return;
+                    oauthHandled = true;
+                    
+                    console.log('[OAuth Global] Handling OAuth success, redirecting to:', redirectUrl);
+                    
+                    // Dispatch custom event for React components
+                    window.dispatchEvent(new CustomEvent('oauth:success', { 
+                        detail: { redirectUrl: redirectUrl } 
+                    }));
+                    
+                    // Reload page to refresh auth state
+                    setTimeout(function() {
+                        window.location.href = redirectUrl;
+                    }, 200);
+                }
+                
+                // Method 1: Listen for postMessage
                 window.addEventListener('message', function(event) {
                     // Only accept messages from the same origin
                     if (event.origin !== window.location.origin) {
                         return;
                     }
 
-                    if (event.data && event.data.type === 'oauth-success' && !oauthHandled) {
-                        oauthHandled = true;
-                        console.log('[OAuth Global] Success message received in HTML handler');
-                        const redirectUrl = event.data.redirectUrl || '/';
-                        
-                        // Dispatch custom event for React components to close modals
-                        window.dispatchEvent(new CustomEvent('oauth:success', { 
-                            detail: { redirectUrl: redirectUrl } 
-                        }));
-                        
-                        // Give React components time to close modals, then reload
-                        setTimeout(function() {
-                            console.log('[OAuth Global] Reloading to:', redirectUrl);
-                            window.location.href = redirectUrl;
-                        }, 300);
+                    if (event.data && event.data.type === 'oauth-success') {
+                        console.log('[OAuth Global] postMessage received');
+                        handleOAuthSuccess(event.data.redirectUrl || '/');
                     }
                 }, false);
+                
+                // Method 2: Poll localStorage for OAuth success flag
+                setInterval(function() {
+                    try {
+                        const oauthData = localStorage.getItem('oauth_success');
+                        if (oauthData) {
+                            const data = JSON.parse(oauthData);
+                            // Check if this is a recent notification (within last 5 seconds)
+                            if (Date.now() - data.timestamp < 5000) {
+                                console.log('[OAuth Global] localStorage flag detected');
+                                localStorage.removeItem('oauth_success');
+                                handleOAuthSuccess(data.redirectUrl || '/');
+                            }
+                        }
+                    } catch (e) {
+                        // Ignore errors
+                    }
+                }, 300);
             })();
         </script>
     </head>

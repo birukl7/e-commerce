@@ -67,7 +67,6 @@
         (function() {
             const message = <?php echo json_encode($oauthPayload); ?>;
             const forcePopup = {{ (isset($forcePopup) && $forcePopup) ? 'true' : 'false' }};
-            let messageSent = false;
             let closeAttempted = false;
             
             // Check if this is a popup window (has opener)
@@ -79,71 +78,58 @@
                 return;
             }
             
-            // Function to send message to parent and close
+            // Function to notify parent using multiple methods
             function notifyParentAndClose() {
-                // Prevent multiple executions
                 if (closeAttempted) return;
                 closeAttempted = true;
                 
                 if (isPopup) {
                     try {
                         const targetOrigin = window.location.origin;
-                        console.log('[OAuth Popup] Sending message to parent:', {
-                            message: message,
-                            origin: targetOrigin,
-                            hasOpener: !!window.opener,
-                            openerClosed: window.opener ? window.opener.closed : 'N/A'
-                        });
+                        const notificationId = 'oauth-success-' + Date.now();
                         
-                        // Send message to parent window multiple times to ensure it's received
-                        window.opener.postMessage(message, targetOrigin);
-                        messageSent = true;
-                        console.log('[OAuth Popup] Message sent (attempt 1)');
+                        // Method 1: Set localStorage flag (most reliable)
+                        try {
+                            localStorage.setItem('oauth_success', JSON.stringify({
+                                id: notificationId,
+                                redirectUrl: message.redirectUrl,
+                                timestamp: Date.now(),
+                                type: 'oauth-success'
+                            }));
+                            console.log('[OAuth Popup] localStorage flag set');
+                        } catch (e) {
+                            console.warn('[OAuth Popup] localStorage failed:', e);
+                        }
                         
-                        // Send again after short delays as backup
-                        setTimeout(function() {
+                        // Method 2: postMessage (backup)
+                        try {
+                            window.opener.postMessage(message, targetOrigin);
+                            console.log('[OAuth Popup] postMessage sent');
+                        } catch (e) {
+                            console.warn('[OAuth Popup] postMessage failed:', e);
+                        }
+                        
+                        // Method 3: Try to reload parent window directly
+                        try {
                             if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage(message, targetOrigin);
-                                console.log('[OAuth Popup] Message sent (attempt 2)');
+                                window.opener.location.reload();
+                                console.log('[OAuth Popup] Parent reload triggered');
                             }
-                        }, 100);
+                        } catch (e) {
+                            console.warn('[OAuth Popup] Parent reload failed (cross-origin):', e);
+                        }
                         
-                        setTimeout(function() {
-                            if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage(message, targetOrigin);
-                                console.log('[OAuth Popup] Message sent (attempt 3)');
-                            }
-                        }, 300);
-                        
-                        setTimeout(function() {
-                            if (window.opener && !window.opener.closed) {
-                                window.opener.postMessage(message, targetOrigin);
-                                console.log('[OAuth Popup] Message sent (attempt 4)');
-                            }
-                        }, 500);
-                        
-                        // Try to close immediately
+                        // Close popup after a short delay
                         setTimeout(function() {
                             try {
                                 window.close();
                             } catch (e) {
-                                console.warn('Window close blocked:', e);
+                                console.warn('[OAuth Popup] Window close blocked, redirecting');
+                                window.location.replace(message.redirectUrl);
                             }
-                            
-                            // Check if window is still open after a delay
-                            setTimeout(function() {
-                                if (!document.hidden) {
-                                    try {
-                                        window.close();
-                                    } catch (e) {
-                                        console.warn('Window could not be closed, redirecting');
-                                        window.location.replace(message.redirectUrl);
-                                    }
-                                }
-                            }, 300);
-                        }, 200);
+                        }, 300);
                     } catch (error) {
-                        console.warn('Unable to notify opener', error);
+                        console.error('[OAuth Popup] Error:', error);
                         window.location.replace(message.redirectUrl);
                     }
                 } else {
@@ -152,26 +138,13 @@
                 }
             }
             
-            // Execute immediately when script loads
+            // Execute immediately
             notifyParentAndClose();
             
-            // Also try on DOM ready as backup
+            // Also try on DOM ready
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', notifyParentAndClose);
-            } else {
-                setTimeout(notifyParentAndClose, 50);
             }
-            
-            // Final fallback - if window is still open after 1 second, force close
-            setTimeout(function() {
-                if (!document.hidden && isPopup) {
-                    try {
-                        window.close();
-                    } catch (e) {
-                        window.location.replace(message.redirectUrl);
-                    }
-                }
-            }, 1000);
         })();
     </script>
 </body>
