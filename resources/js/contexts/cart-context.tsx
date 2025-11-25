@@ -51,66 +51,111 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   // Add to cart with stock validation
   const addToCart = async (product: any) => {
-    try {
-      // Fetch the latest product data including stock information
-      const response = await fetch(`/api/products/${product.id}`)
-      if (!response.ok) {
-        throw new Error('Failed to fetch product data')
+    // Extract quantity from product object
+    const requestedQuantity = typeof product.quantity === 'number' && product.quantity > 0 
+      ? Math.floor(product.quantity) 
+      : 1
+
+    // Use product data we already have (optimistic update)
+    const stock_quantity = product.stock_quantity ?? 0
+    const stock_status = product.stock_status ?? 'in_stock'
+    const manage_stock = product.manage_stock ?? false
+
+    // Quick validation with available data
+    if (manage_stock && requestedQuantity > stock_quantity) {
+      alert(`Sorry, only ${stock_quantity} items available in stock.`)
+      return
+    }
+
+    // Optimistically add to cart and open drawer immediately
+    setItems((prevItems) => {
+      const existingItem = prevItems.find((item) => item.id === product.id)
+      
+      // SET the quantity to the selected amount (don't add to existing)
+      // This means if cart has 3 and user selects 5, cart becomes 5 (not 8)
+      const newQuantity = requestedQuantity
+      
+      if (existingItem) {
+        return prevItems.map((item) => 
+          item.id === product.id 
+            ? { 
+                ...item, 
+                quantity: newQuantity,
+                maxQuantity: stock_quantity,
+                stockStatus: stock_status,
+                manageStock: manage_stock
+              } 
+            : item
+        )
       }
       
-      const productData = await response.json()
-      const { stock_quantity, stock_status, manage_stock } = productData.data
-      
-      setItems((prevItems) => {
-        const existingItem = prevItems.find((item) => item.id === product.id)
-        // Ensure we properly extract the quantity from the product object
-        const requestedQuantity = typeof product.quantity === 'number' && product.quantity > 0 
-          ? Math.floor(product.quantity) 
-          : 1
+      return [
+        ...prevItems,
+        {
+          id: product.id,
+          name: product.name,
+          price: product.current_price,
+          image: product.primary_image,
+          quantity: requestedQuantity,
+          maxQuantity: stock_quantity,
+          stockStatus: stock_status,
+          manageStock: manage_stock
+        },
+      ]
+    })
+    
+    // Open drawer immediately for better UX
+    openCartDrawer()
+
+    // Fetch latest stock data in the background and update if needed
+    try {
+      const response = await fetch(`/api/products/${product.id}`)
+      if (response.ok) {
+        const productData = await response.json()
+        const { stock_quantity: latestStock, stock_status: latestStatus, manage_stock: latestManageStock } = productData.data
         
-        // SET the quantity to the selected amount (don't add to existing)
-        // This means if cart has 3 and user selects 5, cart becomes 5 (not 8)
-        const newQuantity = requestedQuantity
-        
-        // Check stock availability
-        if (manage_stock && newQuantity > stock_quantity) {
-          alert(`Sorry, only ${stock_quantity} items available in stock.`)
-          return prevItems
-        }
-        
-        if (existingItem) {
+        // Update cart with latest stock information
+        setItems((prevItems) => {
+          const itemToUpdate = prevItems.find((item) => item.id === product.id)
+          if (!itemToUpdate) return prevItems
+          
+          // If stock validation fails with latest data, adjust quantity
+          if (latestManageStock && itemToUpdate.quantity > latestStock) {
+            // Show notification but don't block - user already sees the cart
+            if (itemToUpdate.quantity !== latestStock) {
+              alert(`Stock updated: Only ${latestStock} items available. Quantity adjusted.`)
+            }
+            
+            return prevItems.map((item) => 
+              item.id === product.id 
+                ? { 
+                    ...item, 
+                    quantity: Math.min(item.quantity, latestStock),
+                    maxQuantity: latestStock,
+                    stockStatus: latestStatus,
+                    manageStock: latestManageStock
+                  } 
+                : item
+            )
+          }
+          
+          // Just update stock info without changing quantity
           return prevItems.map((item) => 
             item.id === product.id 
               ? { 
                   ...item, 
-                  quantity: newQuantity,
-                  maxQuantity: stock_quantity,
-                  stockStatus: stock_status,
-                  manageStock: manage_stock
+                  maxQuantity: latestStock,
+                  stockStatus: latestStatus,
+                  manageStock: latestManageStock
                 } 
               : item
           )
-        }
-        
-        return [
-          ...prevItems,
-          {
-            id: product.id,
-            name: product.name,
-            price: product.current_price,
-            image: product.primary_image,
-            quantity: requestedQuantity,
-            maxQuantity: stock_quantity,
-            stockStatus: stock_status,
-            manageStock: manage_stock
-          },
-        ]
-      })
-      
-      openCartDrawer() // Open drawer when item is added
+        })
+      }
     } catch (error) {
-      console.error('Error adding to cart:', error)
-      alert('Failed to add item to cart. Please try again.')
+      // Silently fail - cart is already open and item is added
+      // Log for debugging but don't disrupt user experience
+      console.warn('Failed to fetch latest stock data:', error)
     }
   }
 
