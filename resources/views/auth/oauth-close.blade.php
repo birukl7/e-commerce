@@ -66,8 +66,18 @@
     <script>
         (function() {
             const message = <?php echo json_encode($oauthPayload); ?>;
+            const forcePopup = {{ (isset($forcePopup) && $forcePopup) ? 'true' : 'false' }};
             let messageSent = false;
             let closeAttempted = false;
+            
+            // Check if this is a popup window (has opener)
+            const isPopup = window.opener && !window.opener.closed;
+            
+            // If not a popup and not forced, redirect immediately
+            if (!isPopup && !forcePopup) {
+                window.location.replace(message.redirectUrl);
+                return;
+            }
             
             // Function to send message to parent and close
             function notifyParentAndClose() {
@@ -75,18 +85,24 @@
                 if (closeAttempted) return;
                 closeAttempted = true;
                 
-                if (window.opener && !window.opener.closed) {
+                if (isPopup) {
                     try {
                         // Send message to parent window multiple times to ensure it's received
                         window.opener.postMessage(message, window.location.origin);
                         messageSent = true;
                         
-                        // Send again after a short delay as backup
+                        // Send again after short delays as backup
                         setTimeout(function() {
                             if (window.opener && !window.opener.closed) {
                                 window.opener.postMessage(message, window.location.origin);
                             }
                         }, 50);
+                        
+                        setTimeout(function() {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage(message, window.location.origin);
+                            }
+                        }, 200);
                         
                         // Try to close immediately
                         setTimeout(function() {
@@ -98,25 +114,22 @@
                             
                             // Check if window is still open after a delay
                             setTimeout(function() {
-                                // If window didn't close, try again
                                 if (!document.hidden) {
                                     try {
                                         window.close();
                                     } catch (e) {
-                                        // If still can't close, redirect to home (but this shouldn't happen)
                                         console.warn('Window could not be closed, redirecting');
                                         window.location.replace(message.redirectUrl);
                                     }
                                 }
-                            }, 200);
-                        }, 150);
+                            }, 300);
+                        }, 200);
                     } catch (error) {
                         console.warn('Unable to notify opener', error);
-                        // Fallback: redirect if we can't communicate with parent
                         window.location.replace(message.redirectUrl);
                     }
                 } else {
-                    // No opener window, just redirect (shouldn't happen in popup flow)
+                    // Not a popup, just redirect
                     window.location.replace(message.redirectUrl);
                 }
             }
@@ -128,17 +141,15 @@
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', notifyParentAndClose);
             } else {
-                // DOM already ready, try again
                 setTimeout(notifyParentAndClose, 50);
             }
             
             // Final fallback - if window is still open after 1 second, force close
             setTimeout(function() {
-                if (!document.hidden && window.opener) {
+                if (!document.hidden && isPopup) {
                     try {
                         window.close();
                     } catch (e) {
-                        // Last resort: redirect
                         window.location.replace(message.redirectUrl);
                     }
                 }

@@ -139,6 +139,17 @@ class SocialiteController extends Controller
                 Log::info('OAuth popup detected via stateless flag - assuming popup mode');
             }
             
+            // AGGRESSIVE FALLBACK: If we can't determine, check if this looks like a popup callback
+            // Popup windows typically have no referrer or a different referrer pattern
+            // Also, if the window name matches our popup name, it's likely a popup
+            if (!$isPopup) {
+                // Check if there's a popup parameter in the URL (Google might preserve it)
+                $isPopup = $request->has('popup') && $request->boolean('popup');
+                
+                // If still not detected, we'll use client-side detection as final fallback
+                // by always showing a page that checks window.opener
+            }
+            
             $request->session()->forget('oauth_popup_initiated');
             
             // Clear the popup cookie
@@ -150,17 +161,19 @@ class SocialiteController extends Controller
                 'is_popup' => $isPopup,
                 'has_session' => $request->hasSession(),
                 'session_id' => $request->session()->getId(),
+                'was_stateless' => $wasStateless,
+                'has_cookie' => $request->cookie('oauth_popup_flag') ? 'yes' : 'no',
+                'url_popup_param' => $request->has('popup') ? $request->input('popup') : 'none',
             ]);
 
-            if ($isPopup) {
-                // Return the oauth-close view that will send message to parent and close
-                return response()->view('auth.oauth-close', [
-                    'redirectUrl' => $redirectUrl,
-                    'next' => $shouldPromptForRole ? 'choose-role' : null,
-                ]);
-            }
-
-            return redirect($redirectUrl);
+            // Always return the oauth-close view which will detect popup client-side
+            // This ensures popups work even if all server-side detection fails
+            // The view checks window.opener to determine if it's a popup
+            return response()->view('auth.oauth-close', [
+                'redirectUrl' => $redirectUrl,
+                'next' => $shouldPromptForRole ? 'choose-role' : null,
+                'forcePopup' => $isPopup, // Pass server-side detection result
+            ]);
 
         } catch (InvalidStateException $e) {
             // Handle state mismatch - common in popup windows or session issues
@@ -217,9 +230,8 @@ class SocialiteController extends Controller
 
                     Auth::login($user, true);
                     
-                    // Check for popup flag in session, then cookie, then stateless flag
+                    // Check for popup flag in session, then cookie
                     $isPopup = $request->session()->pull('oauth_popup', false);
-                    $wasStateless = true; // We're in the stateless fallback, so it was stateless
                     
                     // If session was lost, check cookie as fallback
                     if (!$isPopup && $request->cookie('oauth_popup_flag')) {
@@ -243,14 +255,12 @@ class SocialiteController extends Controller
                         'is_popup' => $isPopup,
                     ]);
 
-                    if ($isPopup) {
-                        return response()->view('auth.oauth-close', [
-                            'redirectUrl' => $redirectUrl,
-                            'next' => $shouldPromptForRole ? 'choose-role' : null,
-                        ]);
-                    }
-
-                    return redirect($redirectUrl);
+                    // Always return oauth-close view which will detect popup client-side
+                    return response()->view('auth.oauth-close', [
+                        'redirectUrl' => $redirectUrl,
+                        'next' => $shouldPromptForRole ? 'choose-role' : null,
+                        'forcePopup' => $isPopup,
+                    ]);
                 } catch (Exception $statelessException) {
                     Log::error('Google OAuth stateless fallback failed', [
                         'error' => $statelessException->getMessage(),
