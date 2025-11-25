@@ -41,31 +41,27 @@ class ProductRequestPolicy
      * Only the owner can update their request if it's still pending.
      * 
      * Note: Laravel may automatically check this policy for POST routes with route model binding.
-     * For confirming willingness on approved requests, we allow it here to prevent 403 errors.
+     * For confirming willingness and other actions on approved requests, we allow POST requests
+     * and let the controller handle specific authorization.
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
-        // Allow if user owns the request and it's pending (normal update)
-        if ($user->id === $productRequest->user_id && $productRequest->status === 'pending') {
+        // Must own the request
+        if ($user->id !== $productRequest->user_id) {
+            return false;
+        }
+        
+        // Allow if request is pending (normal update via PUT/PATCH)
+        if ($productRequest->status === 'pending') {
             return true;
         }
         
-        // Allow confirming willingness for approved requests
-        // Check multiple ways to identify this is the confirm-willingness action
-        $request = request();
-        $path = $request->path();
-        $routeName = $request->route()?->getName();
-        $action = $request->route()?->getActionName();
-        
-        $isConfirmWillingness = 
-            str_contains($path, '/confirm-willingness') ||
-            $routeName === 'request.confirm-willingness' ||
-            str_contains($action ?? '', 'confirmWillingness');
-        
-        if ($user->id === $productRequest->user_id && 
-            $productRequest->status === 'approved' &&
+        // For approved requests, allow POST requests for workflow actions
+        // (confirm willingness, lost interest, etc.)
+        // The controller methods will handle specific authorization and validation
+        if ($productRequest->status === 'approved' && 
             !$productRequest->isTerminated() &&
-            $isConfirmWillingness) {
+            request()->isMethod('POST')) {
             return true;
         }
         
