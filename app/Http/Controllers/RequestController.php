@@ -373,10 +373,8 @@ class RequestController extends Controller
      */
     public function confirmWillingness(ProductRequest $productRequest)
     {
-        // Manual authorization check to avoid automatic policy resolution conflicts
-        $user = Auth::user();
-        
-        if (!$user || $user->id !== $productRequest->user_id) {
+        // Manual authorization check - same pattern as acceptPrice and markLostInterest
+        if ($productRequest->user_id !== Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 

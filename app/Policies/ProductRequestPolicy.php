@@ -39,8 +39,9 @@ class ProductRequestPolicy
     /**
      * Determine whether the user can update the model.
      * Only the owner can update their request if it's still pending.
-     * Note: This policy is also checked automatically for POST routes with route model binding.
-     * For confirming willingness on approved requests, use the confirmWillingness policy method instead.
+     * 
+     * Note: Laravel may automatically check this policy for POST routes with route model binding.
+     * For confirming willingness on approved requests, we allow it here to prevent 403 errors.
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
@@ -49,12 +50,13 @@ class ProductRequestPolicy
             return true;
         }
         
-        // Allow confirming willingness for approved requests (bypass automatic policy check)
-        // This prevents 403 errors when confirming willingness via POST route
+        // Allow confirming willingness for approved requests
+        // Check if this is the confirm-willingness route by checking the request path
+        $path = request()->path();
         if ($user->id === $productRequest->user_id && 
             $productRequest->status === 'approved' &&
             !$productRequest->isTerminated() &&
-            request()->routeIs('request.confirm-willingness')) {
+            str_contains($path, '/confirm-willingness')) {
             return true;
         }
         
