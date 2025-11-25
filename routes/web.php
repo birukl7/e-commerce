@@ -35,7 +35,6 @@ use App\Http\Controllers\Admin\AdminSupplierController;
 use App\Http\Controllers\OutOfStockNotificationController;
 // use App\Http\Controller\AdminProductRequestController;
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
