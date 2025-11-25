@@ -22,6 +22,7 @@ import {
     CheckCircle,
     Clock,
     DollarSign,
+    Download,
     LayoutDashboard,
     Loader2,
     MessageSquare,
@@ -653,6 +654,22 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                         </div>
 
                                         <DialogFooter className="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:justify-end">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => {
+                                                    try {
+                                                        const receiptUrl = route('user.orders.receipt', selectedOrder.id);
+                                                        window.open(receiptUrl, '_blank');
+                                                    } catch (error) {
+                                                        console.error('Error downloading receipt:', error);
+                                                        alert('Failed to download receipt. Please try again.');
+                                                    }
+                                                }}
+                                            >
+                                                <Download className="mr-2 h-4 w-4" />
+                                                {t('downloadReceipt')}
+                                            </Button>
                                             {selectedOrder.paymentTransaction?.admin_status === 'rejected' ? (
                                                 <Button
                                                     className="bg-red-600 hover:bg-red-700 text-white"

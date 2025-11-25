@@ -6,7 +6,7 @@ import MainLayout from "@/layouts/app/main-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Clock, CheckCircle, XCircle, Package, CreditCard, Truck } from "lucide-react"
+import { Clock, CheckCircle, XCircle, Package, CreditCard, Truck, Download } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
@@ -496,6 +496,22 @@ export default function RequestShow({ request, advancePayment, finalPayment }: P
                           {request.payment_reference && (
                             <p className="text-xs text-gray-500">Reference: {request.payment_reference}</p>
                           )}
+                          <Button
+                            variant="outline"
+                            className="w-full mt-3"
+                            onClick={() => {
+                              try {
+                                const receiptUrl = route('product-requests.receipt', [request.id, 'advance']);
+                                window.open(receiptUrl, '_blank');
+                              } catch (error) {
+                                console.error('Error downloading receipt:', error);
+                                alert('Failed to download receipt. Please try again.');
+                              }
+                            }}
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            Download Advance Payment Receipt
+                          </Button>
                         </div>
                       )}
                       {advancePayment?.admin_status === 'rejected' && (
@@ -681,6 +697,22 @@ export default function RequestShow({ request, advancePayment, finalPayment }: P
                   <div className="text-sm text-gray-600 space-y-2">
                     <p className="font-medium text-green-700">✓ Final Payment Completed</p>
                     <p>Paid on: {request.final_paid_at ? formatDate(request.final_paid_at) : 'N/A'}</p>
+                    <Button
+                      variant="outline"
+                      className="w-full mt-3"
+                      onClick={() => {
+                        try {
+                          const receiptUrl = route('product-requests.receipt', [request.id, 'final']);
+                          window.open(receiptUrl, '_blank');
+                        } catch (error) {
+                          console.error('Error downloading receipt:', error);
+                          alert('Failed to download receipt. Please try again.');
+                        }
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download Final Payment Receipt
+                    </Button>
                   </div>
                 )}
                 {finalPayment?.admin_status === 'rejected' && (

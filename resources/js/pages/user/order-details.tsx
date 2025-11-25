@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import MainLayout from '@/layouts/app/main-layout';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CreditCard, DollarSign, MapPin, Package, Truck, XCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, DollarSign, Download, MapPin, Package, Truck, XCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface OrderItem {
@@ -350,6 +350,23 @@ export default function OrderDetails({ order, taxBreakdown = [], paymentTransact
                                     <MapPin className="mr-2 h-4 w-4" />
                                     {t('orders.trackOrder')}
                                 </Link>
+                            </Button>
+
+                            <Button 
+                                variant="outline" 
+                                className="w-full"
+                                onClick={() => {
+                                    try {
+                                        const receiptUrl = route('user.orders.receipt', order.id);
+                                        window.open(receiptUrl, '_blank');
+                                    } catch (error) {
+                                        console.error('Error downloading receipt:', error);
+                                        alert('Failed to download receipt. Please try again.');
+                                    }
+                                }}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                {t('downloadReceipt')}
                             </Button>
 
                             {order.payment_status === 'failed' && !paymentTransaction && (
