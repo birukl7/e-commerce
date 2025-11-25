@@ -39,11 +39,26 @@ class ProductRequestPolicy
     /**
      * Determine whether the user can update the model.
      * Only the owner can update their request if it's still pending.
+     * Note: This policy is also checked automatically for POST routes with route model binding.
+     * For confirming willingness on approved requests, use the confirmWillingness policy method instead.
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
-        return $user->id === $productRequest->user_id && 
-               $productRequest->status === 'pending';
+        // Allow if user owns the request and it's pending (normal update)
+        if ($user->id === $productRequest->user_id && $productRequest->status === 'pending') {
+            return true;
+        }
+        
+        // Allow confirming willingness for approved requests (bypass automatic policy check)
+        // This prevents 403 errors when confirming willingness via POST route
+        if ($user->id === $productRequest->user_id && 
+            $productRequest->status === 'approved' &&
+            !$productRequest->isTerminated() &&
+            request()->routeIs('request.confirm-willingness')) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
