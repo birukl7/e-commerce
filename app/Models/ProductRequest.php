@@ -528,6 +528,38 @@ class ProductRequest extends Model
         // You can add additional logic here, like sending notifications
     }
 
+    /**
+     * Retrieve the model for route model binding.
+     * Add logging to track when model is being resolved.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        \Log::info('=== ProductRequest::resolveRouteBinding ===', [
+            'value' => $value,
+            'field' => $field,
+            'path' => request()->path(),
+            'method' => request()->method(),
+            'route_name' => request()->route()?->getName(),
+            'user_id' => Auth::id(),
+        ]);
+        
+        $model = parent::resolveRouteBinding($value, $field);
+        
+        if ($model) {
+            \Log::info('ProductRequest::resolveRouteBinding - Model found', [
+                'product_request_id' => $model->id,
+                'user_id' => $model->user_id,
+                'status' => $model->status,
+            ]);
+        } else {
+            \Log::warning('ProductRequest::resolveRouteBinding - Model NOT found', [
+                'value' => $value,
+            ]);
+        }
+        
+        return $model;
+    }
+
     protected static function booted()
     {
         static::created(function ($productRequest) {

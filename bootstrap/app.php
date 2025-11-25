@@ -35,5 +35,19 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Log all 403 authorization exceptions
+        $exceptions->render(function (\Illuminate\Auth\Access\AuthorizationException $e, $request) {
+            \Log::error('=== AUTHORIZATION EXCEPTION (403) ===', [
+                'message' => $e->getMessage(),
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'route_name' => $request->route()?->getName(),
+                'user_id' => auth()->id(),
+                'user_email' => auth()->user()?->email,
+                'ip' => $request->ip(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            
+            return null; // Let Laravel handle the default 403 response
+        });
     })->create();

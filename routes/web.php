@@ -497,7 +497,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Enhanced workflow routes
     Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
     Route::post('/request/{productRequest}/lost-interest', [RequestController::class, 'markLostInterest'])->name('request.lost-interest');
-    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
+    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])
+        ->middleware(function ($request, $next) {
+            \Log::info('=== MIDDLEWARE: Before route model binding for confirm-willingness ===', [
+                'path' => $request->path(),
+                'method' => $request->method(),
+                'user_id' => auth()->id(),
+                'route_param' => $request->route('productRequest'),
+            ]);
+            return $next($request);
+        })
+        ->name('request.confirm-willingness');
     
     // Debug route to check authorization status (remove after debugging)
     Route::get('/debug/confirm-willingness/{productRequest}', function (ProductRequest $productRequest) {
