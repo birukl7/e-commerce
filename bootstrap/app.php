@@ -45,9 +45,29 @@ return Application::configure(basePath: dirname(__DIR__))
                 'user_id' => auth()->id(),
                 'user_email' => auth()->user()?->email,
                 'ip' => $request->ip(),
-                'trace' => $e->getTraceAsString(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
             ]);
             
             return null; // Let Laravel handle the default 403 response
+        });
+        
+        // Also log HTTP exceptions (which includes 403)
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, $request) {
+            if ($e->getStatusCode() === 403) {
+                \Log::error('=== HTTP 403 EXCEPTION ===', [
+                    'message' => $e->getMessage(),
+                    'path' => $request->path(),
+                    'method' => $request->method(),
+                    'route_name' => $request->route()?->getName(),
+                    'user_id' => auth()->id(),
+                    'user_email' => auth()->user()?->email,
+                    'ip' => $request->ip(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]);
+            }
+            
+            return null;
         });
     })->create();
