@@ -27,6 +27,12 @@ class SocialiteController extends Controller
             $request->session()->put('oauth_popup_initiated', now()->timestamp);
             // For popup windows, we'll use stateless to avoid session cookie issues
             $request->session()->put('oauth_use_stateless', true);
+            
+            // Set a cookie as a persistent fallback (survives OAuth redirect)
+            // This cookie will be checked in the callback if session is lost
+            // Use SameSite=None and Secure for cross-site OAuth flows
+            $isSecure = $request->secure() || config('session.secure');
+            cookie()->queue(cookie('oauth_popup_flag', '1', 10, '/', null, $isSecure, false, false, 'Lax'));
         }
 
         // Ensure session is saved before redirect
@@ -116,17 +122,38 @@ class SocialiteController extends Controller
 
             Auth::login($user, true); // Remember user
 
+            // Check if this is a popup - check session first, then cookie, then stateless flag
             $isPopup = $request->session()->pull('oauth_popup', false);
+            $wasStateless = $request->session()->pull('oauth_use_stateless', false);
+            
+            // If session was lost, check cookie as fallback
+            if (!$isPopup && $request->cookie('oauth_popup_flag')) {
+                $isPopup = true;
+                Log::warning('OAuth popup detected via cookie fallback - session may have been lost');
+            }
+            
+            // If we used stateless OAuth, it's very likely a popup (stateless is only used for popups)
+            // This is a final fallback to ensure popups work even if session/cookie are lost
+            if (!$isPopup && $wasStateless) {
+                $isPopup = true;
+                Log::info('OAuth popup detected via stateless flag - assuming popup mode');
+            }
+            
             $request->session()->forget('oauth_popup_initiated');
-            $request->session()->forget('oauth_use_stateless');
+            
+            // Clear the popup cookie
+            cookie()->queue(cookie()->forget('oauth_popup_flag'));
 
             Log::info('Google OAuth successful', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'is_popup' => $isPopup,
+                'has_session' => $request->hasSession(),
+                'session_id' => $request->session()->getId(),
             ]);
 
             if ($isPopup) {
+                // Return the oauth-close view that will send message to parent and close
                 return response()->view('auth.oauth-close', [
                     'redirectUrl' => $redirectUrl,
                     'next' => $shouldPromptForRole ? 'choose-role' : null,
@@ -189,15 +216,31 @@ class SocialiteController extends Controller
                     }
 
                     Auth::login($user, true);
-                    $request->session()->forget('oauth_popup');
+                    
+                    // Check for popup flag in session, then cookie, then stateless flag
+                    $isPopup = $request->session()->pull('oauth_popup', false);
+                    $wasStateless = true; // We're in the stateless fallback, so it was stateless
+                    
+                    // If session was lost, check cookie as fallback
+                    if (!$isPopup && $request->cookie('oauth_popup_flag')) {
+                        $isPopup = true;
+                    }
+                    
+                    // Since we used stateless, assume it's a popup (stateless is only used for popups)
+                    if (!$isPopup) {
+                        $isPopup = true;
+                        Log::info('OAuth popup detected via stateless fallback - assuming popup mode');
+                    }
+                    
                     $request->session()->forget('oauth_popup_initiated');
-                    $request->session()->forget('oauth_use_stateless');
-
-                    $isPopup = $request->session()->get('oauth_popup', false);
+                    
+                    // Clear the popup cookie
+                    cookie()->queue(cookie()->forget('oauth_popup_flag'));
                     
                     Log::info('Google OAuth stateless fallback successful', [
                         'user_id' => $user->id,
                         'email' => $user->email,
+                        'is_popup' => $isPopup,
                     ]);
 
                     if ($isPopup) {
