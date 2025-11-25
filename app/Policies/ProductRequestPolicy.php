@@ -46,13 +46,25 @@ class ProductRequestPolicy
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
+        \Log::info('ProductRequestPolicy::update called', [
+            'user_id' => $user->id,
+            'product_request_id' => $productRequest->id,
+            'product_request_user_id' => $productRequest->user_id,
+            'status' => $productRequest->status,
+            'method' => request()->method(),
+            'path' => request()->path(),
+            'uri' => request()->getRequestUri(),
+        ]);
+        
         // Must own the request
         if ($user->id !== $productRequest->user_id) {
+            \Log::warning('ProductRequestPolicy::update - User does not own request');
             return false;
         }
         
         // Allow if request is pending (normal update via PUT/PATCH)
         if ($productRequest->status === 'pending') {
+            \Log::info('ProductRequestPolicy::update - Allowing pending request');
             return true;
         }
         
@@ -63,8 +75,15 @@ class ProductRequestPolicy
         if ($productRequest->status === 'approved' && 
             !$productRequest->isTerminated() &&
             request()->isMethod('POST')) {
+            \Log::info('ProductRequestPolicy::update - Allowing POST for approved request');
             return true;
         }
+        
+        \Log::warning('ProductRequestPolicy::update - Denied', [
+            'status' => $productRequest->status,
+            'is_terminated' => $productRequest->isTerminated(),
+            'method' => request()->method(),
+        ]);
         
         return false;
     }

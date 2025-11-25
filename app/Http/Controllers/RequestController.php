@@ -373,8 +373,20 @@ class RequestController extends Controller
      */
     public function confirmWillingness(ProductRequest $productRequest)
     {
+        Log::info('confirmWillingness method called', [
+            'product_request_id' => $productRequest->id,
+            'user_id' => Auth::id(),
+            'product_request_user_id' => $productRequest->user_id,
+            'status' => $productRequest->status,
+        ]);
+        
         // Manual authorization check - same pattern as acceptPrice and markLostInterest
         if ($productRequest->user_id !== Auth::id()) {
+            Log::warning('confirmWillingness - Unauthorized', [
+                'product_request_id' => $productRequest->id,
+                'user_id' => Auth::id(),
+                'product_request_user_id' => $productRequest->user_id,
+            ]);
             abort(403, 'Unauthorized action.');
         }
 
