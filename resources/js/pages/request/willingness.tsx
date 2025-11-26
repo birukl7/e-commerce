@@ -24,9 +24,10 @@ interface Props {
 export default function WillingnessPage({ request }: Props) {
   const { post, processing } = useForm({})
 
-  const handleConfirmWillingness = (e: React.MouseEvent) => {
+  const handleConfirmWillingness = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault()
-    router.post(route('request.confirm-willingness', request.id))
+    e.stopPropagation()
+    post(route('request.confirm-willingness', request.id))
   }
 
   return (

@@ -46,67 +46,11 @@ class ProductRequestPolicy
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
-        // Refresh model to ensure we have latest data
-        $productRequest->refresh();
-        
-        \Log::info('=== ProductRequestPolicy::update CALLED ===', [
-            'user_id' => $user->id,
-            'user_email' => $user->email,
-            'product_request_id' => $productRequest->id,
-            'product_request_user_id' => $productRequest->user_id,
-            'status' => $productRequest->status,
-            'is_terminated' => $productRequest->isTerminated(),
-            'method' => request()->method(),
-            'path' => request()->path(),
-            'uri' => request()->getRequestUri(),
-            'route_name' => request()->route()?->getName(),
-            'action' => request()->route()?->getActionName(),
-            'full_url' => request()->fullUrl(),
-        ]);
-        
-        // Must own the request
-        if ($user->id !== $productRequest->user_id) {
-            \Log::error('ProductRequestPolicy::update - DENIED: User does not own request', [
-                'user_id' => $user->id,
-                'product_request_user_id' => $productRequest->user_id,
-            ]);
-            return false;
-        }
-        
-        \Log::info('ProductRequestPolicy::update - User owns request, checking status...');
-        
-        // Allow if request is pending (normal update via PUT/PATCH)
-        if ($productRequest->status === 'pending') {
-            \Log::info('ProductRequestPolicy::update - ALLOWED: Status is pending');
-            return true;
-        }
-        
-        // For approved requests, allow ALL POST requests for workflow actions
-        // (confirm willingness, lost interest, accept price, etc.)
-        // The controller methods will handle specific authorization and validation
-        // We allow all POST requests here to avoid route detection issues during policy resolution
-        // This is safe because the controller methods have their own authorization checks
-        if ($productRequest->status === 'approved' && 
-            !$productRequest->isTerminated() &&
-            request()->isMethod('POST')) {
-            \Log::info('ProductRequestPolicy::update - ALLOWED: POST request for approved, non-terminated request', [
-                'route_name' => request()->route()?->getName(),
-                'path' => request()->path(),
-            ]);
-            return true;
-        }
-        
-        \Log::error('ProductRequestPolicy::update - DENIED: Conditions not met', [
-            'status' => $productRequest->status,
-            'is_terminated' => $productRequest->isTerminated(),
-            'method' => request()->method(),
-            'route_name' => request()->route()?->getName(),
-            'path' => request()->path(),
-            'expected_status' => 'approved',
-            'expected_method' => 'POST',
-        ]);
-        
-        return false;
+        // Only allow updates for pending requests (normal PUT/PATCH updates)
+        // For workflow actions on approved requests (confirm willingness, lost interest, etc.),
+        // the controller methods handle authorization manually and don't trigger this policy
+        return $user->id === $productRequest->user_id && 
+               $productRequest->status === 'pending';
     }
 
     /**

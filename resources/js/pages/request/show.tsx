@@ -301,7 +301,8 @@ export default function RequestShow({ request, advancePayment, finalPayment }: P
                       <Button
                         onClick={(e) => {
                           e.preventDefault()
-                          router.post(route('request.confirm-willingness', request.id))
+                          e.stopPropagation()
+                          post(route('request.confirm-willingness', request.id))
                         }}
                         disabled={processing}
                         className="flex-1 bg-orange-600 hover:bg-orange-700"
