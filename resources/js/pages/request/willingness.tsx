@@ -1,5 +1,5 @@
 import type React from "react"
-import { Head, Link, useForm } from "@inertiajs/react"
+import { Head, Link, useForm, router } from "@inertiajs/react"
 import MainLayout from "@/layouts/app/main-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,8 +24,9 @@ interface Props {
 export default function WillingnessPage({ request }: Props) {
   const { post, processing } = useForm({})
 
-  const handleConfirmWillingness = () => {
-    post(route('request.confirm-willingness', request.id))
+  const handleConfirmWillingness = (e: React.MouseEvent) => {
+    e.preventDefault()
+    router.post(route('request.confirm-willingness', request.id))
   }
 
   return (
@@ -160,6 +161,7 @@ export default function WillingnessPage({ request }: Props) {
                   onClick={handleConfirmWillingness}
                   disabled={processing}
                   className="flex items-center gap-2"
+                  type="button"
                 >
                   {processing ? 'Processing...' : 'Confirm Willingness'}
                   <ArrowRight className="h-4 w-4" />

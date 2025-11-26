@@ -299,9 +299,13 @@ export default function RequestShow({ request, advancePayment, finalPayment }: P
                     
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => post(route('request.confirm-willingness', request.id))}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          router.post(route('request.confirm-willingness', request.id))
+                        }}
                         disabled={processing}
                         className="flex-1 bg-orange-600 hover:bg-orange-700"
+                        type="button"
                       >
                         {processing ? 'Processing...' : 'Confirm Willingness'}
                       </Button>
