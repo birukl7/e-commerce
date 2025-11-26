@@ -23,8 +23,26 @@ class ProductRequestPolicy
      */
     public function view(User $user, ProductRequest $productRequest): bool
     {
-        return $user->id === $productRequest->user_id || 
-               $user->hasRole('admin');
+        \Log::info('=== ProductRequestPolicy::view CALLED ===', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'product_request_id' => $productRequest->id,
+            'product_request_user_id' => $productRequest->user_id,
+            'method' => request()->method(),
+            'path' => request()->path(),
+            'route_name' => request()->route()?->getName(),
+        ]);
+        
+        $canView = $user->id === $productRequest->user_id || 
+                   $user->hasRole('admin');
+        
+        \Log::info('ProductRequestPolicy::view - Result', [
+            'can_view' => $canView,
+            'user_owns_request' => $user->id === $productRequest->user_id,
+            'user_is_admin' => $user->hasRole('admin'),
+        ]);
+        
+        return $canView;
     }
 
     /**

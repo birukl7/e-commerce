@@ -344,7 +344,24 @@ class RequestController extends Controller
      */
     public function showWillingness(ProductRequest $productRequest)
     {
+        Log::info('=== showWillingness METHOD CALLED ===', [
+            'product_request_id' => $productRequest->id,
+            'user_id' => Auth::id(),
+            'user_email' => Auth::user()?->email,
+            'product_request_user_id' => $productRequest->user_id,
+            'status' => $productRequest->status,
+            'route_name' => request()->route()?->getName(),
+            'method' => request()->method(),
+            'path' => request()->path(),
+        ]);
+        
         if ($productRequest->user_id !== Auth::id()) {
+            Log::error('showWillingness - UNAUTHORIZED: User does not own request', [
+                'product_request_id' => $productRequest->id,
+                'authenticated_user_id' => Auth::id(),
+                'authenticated_user_email' => Auth::user()?->email,
+                'product_request_user_id' => $productRequest->user_id,
+            ]);
             abort(403, 'Unauthorized action.');
         }
 
