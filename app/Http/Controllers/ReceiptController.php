@@ -197,7 +197,8 @@ class ReceiptController extends Controller
         }
 
         // Ensure user owns the product request
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized');
         }
 
@@ -273,7 +274,8 @@ class ReceiptController extends Controller
     public function downloadProductRequest(Request $request, ProductRequest $productRequest, $paymentType = 'advance')
     {
         // Ensure user can only download their own receipts
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized');
         }
 

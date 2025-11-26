@@ -24,7 +24,8 @@ class ProductRequestPaymentController extends Controller
     public function show(ProductRequest $productRequest)
     {
         // Verify the request belongs to the authenticated user and requires payment
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -67,7 +68,8 @@ class ProductRequestPaymentController extends Controller
     public function process(Request $request, ProductRequest $productRequest)
     {
         // Verify the request belongs to the authenticated user and requires payment
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -185,7 +187,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function success(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -206,7 +209,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function failure(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -227,7 +231,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function showAdvancePaymentMethod(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -264,7 +269,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function processAdvancePayment(Request $request, ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -363,7 +369,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function showFinalPayment(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -397,7 +404,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function processFinalPayment(Request $request, ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -554,7 +562,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function advancePaymentSuccess(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -648,7 +657,8 @@ class ProductRequestPaymentController extends Controller
      */
     public function finalPaymentSuccess(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 

@@ -111,7 +111,8 @@ class ProductRequestController extends Controller
     public function show(ProductRequest $productRequest)
     {
         // Only allow the owner or admin to view the request
-        if (Auth::id() !== $productRequest->user_id && !Auth::user()->isAdmin()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)Auth::id() !== (int)$productRequest->user_id && !Auth::user()->isAdmin()) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -191,7 +192,8 @@ class ProductRequestController extends Controller
     public function destroy(ProductRequest $productRequest)
     {
         // Only allow the owner to delete their own pending request
-        if (Auth::id() !== $productRequest->user_id) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)Auth::id() !== (int)$productRequest->user_id) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
