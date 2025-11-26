@@ -105,7 +105,8 @@ class RequestController extends Controller
     public function show(ProductRequest $productRequest)
     {
         // Check if the user owns this request
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -215,7 +216,8 @@ class RequestController extends Controller
     public function edit(ProductRequest $productRequest)
     {
         // Check if the user owns this request and it's still editable
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -236,7 +238,8 @@ class RequestController extends Controller
     public function update(Request $request, ProductRequest $productRequest)
     {
         // Check if the user owns this request
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -314,7 +317,8 @@ class RequestController extends Controller
      */
     public function acceptPrice(ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -349,13 +353,16 @@ class RequestController extends Controller
             'user_id' => Auth::id(),
             'user_email' => Auth::user()?->email,
             'product_request_user_id' => $productRequest->user_id,
+            'product_request_user_id_type' => gettype($productRequest->user_id),
+            'auth_id_type' => gettype(Auth::id()),
             'status' => $productRequest->status,
             'route_name' => request()->route()?->getName(),
             'method' => request()->method(),
             'path' => request()->path(),
         ]);
         
-        if ($productRequest->user_id !== Auth::id()) {
+        // Use loose comparison or cast to int to handle type mismatch
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             Log::error('showWillingness - UNAUTHORIZED: User does not own request', [
                 'product_request_id' => $productRequest->id,
                 'authenticated_user_id' => Auth::id(),
@@ -405,7 +412,8 @@ class RequestController extends Controller
         ]);
         
         // Manual authorization check - same pattern as acceptPrice and markLostInterest
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             Log::error('confirmWillingness - UNAUTHORIZED: User does not own request', [
                 'product_request_id' => $productRequest->id,
                 'authenticated_user_id' => Auth::id(),
@@ -463,7 +471,8 @@ class RequestController extends Controller
      */
     public function markLostInterest(Request $request, ProductRequest $productRequest)
     {
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 
@@ -517,7 +526,8 @@ class RequestController extends Controller
     public function destroy(ProductRequest $productRequest)
     {
         // Check if the user owns this request
-        if ($productRequest->user_id !== Auth::id()) {
+        // Cast to int to handle potential type mismatch (string vs int)
+        if ((int)$productRequest->user_id !== (int)Auth::id()) {
             abort(403, 'Unauthorized action.');
         }
 

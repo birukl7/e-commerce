@@ -33,12 +33,13 @@ class ProductRequestPolicy
             'route_name' => request()->route()?->getName(),
         ]);
         
-        $canView = $user->id === $productRequest->user_id || 
+        // Cast to int to handle potential type mismatch (string vs int)
+        $canView = (int)$user->id === (int)$productRequest->user_id || 
                    $user->hasRole('admin');
         
         \Log::info('ProductRequestPolicy::view - Result', [
             'can_view' => $canView,
-            'user_owns_request' => $user->id === $productRequest->user_id,
+            'user_owns_request' => (int)$user->id === (int)$productRequest->user_id,
             'user_is_admin' => $user->hasRole('admin'),
         ]);
         
@@ -67,7 +68,8 @@ class ProductRequestPolicy
         // Only allow updates for pending requests (normal PUT/PATCH updates)
         // For workflow actions on approved requests (confirm willingness, lost interest, etc.),
         // the controller methods handle authorization manually and don't trigger this policy
-        return $user->id === $productRequest->user_id && 
+        // Cast to int to handle potential type mismatch (string vs int)
+        return (int)$user->id === (int)$productRequest->user_id && 
                $productRequest->status === 'pending';
     }
 
@@ -77,7 +79,8 @@ class ProductRequestPolicy
      */
     public function delete(User $user, ProductRequest $productRequest): bool
     {
-        return $user->id === $productRequest->user_id && 
+        // Cast to int to handle potential type mismatch (string vs int)
+        return (int)$user->id === (int)$productRequest->user_id && 
                $productRequest->status === 'pending';
     }
 
@@ -123,7 +126,8 @@ class ProductRequestPolicy
      */
     public function confirmWillingness(User $user, ProductRequest $productRequest): bool
     {
-        return $user->id === $productRequest->user_id && 
+        // Cast to int to handle potential type mismatch (string vs int)
+        return (int)$user->id === (int)$productRequest->user_id && 
                $productRequest->status === 'approved' &&
                !$productRequest->isTerminated();
     }
