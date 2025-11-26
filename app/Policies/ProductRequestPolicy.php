@@ -46,6 +46,9 @@ class ProductRequestPolicy
      */
     public function update(User $user, ProductRequest $productRequest): bool
     {
+        // Refresh model to ensure we have latest data
+        $productRequest->refresh();
+        
         \Log::info('=== ProductRequestPolicy::update CALLED ===', [
             'user_id' => $user->id,
             'user_email' => $user->email,
@@ -58,6 +61,7 @@ class ProductRequestPolicy
             'uri' => request()->getRequestUri(),
             'route_name' => request()->route()?->getName(),
             'action' => request()->route()?->getActionName(),
+            'full_url' => request()->fullUrl(),
         ]);
         
         // Must own the request
@@ -77,14 +81,18 @@ class ProductRequestPolicy
             return true;
         }
         
-        // For approved requests, allow POST requests for workflow actions
+        // For approved requests, allow ALL POST requests for workflow actions
         // (confirm willingness, lost interest, accept price, etc.)
         // The controller methods will handle specific authorization and validation
         // We allow all POST requests here to avoid route detection issues during policy resolution
+        // This is safe because the controller methods have their own authorization checks
         if ($productRequest->status === 'approved' && 
             !$productRequest->isTerminated() &&
             request()->isMethod('POST')) {
-            \Log::info('ProductRequestPolicy::update - ALLOWED: POST request for approved, non-terminated request');
+            \Log::info('ProductRequestPolicy::update - ALLOWED: POST request for approved, non-terminated request', [
+                'route_name' => request()->route()?->getName(),
+                'path' => request()->path(),
+            ]);
             return true;
         }
         
@@ -92,6 +100,8 @@ class ProductRequestPolicy
             'status' => $productRequest->status,
             'is_terminated' => $productRequest->isTerminated(),
             'method' => request()->method(),
+            'route_name' => request()->route()?->getName(),
+            'path' => request()->path(),
             'expected_status' => 'approved',
             'expected_method' => 'POST',
         ]);

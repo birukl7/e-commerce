@@ -488,16 +488,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Product Request routes
     Route::get('/request', [RequestController::class, 'index'])->name('request.index');
     Route::post('/request', [RequestController::class, 'store'])->name('request.store');
+    Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
+    
+    // Enhanced workflow routes - define BEFORE resource routes to avoid conflicts
+    Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
+    Route::post('/request/{productRequest}/accept-price', [RequestController::class, 'acceptPrice'])->name('request.accept-price');
+    Route::post('/request/{productRequest}/lost-interest', [RequestController::class, 'markLostInterest'])->name('request.lost-interest');
+    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
+    
+    // Standard CRUD routes
     Route::get('/request/{productRequest}/edit', [RequestController::class, 'edit'])->name('request.edit');
     Route::put('/request/{productRequest}', [RequestController::class, 'update'])->name('request.update');
     Route::delete('/request/{productRequest}', [RequestController::class, 'destroy'])->name('request.destroy');
-    Route::get('/request/history', [RequestController::class, 'history'])->name('request.history');
-    Route::post('/request/{productRequest}/accept-price', [RequestController::class, 'acceptPrice'])->name('request.accept-price');
-    
-    // Enhanced workflow routes
-    Route::get('/request/{productRequest}/willingness', [RequestController::class, 'showWillingness'])->name('request.willingness');
-    Route::post('/request/{productRequest}/lost-interest', [RequestController::class, 'markLostInterest'])->name('request.lost-interest');
-    Route::post('/request/{productRequest}/confirm-willingness', [RequestController::class, 'confirmWillingness'])->name('request.confirm-willingness');
     
     // Debug route to check authorization status (remove after debugging)
     Route::get('/debug/confirm-willingness/{productRequest}', function (ProductRequest $productRequest) {
