@@ -418,7 +418,8 @@ class PaymentController extends Controller
                     }
                     
                     // Verify the product request belongs to the user
-                    if ($productRequest->user_id !== $user->id) {
+                    // Cast to int to handle potential type mismatch (string vs int)
+                    if ((int)$productRequest->user_id !== (int)$user->id) {
                         \Log::error('Product request does not belong to user', [
                             'product_request_id' => $productRequestId,
                             'user_id' => $user->id,

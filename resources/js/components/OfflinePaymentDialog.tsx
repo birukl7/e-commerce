@@ -353,12 +353,12 @@ export default function OfflinePaymentDialog({
                                             <span>{t('checkout.subtotal')}:</span>
                                             <span className="font-medium">{formatPrice(subtotal)}</span>
                                         </div>
-                                        {taxBreakdown.map((tax, idx) => (
-                                            <div key={idx} className="flex justify-between text-gray-600">
-                                                <span>{tax.name} {tax.rate > 0 ? `(${tax.rate}%)` : ''}:</span>
-                                                <span>{formatPrice(tax.amount)}</span>
-                                            </div>
-                                        ))}
+                                        <div className="flex justify-between">
+                                            <span>Tax:</span>
+                                            <span className="font-medium">
+                                                {formatPrice(taxBreakdown.reduce((sum, tax) => sum + tax.amount, 0))}
+                                            </span>
+                                        </div>
                                         <div className="flex justify-between border-t pt-2 font-semibold">
                                             <span>{t('payment.totalToPay')}</span>
                                             <span className="text-primary-700">{formatPrice(totalAmount)}</span>

@@ -681,19 +681,17 @@ export default function PaymentProcess({
                                              payment_type === 'product_request_final' ? t('payment.finalPayment') : 
                                              `${t('payment.orderId')} ${order_id}`}
                                         </p>
-                                        {subtotal && tax_breakdown ? (
+                                        {subtotal && tax_amount !== undefined ? (
                                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
                                                 <div className="space-y-1 text-sm">
                                                     <div className="flex justify-between">
                                                         <span>{t('checkout.subtotal')}:</span>
                                                         <span className="font-medium">{formatPrice(subtotal)}</span>
                                                     </div>
-                                                    {tax_breakdown.map((tax, idx) => (
-                                                        <div key={idx} className="flex justify-between text-gray-600">
-                                                            <span>{tax.name} ({tax.rate}%):</span>
-                                                            <span>{formatPrice(tax.amount)}</span>
-                                                        </div>
-                                                    ))}
+                                                    <div className="flex justify-between">
+                                                        <span>Tax:</span>
+                                                        <span className="font-medium">{formatPrice(tax_amount)}</span>
+                                                    </div>
                                                     <div className="flex justify-between border-t pt-1 font-semibold">
                                                         <span>{t('payment.totalToPay')}</span>
                                                         <span className="text-blue-700">{formatPrice(total_amount)}</span>
