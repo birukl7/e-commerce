@@ -28,7 +28,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
 
   const fetchFeaturedInterests = useCallback(async () => {
     // Prevent multiple simultaneous requests
-    if (loading && hasInitialized) return
+    // if (loading && hasInitialized) return
 
     try {
       setLoading(true)
@@ -48,9 +48,10 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
       }
 
       const data = await response.json()
-      setInterests(data.data || data || [])
-      console.log("Featured interests:", data)
+      const interestsData = data.data || data || []
+      setInterests(interestsData)
       setHasInitialized(true)
+      console.log("Interests data:", interestsData)
     } catch (err) {
       console.error("Error fetching featured interests:", err)
       setError(err instanceof Error ? err.message : "Failed to fetch featured interests")

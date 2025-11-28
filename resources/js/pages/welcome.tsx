@@ -17,15 +17,6 @@ interface WelcomeProps {
 }
 
 function WelcomeContent({ settings }: WelcomeProps) {
-  React.useEffect(() => {
-    // safe debugging logs (won't be rendered into DOM)
-    console.log('[WelcomeContent] Mounted with settings:', settings)
-    return () => console.log('[WelcomeContent] Unmounted')
-  }, [])
-
-  React.useEffect(() => {
-    console.log('[WelcomeContent] Settings updated:', settings)
-  }, [settings])
 
   return (
     <>
@@ -73,7 +64,7 @@ export default function Welcome({ settings, diagnostics }: WelcomeProps) {
     // Try to list stylesheets for debugging (wrap in try/catch because of CORS)
     try {
       const styles = Array.from(document.styleSheets || [])
-      console.log('[Welcome] stylesheets count:', styles.length)
+    
     } catch (err) {
       console.warn('[Welcome] Could not enumerate stylesheets (CORS)')
     }
@@ -81,9 +72,7 @@ export default function Welcome({ settings, diagnostics }: WelcomeProps) {
     return () => console.log('[Welcome] Unmounted')
   }, [])
 
-  React.useEffect(() => {
-    console.log('[Welcome] Props updated:', { settings, diagnostics })
-  }, [settings, diagnostics])
+
 
   try {
     return (

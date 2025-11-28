@@ -79,7 +79,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
     try {
       setLoading(true)
       setError(null)
-      console.log("Starting fetch request to /api/categories")
+      
 
       let response = await fetch("/api/categories", {
         method: "GET",
@@ -91,7 +91,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
       })
 
       if (!response.ok) {
-        console.log("Main endpoint failed, trying tree endpoint")
+        
         response = await fetch("/api/categories/tree", {
           method: "GET",
           headers: {
@@ -102,7 +102,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
         })
       }
 
-      console.log("Response status:", response.status)
+    
       if (!response.ok) {
         const errorText = await response.text()
         console.error("Response error text:", errorText)
@@ -110,7 +110,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
       }
 
       const responseText = await response.text()
-      console.log("Raw response text:", responseText)
+      
 
       let result
       try {
@@ -120,7 +120,7 @@ export function CategoryDropdownContent({ onCategorySelect }: CategoryDropdownPr
         throw new Error("Server returned invalid JSON")
       }
 
-      console.log("Parsed API Response:", result)
+   
 
       let categoriesData: Category[] = []
       if (result.success && result.data) {
