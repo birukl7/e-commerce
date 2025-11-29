@@ -131,18 +131,50 @@ class PaymentFinalizer
                             $payment->gateway_payload ?? []
                         );
                         
+                        // Create order when advance payment is approved (if it doesn't exist)
+                        // This order will be reused for final payment
+                        if ($result && !$productRequest->order_id) {
+                            // Create order with total amount (advance + final)
+                            // The order is created as 'pending' payment status since final payment is not yet made
+                            $order = $productRequest->createOrder(markPaid: false);
+                            
+                            // Update payment transaction with order_id
+                            $payment->update(['order_id' => $order->id]);
+                            
+                            Log::info('Order created for product request advance payment', [
+                                'product_request_id' => $productRequest->id,
+                                'order_id' => $order->id,
+                                'payment_id' => $payment->id
+                            ]);
+                        } else {
+                            // Order already exists, just update the payment transaction
+                            $productRequest->refresh();
+                            $order = $productRequest->order;
+                            if ($order) {
+                                $payment->update(['order_id' => $order->id]);
+                            }
+                        }
+                        
                         // Only send notification if payment was newly marked as paid
                         if ($result) {
-                            // Send notification to user
-                            $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                                $productRequest,
-                                'Your advance payment has been approved. We will now start getting the product for you.',
-                                'Advance Payment Approved',
-                                route('user.product-requests.show', $productRequest->id)
-                            ));
+                            // Send notification to user (wrap in try-catch to prevent notification errors from failing finalization)
+                            try {
+                                $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                                    $productRequest,
+                                    'Your advance payment has been approved. We will now start getting the product for you.',
+                                    'Advance Payment Approved',
+                                    route('user.product-requests.show', $productRequest->id)
+                                ));
+                            } catch (\Exception $e) {
+                                Log::warning('Failed to send advance payment notification', [
+                                    'product_request_id' => $productRequest->id,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
                             
                             Log::info('Product request advance payment finalized', [
                                 'product_request_id' => $productRequest->id,
+                                'order_id' => $productRequest->order_id,
                                 'payment_id' => $payment->id
                             ]);
                         } else {
@@ -176,32 +208,59 @@ class PaymentFinalizer
                                 $payment->gateway_payload ?? []
                             );
                             
-                            // Create order if it doesn't exist and payment was newly marked
-                            if ($result && !$productRequest->order_id) {
+                            // Refresh product request to get latest order_id
+                            $productRequest->refresh();
+                            $order = $productRequest->order;
+                            
+                            // The order should already exist from advance payment
+                            // If it doesn't exist (edge case), create it
+                            if (!$order && $result) {
+                                Log::warning('Order not found for final payment, creating new order', [
+                                    'product_request_id' => $productRequest->id,
+                                    'payment_id' => $payment->id
+                                ]);
                                 $order = $productRequest->createOrder(markPaid: true);
+                            }
+                            
+                            // Update the existing order to mark it as paid (both payments are now complete)
+                            if ($order) {
+                                $order->update([
+                                    'payment_status' => 'paid',
+                                    'status' => 'processing',
+                                ]);
                                 
                                 // Update payment transaction with order_id
                                 $payment->update(['order_id' => $order->id]);
+                                
+                                Log::info('Order updated for final payment', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $order->id,
+                                    'payment_id' => $payment->id
+                                ]);
                             } else {
-                                $productRequest->refresh();
-                                $order = $productRequest->order;
-                                if ($order) {
-                                    $order->update([
-                                        'payment_status' => 'paid',
-                                        'status' => 'processing',
-                                    ]);
-                                }
+                                Log::error('Order not found and could not be created for final payment', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $productRequest->order_id,
+                                    'payment_id' => $payment->id
+                                ]);
                             }
                             
                             // Only send notification if payment was newly marked as paid
                             if ($result) {
-                                // Send notification to user
-                                $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
-                                    $productRequest,
-                                    'Your final payment has been approved. Your order is now complete!',
-                                    'Final Payment Approved',
-                                    $order ? route('user.orders.show', $order->id) : route('user.product-requests.show', $productRequest->id)
-                                ));
+                                // Send notification to user (wrap in try-catch to prevent notification errors from failing finalization)
+                                try {
+                                    $productRequest->user->notify(new \App\Notifications\ProductRequestStatusUpdated(
+                                        $productRequest,
+                                        'Your final payment has been approved. Your order is now complete!',
+                                        'Final Payment Approved',
+                                        $order ? route('user.orders.show', $order->id) : route('user.product-requests.show', $productRequest->id)
+                                    ));
+                                } catch (\Exception $e) {
+                                    Log::warning('Failed to send final payment notification', [
+                                        'product_request_id' => $productRequest->id,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
                                 
                                 Log::info('Product request final payment finalized', [
                                     'product_request_id' => $productRequest->id,
@@ -417,11 +476,16 @@ class PaymentFinalizer
             try {
                 // Approve the payment
                 $payment->approve($admin, $notes);
+                
+                // Refresh payment to ensure latest status is available
+                $payment->refresh();
 
                 Log::info('Payment approved by admin', [
                     'payment_id' => $payment->id,
                     'admin_id' => $admin->id,
-                    'order_id' => $payment->order_id
+                    'order_id' => $payment->order_id,
+                    'admin_status' => $payment->admin_status,
+                    'gateway_status' => $payment->gateway_status
                 ]);
 
                 // Finalize the order first to ensure status is updated
@@ -436,6 +500,7 @@ class PaymentFinalizer
                 }
 
                 // Reload the order to get the latest status using OrderLookupService
+                $orderLookupService = app(\App\Services\OrderLookupService::class);
                 $order = $orderLookupService->getOrderForPayment($payment);
                 
                 if ($order) {

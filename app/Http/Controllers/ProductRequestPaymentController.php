@@ -625,8 +625,13 @@ class ProductRequestPaymentController extends Controller
                         $paymentData
                     );
                     
-                    // Create order if it doesn't exist yet and payment was newly marked
+                    // Order should already exist from advance payment
+                    // Only create if it doesn't exist (edge case - should not happen in normal flow)
                     if ($result && !$productRequest->order_id) {
+                        \Log::warning('Order not found for final payment callback, creating new order', [
+                            'product_request_id' => $productRequest->id,
+                            'tx_ref' => $paymentData['tx_ref'] ?? null,
+                        ]);
                         $productRequest->createOrder(markPaid: true);
                     }
                     $productRequest->refresh();

@@ -99,4 +99,24 @@ class ProductRequestStatusUpdated extends Notification implements ShouldQueue
             'status' => $this->productRequest->status,
         ];
     }
+    
+    /**
+     * Get the database representation of the notification.
+     * This is used to populate the title and message columns separately.
+     */
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'title' => $this->subject,
+            'message' => $this->message,
+            'data' => [
+                'product_request_id' => $this->productRequest->id,
+                'action_url' => $this->actionUrl,
+                'action_text' => $this->actionText,
+                'amount' => $this->productRequest->amount,
+                'currency' => $this->productRequest->currency,
+                'status' => $this->productRequest->status,
+            ],
+        ];
+    }
 }
