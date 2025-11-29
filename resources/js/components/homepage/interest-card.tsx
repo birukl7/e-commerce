@@ -83,12 +83,14 @@ export function InterestCard({ title, subtitle, imageSrc, imageAlt, productCount
     //     target.src = `/placeholder.svg?height=400&width=400&text=${encodeURIComponent(title)}`;
     // };
 
+   
+
     const getImageUrl = (imagePath: string) => {
-        console.log(imagePath);
+       
         if (imagePath.startsWith('http')) {
             return imagePath;
         }
-        return `/image/${imagePath}`;
+        return `${imagePath}`;
     };
 
     const cardContent = (

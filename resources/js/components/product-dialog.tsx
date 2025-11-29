@@ -140,7 +140,7 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           // Only send files if the user selects new images. Otherwise leave empty.
           images: [],
         })
-        setImagePreviews(product.images?.map(img => `/storage/${img.image_path}`) || [])
+        setImagePreviews(product.images?.map(img => `${img.image_path}`) || [])
       } else if (action === "create") {
         setData({
           name: "",
