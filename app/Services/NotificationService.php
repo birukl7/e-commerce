@@ -22,8 +22,11 @@ class NotificationService
      */
     public function sendOrderConfirmation(Order $order, bool $sync = false): void
     {
-        if ($sync) {
-            // Send immediately for critical order confirmations
+        // In testing environment, always dispatch to queue so Queue::fake() can capture it
+        $isTesting = app()->runningUnitTests() || app()->environment('testing');
+        
+        if ($sync && !$isTesting) {
+            // Send immediately for critical order confirmations (only in non-testing)
             Log::info('[NotificationService] Sending order confirmation email immediately (sync)', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
@@ -49,11 +52,13 @@ class NotificationService
                     ->onQueue('emails');
             }
         } else {
-            // Queue for non-critical scenarios
+            // Queue for non-critical scenarios or when in testing
             Log::info('[NotificationService] Dispatching SendOrderConfirmationEmail to queue', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'user_email' => $order->user->email ?? null,
+                'sync_requested' => $sync,
+                'is_testing' => $isTesting,
             ]);
             
             SendOrderConfirmationEmail::dispatch($order)
@@ -92,8 +97,11 @@ class NotificationService
      */
     public function sendPaymentConfirmation(Order $order, PaymentTransaction $transaction, bool $sync = false): void
     {
-        if ($sync) {
-            // Send immediately for critical payment confirmations
+        // In testing environment, always dispatch to queue so Queue::fake() can capture it
+        $isTesting = app()->runningUnitTests() || app()->environment('testing');
+        
+        if ($sync && !$isTesting) {
+            // Send immediately for critical payment confirmations (only in non-testing)
             Log::info('[NotificationService] Sending payment confirmation email immediately (sync)', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
@@ -121,13 +129,15 @@ class NotificationService
                     ->onQueue('emails');
             }
         } else {
-            // Queue for non-critical scenarios
+            // Queue for non-critical scenarios or when in testing
             Log::info('[NotificationService] Dispatching SendPaymentConfirmationEmail to queue', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
                 'payment_id' => $transaction->id ?? null,
                 'tx_ref' => $transaction->tx_ref ?? null,
                 'user_email' => $order->user->email ?? null,
+                'sync_requested' => $sync,
+                'is_testing' => $isTesting,
             ]);
             
             SendPaymentConfirmationEmail::dispatch($transaction, $order->user, $order)

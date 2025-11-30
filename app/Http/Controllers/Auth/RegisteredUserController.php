@@ -126,17 +126,18 @@ class RegisteredUserController extends Controller
             
             // Log in the user
             Auth::login($user);
+            $request->session()->regenerate();
             $request->session()->flash('choose_role_pending', true);
             
             // Debug logging
-            Log::info('User registered and logged in, redirecting to homepage', [
+            Log::info('User registered and logged in, redirecting to dashboard', [
                 'user_id' => $user->id,
                 'email' => $user->email,
                 'is_authenticated' => Auth::check(),
             ]);
             
-            // Redirect to homepage with verification reminder
-            return redirect()->route('home')
+            // Redirect to dashboard with verification reminder
+            return redirect()->route('dashboard')
                 ->with('status', 'Registration successful! Welcome to ShopHub. Please check your email to verify your account.');
 
         } catch (\Exception $e) {

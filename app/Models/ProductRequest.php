@@ -134,7 +134,7 @@ class ProductRequest extends Model
             'user_id' => $this->user_id,
             'status' => 'processing', // Orders created from product requests start as processing
             'payment_status' => $markPaid ? 'paid' : 'pending',
-            'payment_method' => $this->payment_method,
+            'payment_method' => $this->payment_method ?? 'offline', // Default to offline if not set
             'currency' => $this->currency,
             'subtotal' => $amount,
             'tax_amount' => round($taxCalculation['total_tax_amount'], 2),
@@ -148,6 +148,26 @@ class ProductRequest extends Model
         ]);
 
         $order->save();
+
+        // Create order item for the product request
+        // For product requests, product_id can be null since it's not a regular product
+        $orderItem = \App\Models\OrderItem::create([
+            'order_id' => $order->id,
+            'product_id' => null, // Product requests don't have a product_id
+            'product_snapshot' => [
+                'id' => null,
+                'name' => $this->product_name,
+                'price' => (float) $amount,
+                'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
+                'product_request_id' => $this->id,
+                'description' => $this->description,
+                'created_at' => now()->toDateTimeString(),
+                'updated_at' => now()->toDateTimeString(),
+            ],
+            'quantity' => $this->quantity ?? 1,
+            'price' => (float) $amount,
+            'total' => (float) $amount * ($this->quantity ?? 1),
+        ]);
 
         // Emit advance-created order event
         try {

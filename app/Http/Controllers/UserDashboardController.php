@@ -107,7 +107,7 @@ class UserDashboardController extends Controller
             $orderIds = $orders->pluck('id')->toArray();
             
             $items = DB::table('order_items as oi')
-                ->join('products as p', 'oi.product_id', '=', 'p.id')
+                ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
                 ->leftJoin('product_images as pi', function($join) {
                     $join->on('p.id', '=', 'pi.product_id')
                         ->where('pi.is_primary', true);
@@ -117,6 +117,7 @@ class UserDashboardController extends Controller
                     'oi.id as item_id',
                     'oi.quantity',
                     'oi.price as item_price',
+                    'oi.product_snapshot',
                     'p.name as product_name',
                     'p.slug as product_slug',
                     'pi.image_path as primary_image',
@@ -212,14 +213,28 @@ class UserDashboardController extends Controller
             // Add items to each order
             $items = collect($orderItems[$order->id] ?? [])
                 ->map(function ($item) {
+                    // For product requests, product_id is null and data is in product_snapshot
+                    $snapshot = is_string($item->product_snapshot) 
+                        ? json_decode($item->product_snapshot, true) 
+                        : $item->product_snapshot;
+                    
+                    // Get product name from snapshot if product_name is null (product request)
+                    $productName = $item->product_name ?? ($snapshot['name'] ?? 'Product Request');
+                    $productSlug = $item->product_slug ?? ($snapshot['product_request_id'] ? 'product-request-' . $snapshot['product_request_id'] : null);
+                    
+                    // Get image from snapshot if primary_image is null (product request)
+                    $image = $item->primary_image 
+                        ? ImageUrlService::formatImageUrl($item->primary_image)
+                        : (isset($snapshot['image']) ? ImageUrlService::formatImageUrl($snapshot['image']) : null);
+                    
                     return [
                         'id' => $item->item_id,
-                        'product_name' => $item->product_name,
-                        'product_slug' => $item->product_slug,
+                        'product_name' => $productName,
+                        'product_slug' => $productSlug,
                         'quantity' => $item->quantity,
                         'price' => (float) $item->item_price,
                         'total' => (float) $item->item_price * $item->quantity,
-                        'primary_image' => ImageUrlService::formatImageUrl($item->primary_image),
+                        'primary_image' => $image,
                     ];
                 })->toArray();
                 
@@ -462,6 +477,7 @@ class UserDashboardController extends Controller
                 'oi.quantity',
                 'oi.price as item_price',
                 'oi.total as item_total',
+                'oi.product_snapshot',
                 'p.name as product_name',
                 'p.slug as product_slug',
                 'pi.image_path as primary_image',
@@ -480,14 +496,28 @@ class UserDashboardController extends Controller
 
         $firstOrder = $orderData->first();
         $items = $orderData->where('item_id', '!=', null)->map(function ($item) {
+            // For product requests, product_id is null and data is in product_snapshot
+            $snapshot = is_string($item->product_snapshot) 
+                ? json_decode($item->product_snapshot, true) 
+                : $item->product_snapshot;
+            
+            // Get product name from snapshot if product_name is null (product request)
+            $productName = $item->product_name ?? ($snapshot['name'] ?? 'Product Request');
+            $productSlug = $item->product_slug ?? ($snapshot['product_request_id'] ? 'product-request-' . $snapshot['product_request_id'] : null);
+            
+            // Get image from snapshot if primary_image is null (product request)
+            $image = $item->primary_image 
+                ? ImageUrlService::formatImageUrl($item->primary_image)
+                : (isset($snapshot['image']) ? ImageUrlService::formatImageUrl($snapshot['image']) : null);
+            
             return [
                 'id' => $item->item_id,
-                'product_name' => $item->product_name,
-                'product_slug' => $item->product_slug,
+                'product_name' => $productName,
+                'product_slug' => $productSlug,
                 'quantity' => $item->quantity,
                 'price' => (float) $item->item_price,
                 'total' => (float) $item->item_total,
-                'primary_image' => ImageUrlService::formatImageUrl($item->primary_image),
+                'primary_image' => $image,
             ];
         })->toArray();
 

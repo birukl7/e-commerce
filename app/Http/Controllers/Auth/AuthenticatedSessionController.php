@@ -90,14 +90,14 @@ class AuthenticatedSessionController extends Controller
         }
 
         if ($user && $request->session()->pull('oauth_requires_role', false)) {
-            return redirect()->route('home');
+            return redirect()->route('dashboard');
         }
 
         if ($user && $user->roles()->whereIn('name', ['customer', 'supplier'])->exists()) {
-            return redirect()->route('home');
+            return redirect()->route('dashboard');
         }
 
-        return redirect()->route('home');
+        return redirect()->route('dashboard');
     }
 
 

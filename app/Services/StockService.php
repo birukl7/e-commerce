@@ -18,7 +18,21 @@ class StockService
             DB::beginTransaction();
 
             foreach ($order->items as $item) {
-                $this->decreaseStock($item->product, $item->quantity);
+                // Skip order items without a product (e.g., product requests)
+                // Product requests don't have stock to decrease
+                if (!$item->product_id) {
+                    continue;
+                }
+                
+                // Load the product relationship if not already loaded
+                $product = $item->product;
+                
+                // Skip if product doesn't exist (e.g., soft-deleted)
+                if (!$product) {
+                    continue;
+                }
+                
+                $this->decreaseStock($product, $item->quantity);
             }
 
             DB::commit();
@@ -78,7 +92,21 @@ class StockService
             DB::beginTransaction();
 
             foreach ($order->items as $item) {
-                $this->increaseStock($item->product, $item->quantity);
+                // Skip order items without a product (e.g., product requests)
+                // Product requests don't have stock to restore
+                if (!$item->product_id) {
+                    continue;
+                }
+                
+                // Load the product relationship if not already loaded
+                $product = $item->product;
+                
+                // Skip if product doesn't exist (e.g., soft-deleted)
+                if (!$product) {
+                    continue;
+                }
+                
+                $this->increaseStock($product, $item->quantity);
             }
 
             DB::commit();
