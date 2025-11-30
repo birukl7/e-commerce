@@ -58,7 +58,7 @@ const bottomLinks = [
 
 export default function Footer({ settings }: FooterProps) {
   return (
-    <footer className="bg-slate-800 text-white">
+    <footer className="bg-[#6B8B4B] text-white">
       {/* Main Footer Content */}
       <div className="relative">
         {/* App Download Section */}
