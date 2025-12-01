@@ -307,6 +307,8 @@ class UserDashboardController extends Controller
                             'has_primary_image' => !empty($item->primary_image),
                             'snapshot_has_image' => isset($snapshot['image']),
                         ]);
+                        // Return placeholder path for frontend to handle
+                        $image = '/placeholder.svg?height=100&width=100&query=product';
                     }
                     
                     return [
@@ -316,7 +318,7 @@ class UserDashboardController extends Controller
                         'quantity' => $item->quantity,
                         'price' => (float) $item->item_price,
                         'total' => (float) $item->item_price * $item->quantity,
-                        'primary_image' => $image,
+                        'primary_image' => $image, // Will be null or placeholder path
                     ];
                 })->toArray();
                 
@@ -638,6 +640,8 @@ class UserDashboardController extends Controller
                     'has_primary_image' => !empty($item->primary_image),
                     'snapshot_has_image' => isset($snapshot['image']),
                 ]);
+                // Return placeholder path for frontend to handle
+                $image = '/placeholder.svg?height=100&width=100&query=product';
             }
             
             return [
@@ -647,7 +651,7 @@ class UserDashboardController extends Controller
                 'quantity' => $item->quantity,
                 'price' => (float) $item->item_price,
                 'total' => (float) $item->item_total,
-                'primary_image' => $image,
+                'primary_image' => $image, // Will be null or placeholder path
             ];
         })->toArray();
         

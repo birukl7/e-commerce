@@ -125,6 +125,29 @@ class ProductRequest extends Model
      */
     public function createOrder(bool $markPaid = false)
     {
+        // CRITICAL: Check if order already exists - NEVER create duplicate orders
+        // This prevents creating multiple orders for the same product request
+        if ($this->order_id) {
+            $existingOrder = \App\Models\Order::find($this->order_id);
+            if ($existingOrder) {
+                \Illuminate\Support\Facades\Log::warning('[ORDER CREATION] Order already exists for product request - returning existing order', [
+                    'product_request_id' => $this->id,
+                    'existing_order_id' => $existingOrder->id,
+                    'existing_order_number' => $existingOrder->order_number,
+                    'action' => 'Preventing duplicate order creation',
+                ]);
+                return $existingOrder;
+            } else {
+                // Order ID exists but order not found - clear the reference
+                \Illuminate\Support\Facades\Log::warning('[ORDER CREATION] Order ID exists but order not found - clearing reference', [
+                    'product_request_id' => $this->id,
+                    'invalid_order_id' => $this->order_id,
+                ]);
+                $this->order_id = null;
+                $this->save();
+            }
+        }
+        
         $amount = $this->amount ?? $this->estimated_price ?? 0;
 
         // Calculate tax for the order
@@ -135,18 +158,19 @@ class ProductRequest extends Model
         // If order item creation fails, the order will be rolled back
         try {
             return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $taxCalculation, $markPaid) {
-                \Illuminate\Support\Facades\Log::info('Starting order creation transaction for product request', [
+                \Illuminate\Support\Facades\Log::info('[ORDER CREATION] Starting order creation transaction for product request', [
                     'product_request_id' => $this->id,
                     'user_id' => $this->user_id,
-                    'amount' => $amount
+                    'amount' => $amount,
+                    'mark_paid' => $markPaid,
                 ]);
 
-                // Generate order number with ADV- prefix for product requests
-                // This matches the ADV- prefix shown during payment flow
-                $orderNumber = 'ADV-' . $this->id . '-' . time();
+                // Generate order number with PR- prefix for product requests (Product Request)
+                // This is consistent for both advance and final payments - ONE order per product request
+                $orderNumber = 'PR-' . $this->id . '-' . time();
                 
                 $order = new Order([
-                    'order_number' => $orderNumber, // Use ADV- prefix for product request orders
+                    'order_number' => $orderNumber, // Use PR- prefix for product request orders
                     'user_id' => $this->user_id,
                     'status' => 'processing', // Orders created from product requests start as processing
                     'payment_status' => $markPaid ? 'paid' : 'pending',

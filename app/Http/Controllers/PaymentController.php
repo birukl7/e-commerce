@@ -591,6 +591,31 @@ class PaymentController extends Controller
                                 'message' => 'Product has not arrived yet. Final payment cannot be processed.',
                             ], 400);
                         }
+                        
+                        // CRITICAL: For final payment, ensure we use the existing order from advance payment
+                        // NEVER create a new order for final payment - reuse the one from advance payment
+                        $productRequest->refresh();
+                        if ($productRequest->order_id) {
+                            $existingOrder = \App\Models\Order::find($productRequest->order_id);
+                            if ($existingOrder) {
+                                \Log::info('[ORDER REUSE] Final payment will reuse existing order from advance payment', [
+                                    'product_request_id' => $productRequestId,
+                                    'existing_order_id' => $existingOrder->id,
+                                    'existing_order_number' => $existingOrder->order_number,
+                                    'order_item_count' => $existingOrder->items()->count(),
+                                ] + $logContext);
+                            } else {
+                                \Log::error('[ORDER REUSE] Final payment: Order ID exists but order not found!', [
+                                    'product_request_id' => $productRequestId,
+                                    'invalid_order_id' => $productRequest->order_id,
+                                ] + $logContext);
+                            }
+                        } else {
+                            \Log::error('[ORDER REUSE] Final payment: No order exists yet! Order should have been created during advance payment.', [
+                                'product_request_id' => $productRequestId,
+                                'action' => 'This is a critical error - order should exist from advance payment',
+                            ] + $logContext);
+                        }
                     }
                     
                 } else {
@@ -787,7 +812,12 @@ class PaymentController extends Controller
                     'user_id' => $user->id,
                     'submission_ref' => $submissionRef,
                     'offline_payment_method_id' => $validated['offline_payment_method_id'],
-                    'order_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? null : $order->id,
+                    // Link payment transaction to order for product requests
+                    // For advance payment: use order if it exists (created on submission)
+                    // For final payment: MUST use existing order from advance payment
+                    'order_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) 
+                        ? ($productRequest && $productRequest->order_id ? $productRequest->order_id : null)
+                        : $order->id,
                     'product_request_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? $productRequest->id : null,
                     'amount' => $validated['amount'],
                     'currency' => $validated['currency'],
@@ -812,9 +842,11 @@ class PaymentController extends Controller
                 
                 // Create corresponding payment transaction record
                 // For product request payments, link to the order if it exists (created on submission)
+                // CRITICAL: For final payment, MUST use existing order from advance payment
                 $orderIdForTransaction = null;
                 if (in_array($paymentType, ['product_request_advance', 'product_request_final']) && $productRequest) {
                     $productRequest->refresh(); // Ensure we have latest order_id
+                    $orderIdForTransaction = $productRequest->order_id; // Use existing order for both advance and final
                     $orderIdForTransaction = $productRequest->order_id;
                 } else {
                     $orderIdForTransaction = $order->id ?? null;

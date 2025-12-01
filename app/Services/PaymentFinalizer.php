@@ -330,26 +330,21 @@ class PaymentFinalizer
                                 'order_number_if_exists' => $order ? $order->order_number : null,
                             ]);
                             
-                            // The order should already exist from advance payment
-                            // If it doesn't exist (edge case), create it
+                            // The order MUST already exist from advance payment
+                            // NEVER create a new order for final payment - this would create duplicates
+                            // If order doesn't exist, this is a critical error that needs investigation
                             if (!$order && $result) {
-                                Log::warning('[ORDER FINALIZATION] Order not found for final payment, creating new order (this should be rare)', [
+                                Log::error('[ORDER FINALIZATION] CRITICAL: Order not found for final payment - this should NEVER happen!', [
                                     'product_request_id' => $productRequest->id,
                                     'payment_id' => $payment->id,
                                     'product_request_order_id' => $productRequest->order_id,
                                     'reason' => 'Order was not found even though order_id is set, or order_id is null',
+                                    'action' => 'NOT creating new order to prevent duplicates - this needs manual investigation',
                                 ]);
-                                $order = $productRequest->createOrder(markPaid: true);
                                 
-                                if ($order) {
-                                    $orderItemCount = $order->items()->count();
-                                    Log::info('[ORDER FINALIZATION] Order created for final payment', [
-                                        'product_request_id' => $productRequest->id,
-                                        'order_id' => $order->id,
-                                        'order_number' => $order->order_number,
-                                        'order_item_count' => $orderItemCount,
-                                    ]);
-                                }
+                                // DO NOT create a new order - this would create duplicates
+                                // Instead, log the error and return false so the issue can be investigated
+                                return false;
                             }
                             
                             // Update the existing order to mark it as paid (both payments are now complete)
