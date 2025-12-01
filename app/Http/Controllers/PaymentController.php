@@ -2907,12 +2907,24 @@ class PaymentController extends Controller
                                 : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
                         ]);
                     } else {
-                        // Product request not found or unauthorized - show generic failure page
+                        // Enhanced logging for failed payment case
+                        $productRequestIdInt = is_numeric($productRequestId) ? (int) $productRequestId : null;
+                        $productRequestCheck = $productRequestIdInt 
+                            ? \App\Models\ProductRequest::find($productRequestIdInt)
+                            : null;
+                        
                         \Log::warning('Product request not found or unauthorized for failed payment', [
-                            'product_request_id' => $productRequestId,
-                            'user_id' => auth()->id(),
-                            'tx_ref' => $txRef
+                            'tx_ref' => $txRef,
+                            'product_request_id_raw' => $productRequestId,
+                            'product_request_id_int' => $productRequestIdInt,
+                            'product_request_exists' => $productRequestCheck !== null,
+                            'product_request_user_id' => $productRequestCheck ? $productRequestCheck->user_id : null,
+                            'auth_user_id' => auth()->id(),
+                            'auth_user_exists' => auth()->check(),
+                            'user_id_match' => $productRequestCheck ? ((int) $productRequestCheck->user_id === (int) auth()->id()) : false,
+                            'gateway_status' => $gatewayStatus,
                         ]);
+                        
                         return Inertia::render('payment/payment-failed', [
                             'error' => 'Product request not found or unauthorized',
                             'order_id' => null,
@@ -3122,11 +3134,25 @@ class PaymentController extends Controller
                             ]);
                         }
                     } else {
+                        // Enhanced logging for debugging
+                        $productRequestIdInt = is_numeric($productRequestId) ? (int) $productRequestId : null;
+                        $productRequestCheck = $productRequestIdInt 
+                            ? \App\Models\ProductRequest::find($productRequestIdInt)
+                            : null;
+                        
                         \Log::warning('Product request not found or unauthorized', [
-                            'product_request_id' => $productRequestId,
-                            'user_id' => auth()->id(),
-                            'tx_ref' => $txRef
+                            'tx_ref' => $txRef,
+                            'product_request_id_raw' => $productRequestId,
+                            'product_request_id_int' => $productRequestIdInt,
+                            'product_request_exists' => $productRequestCheck !== null,
+                            'product_request_user_id' => $productRequestCheck ? $productRequestCheck->user_id : null,
+                            'auth_user_id' => auth()->id(),
+                            'auth_user_exists' => auth()->check(),
+                            'user_id_match' => $productRequestCheck ? ((int) $productRequestCheck->user_id === (int) auth()->id()) : false,
+                            'gateway_status' => $gatewayStatus,
+                            'transaction_id' => $transaction->id ?? null,
                         ]);
+                        
                         // Return error page for product request payments when not found
                         $renderData = [
                             'error' => 'Product request not found or unauthorized',
