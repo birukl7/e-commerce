@@ -56,23 +56,26 @@ export default function PaymentFailed(props: PaymentFailedProps) {
         window.paymentFailedProps = props;
     }, [props]);
     
+    // Safely extract props with defaults
     const {
-        order_id,
-        order_number = order_id, // Default to order_id if order_number is not provided
+        order_id = null,
+        order_number = null,
         error = 'Payment could not be processed',
-        error_code,
-        amount,
+        error_code = undefined,
+        amount = null,
         currency = 'ETB',
-        retry_url,
-        auth,
-        transaction_id,
-    } = props;
+        retry_url = undefined,
+        auth = undefined,
+        transaction_id = undefined,
+    } = props || {};
 
-    const formatPrice = (price: number) => {
+    const formatPrice = (price: number | string) => {
+        const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+        if (isNaN(numPrice)) return 'N/A';
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency,
-        }).format(price);
+        }).format(numPrice);
     };
 
     const getErrorDescription = (code?: string) => {
@@ -144,16 +147,14 @@ export default function PaymentFailed(props: PaymentFailedProps) {
                             </div>
                         )}
 
-                        {amount && (typeof amount === 'string' ? parseFloat(amount) > 0 : amount > 0) && (
+                        {amount && (() => {
+                            const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+                            return !isNaN(numAmount) && numAmount > 0;
+                        })() && (
                             <div className="rounded-md bg-gray-50 p-3">
                                 <p className="text-xs text-gray-600">Failed Amount</p>
                                 <p className="text-lg font-semibold">
-                                    {typeof amount === 'string' 
-                                        ? new Intl.NumberFormat('en-US', {
-                                            style: 'currency',
-                                            currency: currency,
-                                          }).format(parseFloat(amount))
-                                        : formatPrice(amount || 0)}
+                                    {formatPrice(amount)}
                                 </p>
                             </div>
                         )}

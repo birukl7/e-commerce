@@ -916,27 +916,35 @@ export default function PaymentProcess({
 
                                 <div>
                                     <Label htmlFor="payment_method">{t('payment.paymentMethod')}</Label>
-                                    {chapaPaymentMethods.length > 0 ? (
-                                        <RadioGroup
-                                            value={String(chapaForm.data.payment_method || chapaPaymentMethods[0]?.code || '')}
-                                            onValueChange={(value) => chapaForm.setData('payment_method', value)}
-                                            className="mt-2 space-y-2"
-                                        >
-                                            {chapaPaymentMethods.map((method) => (
-                                                <div key={method.id} className="flex items-center space-x-2">
-                                                    <RadioGroupItem value={method.code} id={method.code} />
-                                                    <Label htmlFor={method.code} className="cursor-pointer">
-                                                        {method.name}
-                                                        {method.description && (
-                                                            <span className="ml-2 text-xs text-gray-500">({method.description})</span>
-                                                        )}
-                                                    </Label>
-                                                </div>
-                                            ))}
-                                        </RadioGroup>
-                                    ) : (
-                                        <p className="mt-2 text-sm text-gray-500">No payment methods available. Please contact support.</p>
-                                    )}
+                                    {(() => {
+                                        // Filter out bank debit cards - only show mobile money methods
+                                        const mobileMoneyCodes = ['telebirr', 'cbe', 'mpesa', 'awash', 'ebirr'];
+                                        const bankCodes = ['boa', 'awash_bank', 'addis_bank', 'hibret', 'cbo', 'berhan', 'nib'];
+                                        const filteredMethods = chapaPaymentMethods.filter((method: any) => 
+                                            mobileMoneyCodes.includes(method.code) && !bankCodes.includes(method.code)
+                                        );
+                                        return filteredMethods.length > 0 ? (
+                                            <RadioGroup
+                                                value={String(chapaForm.data.payment_method || filteredMethods[0]?.code || '')}
+                                                onValueChange={(value) => chapaForm.setData('payment_method', value)}
+                                                className="mt-2 space-y-2"
+                                            >
+                                                {filteredMethods.map((method: any) => (
+                                                    <div key={method.id} className="flex items-center space-x-2">
+                                                        <RadioGroupItem value={method.code} id={method.code} />
+                                                        <Label htmlFor={method.code} className="cursor-pointer">
+                                                            {method.name}
+                                                            {method.description && (
+                                                                <span className="ml-2 text-xs text-gray-500">({method.description})</span>
+                                                            )}
+                                                        </Label>
+                                                    </div>
+                                                ))}
+                                            </RadioGroup>
+                                        ) : (
+                                            <p className="mt-2 text-sm text-gray-500">No payment methods available. Please contact support.</p>
+                                        );
+                                    })()}
                                     {chapaForm.errors.payment_method && (
                                         <p className="mt-1 text-sm text-red-600">{chapaForm.errors.payment_method}</p>
                                     )}

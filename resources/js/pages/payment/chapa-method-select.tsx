@@ -292,13 +292,14 @@ export default function ChapaMethodSelect({
   const canSubmit = !isLoading && !processing && !isMissingOrderInfo && !hasValidationErrors
 
   // Group payment methods by category
+  // Filter out bank debit cards - only show mobile money methods
   const categorizeMethods = () => {
     const mobileMoney = ['telebirr', 'cbe', 'mpesa', 'awash', 'ebirr']
-    const banks = ['boa', 'awash_bank', 'addis_bank', 'hibret', 'cbo', 'berhan', 'nib']
+    // Removed bank debit cards: ['boa', 'awash_bank', 'addis_bank', 'hibret', 'cbo', 'berhan', 'nib']
     
     const categories = {
       mobile: availableMethods.filter((m: ChapaPaymentMethod) => mobileMoney.includes(m.code)),
-      banks: availableMethods.filter((m: ChapaPaymentMethod) => banks.includes(m.code)),
+      // banks: [] // Removed bank debit cards section
     }
     
     return categories
@@ -310,9 +311,7 @@ export default function ChapaMethodSelect({
     const iconClass = "h-8 w-8"
     if (code === 'telebirr') return <Smartphone className={`${iconClass} text-orange-500`} />
     if (code === 'cbe') return <Wallet className={`${iconClass} text-primary`} />
-    if (['boa', 'awash_bank', 'addis_bank', 'hibret', 'cbo', 'berhan', 'nib'].includes(code)) {
-      return <Building2 className={`${iconClass} text-gray-600`} />
-    }
+    // Removed bank debit card icons
     return <Smartphone className={`${iconClass} text-gray-500`} />
   }
 
@@ -490,47 +489,7 @@ export default function ChapaMethodSelect({
                       </div>
                     )}
 
-                    {/* Banks Section */}
-                    {methodCategories.banks.length > 0 && (
-                      <div>
-                        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700">
-                          <Building2 className="h-4 w-4" />
-                          Bank Debit Cards
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                          {methodCategories.banks.map((method) => {
-                            const isSelected = data.payment_method === method.code
-                            return (
-                              <label
-                                key={method.id}
-                                htmlFor={method.code}
-                                className={`relative flex flex-col items-center justify-center rounded-lg border-2 p-4 cursor-pointer transition-all ${
-                                  isSelected
-                                    ? 'border-primary-500 bg-primary-50 shadow-md scale-105'
-                                    : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                                }`}
-                              >
-                                <RadioGroupItem value={method.code} id={method.code} className="absolute top-2 right-2" />
-                                {isSelected && (
-                                  <CheckCircle2 className="absolute top-2 right-2 h-5 w-5 text-primary" />
-                                )}
-                                <div className="mb-2">{getMethodIcon(method.code)}</div>
-                                <div className="text-center">
-                                  <div className={`text-sm font-semibold ${isSelected ? 'text-primary-700' : 'text-gray-900'}`}>
-                                    {method.name}
-                                  </div>
-                                  {method.description && (
-                                    <div className="mt-1 text-xs text-gray-500 line-clamp-2">
-                                      {method.description}
-                                    </div>
-                                  )}
-                                </div>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    {/* Bank Debit Cards section removed - only mobile money methods are shown */}
                   </RadioGroup>
                   
                   {errors.payment_method && (
