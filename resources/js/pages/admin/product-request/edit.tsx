@@ -112,7 +112,16 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                     <Label htmlFor="status" className="text-base font-semibold">
                                         Update Status *
                                     </Label>
-                                    <Select value={data.status} onValueChange={(value) => setData('status', value as any)}>
+                                    {/* If status is already approved with price/arrival date set, disable status change */}
+                                    {/* If status is rejected, prevent changing to approved */}
+                                    <Select 
+                                        value={data.status} 
+                                        onValueChange={(value) => setData('status', value as any)}
+                                        disabled={
+                                            (product_request.status === 'approved' && product_request.amount && product_request.estimated_arrival_date) ||
+                                            product_request.status === 'rejected'
+                                        }
+                                    >
                                         <SelectTrigger id="status" className={errors.status ? 'border-red-500' : ''}>
                                             <SelectValue placeholder="Select a status" />
                                         </SelectTrigger>
@@ -123,7 +132,10 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                                     Pending
                                                 </div>
                                             </SelectItem>
-                                            <SelectItem value="approved">
+                                            <SelectItem 
+                                                value="approved"
+                                                disabled={product_request.status === 'rejected'}
+                                            >
                                                 <div className="flex items-center gap-2">
                                                     <div className="h-2 w-2 rounded-full bg-green-500"></div>
                                                     Approved
@@ -140,6 +152,16 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                     {errors.status && (
                                         <p className="flex items-center gap-1 text-sm text-red-500">
                                             <span className="font-medium">Error:</span> {errors.status}
+                                        </p>
+                                    )}
+                                    {product_request.status === 'rejected' && (
+                                        <p className="text-xs text-amber-600">
+                                            ⚠ Once a request is rejected, it cannot be changed back to approved.
+                                        </p>
+                                    )}
+                                    {product_request.status === 'approved' && product_request.amount && product_request.estimated_arrival_date && (
+                                        <p className="text-xs text-blue-600">
+                                            ℹ Status cannot be changed after approval with price and arrival date set. Only the arrival date can be updated below.
                                         </p>
                                     )}
                                 </div>
@@ -203,75 +225,118 @@ export default function ProductRequestEdit({ product_request }: ProductRequestEd
                                     <div className="space-y-4 rounded-lg border bg-muted/20 p-4">
                                         <h3 className="font-medium">Product Pricing & Delivery Information</h3>
 
-                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="amount" className="font-medium">
-                                                    Total Amount *
-                                                </Label>
-                                                <div className="relative">
-                                                    <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
-                                                        {data.currency}
-                                                    </span>
+                                        {/* If price and arrival date are already set, only allow editing arrival date */}
+                                        {product_request.amount && product_request.estimated_arrival_date ? (
+                                            <div className="space-y-4">
+                                                <div className="rounded-md border bg-blue-50 p-3 border-blue-200">
+                                                    <p className="text-sm text-blue-800 font-medium mb-2">
+                                                        ℹ Price and arrival date have already been set. Only the arrival date can be updated.
+                                                    </p>
+                                                    <div className="space-y-2">
+                                                        <div>
+                                                            <Label className="text-sm font-medium text-gray-700">Total Amount (Read-only)</Label>
+                                                            <p className="text-sm text-gray-600 mt-1">
+                                                                {product_request.currency} {typeof product_request.amount === 'number' 
+                                                                    ? product_request.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                                                    : product_request.amount}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <Label htmlFor="estimated_arrival_date" className="font-medium">
+                                                                Estimated Arrival Date *
+                                                            </Label>
+                                                            <input
+                                                                type="date"
+                                                                id="estimated_arrival_date"
+                                                                min={new Date().toISOString().split('T')[0]}
+                                                                value={data.estimated_arrival_date}
+                                                                onChange={(e) => setData('estimated_arrival_date', e.target.value)}
+                                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                                                required
+                                                            />
+                                                            {errors.estimated_arrival_date && (
+                                                                <p className="text-sm text-red-500">{errors.estimated_arrival_date}</p>
+                                                            )}
+                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                You can update the estimated arrival date if needed.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="amount" className="font-medium">
+                                                            Total Amount *
+                                                        </Label>
+                                                        <div className="relative">
+                                                            <span className="absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground">
+                                                                {data.currency}
+                                                            </span>
+                                                            <input
+                                                                type="number"
+                                                                id="amount"
+                                                                min="0"
+                                                                step="0.01"
+                                                                value={data.amount}
+                                                                onChange={(e) => setData('amount', e.target.value)}
+                                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-16 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+                                                                placeholder="0.00"
+                                                                required={data.status === 'approved'}
+                                                            />
+                                                        </div>
+                                                        {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}
+                                                        <p className="text-xs text-gray-500">
+                                                            This will be split into advance payment (30%) and final payment (70%)
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="currency" className="font-medium">
+                                                            Currency *
+                                                        </Label>
+                                                        <Select value={data.currency} onValueChange={(value) => setData('currency', value)}>
+                                                            <SelectTrigger id="currency" className="w-full">
+                                                                <SelectValue placeholder="Select currency" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="ETB">ETB - Ethiopian Birr</SelectItem>
+                                                                <SelectItem value="USD">USD - US Dollar</SelectItem>
+                                                                <SelectItem value="EUR">EUR - Euro</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        {errors.currency && <p className="text-sm text-red-500">{errors.currency}</p>}
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="estimated_arrival_date" className="font-medium">
+                                                        Estimated Arrival Date *
+                                                    </Label>
                                                     <input
-                                                        type="number"
-                                                        id="amount"
-                                                        min="0"
-                                                        step="0.01"
-                                                        value={data.amount}
-                                                        onChange={(e) => setData('amount', e.target.value)}
-                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pl-16 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                                        placeholder="0.00"
+                                                        type="date"
+                                                        id="estimated_arrival_date"
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        value={data.estimated_arrival_date}
+                                                        onChange={(e) => setData('estimated_arrival_date', e.target.value)}
+                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                                                         required={data.status === 'approved'}
                                                     />
+                                                    {errors.estimated_arrival_date && (
+                                                        <p className="text-sm text-red-500">{errors.estimated_arrival_date}</p>
+                                                    )}
+                                                    <p className="text-xs text-gray-500">
+                                                        This date will be shown to the customer to help them make an informed decision.
+                                                    </p>
                                                 </div>
-                                                {errors.amount && <p className="text-sm text-red-500">{errors.amount}</p>}
-                                                <p className="text-xs text-gray-500">
-                                                    This will be split into advance payment (30%) and final payment (70%)
+
+                                                <p className="text-sm text-muted-foreground">
+                                                    The customer will see both the price and estimated arrival date before confirming their willingness to proceed.
                                                 </p>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label htmlFor="currency" className="font-medium">
-                                                    Currency *
-                                                </Label>
-                                                <Select value={data.currency} onValueChange={(value) => setData('currency', value)}>
-                                                    <SelectTrigger id="currency" className="w-full">
-                                                        <SelectValue placeholder="Select currency" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="ETB">ETB - Ethiopian Birr</SelectItem>
-                                                        <SelectItem value="USD">USD - US Dollar</SelectItem>
-                                                        <SelectItem value="EUR">EUR - Euro</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                                {errors.currency && <p className="text-sm text-red-500">{errors.currency}</p>}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <Label htmlFor="estimated_arrival_date" className="font-medium">
-                                                Estimated Arrival Date *
-                                            </Label>
-                                            <input
-                                                type="date"
-                                                id="estimated_arrival_date"
-                                                min={new Date().toISOString().split('T')[0]}
-                                                value={data.estimated_arrival_date}
-                                                onChange={(e) => setData('estimated_arrival_date', e.target.value)}
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-                                                required={data.status === 'approved'}
-                                            />
-                                            {errors.estimated_arrival_date && (
-                                                <p className="text-sm text-red-500">{errors.estimated_arrival_date}</p>
-                                            )}
-                                            <p className="text-xs text-gray-500">
-                                                This date will be shown to the customer to help them make an informed decision.
-                                            </p>
-                                        </div>
-
-                                        <p className="text-sm text-muted-foreground">
-                                            The customer will see both the price and estimated arrival date before confirming their willingness to proceed.
-                                        </p>
+                                            </>
+                                        )}
                                     </div>
                                 )}
                             </div>

@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import PaymentDetailsModal from '@/components/payment-details-modal';
 import MainLayout from '@/layouts/app/main-layout';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { ArrowLeft, Building, CreditCard, Phone, Smartphone, Upload } from 'lucide-react';
+import { ArrowLeft, Building, CreditCard, Loader2, Phone, Smartphone, Upload } from 'lucide-react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { SharedData } from '@/types';
@@ -76,6 +76,7 @@ export default function PaymentProcess({
     const [modalPaymentReference, setModalPaymentReference] = useState('');
     const [modalPaymentNotes, setModalPaymentNotes] = useState('');
     const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
     // Get phone number from user profile
     const getUserPhone = (): string => {
@@ -124,8 +125,9 @@ export default function PaymentProcess({
             fileType: offlineForm.data.payment_screenshot?.constructor?.name,
         });
         
-        // Close modal and submit
+        // Close modal and start submission
         setIsPaymentModalOpen(false);
+        setIsSubmitting(true);
         handleOfflineSubmit(new Event('submit') as any);
     };
 
@@ -373,6 +375,7 @@ export default function PaymentProcess({
             if (!selectedOfflineMethod) {
                 const errorMsg = 'No payment method selected';
                 console.error('Validation Error:', errorMsg);
+                setIsSubmitting(false);
                 alert('Please select a payment method');
                 return;
             }
@@ -382,6 +385,7 @@ export default function PaymentProcess({
             if (!paymentScreenshot) {
                 const errorMsg = 'No payment screenshot uploaded';
                 console.error('Validation Error:', errorMsg);
+                setIsSubmitting(false);
                 alert('Please upload a payment screenshot');
                 return;
             }
@@ -562,6 +566,7 @@ export default function PaymentProcess({
                     } else {
                         alert('An error occurred while processing your payment. Please try again.');
                     }
+                    setIsSubmitting(false);
                 }
             } catch (error) {
                 console.error('=== Error during form submission ===');
@@ -588,6 +593,7 @@ export default function PaymentProcess({
                     // Fallback for non-Error objects
                     alert('An unexpected error occurred. Please try again.');
                 }
+                setIsSubmitting(false);
             } finally {
                 console.log('=== Form submission finished ===');
                 console.groupEnd();
@@ -595,6 +601,7 @@ export default function PaymentProcess({
         } catch (error) {
             console.error('Unexpected error during form submission:', error);
             alert('An unexpected error occurred. Please check the console for details.');
+            setIsSubmitting(false);
             console.groupEnd();
         }
     };
@@ -662,8 +669,19 @@ export default function PaymentProcess({
         // Render offline payment form
         return (
             <MainLayout title={t('payment.uploadPaymentProof')}>
-                <div className="min-h-screen bg-gray-50 py-8">
+                <div className="min-h-screen bg-gray-50 py-8 relative">
                     <Head title={t('payment.uploadPaymentProof')} />
+
+                    {/* Loading Overlay */}
+                    {isSubmitting && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                            <div className="bg-white rounded-lg p-8 shadow-xl flex flex-col items-center gap-4">
+                                <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
+                                <p className="text-lg font-semibold text-gray-900">{t('payment.processing')}</p>
+                                <p className="text-sm text-gray-600">{t('payment.processingPayment')}</p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="mx-auto max-w-4xl px-4">
                         {/* Header */}
@@ -801,7 +819,7 @@ export default function PaymentProcess({
                                 payment_notes: offlineForm.errors.payment_notes,
                                 payment_screenshot: offlineForm.errors.payment_screenshot,
                             }}
-                            isProcessing={offlineForm.processing}
+                            isProcessing={isSubmitting || offlineForm.processing}
                             formatPrice={formatPrice}
                             totalAmount={total_amount}
                             currency={currency}

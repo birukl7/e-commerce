@@ -10,7 +10,7 @@ import {
 import AppLayout from '../../../layouts/app-layout';
 import { adminNavItems } from '@/constants/adminNavItems';
 import { Head, Link } from '@inertiajs/react';
-import { MoreHorizontal, Eye, Edit } from 'lucide-react';
+import { MoreHorizontal, Eye } from 'lucide-react';
 import { BreadcrumbItem } from '@/types';
 
 // Type definitions
@@ -149,12 +149,8 @@ export default function ProductRequestIndex({ product_requests, filters }: Produ
         {
             label: 'View Details',
             href: `/admin/product-requests/${request.id}`,
-            icon: <Eye className="h-4 w-4" />
-        },
-        {
-            label: 'Update Status',
-            href: `/admin/product-requests/${request.id}/edit`,
-            icon: <Edit className="h-4 w-4" />
+            icon: <Eye className="h-4 w-4" />,
+            variant: 'default' // Use primary color instead of outline (grey border)
         },
         {
             label: 'Copy payment link',

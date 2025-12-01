@@ -269,6 +269,29 @@ class AdminProductRequestController extends Controller
             'currency.size' => 'Currency must be a 3-letter currency code.',
         ]);
 
+        // Prevent changing from rejected to approved
+        if ($productRequest->status === 'rejected' && $validated['status'] === 'approved') {
+            return redirect()->route('admin.product-requests.edit', $productRequest->id)
+                ->withErrors(['status' => 'Once a request is rejected, it cannot be changed back to approved.'])
+                ->withInput();
+        }
+
+        // If status is already approved with price and arrival date set, only allow updating arrival date
+        if ($productRequest->status === 'approved' && $productRequest->amount && $productRequest->estimated_arrival_date) {
+            // Only allow updating estimated_arrival_date, not status or amount
+            if ($validated['status'] !== 'approved') {
+                return redirect()->route('admin.product-requests.edit', $productRequest->id)
+                    ->withErrors(['status' => 'Status cannot be changed after approval with price and arrival date set. Only the arrival date can be updated.'])
+                    ->withInput();
+            }
+            
+            if (isset($validated['amount']) && $validated['amount'] != $productRequest->amount) {
+                return redirect()->route('admin.product-requests.edit', $productRequest->id)
+                    ->withErrors(['amount' => 'Price cannot be changed after approval. Only the arrival date can be updated.'])
+                    ->withInput();
+            }
+        }
+
         $updateData = [
             'status' => $validated['status'],
             'admin_response' => $validated['admin_response'] ?? null,

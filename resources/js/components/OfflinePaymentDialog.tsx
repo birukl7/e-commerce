@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Building, Smartphone, X } from 'lucide-react';
+import { Building, Loader2, Smartphone, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import PaymentDetailsModal from './payment-details-modal';
@@ -65,6 +65,7 @@ export default function OfflinePaymentDialog({
     const [modalPaymentNotes, setModalPaymentNotes] = useState('');
     const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // Simple URL builder to avoid Ziggy at build-time
     const buildUrl = (path: string, params?: Record<string, any>) => {
@@ -198,6 +199,7 @@ export default function OfflinePaymentDialog({
         offlineForm.setData('offline_payment_method_id', selectedOfflineMethod);
         
         setIsPaymentModalOpen(false);
+        setIsSubmitting(true);
         handleOfflineSubmit(new Event('submit') as any);
     };
 
@@ -206,12 +208,14 @@ export default function OfflinePaymentDialog({
 
         try {
             if (!selectedOfflineMethod) {
+                setIsSubmitting(false);
                 alert('Please select a payment method');
                 return;
             }
 
             const paymentScreenshot = offlineForm.data.payment_screenshot || modalPaymentScreenshot;
             if (!paymentScreenshot) {
+                setIsSubmitting(false);
                 alert('Please upload a payment screenshot');
                 return;
             }
@@ -300,10 +304,12 @@ export default function OfflinePaymentDialog({
                 } else {
                     alert('An error occurred while processing your payment. Please try again.');
                 }
+                setIsSubmitting(false);
             }
         } catch (error) {
             console.error('Error submitting payment:', error);
             alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            setIsSubmitting(false);
         }
     };
 
@@ -329,6 +335,17 @@ export default function OfflinePaymentDialog({
 
     return (
         <>
+            {/* Loading Overlay */}
+            {isSubmitting && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-lg p-8 shadow-xl flex flex-col items-center gap-4">
+                        <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
+                        <p className="text-lg font-semibold text-gray-900">{t('payment.processing')}</p>
+                        <p className="text-sm text-gray-600">{t('payment.processingPayment')}</p>
+                    </div>
+                </div>
+            )}
+
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto sm:w-[90vw] md:w-[85vw] lg:w-[75vw] xl:w-[70vw] 2xl:max-w-7xl">
                     <DialogHeader>
@@ -484,7 +501,7 @@ export default function OfflinePaymentDialog({
                     payment_notes: offlineForm.errors.payment_notes,
                     payment_screenshot: offlineForm.errors.payment_screenshot,
                 }}
-                isProcessing={offlineForm.processing}
+                isProcessing={isSubmitting || offlineForm.processing}
                 formatPrice={formatPrice}
                 totalAmount={totalAmount}
                 currency={currency}

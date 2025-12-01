@@ -686,8 +686,11 @@ export default function ProductRequestShow({ product_request }: ProductRequestSh
                                 </Dialog>
                             )}
                         </div>
-                        {/* Hide Update Status button once advance payment is paid or processing - status should not be changed after payment */}
-                        {!(product_request.advance_payment_status === 'paid' || product_request.advance_payment_status === 'processing') && (
+                        {/* Hide Update Status button once:
+                            1. Advance payment is paid or processing - status should not be changed after payment
+                            2. Status is approved and price/arrival date are set - only arrival date can be edited */}
+                        {!(product_request.advance_payment_status === 'paid' || product_request.advance_payment_status === 'processing') &&
+                         !(product_request.status === 'approved' && product_request.amount && product_request.estimated_arrival_date) && (
                             <Button asChild>
                                 <Link href={`/admin/product-requests/${product_request.id}/edit`}>Update Status</Link>
                             </Button>
