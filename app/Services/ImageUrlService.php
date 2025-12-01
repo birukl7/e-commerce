@@ -35,6 +35,10 @@ class ImageUrlService
             // Already a full URL
             $formattedUrl = $imagePath;
             $formatType = 'full_url';
+        } elseif (str_starts_with($imagePath, '/storage/products/product-requests/')) {
+            // Fix incorrectly formatted path: /storage/products/product-requests/... -> /storage/product-requests/...
+            $formattedUrl = str_replace('/storage/products/product-requests/', '/storage/product-requests/', $imagePath);
+            $formatType = 'corrected_path';
         } elseif (str_starts_with($imagePath, '/storage/') || str_starts_with($imagePath, '/image/')) {
             // Already formatted path starting with /storage/ or /image/
             $formattedUrl = $imagePath;
@@ -46,7 +50,9 @@ class ImageUrlService
         } elseif (str_starts_with($imagePath, 'products/') || 
             str_starts_with($imagePath, 'categories/') || 
             str_starts_with($imagePath, 'brands/') ||
-            str_starts_with($imagePath, 'images/')) {
+            str_starts_with($imagePath, 'images/') ||
+            str_starts_with($imagePath, 'product-requests/') ||
+            str_starts_with($imagePath, 'payment-proofs/')) {
             // Storage path from Laravel store() method (products/filename.jpg, images/filename.jpg, etc.)
             // These are stored in storage/app/public/ and need /storage/ prefix
             $formattedUrl = '/storage/' . $imagePath;
