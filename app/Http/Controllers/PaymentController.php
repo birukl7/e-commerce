@@ -2483,10 +2483,24 @@ class PaymentController extends Controller
             \Log::info('Status mapping result', [
                 'chapa_status' => $status,
                 'mapped_gateway_status' => $gatewayStatus,
+                'tx_ref' => $txRef,
+                'product_request_id' => $transaction->product_request_id,
             ]);
             
             if ($gatewayStatus) {
                 $oldStatus = $transaction->gateway_status;
+                
+                // PREVENT DUPLICATE PROCESSING: Don't update if already processed
+                if ($oldStatus === 'paid' && $gatewayStatus === 'paid') {
+                    \Log::warning('Payment callback received for already paid transaction - skipping update', [
+                        'tx_ref' => $txRef,
+                        'current_status' => $oldStatus,
+                        'new_status' => $gatewayStatus,
+                        'product_request_id' => $transaction->product_request_id,
+                    ]);
+                    return response()->json(['status' => 'already_processed'], 200);
+                }
+                
                 $transaction->update([
                     'gateway_status' => $gatewayStatus,
                     'gateway_payload' => $payload,
@@ -2497,20 +2511,33 @@ class PaymentController extends Controller
                     'old_gateway_status' => $oldStatus,
                     'new_gateway_status' => $gatewayStatus,
                     'transaction_updated' => true,
+                    'product_request_id' => $transaction->product_request_id,
                 ]);
 
-                // Update order status
-                $this->updateOrderPaymentStatus($transaction->order_id, $gatewayStatus, 'chapa');
-                
-                \Log::info('Order payment status updated', [
-                    'order_id' => $transaction->order_id,
-                    'new_payment_status' => $gatewayStatus,
-                ]);
+                // Handle product request payments separately (don't update order status)
+                if ($transaction->product_request_id) {
+                    \Log::info('Product request payment callback - skipping order update, will be handled by PaymentFinalizer', [
+                        'tx_ref' => $txRef,
+                        'product_request_id' => $transaction->product_request_id,
+                        'gateway_status' => $gatewayStatus,
+                    ]);
+                    // Product request payments are handled by PaymentFinalizer when admin approves
+                    // Don't auto-process them here to prevent duplicate processing
+                } else {
+                    // Update order status for regular orders
+                    $this->updateOrderPaymentStatus($transaction->order_id, $gatewayStatus, 'chapa');
+                    
+                    \Log::info('Order payment status updated', [
+                        'order_id' => $transaction->order_id,
+                        'new_payment_status' => $gatewayStatus,
+                    ]);
+                }
 
                 \Log::info('Payment callback processed successfully', [
                     'tx_ref' => $txRef,
                     'gateway_status' => $gatewayStatus,
                     'order_id' => $transaction->order_id,
+                    'product_request_id' => $transaction->product_request_id,
                 ]);
             } else {
                 \Log::warning('Could not map Chapa status to gateway status', [
@@ -2809,22 +2836,129 @@ class PaymentController extends Controller
                 
                 $gatewayStatus = $transaction->gateway_status;
                 
+                \Log::info('=== PRODUCT REQUEST PAYMENT RETURN - STATUS CHECK ===', [
+                    'tx_ref' => $txRef,
+                    'product_request_id' => $productRequestId,
+                    'gateway_status' => $gatewayStatus,
+                    'is_advance' => $isAdvancePayment,
+                    'is_final' => $isFinalPayment,
+                ]);
+                
+                // Handle FAILED payments FIRST - don't process them
+                if ($gatewayStatus === 'failed') {
+                    \Log::warning('Product request payment failed - showing failure page', [
+                        'tx_ref' => $txRef,
+                        'product_request_id' => $productRequestId,
+                        'gateway_status' => $gatewayStatus,
+                    ]);
+                    
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        $failurePage = $isAdvancePayment 
+                            ? 'product-requests/advance-payment-failure'
+                            : 'product-requests/final-payment-failure';
+                        
+                        return Inertia::render($failurePage, [
+                            'productRequest' => [
+                                'id' => $productRequest->id,
+                                'product_name' => $productRequest->product_name,
+                                'advance_amount' => $productRequest->advance_amount,
+                                'final_amount' => $productRequest->final_amount,
+                                'currency' => $productRequest->currency,
+                            ],
+                            'error_message' => 'Payment was not successful. Please try again.',
+                            'payment_method' => 'chapa',
+                            'retry_url' => $isAdvancePayment 
+                                ? route('payment.show', ['order_id' => 'ADV-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->advance_amount, 'payment_type' => 'product_request_advance', 'product_request_id' => $productRequest->id])
+                                : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
+                        ]);
+                    } else {
+                        // Product request not found or unauthorized - show generic failure page
+                        \Log::warning('Product request not found or unauthorized for failed payment', [
+                            'product_request_id' => $productRequestId,
+                            'user_id' => auth()->id(),
+                            'tx_ref' => $txRef
+                        ]);
+                        return Inertia::render('payment/payment-failed', [
+                            'error' => 'Product request not found or unauthorized',
+                            'order_id' => null,
+                            'amount' => $transaction->amount ?? 0,
+                            'currency' => $transaction->currency ?? 'ETB',
+                            'transaction_id' => $txRef,
+                            'error_code' => 'product_request_not_found',
+                        ]);
+                    }
+                }
+                
                 // For product request payments, also check if status is 'processing' or 'pending'
                 // because webhook might not have updated it yet, but payment was successful
                 // We'll update the status to 'processing' regardless of gateway_status
+                // BUT: Check for duplicate payments first
                 if ($gatewayStatus === 'paid' || $gatewayStatus === 'pending' || $gatewayStatus === 'processing') {
-                    // Refresh product request to get latest status
-                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
-                    if ($productRequest && $productRequest->user_id === auth()->id()) {
-                        $productRequest->refresh();
-                        
-                        // Get the payment transaction for details
-                        $paymentTransaction = PaymentTransaction::where('tx_ref', $txRef)->first();
-                        
-                        // Ensure payment status is updated to 'processing' (awaiting payment approval)
-                        // This ensures consistency even if webhook is delayed or hasn't run
-                        $needsUpdate = false;
-                        if ($isAdvancePayment) {
+                        // Refresh product request to get latest status
+                        $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                        if ($productRequest && $productRequest->user_id === auth()->id()) {
+                            $productRequest->refresh();
+                            
+                            // Get the payment transaction for details
+                            $paymentTransaction = PaymentTransaction::where('tx_ref', $txRef)->first();
+                            
+                            // PREVENT DUPLICATE PAYMENT PROCESSING
+                            // Check if payment has already been processed
+                            if ($isAdvancePayment) {
+                                if ($productRequest->advance_payment_status === 'paid') {
+                                    \Log::warning('Duplicate advance payment attempt - already paid', [
+                                        'product_request_id' => $productRequestId,
+                                        'tx_ref' => $txRef,
+                                        'current_status' => $productRequest->advance_payment_status,
+                                    ]);
+                                    // Still show success page but don't process again
+                                    return Inertia::render('product-requests/advance-payment-success-chapa', [
+                                        'productRequest' => [
+                                            'id' => $productRequest->id,
+                                            'product_name' => $productRequest->product_name,
+                                            'advance_amount' => $productRequest->advance_amount,
+                                            'final_amount' => $productRequest->final_amount,
+                                            'currency' => $productRequest->currency,
+                                            'payment_reference' => $productRequest->payment_reference,
+                                            'advance_payment_status' => $productRequest->advance_payment_status,
+                                            'workflow_status' => $productRequest->getWorkflowStatus(),
+                                        ],
+                                        'transaction_id' => $paymentTransaction?->tx_ref,
+                                        'amount' => $paymentTransaction?->amount ?? $productRequest->advance_amount,
+                                        'message' => 'Your advance payment was already processed successfully.',
+                                    ]);
+                                }
+                            } else {
+                                if ($productRequest->final_payment_status === 'paid') {
+                                    \Log::warning('Duplicate final payment attempt - already paid', [
+                                        'product_request_id' => $productRequestId,
+                                        'tx_ref' => $txRef,
+                                        'current_status' => $productRequest->final_payment_status,
+                                    ]);
+                                    // Still show success page but don't process again
+                                    return Inertia::render('product-requests/final-payment-success-chapa', [
+                                        'productRequest' => [
+                                            'id' => $productRequest->id,
+                                            'product_name' => $productRequest->product_name,
+                                            'final_amount' => $productRequest->final_amount,
+                                            'currency' => $productRequest->currency,
+                                            'payment_reference' => $productRequest->payment_reference,
+                                            'final_payment_status' => $productRequest->final_payment_status,
+                                            'order_id' => $productRequest->order_id,
+                                            'workflow_status' => $productRequest->getWorkflowStatus(),
+                                        ],
+                                        'transaction_id' => $paymentTransaction?->tx_ref,
+                                        'amount' => $paymentTransaction?->amount ?? $productRequest->final_amount,
+                                        'message' => 'Your final payment was already processed successfully.',
+                                    ]);
+                                }
+                            }
+                            
+                            // Ensure payment status is updated to 'processing' (awaiting payment approval)
+                            // This ensures consistency even if webhook is delayed or hasn't run
+                            $needsUpdate = false;
+                            if ($isAdvancePayment) {
                             // Prevent payment processing if request is terminated
                             if ($productRequest->isTerminated()) {
                                 \Log::warning('Attempted to process advance payment return for terminated request', [
@@ -2945,14 +3079,33 @@ class PaymentController extends Controller
                             'tx_ref' => $txRef
                         ]);
                         // Return error page for product request payments when not found
-                        return Inertia::render('payment/payment-failed', [
+                        $renderData = [
                             'error' => 'Product request not found or unauthorized',
                             'order_id' => null,
+                            'order_number' => null,
                             'amount' => $transaction->amount ?? 0,
                             'currency' => $transaction->currency ?? 'ETB',
                             'transaction_id' => $txRef,
                             'error_code' => 'product_request_not_found',
+                            'auth' => [
+                                'user' => auth()->user() ? [
+                                    'id' => auth()->user()->id,
+                                    'name' => auth()->user()->name,
+                                    'email' => auth()->user()->email,
+                                ] : null,
+                            ],
+                        ];
+                        
+                        \Log::error('=== RENDERING PAYMENT FAILED PAGE ===', [
+                            'render_data' => $renderData,
+                            'product_request_id' => $productRequestId,
+                            'user_id' => auth()->id(),
+                            'tx_ref' => $txRef,
+                            'transaction_amount' => $transaction->amount ?? 0,
+                            'transaction_currency' => $transaction->currency ?? 'ETB',
                         ]);
+                        
+                        return Inertia::render('payment/payment-failed', $renderData);
                     }
                 } elseif ($gatewayStatus === 'failed') {
                     // Payment failed - show product request failure page

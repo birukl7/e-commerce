@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect } from 'react';
 import Footer from '@/components/footer';
 import Header from '@/components/header';
@@ -40,23 +38,39 @@ export default function PaymentFailed(props: PaymentFailedProps) {
     useEffect(() => {
         console.group('Payment Failed Component Mounted');
         console.log('=== Component Props ===');
-        console.log('Order ID:', props.order_id);
-        console.log('Order Number:', props.order_number);
-        console.log('Error:', props.error);
-        console.log('Error Code:', props.error_code);
-        console.log('Amount:', props.amount);
-        console.log('Currency:', props.currency);
-        console.log('Transaction ID:', props.transaction_id);
-        console.log('Retry URL:', props.retry_url);
-        console.log('User:', props.auth?.user);
+        console.log('Order ID:', props?.order_id);
+        console.log('Order Number:', props?.order_number);
+        console.log('Error:', props?.error);
+        console.log('Error Code:', props?.error_code);
+        console.log('Amount:', props?.amount);
+        console.log('Currency:', props?.currency);
+        console.log('Transaction ID:', props?.transaction_id);
+        console.log('Retry URL:', props?.retry_url);
+        console.log('User:', props?.auth?.user);
         console.log('Full Props:', props);
+        console.log('Props Type:', typeof props);
+        console.log('Props Keys:', props ? Object.keys(props) : 'props is null/undefined');
         console.groupEnd();
 
         // Log to window for easier access in browser console
-        window.paymentFailedProps = props;
+        if (typeof window !== 'undefined') {
+            window.paymentFailedProps = props;
+        }
     }, [props]);
     
-    // Safely extract props with defaults
+    // Safely extract props with defaults - handle case where props might be undefined
+    if (!props) {
+        console.error('PaymentFailed component received null/undefined props');
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <h1 className="text-2xl font-bold text-red-600 mb-4">Error Loading Page</h1>
+                    <p className="text-gray-600">Unable to load payment failure information. Please contact support.</p>
+                </div>
+            </div>
+        );
+    }
+    
     const {
         order_id = null,
         order_number = null,
@@ -67,7 +81,7 @@ export default function PaymentFailed(props: PaymentFailedProps) {
         retry_url = undefined,
         auth = undefined,
         transaction_id = undefined,
-    } = props || {};
+    } = props;
 
     const formatPrice = (price: number | string) => {
         const numPrice = typeof price === 'string' ? parseFloat(price) : price;
