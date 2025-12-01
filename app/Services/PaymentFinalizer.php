@@ -131,10 +131,29 @@ class PaymentFinalizer
                             $payment->gateway_payload ?? []
                         );
                         
+                        // Refresh product request to get latest order_id (order might have been created on payment submission)
+                        $productRequest->refresh();
+                        
+                        Log::info('[ORDER FINALIZATION] Checking order existence for advance payment approval', [
+                            'product_request_id' => $productRequest->id,
+                            'payment_id' => $payment->id,
+                            'product_request_order_id' => $productRequest->order_id,
+                            'mark_advance_paid_result' => $result,
+                            'payment_tx_ref' => $payment->tx_ref,
+                        ]);
+                        
                         // Create order when advance payment is approved (if it doesn't exist)
                         // This order will be reused for final payment
+                        // IMPORTANT: Order should already exist if created on payment submission
+                        // Only create if it truly doesn't exist (edge case)
                         if ($result && !$productRequest->order_id) {
                             try {
+                                Log::warning('[ORDER FINALIZATION] Order does not exist, creating new order (this should be rare)', [
+                                    'product_request_id' => $productRequest->id,
+                                    'payment_id' => $payment->id,
+                                    'reason' => 'Order was not created on payment submission, creating now on approval',
+                                ]);
+                                
                                 // Create order with total amount (advance + final)
                                 // The order is created as 'pending' payment status since final payment is not yet made
                                 $order = $productRequest->createOrder(markPaid: false);
@@ -144,19 +163,36 @@ class PaymentFinalizer
                                     throw new \RuntimeException('createOrder returned null or order without ID');
                                 }
                                 
+                                // Verify order item was created
+                                $orderItemCount = $order->items()->count();
+                                
                                 // Update payment transaction with order_id
                                 $payment->update(['order_id' => $order->id]);
                                 
-                                Log::info('Order created for product request advance payment', [
+                                Log::info('[ORDER FINALIZATION] Order created for product request advance payment approval', [
                                     'product_request_id' => $productRequest->id,
                                     'order_id' => $order->id,
-                                    'payment_id' => $payment->id
+                                    'order_number' => $order->order_number,
+                                    'payment_id' => $payment->id,
+                                    'order_item_count' => $orderItemCount,
+                                    'order_payment_status' => $order->payment_status,
                                 ]);
+                                
+                                if ($orderItemCount === 0) {
+                                    Log::error('[ORDER FINALIZATION] Order created but has no items!', [
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'product_request_id' => $productRequest->id,
+                                    ]);
+                                }
                             } catch (\Exception $e) {
-                                Log::error('Failed to create order for product request advance payment', [
+                                Log::error('[ORDER FINALIZATION] Failed to create order for product request advance payment', [
                                     'product_request_id' => $productRequest->id,
                                     'payment_id' => $payment->id,
                                     'error' => $e->getMessage(),
+                                    'error_class' => get_class($e),
+                                    'file' => $e->getFile(),
+                                    'line' => $e->getLine(),
                                     'trace' => $e->getTraceAsString()
                                 ]);
                                 // Re-throw to prevent payment finalization if order creation fails
@@ -166,8 +202,64 @@ class PaymentFinalizer
                             // Order already exists, just update the payment transaction
                             $productRequest->refresh();
                             $order = $productRequest->order;
+                            
                             if ($order) {
+                                $orderItemCount = $order->items()->count();
+                                
+                                Log::info('[ORDER FINALIZATION] Reusing existing order for advance payment approval', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'payment_id' => $payment->id,
+                                    'order_item_count' => $orderItemCount,
+                                    'order_payment_status_before' => $order->payment_status,
+                                    'order_status_before' => $order->status,
+                                ]);
+                                
+                                // Update payment transaction with order_id
                                 $payment->update(['order_id' => $order->id]);
+                                
+                                // Update order payment status to paid
+                                $order->update([
+                                    'payment_status' => 'paid',
+                                    'status' => 'processing',
+                                ]);
+                                
+                                Log::info('[ORDER FINALIZATION] Order updated after advance payment approval', [
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'payment_status_after' => $order->fresh()->payment_status,
+                                    'status_after' => $order->fresh()->status,
+                                ]);
+                                
+                                if ($orderItemCount === 0) {
+                                    Log::error('[ORDER FINALIZATION] Existing order has no items!', [
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'product_request_id' => $productRequest->id,
+                                    ]);
+                                } else {
+                                    // Log order item details including images
+                                    foreach ($order->items as $item) {
+                                        $snapshot = is_array($item->product_snapshot) 
+                                            ? $item->product_snapshot 
+                                            : json_decode($item->product_snapshot, true);
+                                        
+                                        Log::info('[ORDER FINALIZATION] Order item details', [
+                                            'order_id' => $order->id,
+                                            'order_item_id' => $item->id,
+                                            'product_id' => $item->product_id,
+                                            'snapshot_has_image' => isset($snapshot['image']),
+                                            'snapshot_image' => $snapshot['image'] ?? null,
+                                        ]);
+                                    }
+                                }
+                            } else {
+                                Log::error('[ORDER FINALIZATION] Product request has order_id but order not found!', [
+                                    'product_request_id' => $productRequest->id,
+                                    'product_request_order_id' => $productRequest->order_id,
+                                    'payment_id' => $payment->id,
+                                ]);
                             }
                         }
                         
@@ -228,18 +320,54 @@ class PaymentFinalizer
                             $productRequest->refresh();
                             $order = $productRequest->order;
                             
+                            Log::info('[ORDER FINALIZATION] Checking order existence for final payment approval', [
+                                'product_request_id' => $productRequest->id,
+                                'payment_id' => $payment->id,
+                                'product_request_order_id' => $productRequest->order_id,
+                                'mark_final_paid_result' => $result,
+                                'order_exists' => $order !== null,
+                                'order_id_if_exists' => $order ? $order->id : null,
+                                'order_number_if_exists' => $order ? $order->order_number : null,
+                            ]);
+                            
                             // The order should already exist from advance payment
                             // If it doesn't exist (edge case), create it
                             if (!$order && $result) {
-                                Log::warning('Order not found for final payment, creating new order', [
+                                Log::warning('[ORDER FINALIZATION] Order not found for final payment, creating new order (this should be rare)', [
                                     'product_request_id' => $productRequest->id,
-                                    'payment_id' => $payment->id
+                                    'payment_id' => $payment->id,
+                                    'product_request_order_id' => $productRequest->order_id,
+                                    'reason' => 'Order was not found even though order_id is set, or order_id is null',
                                 ]);
                                 $order = $productRequest->createOrder(markPaid: true);
+                                
+                                if ($order) {
+                                    $orderItemCount = $order->items()->count();
+                                    Log::info('[ORDER FINALIZATION] Order created for final payment', [
+                                        'product_request_id' => $productRequest->id,
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'order_item_count' => $orderItemCount,
+                                    ]);
+                                }
                             }
                             
                             // Update the existing order to mark it as paid (both payments are now complete)
                             if ($order) {
+                                $orderItemCount = $order->items()->count();
+                                $paymentStatusBefore = $order->payment_status;
+                                $statusBefore = $order->status;
+                                
+                                Log::info('[ORDER FINALIZATION] Updating order for final payment approval', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'payment_id' => $payment->id,
+                                    'order_item_count' => $orderItemCount,
+                                    'payment_status_before' => $paymentStatusBefore,
+                                    'status_before' => $statusBefore,
+                                ]);
+                                
                                 $order->update([
                                     'payment_status' => 'paid',
                                     'status' => 'processing',
@@ -248,16 +376,43 @@ class PaymentFinalizer
                                 // Update payment transaction with order_id
                                 $payment->update(['order_id' => $order->id]);
                                 
-                                Log::info('Order updated for final payment', [
+                                Log::info('[ORDER FINALIZATION] Order updated for final payment', [
                                     'product_request_id' => $productRequest->id,
                                     'order_id' => $order->id,
-                                    'payment_id' => $payment->id
+                                    'order_number' => $order->order_number,
+                                    'payment_id' => $payment->id,
+                                    'payment_status_after' => $order->fresh()->payment_status,
+                                    'status_after' => $order->fresh()->status,
                                 ]);
+                                
+                                if ($orderItemCount === 0) {
+                                    Log::error('[ORDER FINALIZATION] Order has no items!', [
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'product_request_id' => $productRequest->id,
+                                    ]);
+                                } else {
+                                    // Log order item details including images
+                                    foreach ($order->items as $item) {
+                                        $snapshot = is_array($item->product_snapshot) 
+                                            ? $item->product_snapshot 
+                                            : json_decode($item->product_snapshot, true);
+                                        
+                                        Log::info('[ORDER FINALIZATION] Order item details for final payment', [
+                                            'order_id' => $order->id,
+                                            'order_item_id' => $item->id,
+                                            'product_id' => $item->product_id,
+                                            'snapshot_has_image' => isset($snapshot['image']),
+                                            'snapshot_image' => $snapshot['image'] ?? null,
+                                        ]);
+                                    }
+                                }
                             } else {
-                                Log::error('Order not found and could not be created for final payment', [
+                                Log::error('[ORDER FINALIZATION] Order not found and could not be created for final payment', [
                                     'product_request_id' => $productRequest->id,
                                     'order_id' => $productRequest->order_id,
-                                    'payment_id' => $payment->id
+                                    'payment_id' => $payment->id,
+                                    'mark_final_paid_result' => $result,
                                 ]);
                             }
                             

@@ -19,37 +19,39 @@ class ImageUrlService
     public static function formatImageUrl(?string $imagePath): ?string
     {
         if (!$imagePath) {
+            \Log::debug('[IMAGE URL] formatImageUrl called with null/empty path');
             return null;
         }
 
+        $originalPath = $imagePath;
+        
         // Handle different image path formats
         $imagePath = trim($imagePath);
         
+        $formattedUrl = null;
+        $formatType = 'unknown';
+        
         if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
             // Already a full URL
-            return $imagePath;
-        }
-        
-        if (str_starts_with($imagePath, '/storage/') || str_starts_with($imagePath, '/image/')) {
+            $formattedUrl = $imagePath;
+            $formatType = 'full_url';
+        } elseif (str_starts_with($imagePath, '/storage/') || str_starts_with($imagePath, '/image/')) {
             // Already formatted path starting with /storage/ or /image/
-            return $imagePath;
-        }
-        
-        if (str_starts_with($imagePath, 'storage/')) {
+            $formattedUrl = $imagePath;
+            $formatType = 'already_formatted';
+        } elseif (str_starts_with($imagePath, 'storage/')) {
             // Storage path without leading slash
-            return '/' . $imagePath;
-        }
-        
-        if (str_starts_with($imagePath, 'products/') || 
+            $formattedUrl = '/' . $imagePath;
+            $formatType = 'storage_without_slash';
+        } elseif (str_starts_with($imagePath, 'products/') || 
             str_starts_with($imagePath, 'categories/') || 
             str_starts_with($imagePath, 'brands/') ||
             str_starts_with($imagePath, 'images/')) {
             // Storage path from Laravel store() method (products/filename.jpg, images/filename.jpg, etc.)
             // These are stored in storage/app/public/ and need /storage/ prefix
-            return '/storage/' . $imagePath;
-        }
-        
-        if (str_starts_with($imagePath, '/')) {
+            $formattedUrl = '/storage/' . $imagePath;
+            $formatType = 'storage_path';
+        } elseif (str_starts_with($imagePath, '/')) {
             // Path starting with / - could be:
             // 1. Old format: /filename.jpg (legacy images in public/image/)
             // 2. Already formatted: /storage/... or /image/... (handled above)
@@ -63,25 +65,35 @@ class ImageUrlService
                 // - New image in /storage/products/
                 // Try /image/ first for backward compatibility, then /storage/products/
                 // Since public/image is symlinked to storage/app/public, /image/ works for both
-                return '/image/' . $pathWithoutSlash;
+                $formattedUrl = '/image/' . $pathWithoutSlash;
+                $formatType = 'legacy_filename';
+            } elseif (str_starts_with($imagePath, '/image/')) {
+                // If it starts with image/, use it as is
+                $formattedUrl = $imagePath;
+                $formatType = 'image_path';
+            } else {
+                // Otherwise, return as-is (might be a valid absolute path)
+                $formattedUrl = $imagePath;
+                $formatType = 'absolute_path';
             }
-            
-            // If it starts with image/, use it as is
-            if (str_starts_with($imagePath, '/image/')) {
-                return $imagePath;
-            }
-            
-            // Otherwise, return as-is (might be a valid absolute path)
-            return $imagePath;
-        }
-        
-        if (str_starts_with($imagePath, 'image/')) {
+        } elseif (str_starts_with($imagePath, 'image/')) {
             // Image folder path
-            return '/' . $imagePath;
+            $formattedUrl = '/' . $imagePath;
+            $formatType = 'image_folder';
+        } else {
+            // Default: assume it's a filename in the products bucket
+            $formattedUrl = '/storage/products/' . ltrim($imagePath, '/');
+            $formatType = 'default_products';
         }
         
-        // Default: assume it's a filename in the products bucket
-        return '/storage/products/' . ltrim($imagePath, '/');
+        \Log::debug('[IMAGE URL] Image URL formatted', [
+            'original_path' => $originalPath,
+            'formatted_url' => $formattedUrl,
+            'format_type' => $formatType,
+            'path_changed' => $originalPath !== $formattedUrl,
+        ]);
+        
+        return $formattedUrl;
     }
 
     /**

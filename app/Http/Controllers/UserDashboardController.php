@@ -106,6 +106,13 @@ class UserDashboardController extends Controller
         if ($orders->isNotEmpty()) {
             $orderIds = $orders->pluck('id')->toArray();
             
+            \Log::info('[ORDERS LIST] Querying order items for orders list', [
+                'user_id' => $user->id,
+                'total_orders' => $orders->count(),
+                'order_ids' => $orderIds,
+                'order_numbers' => $orders->pluck('order_number')->toArray(),
+            ]);
+            
             $items = DB::table('order_items as oi')
                 ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
                 ->leftJoin('product_images as pi', function($join) {
@@ -124,11 +131,45 @@ class UserDashboardController extends Controller
                 ])
                 ->whereIn('oi.order_id', $orderIds)
                 ->get();
+            
+            \Log::info('[ORDERS LIST] Order items query results', [
+                'user_id' => $user->id,
+                'total_items_found' => $items->count(),
+                'items_by_order' => $items->groupBy('order_id')->map(fn($group) => $group->count())->toArray(),
+                'items_with_null_product_id' => $items->whereNull('product_id')->count(),
+                'items_with_product_id' => $items->whereNotNull('product_id')->count(),
+            ]);
                 
             // Group items by order_id
             foreach ($items as $item) {
                 $orderItems[$item->order_id][] = $item;
+                
+                // Log items with null product_id (product requests)
+                if ($item->product_id === null) {
+                    $snapshot = is_string($item->product_snapshot) 
+                        ? json_decode($item->product_snapshot, true) 
+                        : $item->product_snapshot;
+                    
+                    \Log::info('[ORDERS LIST] Found product request order item', [
+                        'order_id' => $item->order_id,
+                        'item_id' => $item->item_id,
+                        'snapshot_has_image' => isset($snapshot['image']),
+                        'snapshot_image' => $snapshot['image'] ?? null,
+                        'has_primary_image' => !empty($item->primary_image),
+                        'primary_image' => $item->primary_image,
+                    ]);
+                }
             }
+            
+            \Log::info('[ORDERS LIST] Order items grouped by order', [
+                'user_id' => $user->id,
+                'orders_with_items' => count($orderItems),
+                'items_per_order' => array_map(fn($items) => count($items), $orderItems),
+            ]);
+        } else {
+            \Log::info('[ORDERS LIST] No orders found for user', [
+                'user_id' => $user->id,
+            ]);
         }
         
         // Get payment transactions with rejection reasons for orders that have them
@@ -212,20 +253,60 @@ class UserDashboardController extends Controller
         $orders = $orders->map(function ($order) use ($orderItems, $paymentTransactionsByOrder) {
             // Add items to each order
             $items = collect($orderItems[$order->id] ?? [])
-                ->map(function ($item) {
+                ->map(function ($item) use ($order) {
                     // For product requests, product_id is null and data is in product_snapshot
                     $snapshot = is_string($item->product_snapshot) 
                         ? json_decode($item->product_snapshot, true) 
                         : $item->product_snapshot;
+                    
+                    // Log snapshot extraction
+                    \Log::info('[IMAGE EXTRACTION] Processing order item for display', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number ?? null,
+                        'item_id' => $item->item_id,
+                        'product_id' => $item->product_id ?? 'NULL',
+                        'has_primary_image' => !empty($item->primary_image),
+                        'primary_image' => $item->primary_image,
+                        'snapshot_is_string' => is_string($item->product_snapshot),
+                        'snapshot_has_image' => isset($snapshot['image']),
+                        'snapshot_image' => $snapshot['image'] ?? null,
+                        'snapshot_name' => $snapshot['name'] ?? null,
+                    ]);
                     
                     // Get product name from snapshot if product_name is null (product request)
                     $productName = $item->product_name ?? ($snapshot['name'] ?? 'Product Request');
                     $productSlug = $item->product_slug ?? ($snapshot['product_request_id'] ? 'product-request-' . $snapshot['product_request_id'] : null);
                     
                     // Get image from snapshot if primary_image is null (product request)
-                    $image = $item->primary_image 
-                        ? ImageUrlService::formatImageUrl($item->primary_image)
-                        : (isset($snapshot['image']) ? ImageUrlService::formatImageUrl($snapshot['image']) : null);
+                    $image = null;
+                    if ($item->primary_image) {
+                        $originalPath = $item->primary_image;
+                        $image = ImageUrlService::formatImageUrl($item->primary_image);
+                        \Log::info('[IMAGE EXTRACTION] Using primary_image from join', [
+                            'order_id' => $order->id,
+                            'item_id' => $item->item_id,
+                            'original_path' => $originalPath,
+                            'formatted_url' => $image,
+                        ]);
+                    } elseif (isset($snapshot['image'])) {
+                        $originalSnapshotImage = $snapshot['image'];
+                        $image = ImageUrlService::formatImageUrl($snapshot['image']);
+                        \Log::info('[IMAGE EXTRACTION] Using image from snapshot', [
+                            'order_id' => $order->id,
+                            'item_id' => $item->item_id,
+                            'original_snapshot_image' => $originalSnapshotImage,
+                            'formatted_url' => $image,
+                            'is_already_formatted' => str_starts_with($originalSnapshotImage, '/storage/') || str_starts_with($originalSnapshotImage, '/image/'),
+                        ]);
+                    } else {
+                        \Log::warning('[IMAGE EXTRACTION] No image found for order item', [
+                            'order_id' => $order->id,
+                            'item_id' => $item->item_id,
+                            'product_id' => $item->product_id,
+                            'has_primary_image' => !empty($item->primary_image),
+                            'snapshot_has_image' => isset($snapshot['image']),
+                        ]);
+                    }
                     
                     return [
                         'id' => $item->item_id,
@@ -495,20 +576,67 @@ class UserDashboardController extends Controller
         }
 
         $firstOrder = $orderData->first();
-        $items = $orderData->where('item_id', '!=', null)->map(function ($item) {
+        
+        \Log::info('[ORDER DETAILS] Processing order items for order details page', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'total_items_in_query' => $orderData->count(),
+            'items_with_item_id' => $orderData->where('item_id', '!=', null)->count(),
+        ]);
+        
+        $items = $orderData->where('item_id', '!=', null)->map(function ($item) use ($order) {
             // For product requests, product_id is null and data is in product_snapshot
             $snapshot = is_string($item->product_snapshot) 
                 ? json_decode($item->product_snapshot, true) 
                 : $item->product_snapshot;
+            
+            \Log::info('[ORDER DETAILS] Processing order item for details page', [
+                'order_id' => $order->id,
+                'order_number' => $order->order_number ?? null,
+                'item_id' => $item->item_id,
+                'product_id' => $item->product_id ?? 'NULL',
+                'has_primary_image' => !empty($item->primary_image),
+                'primary_image' => $item->primary_image,
+                'snapshot_is_string' => is_string($item->product_snapshot),
+                'snapshot_has_image' => isset($snapshot['image']),
+                'snapshot_image' => $snapshot['image'] ?? null,
+                'snapshot_name' => $snapshot['name'] ?? null,
+            ]);
             
             // Get product name from snapshot if product_name is null (product request)
             $productName = $item->product_name ?? ($snapshot['name'] ?? 'Product Request');
             $productSlug = $item->product_slug ?? ($snapshot['product_request_id'] ? 'product-request-' . $snapshot['product_request_id'] : null);
             
             // Get image from snapshot if primary_image is null (product request)
-            $image = $item->primary_image 
-                ? ImageUrlService::formatImageUrl($item->primary_image)
-                : (isset($snapshot['image']) ? ImageUrlService::formatImageUrl($snapshot['image']) : null);
+            $image = null;
+            if ($item->primary_image) {
+                $originalPath = $item->primary_image;
+                $image = ImageUrlService::formatImageUrl($item->primary_image);
+                \Log::info('[ORDER DETAILS] Using primary_image from join', [
+                    'order_id' => $order->id,
+                    'item_id' => $item->item_id,
+                    'original_path' => $originalPath,
+                    'formatted_url' => $image,
+                ]);
+            } elseif (isset($snapshot['image'])) {
+                $originalSnapshotImage = $snapshot['image'];
+                $image = ImageUrlService::formatImageUrl($snapshot['image']);
+                \Log::info('[ORDER DETAILS] Using image from snapshot', [
+                    'order_id' => $order->id,
+                    'item_id' => $item->item_id,
+                    'original_snapshot_image' => $originalSnapshotImage,
+                    'formatted_url' => $image,
+                    'is_already_formatted' => str_starts_with($originalSnapshotImage, '/storage/') || str_starts_with($originalSnapshotImage, '/image/'),
+                ]);
+            } else {
+                \Log::warning('[ORDER DETAILS] No image found for order item', [
+                    'order_id' => $order->id,
+                    'item_id' => $item->item_id,
+                    'product_id' => $item->product_id,
+                    'has_primary_image' => !empty($item->primary_image),
+                    'snapshot_has_image' => isset($snapshot['image']),
+                ]);
+            }
             
             return [
                 'id' => $item->item_id,
@@ -520,6 +648,13 @@ class UserDashboardController extends Controller
                 'primary_image' => $image,
             ];
         })->toArray();
+        
+        \Log::info('[ORDER DETAILS] Order items processed for display', [
+            'order_id' => $order->id,
+            'order_number' => $order->order_number,
+            'items_count' => count($items),
+            'items_with_images' => count(array_filter($items, fn($item) => !empty($item['primary_image']))),
+        ]);
 
         // Apply same status normalization as orders list
         $actualStatus = $firstOrder->status;

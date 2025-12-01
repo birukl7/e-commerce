@@ -141,7 +141,12 @@ class ProductRequest extends Model
                     'amount' => $amount
                 ]);
 
+                // Generate order number with ADV- prefix for product requests
+                // This matches the ADV- prefix shown during payment flow
+                $orderNumber = 'ADV-' . $this->id . '-' . time();
+                
                 $order = new Order([
+                    'order_number' => $orderNumber, // Use ADV- prefix for product request orders
                     'user_id' => $this->user_id,
                     'status' => 'processing', // Orders created from product requests start as processing
                     'payment_status' => $markPaid ? 'paid' : 'pending',
@@ -168,28 +173,71 @@ class ProductRequest extends Model
                 // Create order item for the product request
                 // For product requests, product_id can be null since it's not a regular product
                 // This MUST succeed, otherwise the transaction will rollback and the order won't be created
+                
+                // Format image URL for snapshot
+                $imageUrl = null;
+                if ($this->image) {
+                    $originalImagePath = $this->image;
+                    $imageUrl = \App\Services\ImageUrlService::formatImageUrl($this->image);
+                    
+                    \Illuminate\Support\Facades\Log::info('[IMAGE PROCESSING] Formatting image URL for product request order item', [
+                        'product_request_id' => $this->id,
+                        'original_image_path' => $originalImagePath,
+                        'formatted_image_url' => $imageUrl,
+                        'image_path_type' => $this->getImagePathType($originalImagePath),
+                    ]);
+                } else {
+                    \Illuminate\Support\Facades\Log::warning('[IMAGE PROCESSING] Product request has no image', [
+                        'product_request_id' => $this->id,
+                        'product_name' => $this->product_name,
+                    ]);
+                }
+                
+                $snapshotData = [
+                    'id' => null,
+                    'name' => $this->product_name,
+                    'price' => (float) $amount,
+                    'image' => $imageUrl,
+                    'product_request_id' => $this->id,
+                    'description' => $this->description,
+                    'created_at' => now()->toDateTimeString(),
+                    'updated_at' => now()->toDateTimeString(),
+                ];
+                
+                \Illuminate\Support\Facades\Log::info('[ORDER ITEM] Creating order item with snapshot data', [
+                    'product_request_id' => $this->id,
+                    'order_id' => $order->id,
+                    'snapshot_has_image' => !empty($imageUrl),
+                    'snapshot_image' => $imageUrl,
+                    'snapshot_name' => $snapshotData['name'],
+                    'quantity' => $this->quantity ?? 1,
+                    'price' => (float) $amount,
+                ]);
+                
                 $orderItem = \App\Models\OrderItem::create([
                     'order_id' => $order->id,
                     'product_id' => null, // Product requests don't have a product_id
-                    'product_snapshot' => [
-                        'id' => null,
-                        'name' => $this->product_name,
-                        'price' => (float) $amount,
-                        'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
-                        'product_request_id' => $this->id,
-                        'description' => $this->description,
-                        'created_at' => now()->toDateTimeString(),
-                        'updated_at' => now()->toDateTimeString(),
-                    ],
+                    'product_snapshot' => $snapshotData,
                     'quantity' => $this->quantity ?? 1,
                     'price' => (float) $amount,
                     'total' => (float) $amount * ($this->quantity ?? 1),
                 ]);
 
-                \Illuminate\Support\Facades\Log::info('Order item created in transaction', [
+                // Verify snapshot was saved correctly
+                $savedSnapshot = is_array($orderItem->product_snapshot) 
+                    ? $orderItem->product_snapshot 
+                    : json_decode($orderItem->product_snapshot, true);
+                
+                \Illuminate\Support\Facades\Log::info('[ORDER ITEM] Order item created in transaction', [
                     'order_item_id' => $orderItem->id ?? null,
                     'order_id' => $order->id,
-                    'product_request_id' => $this->id
+                    'product_request_id' => $this->id,
+                    'product_id' => $orderItem->product_id,
+                    'saved_snapshot_has_image' => isset($savedSnapshot['image']),
+                    'saved_snapshot_image' => $savedSnapshot['image'] ?? null,
+                    'saved_snapshot_name' => $savedSnapshot['name'] ?? null,
+                    'quantity' => $orderItem->quantity,
+                    'price' => $orderItem->price,
                 ]);
 
                 // Verify order item was created successfully
@@ -227,6 +275,7 @@ class ProductRequest extends Model
                 return $order;
             }, 3); // Retry up to 3 times on deadlock
         } catch (\Exception $e) {
+            // Log is already done in the catch block above
             \Illuminate\Support\Facades\Log::error('Order creation transaction failed for product request', [
                 'product_request_id' => $this->id,
                 'user_id' => $this->user_id,
@@ -235,6 +284,29 @@ class ProductRequest extends Model
                 'trace' => $e->getTraceAsString()
             ]);
             throw $e;
+        }
+    }
+    
+    /**
+     * Helper method to determine image path type for logging
+     */
+    private function getImagePathType(string $imagePath): string
+    {
+        if (str_starts_with($imagePath, 'http://') || str_starts_with($imagePath, 'https://')) {
+            return 'full_url';
+        } elseif (str_starts_with($imagePath, '/storage/') || str_starts_with($imagePath, '/image/')) {
+            return 'already_formatted';
+        } elseif (str_starts_with($imagePath, 'storage/')) {
+            return 'storage_without_slash';
+        } elseif (str_starts_with($imagePath, 'products/') || str_starts_with($imagePath, 'categories/') || 
+                  str_starts_with($imagePath, 'brands/') || str_starts_with($imagePath, 'images/')) {
+            return 'storage_path';
+        } elseif (str_starts_with($imagePath, '/')) {
+            return 'absolute_path';
+        } elseif (str_starts_with($imagePath, 'image/')) {
+            return 'image_folder';
+        } else {
+            return 'unknown';
         }
     }
 

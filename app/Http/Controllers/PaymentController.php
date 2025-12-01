@@ -468,6 +468,103 @@ class PaymentController extends Controller
                                 'message' => 'Advance payment has already been processed for this request.',
                             ], 400);
                         }
+                        
+                        // Create order immediately when payment is submitted (not waiting for approval)
+                        // This allows customers to see their order right away with "pending" payment status
+                        // Refresh to get latest order_id
+                        $productRequest->refresh();
+                        
+                        \Log::info('[ORDER CREATION] Checking if order exists for product request on payment submission', [
+                            'product_request_id' => $productRequestId,
+                            'payment_type' => $paymentType,
+                            'current_order_id' => $productRequest->order_id,
+                            'product_request_has_image' => !empty($productRequest->image),
+                            'product_request_image_path' => $productRequest->image,
+                        ] + $logContext);
+                        
+                        if (!$productRequest->order_id) {
+                            try {
+                                \Log::info('[ORDER CREATION] Creating order immediately for product request advance payment submission', [
+                                    'product_request_id' => $productRequestId,
+                                    'payment_type' => $paymentType,
+                                    'product_name' => $productRequest->product_name,
+                                    'amount' => $productRequest->amount,
+                                    'has_image' => !empty($productRequest->image),
+                                    'image_path' => $productRequest->image,
+                                ] + $logContext);
+                                
+                                $order = $productRequest->createOrder(markPaid: false);
+                                
+                                if (!$order || !$order->id) {
+                                    throw new \RuntimeException('createOrder returned null or order without ID');
+                                }
+                                
+                                // Refresh to get the updated order_id
+                                $productRequest->refresh();
+                                
+                                // Verify order item was created
+                                $orderItemCount = $order->items()->count();
+                                $orderItems = $order->items;
+                                
+                                \Log::info('[ORDER CREATION] Order created immediately for product request advance payment', [
+                                    'product_request_id' => $productRequestId,
+                                    'order_id' => $order->id,
+                                    'order_number' => $order->order_number,
+                                    'product_request_order_id' => $productRequest->order_id,
+                                    'order_item_count' => $orderItemCount,
+                                    'order_payment_status' => $order->payment_status,
+                                    'order_status' => $order->status,
+                                ] + $logContext);
+                                
+                                // Log order item details including image
+                                if ($orderItemCount > 0) {
+                                    foreach ($orderItems as $item) {
+                                        $snapshot = is_array($item->product_snapshot) 
+                                            ? $item->product_snapshot 
+                                            : json_decode($item->product_snapshot, true);
+                                        
+                                        \Log::info('[ORDER CREATION] Order item details', [
+                                            'order_id' => $order->id,
+                                            'order_item_id' => $item->id,
+                                            'product_id' => $item->product_id,
+                                            'product_name' => $snapshot['name'] ?? null,
+                                            'snapshot_has_image' => isset($snapshot['image']),
+                                            'snapshot_image' => $snapshot['image'] ?? null,
+                                            'quantity' => $item->quantity,
+                                            'price' => $item->price,
+                                        ]);
+                                    }
+                                } else {
+                                    \Log::warning('[ORDER CREATION] Order created but has no items!', [
+                                        'order_id' => $order->id,
+                                        'order_number' => $order->order_number,
+                                        'product_request_id' => $productRequestId,
+                                    ]);
+                                }
+                            } catch (\Exception $e) {
+                                \Log::error('[ORDER CREATION] Failed to create order for product request advance payment submission', [
+                                    'product_request_id' => $productRequestId,
+                                    'error' => $e->getMessage(),
+                                    'error_class' => get_class($e),
+                                    'file' => $e->getFile(),
+                                    'line' => $e->getLine(),
+                                    'trace' => $e->getTraceAsString()
+                                ] + $logContext);
+                                // Don't fail the payment submission if order creation fails - log and continue
+                                // Order will be created when payment is approved
+                            }
+                        } else {
+                            $existingOrder = \App\Models\Order::find($productRequest->order_id);
+                            $existingOrderItemCount = $existingOrder ? $existingOrder->items()->count() : 0;
+                            
+                            \Log::info('[ORDER CREATION] Order already exists for product request, reusing existing order', [
+                                'product_request_id' => $productRequestId,
+                                'order_id' => $productRequest->order_id,
+                                'order_number' => $existingOrder ? $existingOrder->order_number : 'NOT FOUND',
+                                'order_exists' => $existingOrder !== null,
+                                'order_item_count' => $existingOrderItemCount,
+                            ] + $logContext);
+                        }
                     } elseif ($paymentType === 'product_request_final') {
                         // Check if final payment is still pending and product has arrived
                         if ($productRequest->final_payment_status !== 'pending') {
@@ -714,9 +811,18 @@ class PaymentController extends Controller
                 $totalAmount = $taxCalculation ? $taxCalculation['total'] : $validated['amount'];
                 
                 // Create corresponding payment transaction record
+                // For product request payments, link to the order if it exists (created on submission)
+                $orderIdForTransaction = null;
+                if (in_array($paymentType, ['product_request_advance', 'product_request_final']) && $productRequest) {
+                    $productRequest->refresh(); // Ensure we have latest order_id
+                    $orderIdForTransaction = $productRequest->order_id;
+                } else {
+                    $orderIdForTransaction = $order->id ?? null;
+                }
+                
                 $transactionData = [
                     'tx_ref' => $submissionRef,
-                    'order_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? null : $order->id,
+                    'order_id' => $orderIdForTransaction,
                     'product_request_id' => in_array($paymentType, ['product_request_advance', 'product_request_final']) ? $productRequest->id : null,
                     'amount' => $totalAmount, // Include tax in the amount
                     'currency' => $validated['currency'],
