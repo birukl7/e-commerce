@@ -153,7 +153,9 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
         },
     ];
 
-    const placeholderImage = '/placeholder.svg?height=100&width=100&query=product';
+    // Placeholder for orders without images - shows "No Image" clearly
+    // Using encoded SVG data URI
+    const placeholderImage = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1"/><text x="50" y="45" font-family="Arial, sans-serif" font-size="12" fill="#9ca3af" text-anchor="middle" font-weight="500">No Image</text><text x="50" y="60" font-family="Arial, sans-serif" font-size="10" fill="#d1d5db" text-anchor="middle">Available</text></svg>');
     const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isTrackingDialogOpen, setIsTrackingDialogOpen] = useState(false);
@@ -448,11 +450,20 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                                                 >
                                                     <TableCell>
                                                         <div className="flex items-center gap-4">
-                                                            <img
-                                                                src={getOrderPrimaryImage(order)}
-                                                                alt={order.product_summary || `Order ${order.order_number}`}
-                                                                className="h-12 w-12 rounded-md border border-gray-200 object-cover"
-                                                            />
+                                                            {getOrderPrimaryImage(order) && !getOrderPrimaryImage(order).startsWith('data:image/svg+xml') ? (
+                                                                <img
+                                                                    src={getOrderPrimaryImage(order)}
+                                                                    alt={order.product_summary || `Order ${order.order_number}`}
+                                                                    className="h-12 w-12 rounded-md border border-gray-200 object-cover"
+                                                                />
+                                                            ) : (
+                                                                <div className="h-12 w-12 rounded-md border border-gray-200 bg-gray-50 flex items-center justify-center">
+                                                                    <div className="text-center">
+                                                                        <p className="text-[8px] font-medium text-gray-400 leading-tight">No</p>
+                                                                        <p className="text-[8px] font-medium text-gray-400 leading-tight">Image</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                             <div className="space-y-1">
                                                                 <p className="font-medium text-gray-900">{t('orders.order')} #{order.order_number}</p>
                                                                 <p className="text-xs text-gray-500">

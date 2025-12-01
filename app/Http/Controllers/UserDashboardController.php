@@ -307,8 +307,10 @@ class UserDashboardController extends Controller
                             'has_primary_image' => !empty($item->primary_image),
                             'snapshot_has_image' => isset($snapshot['image']),
                         ]);
-                        // Return placeholder path for frontend to handle
-                        $image = '/placeholder.svg?height=100&width=100&query=product';
+                        // Return data URI placeholder that clearly shows "No Image"
+                        // Using URL-encoded SVG for better compatibility
+                        $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1"/><text x="50" y="45" font-family="Arial, sans-serif" font-size="12" fill="#9ca3af" text-anchor="middle" font-weight="500">No Image</text><text x="50" y="60" font-family="Arial, sans-serif" font-size="10" fill="#d1d5db" text-anchor="middle">Available</text></svg>';
+                        $image = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
                     }
                     
                     return [
@@ -640,8 +642,10 @@ class UserDashboardController extends Controller
                     'has_primary_image' => !empty($item->primary_image),
                     'snapshot_has_image' => isset($snapshot['image']),
                 ]);
-                // Return placeholder path for frontend to handle
-                $image = '/placeholder.svg?height=100&width=100&query=product';
+                // Return data URI placeholder that clearly shows "No Image"
+                // Using URL-encoded SVG for better compatibility
+                $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="#f3f4f6" stroke="#d1d5db" stroke-width="1"/><text x="50" y="45" font-family="Arial, sans-serif" font-size="12" fill="#9ca3af" text-anchor="middle" font-weight="500">No Image</text><text x="50" y="60" font-family="Arial, sans-serif" font-size="10" fill="#d1d5db" text-anchor="middle">Available</text></svg>';
+                $image = 'data:image/svg+xml;charset=utf-8,' . rawurlencode($svg);
             }
             
             return [

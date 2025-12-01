@@ -179,11 +179,20 @@ export default function OrderDetails({ order, taxBreakdown = [], paymentTransact
                             <CardContent className="space-y-4">
                                 {order.items.map((item) => (
                                     <div key={item.id} className="flex items-center gap-4 border-b pb-4 last:border-b-0 last:pb-0">
-                                        <img
-                                            src={item.primary_image || '/placeholder.svg?height=80&width=80&query=product'}
-                                            alt={item.product_name}
-                                            className="h-16 w-16 rounded-lg object-cover"
-                                        />
+                                        <div className="h-16 w-16 rounded-lg border border-gray-200 overflow-hidden flex items-center justify-center bg-gray-50">
+                                            {item.primary_image ? (
+                                                <img
+                                                    src={item.primary_image}
+                                                    alt={item.product_name}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="text-center p-2">
+                                                    <p className="text-xs font-medium text-gray-400">No</p>
+                                                    <p className="text-xs font-medium text-gray-400">Image</p>
+                                                </div>
+                                            )}
+                                        </div>
                                         <div className="flex-1">
                                             <Link href={`/products/${item.product_slug}`} className="font-medium hover:text-primary">
                                                 {item.product_name}
