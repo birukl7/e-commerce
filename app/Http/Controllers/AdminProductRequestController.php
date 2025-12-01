@@ -339,25 +339,46 @@ class AdminProductRequestController extends Controller
         $productRequest->refresh(); // Refresh to get latest data including rejection_reason
         
         if ($validated['status'] === 'approved' && $productRequest->amount > 0) {
-            // Send payment request to user
-            $productRequest->user->notify(new ProductRequestStatusUpdated(
-                $productRequest,
-                'Your product request has been approved. Please complete the payment to proceed.',
-                'Payment Required',
-                route('user.product-requests.payment', $productRequest->id)
-            ));
+            // Send payment request to user (wrap in try-catch to prevent notification errors from blocking update)
+            try {
+                $productRequest->user->notify(new ProductRequestStatusUpdated(
+                    $productRequest,
+                    'Your product request has been approved. Please complete the payment to proceed.',
+                    'Payment Required',
+                    route('user.product-requests.payment', $productRequest->id)
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send product request approval notification', [
+                    'product_request_id' => $productRequest->id,
+                    'user_id' => $productRequest->user_id,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                // Don't fail the update if notification fails
+            }
         } else {
-            // Send regular status update with appropriate message
-            $notificationMessage = $this->getStatusUpdateMessage($validated['status'], $productRequest);
-            $notificationSubject = $validated['status'] === 'rejected' 
-                ? 'Product Request Rejected' 
-                : 'Request ' . ucfirst($validated['status']);
-            
-            $productRequest->user->notify(new ProductRequestStatusUpdated(
-                $productRequest,
-                $notificationMessage,
-                $notificationSubject
-            ));
+            // Send regular status update with appropriate message (wrap in try-catch)
+            try {
+                $notificationMessage = $this->getStatusUpdateMessage($validated['status'], $productRequest);
+                $notificationSubject = $validated['status'] === 'rejected' 
+                    ? 'Product Request Rejected' 
+                    : 'Request ' . ucfirst($validated['status']);
+                
+                $productRequest->user->notify(new ProductRequestStatusUpdated(
+                    $productRequest,
+                    $notificationMessage,
+                    $notificationSubject
+                ));
+            } catch (\Exception $e) {
+                \Log::error('Failed to send product request status notification', [
+                    'product_request_id' => $productRequest->id,
+                    'user_id' => $productRequest->user_id,
+                    'status' => $validated['status'],
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                // Don't fail the update if notification fails
+            }
         }
 
         $statusMessages = [

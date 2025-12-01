@@ -64,6 +64,23 @@ Route::prefix('product-requests')->name('api.product-requests.')->group(function
     });
 });
 
+// Debug endpoint for payment-failed component (always available for debugging)
+Route::post('/debug/payment-failed-props', function (Request $request) {
+    \Log::info('=== FRONTEND PAYMENT FAILED PROPS RECEIVED ===', [
+        'timestamp' => now()->toISOString(),
+        'url' => $request->input('url'),
+        'frontend_timestamp' => $request->input('timestamp'),
+        'props_received' => $request->input('props'),
+        'props_json' => json_encode($request->input('props'), JSON_PRETTY_PRINT),
+        'all_request_data' => $request->all(),
+    ]);
+    
+    return response()->json([
+        'status' => 'logged',
+        'message' => 'Frontend props logged successfully',
+    ]);
+})->name('api.debug.payment-failed-props');
+
 // Test API routes (only in testing/local environment)
 // These routes are in api.php to bypass CSRF protection
 if (app()->environment(['testing', 'local']) || env('APP_ENV') === 'testing') {

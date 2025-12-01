@@ -2714,6 +2714,25 @@ class PaymentController extends Controller
     // NEW: Payment return handler for Chapa
     public function paymentReturn(Request $request, $txRef = null)
     {
+        // COMPREHENSIVE LOGGING: Log ALL incoming data from external URL
+        \Log::info('=== PAYMENT RETURN REQUEST - RAW INCOMING DATA ===', [
+            'timestamp' => now()->toISOString(),
+            'method' => $request->method(),
+            'full_url' => $request->fullUrl(),
+            'path' => $request->path(),
+            'ip' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'headers' => $request->headers->all(),
+            'query_params' => $request->query()->all(),
+            'path_params' => $request->route()->parameters(),
+            'all_input' => $request->all(),
+            'raw_content' => $request->getContent(),
+            'tx_ref_from_path' => $txRef,
+            'tx_ref_from_query' => $request->get('tx_ref'),
+            'tx_ref_from_transaction_reference' => $request->get('transaction_reference'),
+            'tx_ref_from_reference' => $request->get('reference'),
+        ]);
+        
         // Handle both path parameter and query parameter for tx_ref
         // Chapa might redirect with query parameters instead of path parameters
         if (empty($txRef)) {
@@ -2852,8 +2871,23 @@ class PaymentController extends Controller
                         'gateway_status' => $gatewayStatus,
                     ]);
                     
-                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
-                    if ($productRequest && $productRequest->user_id === auth()->id()) {
+                    // Cast product_request_id to integer to handle string IDs from tx_ref extraction
+                    $productRequestIdInt = is_numeric($productRequestId) ? (int) $productRequestId : null;
+                    $productRequest = $productRequestIdInt 
+                        ? \App\Models\ProductRequest::find($productRequestIdInt)
+                        : null;
+                    
+                    \Log::info('Product request lookup for failed payment', [
+                        'tx_ref' => $txRef,
+                        'product_request_id_raw' => $productRequestId,
+                        'product_request_id_int' => $productRequestIdInt,
+                        'product_request_found' => $productRequest !== null,
+                        'product_request_user_id' => $productRequest ? $productRequest->user_id : null,
+                        'auth_user_id' => auth()->id(),
+                        'user_id_match' => $productRequest ? ((int) $productRequest->user_id === (int) auth()->id()) : false,
+                    ]);
+                    
+                    if ($productRequest && (int) $productRequest->user_id === (int) auth()->id()) {
                         $failurePage = $isAdvancePayment 
                             ? 'product-requests/advance-payment-failure'
                             : 'product-requests/final-payment-failure';
@@ -2896,8 +2930,23 @@ class PaymentController extends Controller
                 // BUT: Check for duplicate payments first
                 if ($gatewayStatus === 'paid' || $gatewayStatus === 'pending' || $gatewayStatus === 'processing') {
                         // Refresh product request to get latest status
-                        $productRequest = \App\Models\ProductRequest::find($productRequestId);
-                        if ($productRequest && $productRequest->user_id === auth()->id()) {
+                        // Cast product_request_id to integer to handle string IDs from tx_ref extraction
+                        $productRequestIdInt = is_numeric($productRequestId) ? (int) $productRequestId : null;
+                        $productRequest = $productRequestIdInt 
+                            ? \App\Models\ProductRequest::find($productRequestIdInt)
+                            : null;
+                        
+                        \Log::info('Product request lookup for payment return', [
+                            'tx_ref' => $txRef,
+                            'product_request_id_raw' => $productRequestId,
+                            'product_request_id_int' => $productRequestIdInt,
+                            'product_request_found' => $productRequest !== null,
+                            'product_request_user_id' => $productRequest ? $productRequest->user_id : null,
+                            'auth_user_id' => auth()->id(),
+                            'user_id_match' => $productRequest ? ((int) $productRequest->user_id === (int) auth()->id()) : false,
+                        ]);
+                        
+                        if ($productRequest && (int) $productRequest->user_id === (int) auth()->id()) {
                             $productRequest->refresh();
                             
                             // Get the payment transaction for details
@@ -3096,13 +3145,36 @@ class PaymentController extends Controller
                             ],
                         ];
                         
-                        \Log::error('=== RENDERING PAYMENT FAILED PAGE ===', [
+                        // COMPREHENSIVE LOGGING: Log what we're sending to frontend
+                        \Log::error('=== RENDERING PAYMENT FAILED PAGE - DATA BEING SENT TO FRONTEND ===', [
+                            'component' => 'payment/payment-failed',
                             'render_data' => $renderData,
+                            'render_data_json' => json_encode($renderData, JSON_PRETTY_PRINT),
+                            'render_data_keys' => array_keys($renderData),
+                            'render_data_types' => array_map('gettype', $renderData),
                             'product_request_id' => $productRequestId,
                             'user_id' => auth()->id(),
                             'tx_ref' => $txRef,
                             'transaction_amount' => $transaction->amount ?? 0,
                             'transaction_currency' => $transaction->currency ?? 'ETB',
+                            'transaction_id' => $transaction->id,
+                            'transaction_gateway_status' => $transaction->gateway_status,
+                            'transaction_admin_status' => $transaction->admin_status,
+                        ]);
+                        
+                        // Log what the frontend component expects
+                        \Log::info('=== FRONTEND COMPONENT EXPECTED PROPS ===', [
+                            'expected_props' => [
+                                'order_id' => 'string | null',
+                                'order_number' => 'string | null',
+                                'error' => 'string',
+                                'error_code' => 'string | undefined',
+                                'amount' => 'number | string',
+                                'currency' => 'string',
+                                'retry_url' => 'string | undefined',
+                                'auth' => 'object | undefined',
+                                'transaction_id' => 'string | undefined',
+                            ],
                         ]);
                         
                         return Inertia::render('payment/payment-failed', $renderData);

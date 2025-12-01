@@ -86,6 +86,7 @@ class ProductRequestStatusUpdated extends Notification implements ShouldQueue
 
     /**
      * Get the array representation of the notification.
+     * NOTE: This is used for mail notifications. For database notifications, use toDatabase().
      */
     public function toArray(object $notifiable): array
     {
@@ -103,17 +104,22 @@ class ProductRequestStatusUpdated extends Notification implements ShouldQueue
     /**
      * Get the database representation of the notification.
      * This is used to populate the title and message columns separately.
+     * CRITICAL: This method MUST return 'title' and 'message' keys for the database channel.
      */
     public function toDatabase(object $notifiable): array
     {
+        // Ensure subject is never null/empty
+        $title = $this->subject ?? 'Product Request Update';
+        $message = $this->message ?? 'Your product request status has been updated.';
+        
         return [
-            'title' => $this->subject,
-            'message' => $this->message,
+            'title' => $title,
+            'message' => $message,
             'data' => [
                 'product_request_id' => $this->productRequest->id,
                 'action_url' => $this->actionUrl,
                 'action_text' => $this->actionText,
-                'amount' => $this->productRequest->amount,
+                'amount' => $this->productRequest->amount ? number_format($this->productRequest->amount, 2) : null,
                 'currency' => $this->productRequest->currency,
                 'status' => $this->productRequest->status,
             ],

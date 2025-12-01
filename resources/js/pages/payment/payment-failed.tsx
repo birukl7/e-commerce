@@ -34,27 +34,96 @@ interface PaymentFailedProps {
 }
 
 export default function PaymentFailed(props: PaymentFailedProps) {
-    // Enhanced logging for debugging
+    // Enhanced logging for debugging - Log EVERYTHING
     useEffect(() => {
-        console.group('Payment Failed Component Mounted');
-        console.log('=== Component Props ===');
-        console.log('Order ID:', props?.order_id);
-        console.log('Order Number:', props?.order_number);
-        console.log('Error:', props?.error);
-        console.log('Error Code:', props?.error_code);
-        console.log('Amount:', props?.amount);
-        console.log('Currency:', props?.currency);
-        console.log('Transaction ID:', props?.transaction_id);
-        console.log('Retry URL:', props?.retry_url);
-        console.log('User:', props?.auth?.user);
-        console.log('Full Props:', props);
+        console.group('🔴 PAYMENT FAILED COMPONENT - COMPREHENSIVE DEBUG LOG');
+        console.log('=== COMPONENT MOUNTED ===');
+        console.log('Timestamp:', new Date().toISOString());
+        console.log('');
+        
+        console.log('=== RAW PROPS RECEIVED ===');
+        console.log('Props:', props);
         console.log('Props Type:', typeof props);
-        console.log('Props Keys:', props ? Object.keys(props) : 'props is null/undefined');
+        console.log('Props is null?', props === null);
+        console.log('Props is undefined?', props === undefined);
+        console.log('Props Keys:', props ? Object.keys(props) : 'N/A');
+        console.log('');
+        
+        console.log('=== INDIVIDUAL PROP VALUES ===');
+        console.log('order_id:', props?.order_id, '| Type:', typeof props?.order_id);
+        console.log('order_number:', props?.order_number, '| Type:', typeof props?.order_number);
+        console.log('error:', props?.error, '| Type:', typeof props?.error);
+        console.log('error_code:', props?.error_code, '| Type:', typeof props?.error_code);
+        console.log('amount:', props?.amount, '| Type:', typeof props?.amount);
+        console.log('currency:', props?.currency, '| Type:', typeof props?.currency);
+        console.log('transaction_id:', props?.transaction_id, '| Type:', typeof props?.transaction_id);
+        console.log('retry_url:', props?.retry_url, '| Type:', typeof props?.retry_url);
+        console.log('auth:', props?.auth, '| Type:', typeof props?.auth);
+        console.log('auth.user:', props?.auth?.user, '| Type:', typeof props?.auth?.user);
+        console.log('');
+        
+        console.log('=== PROPS JSON SERIALIZATION ===');
+        try {
+            console.log('JSON.stringify(props):', JSON.stringify(props, null, 2));
+        } catch (e) {
+            console.error('Failed to stringify props:', e);
+        }
+        console.log('');
+        
+        console.log('=== WINDOW INERTIA DATA ===');
+        if (typeof window !== 'undefined') {
+            const appElement = document.getElementById('app');
+            if (appElement) {
+                const dataPage = appElement.getAttribute('data-page');
+                console.log('data-page attribute:', dataPage);
+                try {
+                    const parsed = dataPage ? JSON.parse(dataPage) : null;
+                    console.log('Parsed data-page:', parsed);
+                    if (parsed?.props) {
+                        console.log('Props from data-page:', parsed.props);
+                        console.log('Component from data-page:', parsed.component);
+                    }
+                } catch (e) {
+                    console.error('Failed to parse data-page:', e);
+                }
+            }
+        }
+        console.log('');
+        
+        console.log('=== COMPONENT STATE CHECK ===');
+        console.log('Component will render:', props !== null && props !== undefined);
+        console.log('Has error prop:', !!props?.error);
+        console.log('Has required props:', {
+            hasError: !!props?.error,
+            hasAmount: props?.amount !== null && props?.amount !== undefined,
+            hasCurrency: !!props?.currency,
+        });
         console.groupEnd();
 
         // Log to window for easier access in browser console
         if (typeof window !== 'undefined') {
             window.paymentFailedProps = props;
+            window.paymentFailedDebug = {
+                props,
+                timestamp: new Date().toISOString(),
+                component: 'PaymentFailed',
+            };
+        }
+        
+        // Also send to backend via fetch for logging (non-blocking)
+        if (props && typeof window !== 'undefined') {
+            fetch('/api/debug/payment-failed-props', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+                body: JSON.stringify({
+                    props: props,
+                    url: window.location.href,
+                    timestamp: new Date().toISOString(),
+                }),
+            }).catch(err => console.warn('Failed to send debug data to backend:', err));
         }
     }, [props]);
     
