@@ -122,6 +122,7 @@ class UserDashboardController extends Controller
                 ->select([
                     'oi.order_id',
                     'oi.id as item_id',
+                    'oi.product_id', // Include product_id for logging and null checks
                     'oi.quantity',
                     'oi.price as item_price',
                     'oi.product_snapshot',
@@ -555,6 +556,7 @@ class UserDashboardController extends Controller
             ->select([
                 'o.*',
                 'oi.id as item_id',
+                'oi.product_id', // Include product_id for logging and null checks
                 'oi.quantity',
                 'oi.price as item_price',
                 'oi.total as item_total',
