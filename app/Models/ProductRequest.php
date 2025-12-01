@@ -133,70 +133,109 @@ class ProductRequest extends Model
         
         // Wrap order and order item creation in a transaction to ensure atomicity
         // If order item creation fails, the order will be rolled back
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $taxCalculation, $markPaid) {
-            $order = new Order([
-                'user_id' => $this->user_id,
-                'status' => 'processing', // Orders created from product requests start as processing
-                'payment_status' => $markPaid ? 'paid' : 'pending',
-                'payment_method' => $this->payment_method ?? 'offline', // Default to offline if not set
-                'currency' => $this->currency,
-                'subtotal' => $amount,
-                'tax_amount' => round($taxCalculation['total_tax_amount'], 2),
-                'shipping_amount' => $this->shipping_cost ?? 0,
-                'total_amount' => round($taxCalculation['total'] + ($this->shipping_cost ?? 0), 2),
-                'shipping_fullname' => optional($this->user)->name,
-                'shipping_email' => optional($this->user)->email,
-                'shipping_phone' => optional($this->user)->phone,
-                'shipping_address' => $this->shipping_address,
-                'notes' => 'Created from product request #' . $this->id,
-            ]);
-
-            $order->save();
-
-            // Create order item for the product request
-            // For product requests, product_id can be null since it's not a regular product
-            // This MUST succeed, otherwise the transaction will rollback and the order won't be created
-            $orderItem = \App\Models\OrderItem::create([
-                'order_id' => $order->id,
-                'product_id' => null, // Product requests don't have a product_id
-                'product_snapshot' => [
-                    'id' => null,
-                    'name' => $this->product_name,
-                    'price' => (float) $amount,
-                    'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
+        try {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $taxCalculation, $markPaid) {
+                \Illuminate\Support\Facades\Log::info('Starting order creation transaction for product request', [
                     'product_request_id' => $this->id,
-                    'description' => $this->description,
-                    'created_at' => now()->toDateTimeString(),
-                    'updated_at' => now()->toDateTimeString(),
-                ],
-                'quantity' => $this->quantity ?? 1,
-                'price' => (float) $amount,
-                'total' => (float) $amount * ($this->quantity ?? 1),
-            ]);
-
-            // Verify order item was created successfully
-            if (!$orderItem || !$orderItem->id) {
-                throw new \RuntimeException('Failed to create order item for product request #' . $this->id);
-            }
-
-            // Update product request with order_id (only after successful order and item creation)
-            $this->order_id = $order->id;
-            $this->save();
-
-            // Emit advance-created order event (non-critical, so wrap in try-catch)
-            try {
-                event(new OrderCreatedFromAdvance($order));
-            } catch (\Throwable $e) {
-                // Log but don't fail the transaction
-                \Illuminate\Support\Facades\Log::warning('Failed to emit OrderCreatedFromAdvance event', [
-                    'product_request_id' => $this->id,
-                    'order_id' => $order->id,
-                    'error' => $e->getMessage()
+                    'user_id' => $this->user_id,
+                    'amount' => $amount
                 ]);
-            }
 
-            return $order;
-        });
+                $order = new Order([
+                    'user_id' => $this->user_id,
+                    'status' => 'processing', // Orders created from product requests start as processing
+                    'payment_status' => $markPaid ? 'paid' : 'pending',
+                    'payment_method' => $this->payment_method ?? 'offline', // Default to offline if not set
+                    'currency' => $this->currency,
+                    'subtotal' => $amount,
+                    'tax_amount' => round($taxCalculation['total_tax_amount'], 2),
+                    'shipping_amount' => $this->shipping_cost ?? 0,
+                    'total_amount' => round($taxCalculation['total'] + ($this->shipping_cost ?? 0), 2),
+                    'shipping_fullname' => optional($this->user)->name,
+                    'shipping_email' => optional($this->user)->email,
+                    'shipping_phone' => optional($this->user)->phone,
+                    'shipping_address' => $this->shipping_address,
+                    'notes' => 'Created from product request #' . $this->id,
+                ]);
+
+                $order->save();
+                \Illuminate\Support\Facades\Log::info('Order saved in transaction', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'product_request_id' => $this->id
+                ]);
+
+                // Create order item for the product request
+                // For product requests, product_id can be null since it's not a regular product
+                // This MUST succeed, otherwise the transaction will rollback and the order won't be created
+                $orderItem = \App\Models\OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => null, // Product requests don't have a product_id
+                    'product_snapshot' => [
+                        'id' => null,
+                        'name' => $this->product_name,
+                        'price' => (float) $amount,
+                        'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
+                        'product_request_id' => $this->id,
+                        'description' => $this->description,
+                        'created_at' => now()->toDateTimeString(),
+                        'updated_at' => now()->toDateTimeString(),
+                    ],
+                    'quantity' => $this->quantity ?? 1,
+                    'price' => (float) $amount,
+                    'total' => (float) $amount * ($this->quantity ?? 1),
+                ]);
+
+                \Illuminate\Support\Facades\Log::info('Order item created in transaction', [
+                    'order_item_id' => $orderItem->id ?? null,
+                    'order_id' => $order->id,
+                    'product_request_id' => $this->id
+                ]);
+
+                // Verify order item was created successfully
+                if (!$orderItem || !$orderItem->id) {
+                    throw new \RuntimeException('Failed to create order item for product request #' . $this->id);
+                }
+
+                // Update product request with order_id (only after successful order and item creation)
+                $this->order_id = $order->id;
+                $this->save();
+
+                \Illuminate\Support\Facades\Log::info('Product request updated with order_id', [
+                    'product_request_id' => $this->id,
+                    'order_id' => $order->id
+                ]);
+
+                // Emit advance-created order event (non-critical, so wrap in try-catch)
+                try {
+                    event(new OrderCreatedFromAdvance($order));
+                } catch (\Throwable $e) {
+                    // Log but don't fail the transaction
+                    \Illuminate\Support\Facades\Log::warning('Failed to emit OrderCreatedFromAdvance event', [
+                        'product_request_id' => $this->id,
+                        'order_id' => $order->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+
+                \Illuminate\Support\Facades\Log::info('Order creation transaction completed successfully', [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'product_request_id' => $this->id
+                ]);
+
+                return $order;
+            }, 3); // Retry up to 3 times on deadlock
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Order creation transaction failed for product request', [
+                'product_request_id' => $this->id,
+                'user_id' => $this->user_id,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
+        }
     }
 
     /**

@@ -134,18 +134,34 @@ class PaymentFinalizer
                         // Create order when advance payment is approved (if it doesn't exist)
                         // This order will be reused for final payment
                         if ($result && !$productRequest->order_id) {
-                            // Create order with total amount (advance + final)
-                            // The order is created as 'pending' payment status since final payment is not yet made
-                            $order = $productRequest->createOrder(markPaid: false);
-                            
-                            // Update payment transaction with order_id
-                            $payment->update(['order_id' => $order->id]);
-                            
-                            Log::info('Order created for product request advance payment', [
-                                'product_request_id' => $productRequest->id,
-                                'order_id' => $order->id,
-                                'payment_id' => $payment->id
-                            ]);
+                            try {
+                                // Create order with total amount (advance + final)
+                                // The order is created as 'pending' payment status since final payment is not yet made
+                                $order = $productRequest->createOrder(markPaid: false);
+                                
+                                // Verify order was created successfully
+                                if (!$order || !$order->id) {
+                                    throw new \RuntimeException('createOrder returned null or order without ID');
+                                }
+                                
+                                // Update payment transaction with order_id
+                                $payment->update(['order_id' => $order->id]);
+                                
+                                Log::info('Order created for product request advance payment', [
+                                    'product_request_id' => $productRequest->id,
+                                    'order_id' => $order->id,
+                                    'payment_id' => $payment->id
+                                ]);
+                            } catch (\Exception $e) {
+                                Log::error('Failed to create order for product request advance payment', [
+                                    'product_request_id' => $productRequest->id,
+                                    'payment_id' => $payment->id,
+                                    'error' => $e->getMessage(),
+                                    'trace' => $e->getTraceAsString()
+                                ]);
+                                // Re-throw to prevent payment finalization if order creation fails
+                                throw $e;
+                            }
                         } else {
                             // Order already exists, just update the payment transaction
                             $productRequest->refresh();
