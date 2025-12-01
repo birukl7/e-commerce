@@ -104,33 +104,53 @@ class PaymentController extends Controller
             DB::beginTransaction();
 
             try {
-                // Create or update order with items
-                $existingOrder = Order::where('order_number', $orderId)
-                    ->where('user_id', $user->id)
-                    ->first();
+                $paymentType = $request->get('payment_type', 'regular');
+                $isProductRequestPayment = in_array($paymentType, ['product_request_advance', 'product_request_final']);
+                $productRequestId = $request->get('product_request_id');
                 
-                if ($existingOrder) {
-                    // If order exists but has no items, try to add them
-                    if ($existingOrder->items()->count() === 0 && !empty($cartItems)) {
-                        $this->addItemsToOrder($existingOrder, $cartItems);
-                        $existingOrder->refresh();
+                $existingOrder = null;
+                
+                // For product request payments, use the order from ProductRequest if it exists
+                // Don't create orders here - let PaymentFinalizer create them when payment is approved
+                if ($isProductRequestPayment && $productRequestId) {
+                    $productRequest = \App\Models\ProductRequest::find($productRequestId);
+                    if ($productRequest && $productRequest->order_id) {
+                        // Use existing order from product request
+                        $existingOrder = Order::find($productRequest->order_id);
+                        if ($existingOrder && $existingOrder->user_id !== $user->id) {
+                            // Security check: ensure order belongs to user
+                            $existingOrder = null;
+                        }
                     }
+                    // If no order exists yet, that's fine - PaymentFinalizer will create it when payment is approved
+                    // We don't create orders here for product requests to avoid creating orders without items
                 } else {
-                    // Create new order with items
-                    $shippingAddress = $request->get('shipping_address');
-                    $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems, $shippingAddress);
-                    if (!$order) {
-                        DB::rollBack();
-                        return redirect()->route('checkout')->with('error', 'Failed to create order. Please try again.');
+                    // For regular payments, create or update order with items
+                    $existingOrder = Order::where('order_number', $orderId)
+                        ->where('user_id', $user->id)
+                        ->first();
+                    
+                    if ($existingOrder) {
+                        // If order exists but has no items, try to add them
+                        if ($existingOrder->items()->count() === 0 && !empty($cartItems)) {
+                            $this->addItemsToOrder($existingOrder, $cartItems);
+                            $existingOrder->refresh();
+                        }
+                    } else {
+                        // Create new order with items
+                        $shippingAddress = $request->get('shipping_address');
+                        $order = $this->createOrderFromCart($orderId, $amount, $currency, $cartItems, $shippingAddress);
+                        if (!$order) {
+                            DB::rollBack();
+                            return redirect()->route('checkout')->with('error', 'Failed to create order. Please try again.');
+                        }
+                        $existingOrder = $order;
                     }
-                    $existingOrder = $order;
                 }
                 
                 // Ensure we have an order with items (skip check for product request payments)
-                $paymentType = $request->get('payment_type', 'regular');
-                $isProductRequestPayment = in_array($paymentType, ['product_request_advance', 'product_request_final']);
-                
-                if ($existingOrder->items()->count() === 0 && !$isProductRequestPayment) {
+                // For product request payments, order might not exist yet (will be created by PaymentFinalizer)
+                if ($existingOrder && $existingOrder->items()->count() === 0 && !$isProductRequestPayment) {
                     DB::rollBack();
                     Log::error('Order created without items', [
                         'order_id' => $orderId,

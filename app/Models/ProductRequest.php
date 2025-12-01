@@ -8,6 +8,7 @@ use App\Events\ProductRequestStatusChanged;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ProductRequest extends Model
 {
@@ -130,56 +131,72 @@ class ProductRequest extends Model
         $taxService = app(\App\Services\TaxService::class);
         $taxCalculation = $taxService->calculateTaxes($amount);
         
-        $order = new Order([
-            'user_id' => $this->user_id,
-            'status' => 'processing', // Orders created from product requests start as processing
-            'payment_status' => $markPaid ? 'paid' : 'pending',
-            'payment_method' => $this->payment_method ?? 'offline', // Default to offline if not set
-            'currency' => $this->currency,
-            'subtotal' => $amount,
-            'tax_amount' => round($taxCalculation['total_tax_amount'], 2),
-            'shipping_amount' => $this->shipping_cost ?? 0,
-            'total_amount' => round($taxCalculation['total'] + ($this->shipping_cost ?? 0), 2),
-            'shipping_fullname' => optional($this->user)->name,
-            'shipping_email' => optional($this->user)->email,
-            'shipping_phone' => optional($this->user)->phone,
-            'shipping_address' => $this->shipping_address,
-            'notes' => 'Created from product request #' . $this->id,
-        ]);
+        // Wrap order and order item creation in a transaction to ensure atomicity
+        // If order item creation fails, the order will be rolled back
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($amount, $taxCalculation, $markPaid) {
+            $order = new Order([
+                'user_id' => $this->user_id,
+                'status' => 'processing', // Orders created from product requests start as processing
+                'payment_status' => $markPaid ? 'paid' : 'pending',
+                'payment_method' => $this->payment_method ?? 'offline', // Default to offline if not set
+                'currency' => $this->currency,
+                'subtotal' => $amount,
+                'tax_amount' => round($taxCalculation['total_tax_amount'], 2),
+                'shipping_amount' => $this->shipping_cost ?? 0,
+                'total_amount' => round($taxCalculation['total'] + ($this->shipping_cost ?? 0), 2),
+                'shipping_fullname' => optional($this->user)->name,
+                'shipping_email' => optional($this->user)->email,
+                'shipping_phone' => optional($this->user)->phone,
+                'shipping_address' => $this->shipping_address,
+                'notes' => 'Created from product request #' . $this->id,
+            ]);
 
-        $order->save();
+            $order->save();
 
-        // Create order item for the product request
-        // For product requests, product_id can be null since it's not a regular product
-        $orderItem = \App\Models\OrderItem::create([
-            'order_id' => $order->id,
-            'product_id' => null, // Product requests don't have a product_id
-            'product_snapshot' => [
-                'id' => null,
-                'name' => $this->product_name,
+            // Create order item for the product request
+            // For product requests, product_id can be null since it's not a regular product
+            // This MUST succeed, otherwise the transaction will rollback and the order won't be created
+            $orderItem = \App\Models\OrderItem::create([
+                'order_id' => $order->id,
+                'product_id' => null, // Product requests don't have a product_id
+                'product_snapshot' => [
+                    'id' => null,
+                    'name' => $this->product_name,
+                    'price' => (float) $amount,
+                    'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
+                    'product_request_id' => $this->id,
+                    'description' => $this->description,
+                    'created_at' => now()->toDateTimeString(),
+                    'updated_at' => now()->toDateTimeString(),
+                ],
+                'quantity' => $this->quantity ?? 1,
                 'price' => (float) $amount,
-                'image' => $this->image ? \App\Services\ImageUrlService::formatImageUrl($this->image) : null,
-                'product_request_id' => $this->id,
-                'description' => $this->description,
-                'created_at' => now()->toDateTimeString(),
-                'updated_at' => now()->toDateTimeString(),
-            ],
-            'quantity' => $this->quantity ?? 1,
-            'price' => (float) $amount,
-            'total' => (float) $amount * ($this->quantity ?? 1),
-        ]);
+                'total' => (float) $amount * ($this->quantity ?? 1),
+            ]);
 
-        // Emit advance-created order event
-        try {
-            event(new OrderCreatedFromAdvance($order));
-        } catch (\Throwable $e) {
-            // ignore
-        }
+            // Verify order item was created successfully
+            if (!$orderItem || !$orderItem->id) {
+                throw new \RuntimeException('Failed to create order item for product request #' . $this->id);
+            }
 
-        $this->order_id = $order->id;
-        $this->save();
+            // Update product request with order_id (only after successful order and item creation)
+            $this->order_id = $order->id;
+            $this->save();
 
-        return $order;
+            // Emit advance-created order event (non-critical, so wrap in try-catch)
+            try {
+                event(new OrderCreatedFromAdvance($order));
+            } catch (\Throwable $e) {
+                // Log but don't fail the transaction
+                \Illuminate\Support\Facades\Log::warning('Failed to emit OrderCreatedFromAdvance event', [
+                    'product_request_id' => $this->id,
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
+            return $order;
+        });
     }
 
     /**
