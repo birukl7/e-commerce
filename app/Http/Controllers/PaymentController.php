@@ -2722,6 +2722,12 @@ class PaymentController extends Controller
             ? $request->headers->all() 
             : (is_array($request->headers) ? $request->headers : []);
         
+        // Safely get query parameters - handle both ParameterBag object and array
+        $query = $request->query();
+        $queryParams = is_object($query) && method_exists($query, 'all') 
+            ? $query->all() 
+            : (is_array($query) ? $query : []);
+        
         \Log::info('=== PAYMENT RETURN REQUEST - RAW INCOMING DATA ===', [
             'timestamp' => now()->toISOString(),
             'method' => $request->method(),
@@ -2730,7 +2736,7 @@ class PaymentController extends Controller
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'headers' => $headers,
-            'query_params' => $request->query()->all(),
+            'query_params' => $queryParams,
             'path_params' => $request->route() ? $request->route()->parameters() : [],
             'all_input' => $request->all(),
             'raw_content' => $request->getContent(),
