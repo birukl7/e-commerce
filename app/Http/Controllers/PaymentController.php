@@ -2751,6 +2751,11 @@ class PaymentController extends Controller
         if (empty($txRef)) {
             $txRef = $request->get('tx_ref') ?? $request->get('transaction_reference') ?? $request->get('reference');
         }
+        
+        // Extract error code from Chapa return URL query parameters if available
+        // Chapa might include error information in the return URL
+        $chapaErrorCode = $request->get('status') ?? $request->get('error_code') ?? $request->get('error');
+        $chapaStatus = $request->get('status');
 
         \Log::info('=== PAYMENT RETURN REQUEST STARTED ===', [
             'tx_ref' => $txRef,
@@ -2802,7 +2807,25 @@ class PaymentController extends Controller
                 'customer_email' => $transaction->customer_email,
                 'user_id' => $transaction->user_id,
                 'gateway_payload' => $transaction->gateway_payload,
+                'chapa_return_status' => $chapaStatus ?? null,
+                'chapa_return_error_code' => $chapaErrorCode ?? null,
             ]);
+            
+            // Update transaction status from Chapa return URL if provided and different
+            // This helps capture the latest status from Chapa
+            if (isset($chapaStatus) && $chapaStatus && $transaction->gateway_status !== $this->mapChapaStatusToGatewayStatus($chapaStatus)) {
+                $mappedStatus = $this->mapChapaStatusToGatewayStatus($chapaStatus);
+                if ($mappedStatus) {
+                    \Log::info('Updating transaction status from Chapa return URL', [
+                        'tx_ref' => $txRef,
+                        'old_status' => $transaction->gateway_status,
+                        'new_status' => $mappedStatus,
+                        'chapa_status' => $chapaStatus,
+                    ]);
+                    $transaction->gateway_status = $mappedStatus;
+                    $transaction->save();
+                }
+            }
 
             // Use OrderLookupService for consistent order lookup and normalization
             // This handles all cases: numeric order_id, string order_number, NULL order_id, etc.
@@ -3042,8 +3065,17 @@ class PaymentController extends Controller
                                 ]);
                                 // Return to product request failure page
                                 return Inertia::render('product-requests/advance-payment-failure', [
-                                    'productRequest' => $productRequest,
-                                    'message' => 'This request has been terminated. Payment cannot be processed.',
+                                    'productRequest' => [
+                                        'id' => $productRequest->id,
+                                        'product_name' => $productRequest->product_name,
+                                        'advance_amount' => $productRequest->advance_amount,
+                                        'final_amount' => $productRequest->final_amount,
+                                        'currency' => $productRequest->currency,
+                                    ],
+                                    'error_message' => 'This request has been terminated. Payment cannot be processed.',
+                                    'error_code' => 'request_terminated',
+                                    'payment_method' => 'chapa',
+                                    'transaction_id' => $txRef,
                                 ]);
                             }
 
@@ -3074,8 +3106,17 @@ class PaymentController extends Controller
                                 ]);
                                 // Return to product request failure page
                                 return Inertia::render('product-requests/final-payment-failure', [
-                                    'productRequest' => $productRequest,
-                                    'message' => 'This request has been terminated. Payment cannot be processed.',
+                                    'productRequest' => [
+                                        'id' => $productRequest->id,
+                                        'product_name' => $productRequest->product_name,
+                                        'advance_amount' => $productRequest->advance_amount,
+                                        'final_amount' => $productRequest->final_amount,
+                                        'currency' => $productRequest->currency,
+                                    ],
+                                    'error_message' => 'This request has been terminated. Payment cannot be processed.',
+                                    'error_code' => 'request_terminated',
+                                    'payment_method' => 'chapa',
+                                    'transaction_id' => $txRef,
                                 ]);
                             }
 
@@ -3226,6 +3267,25 @@ class PaymentController extends Controller
                             ? 'product-requests/advance-payment-failure'
                             : 'product-requests/final-payment-failure';
                         
+                        // Extract error code from transaction and Chapa return URL
+                        $errorCode = null;
+                        $transactionId = $txRef;
+                        
+                        // First try to get error code from Chapa return URL
+                        if (isset($chapaErrorCode) && $chapaErrorCode) {
+                            $errorCode = $this->normalizeErrorCode($chapaErrorCode);
+                        }
+                        
+                        // Then try from transaction data
+                        if (!$errorCode && $transaction) {
+                            $errorCode = $this->extractErrorCode($transaction, $gatewayStatus);
+                        }
+                        
+                        // Fallback to status-based error code
+                        if (!$errorCode) {
+                            $errorCode = $this->mapStatusToErrorCode($gatewayStatus);
+                        }
+                        
                         return Inertia::render($failurePage, [
                             'productRequest' => [
                                 'id' => $productRequest->id,
@@ -3235,7 +3295,9 @@ class PaymentController extends Controller
                                 'currency' => $productRequest->currency,
                             ],
                             'error_message' => 'Payment was not successful. Please try again.',
+                            'error_code' => $errorCode,
                             'payment_method' => 'chapa',
+                            'transaction_id' => $transactionId,
                             'retry_url' => $isAdvancePayment 
                                 ? route('payment.show', ['order_id' => 'ADV-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->advance_amount, 'payment_type' => 'product_request_advance', 'product_request_id' => $productRequest->id])
                                 : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
@@ -3501,6 +3563,25 @@ class PaymentController extends Controller
                             ? 'product-requests/advance-payment-failure'
                             : 'product-requests/final-payment-failure';
                         
+                        // Extract error code from transaction and Chapa return URL
+                        $errorCode = null;
+                        $transactionId = $txRef;
+                        
+                        // First try to get error code from Chapa return URL
+                        if (isset($chapaErrorCode) && $chapaErrorCode) {
+                            $errorCode = $this->normalizeErrorCode($chapaErrorCode);
+                        }
+                        
+                        // Then try from transaction data
+                        if (!$errorCode && $transaction) {
+                            $errorCode = $this->extractErrorCode($transaction, $gatewayStatus);
+                        }
+                        
+                        // Fallback to status-based error code
+                        if (!$errorCode) {
+                            $errorCode = $this->mapStatusToErrorCode($gatewayStatus);
+                        }
+                        
                         return Inertia::render($failurePage, [
                             'productRequest' => [
                                 'id' => $productRequest->id,
@@ -3510,7 +3591,9 @@ class PaymentController extends Controller
                                 'currency' => $productRequest->currency,
                             ],
                             'error_message' => 'Payment was not successful. Please try again.',
+                            'error_code' => $errorCode,
                             'payment_method' => 'chapa',
+                            'transaction_id' => $transactionId,
                             'retry_url' => $isAdvancePayment 
                                 ? route('payment.show', ['order_id' => 'ADV-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->advance_amount, 'payment_type' => 'product_request_advance', 'product_request_id' => $productRequest->id])
                                 : route('payment.show', ['order_id' => 'FINAL-' . $productRequest->id . '-' . time(), 'amount' => $productRequest->final_amount, 'payment_type' => 'product_request_final', 'product_request_id' => $productRequest->id]),
@@ -3519,12 +3602,32 @@ class PaymentController extends Controller
                 }
                 
                 // Regular order payment failure page
+                // Extract error code from transaction and Chapa return URL
+                $errorCode = null;
+                
+                // First try to get error code from Chapa return URL
+                if (isset($chapaErrorCode) && $chapaErrorCode) {
+                    $errorCode = $this->normalizeErrorCode($chapaErrorCode);
+                }
+                
+                // Then try from transaction data
+                if (!$errorCode) {
+                    $errorCode = $this->extractErrorCode($transaction, $transaction->gateway_status);
+                }
+                
+                // Fallback to status-based error code or default
+                if (!$errorCode) {
+                    $errorCode = $this->mapStatusToErrorCode($transaction->gateway_status) 
+                        ?? 'payment_failed';
+                }
+                
                 return Inertia::render('payment/payment-failed', [
                     'order_id' => $order->order_number,
+                    'order_number' => $order->order_number,
                     'amount' => $transaction->amount,
                     'currency' => $transaction->currency,
                     'error' => 'Payment was not successful',
-                    'error_code' => $transaction->gateway_status ?? 'payment_failed',
+                    'error_code' => $errorCode,
                     'transaction_id' => $transaction->tx_ref,
                     'show_contact_support' => true,
                     'support_reference' => $txRef,
@@ -3623,6 +3726,140 @@ class PaymentController extends Controller
         ]);
         
         return $mappedStatus;
+    }
+
+    /**
+     * Extract error code from transaction data, Chapa response, or status
+     * This helps provide specific error messages to users
+     */
+    private function extractErrorCode($transaction, ?string $gatewayStatus = null, ?array $gatewayPayload = null): ?string
+    {
+        // Get gateway status from transaction if not provided
+        $status = $gatewayStatus ?? $transaction->gateway_status ?? null;
+        $payload = $gatewayPayload ?? ($transaction->gateway_payload ?? null);
+        
+        // Parse payload if it's a string
+        if (is_string($payload)) {
+            $payload = json_decode($payload, true);
+        }
+        
+        // Check payload for specific error codes from Chapa
+        if (is_array($payload)) {
+            // Chapa might return error codes in different fields
+            $errorCode = $payload['error_code'] ?? $payload['code'] ?? $payload['error'] ?? null;
+            if ($errorCode) {
+                return $this->normalizeErrorCode($errorCode);
+            }
+            
+            // Check for specific error messages that indicate error types
+            $errorMessage = $payload['message'] ?? $payload['error_message'] ?? null;
+            if ($errorMessage) {
+                $errorCode = $this->inferErrorCodeFromMessage($errorMessage);
+                if ($errorCode) {
+                    return $errorCode;
+                }
+            }
+        }
+        
+        // Map gateway status to error codes
+        if ($status) {
+            $normalizedStatus = strtolower($status);
+            return match ($normalizedStatus) {
+                'cancelled' => 'user_cancelled',
+                'timeout', 'expired' => 'timeout',
+                'failed' => $this->inferErrorCodeFromTransaction($transaction) ?? 'processing_error',
+                default => null,
+            };
+        }
+        
+        return null;
+    }
+
+    /**
+     * Normalize error codes from various sources to our standard codes
+     */
+    private function normalizeErrorCode(?string $code): ?string
+    {
+        if (!$code) return null;
+        
+        $normalized = strtolower(trim($code));
+        
+        // Map common Chapa error codes to our standard codes
+        return match ($normalized) {
+            'insufficient_funds', 'insufficient_balance', 'low_balance' => 'insufficient_funds',
+            'user_cancelled', 'cancelled', 'cancel' => 'user_cancelled',
+            'invalid_phone', 'invalid_account', 'invalid_number' => 'invalid_phone',
+            'timeout', 'expired', 'session_expired' => 'timeout',
+            'declined', 'card_declined', 'payment_declined' => 'declined',
+            'wrong_pin', 'invalid_pin', 'pin_failed', 'authentication_failed' => 'wrong_pin',
+            'account_locked', 'locked' => 'account_locked',
+            'network_error', 'connection_error' => 'network_error',
+            'duplicate', 'duplicate_transaction' => 'duplicate_transaction',
+            default => $normalized,
+        };
+    }
+
+    /**
+     * Infer error code from error message text
+     */
+    private function inferErrorCodeFromMessage(?string $message): ?string
+    {
+        if (!$message) return null;
+        
+        $lowerMessage = strtolower($message);
+        
+        if (str_contains($lowerMessage, 'insufficient') || str_contains($lowerMessage, 'low balance')) {
+            return 'insufficient_funds';
+        }
+        if (str_contains($lowerMessage, 'cancelled') || str_contains($lowerMessage, 'cancel')) {
+            return 'user_cancelled';
+        }
+        if (str_contains($lowerMessage, 'invalid phone') || str_contains($lowerMessage, 'invalid account')) {
+            return 'invalid_phone';
+        }
+        if (str_contains($lowerMessage, 'timeout') || str_contains($lowerMessage, 'expired')) {
+            return 'timeout';
+        }
+        if (str_contains($lowerMessage, 'declined') || str_contains($lowerMessage, 'rejected')) {
+            return 'declined';
+        }
+        if (str_contains($lowerMessage, 'wrong pin') || str_contains($lowerMessage, 'invalid pin')) {
+            return 'wrong_pin';
+        }
+        if (str_contains($lowerMessage, 'locked') || str_contains($lowerMessage, 'blocked')) {
+            return 'account_locked';
+        }
+        if (str_contains($lowerMessage, 'network') || str_contains($lowerMessage, 'connection')) {
+            return 'network_error';
+        }
+        
+        return null;
+    }
+
+    /**
+     * Infer error code from transaction data
+     */
+    private function inferErrorCodeFromTransaction($transaction): ?string
+    {
+        // Check transaction notes or metadata for error hints
+        // This is a fallback if no specific error code is available
+        return null; // Will default to 'processing_error' in extractErrorCode
+    }
+
+    /**
+     * Map gateway status to error code
+     */
+    private function mapStatusToErrorCode(?string $status): ?string
+    {
+        if (!$status) return null;
+        
+        $normalized = strtolower($status);
+        return match ($normalized) {
+            'cancelled' => 'user_cancelled',
+            'timeout', 'expired' => 'timeout',
+            'failed' => 'processing_error',
+            default => null,
+        };
     }
 
     // Helper method to get order items for display

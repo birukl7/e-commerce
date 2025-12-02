@@ -74,14 +74,36 @@ export default function PaymentFailed(props: PaymentFailedProps) {
         }
         
         switch (code) {
+            // Chapa-specific errors
             case 'insufficient_funds':
-                return "Your account doesn't have sufficient funds to complete this transaction.";
-            case 'card_declined':
-                return 'Your payment method was declined. Please try a different payment method.';
+                return "Your account doesn't have sufficient funds to complete this transaction. Please add funds to your mobile money or bank account and try again.";
+            case 'user_cancelled':
+            case 'cancelled':
+                return 'You cancelled the payment process. If this was accidental, you can try again.';
+            case 'invalid_phone':
+            case 'invalid_account':
+                return 'The phone number or account information provided is invalid. Please verify your account details and try again.';
+            case 'timeout':
+            case 'expired':
+                return 'The payment session expired. Please try again with a fresh payment session.';
             case 'network_error':
                 return 'There was a network error. Please check your connection and try again.';
-            case 'timeout':
-                return 'The payment request timed out. Please try again.';
+            case 'declined':
+            case 'card_declined':
+                return 'Your payment was declined by your bank or payment provider. Please contact your bank or try a different payment method.';
+            case 'wrong_pin':
+            case 'authentication_failed':
+                return 'Incorrect PIN or password entered multiple times. Please wait a few minutes and try again, or contact your bank if your account is locked.';
+            case 'session_expired':
+                return 'Your payment session has expired. Please start a new payment.';
+            case 'account_locked':
+                return 'Your account has been temporarily locked due to multiple failed attempts. Please contact your bank or try again later.';
+            case 'invalid_amount':
+                return 'The payment amount is invalid. Please contact support.';
+            case 'duplicate_transaction':
+                return 'This transaction has already been processed. Please check your order status.';
+            
+            // System errors
             case 'order_not_found':
             case 'transaction_not_found':
                 return 'We encountered an issue locating your order or transaction. Please contact support with the reference number below.';
@@ -89,6 +111,11 @@ export default function PaymentFailed(props: PaymentFailedProps) {
                 return 'An error occurred while processing your payment. Please try again or contact support.';
             case 'missing_reference':
                 return 'Payment reference is missing. Please contact support if you made a payment.';
+            case 'api_error':
+                return 'A temporary error occurred with the payment gateway. Please try again in a few moments.';
+            case 'service_unavailable':
+                return 'The payment service is temporarily unavailable. Please try again later or use an alternative payment method.';
+            
             default:
                 // Use the error message if provided, otherwise use generic message
                 if (errorMessage && errorMessage !== 'Payment could not be processed') {
@@ -109,14 +136,101 @@ export default function PaymentFailed(props: PaymentFailedProps) {
                 return 'Order Not Found';
             case 'insufficient_funds':
                 return 'Insufficient Funds';
-            case 'card_declined':
-                return 'Payment Declined';
+            case 'user_cancelled':
+            case 'cancelled':
+                return 'Payment Cancelled';
+            case 'invalid_phone':
+            case 'invalid_account':
+                return 'Invalid Account';
+            case 'timeout':
+            case 'expired':
+            case 'session_expired':
+                return 'Payment Timeout';
             case 'network_error':
                 return 'Network Error';
-            case 'timeout':
-                return 'Payment Timeout';
+            case 'declined':
+            case 'card_declined':
+                return 'Payment Declined';
+            case 'wrong_pin':
+            case 'authentication_failed':
+                return 'Authentication Failed';
+            case 'account_locked':
+                return 'Account Locked';
+            case 'duplicate_transaction':
+                return 'Duplicate Transaction';
+            case 'api_error':
+                return 'Payment Gateway Error';
+            case 'service_unavailable':
+                return 'Service Unavailable';
             default:
                 return 'Payment Failed';
+        }
+    };
+
+    // Get specific help suggestions based on error code
+    const getHelpSuggestions = (code?: string) => {
+        switch (code) {
+            case 'insufficient_funds':
+                return [
+                    'Check your account balance',
+                    'Add funds to your mobile money or bank account',
+                    'Try again once you have sufficient funds'
+                ];
+            case 'user_cancelled':
+            case 'cancelled':
+                return [
+                    'If this was accidental, you can try again',
+                    'Make sure you complete the payment process',
+                    'Contact support if you need assistance'
+                ];
+            case 'invalid_phone':
+            case 'invalid_account':
+                return [
+                    'Verify your phone number is correct',
+                    'Ensure your account is registered with the payment provider',
+                    'Try using a different payment method'
+                ];
+            case 'timeout':
+            case 'expired':
+            case 'session_expired':
+                return [
+                    'Complete the payment within the time limit',
+                    'Try again with a fresh payment session',
+                    'Ensure you have a stable internet connection'
+                ];
+            case 'network_error':
+                return [
+                    'Check your internet connection',
+                    'Try again in a moment',
+                    'Contact support if the problem persists'
+                ];
+            case 'declined':
+            case 'card_declined':
+                return [
+                    'Contact your bank to verify the transaction',
+                    'Try using a different payment method',
+                    'Ensure your payment method is active and valid'
+                ];
+            case 'wrong_pin':
+            case 'authentication_failed':
+                return [
+                    'Wait a few minutes before trying again',
+                    'Ensure you enter the correct PIN',
+                    'Contact your bank if your account is locked'
+                ];
+            case 'account_locked':
+                return [
+                    'Contact your bank to unlock your account',
+                    'Wait for the lock period to expire',
+                    'Try using a different payment method'
+                ];
+            default:
+                return [
+                    'Check your internet connection and try again',
+                    'Ensure your payment method has sufficient funds',
+                    'Try using a different payment method',
+                    'Contact your bank if the issue persists'
+                ];
         }
     };
 
@@ -281,10 +395,9 @@ export default function PaymentFailed(props: PaymentFailedProps) {
                                     </div>
                                 ) : (
                                     <div className="space-y-1 text-sm text-blue-800">
-                                        <p>• Check your internet connection and try again</p>
-                                        <p>• Ensure your payment method has sufficient funds</p>
-                                        <p>• Try using a different payment method</p>
-                                        <p>• Contact your bank if the issue persists</p>
+                                        {getHelpSuggestions(error_code).map((suggestion, index) => (
+                                            <p key={index}>• {suggestion}</p>
+                                        ))}
                                     </div>
                                 )}
                                 

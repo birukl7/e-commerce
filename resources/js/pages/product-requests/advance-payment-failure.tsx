@@ -16,20 +16,138 @@ interface ProductRequest {
 interface AdvancePaymentFailureProps {
   productRequest: ProductRequest;
   error_message?: string;
+  error_code?: string;
   payment_method?: 'chapa' | 'offline';
   retry_url?: string;
+  transaction_id?: string;
 }
 
 export default function AdvancePaymentFailure({ 
   productRequest,
   error_message = 'Your advance payment could not be processed.',
+  error_code,
   payment_method = 'chapa',
-  retry_url
+  retry_url,
+  transaction_id
 }: AdvancePaymentFailureProps) {
   
   const formatCurrency = (amount: number, currency: string = 'ETB') => {
     return `${currency} ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
+
+  // Get error-specific information
+  const getErrorInfo = (code?: string) => {
+    switch (code) {
+      case 'insufficient_funds':
+        return {
+          title: 'Insufficient Funds',
+          description: 'Your account doesn\'t have sufficient balance to complete this payment.',
+          icon: '💰',
+          suggestions: [
+            'Check your account balance',
+            'Add funds to your mobile money or bank account',
+            'Try again once you have sufficient funds'
+          ]
+        };
+      case 'user_cancelled':
+      case 'cancelled':
+        return {
+          title: 'Payment Cancelled',
+          description: 'You cancelled the payment process.',
+          icon: '❌',
+          suggestions: [
+            'If this was accidental, you can try again',
+            'Make sure you complete the payment process',
+            'Contact support if you need assistance'
+          ]
+        };
+      case 'invalid_phone':
+      case 'invalid_account':
+        return {
+          title: 'Invalid Account',
+          description: 'The phone number or account information provided is invalid.',
+          icon: '📱',
+          suggestions: [
+            'Verify your phone number is correct',
+            'Ensure your account is registered with the payment provider',
+            'Try using a different payment method'
+          ]
+        };
+      case 'timeout':
+      case 'expired':
+        return {
+          title: 'Payment Timeout',
+          description: 'The payment session expired. Please try again.',
+          icon: '⏱️',
+          suggestions: [
+            'Complete the payment within the time limit',
+            'Try again with a fresh payment session',
+            'Ensure you have a stable internet connection'
+          ]
+        };
+      case 'network_error':
+        return {
+          title: 'Network Error',
+          description: 'A network error occurred during payment processing.',
+          icon: '🌐',
+          suggestions: [
+            'Check your internet connection',
+            'Try again in a moment',
+            'Contact support if the problem persists'
+          ]
+        };
+      case 'declined':
+      case 'card_declined':
+        return {
+          title: 'Payment Declined',
+          description: 'Your payment was declined by your bank or payment provider.',
+          icon: '🚫',
+          suggestions: [
+            'Contact your bank to verify the transaction',
+            'Try using a different payment method',
+            'Ensure your payment method is active and valid'
+          ]
+        };
+      case 'wrong_pin':
+      case 'authentication_failed':
+        return {
+          title: 'Authentication Failed',
+          description: 'Incorrect PIN or password entered multiple times.',
+          icon: '🔒',
+          suggestions: [
+            'Wait a few minutes before trying again',
+            'Ensure you enter the correct PIN',
+            'Contact your bank if your account is locked'
+          ]
+        };
+      case 'request_terminated':
+        return {
+          title: 'Request Terminated',
+          description: 'This product request has been terminated and cannot accept payments.',
+          icon: '🚫',
+          suggestions: [
+            'This request is no longer active',
+            'You may need to create a new product request',
+            'Contact support if you believe this is an error'
+          ]
+        };
+      default:
+        return {
+          title: 'Payment Failed',
+          description: error_message || 'Your advance payment could not be processed.',
+          icon: '⚠️',
+          suggestions: [
+            'Check if you have sufficient funds in your account',
+            'Verify your payment details and try again',
+            'Contact your bank if you\'re having trouble with your payment method',
+            payment_method === 'chapa' && 'Try using the "Pay & Upload Proof" payment method instead',
+            'Contact our support team if the problem persists'
+          ].filter(Boolean) as string[]
+        };
+    }
+  };
+
+  const errorInfo = getErrorInfo(error_code);
 
   return (
     <MainLayout title="Payment Failed">
@@ -39,19 +157,29 @@ export default function AdvancePaymentFailure({
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
               <XCircle className="h-10 w-10 text-red-600" />
             </div>
-            <CardTitle className="text-2xl text-red-600">Advance Payment Failed</CardTitle>
-            <CardDescription className="text-base mt-2 text-red-700">{error_message}</CardDescription>
+            <CardTitle className="text-2xl text-red-600">{errorInfo.title}</CardTitle>
+            <CardDescription className="text-base mt-2 text-red-700">{errorInfo.description}</CardDescription>
           </CardHeader>
           
           <CardContent className="space-y-6">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <div>
+                <div className="flex-1">
                   <h4 className="font-medium text-red-900 mb-2">Payment Unsuccessful</h4>
-                  <p className="text-sm text-red-800">
-                    We were unable to process your advance payment. Please try again or contact support if the problem persists.
+                  <p className="text-sm text-red-800 mb-2">
+                    {errorInfo.description}
                   </p>
+                  {error_code && (
+                    <p className="text-xs text-red-600 mt-2">
+                      Error Code: <span className="font-mono">{error_code}</span>
+                    </p>
+                  )}
+                  {transaction_id && (
+                    <p className="text-xs text-red-600 mt-1">
+                      Transaction ID: <span className="font-mono">{transaction_id}</span>
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -85,13 +213,9 @@ export default function AdvancePaymentFailure({
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <h4 className="font-medium mb-2 text-yellow-900">What to do next?</h4>
               <ul className="space-y-2 text-sm text-yellow-800 list-disc list-inside">
-                <li>Check if you have sufficient funds in your account</li>
-                <li>Verify your payment details and try again</li>
-                <li>Contact your bank if you're having trouble with your payment method</li>
-                {payment_method === 'chapa' && (
-                  <li>Try using the "Pay & Upload Proof" payment method instead</li>
-                )}
-                <li>Contact our support team if the problem persists</li>
+                {errorInfo.suggestions.map((suggestion, index) => (
+                  <li key={index}>{suggestion}</li>
+                ))}
               </ul>
             </div>
 
