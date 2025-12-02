@@ -2430,7 +2430,9 @@ class PaymentController extends Controller
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
             'method' => $request->method(),
-            'headers' => $request->headers->all(),
+            'headers' => is_object($request->headers) && method_exists($request->headers, 'all') 
+                ? $request->headers->all() 
+                : (is_array($request->headers) ? $request->headers : []),
             'raw_content' => $request->getContent(),
         ]);
         
@@ -2715,6 +2717,11 @@ class PaymentController extends Controller
     public function paymentReturn(Request $request, $txRef = null)
     {
         // COMPREHENSIVE LOGGING: Log ALL incoming data from external URL
+        // Safely get headers - handle both HeaderBag object and array
+        $headers = is_object($request->headers) && method_exists($request->headers, 'all') 
+            ? $request->headers->all() 
+            : (is_array($request->headers) ? $request->headers : []);
+        
         \Log::info('=== PAYMENT RETURN REQUEST - RAW INCOMING DATA ===', [
             'timestamp' => now()->toISOString(),
             'method' => $request->method(),
@@ -2722,9 +2729,9 @@ class PaymentController extends Controller
             'path' => $request->path(),
             'ip' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'headers' => $request->headers->all(),
+            'headers' => $headers,
             'query_params' => $request->query()->all(),
-            'path_params' => $request->route()->parameters(),
+            'path_params' => $request->route() ? $request->route()->parameters() : [],
             'all_input' => $request->all(),
             'raw_content' => $request->getContent(),
             'tx_ref_from_path' => $txRef,
