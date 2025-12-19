@@ -342,30 +342,38 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
         
         // Tax Classes API endpoints
         Route::post('classes', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'storeClass'])
-            ->name('classes.store');
+            ->name('classes.store')
+            ->middleware('can:create,App\Models\TaxClass');
             
         Route::put('classes/{taxClass}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateClass'])
-            ->name('classes.update');
+            ->name('classes.update')
+            ->middleware('can:update,taxClass');
             
         Route::delete('classes/{taxClass}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'destroyClass'])
-            ->name('classes.destroy');
+            ->name('classes.destroy')
+            ->middleware('can:delete,taxClass');
         
         // Tax Rates API endpoints
         Route::post('rates', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'storeRate'])
-            ->name('rates.store');
+            ->name('rates.store')
+            ->middleware('can:create,App\Models\TaxSetting');
             
         Route::put('rates/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateRate'])
-            ->name('rates.update');
+            ->name('rates.update')
+            ->middleware('can:update,taxSetting');
             
         Route::delete('rates/{taxSetting}', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'destroyRate'])
-            ->name('rates.destroy');
+            ->name('rates.destroy')
+            ->middleware('can:delete,taxSetting');
             
         Route::put('rates/{taxSetting}/toggle-status', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'toggleStatus'])
-            ->name('rates.toggle-status');
+            ->name('rates.toggle-status')
+            ->middleware('can:update,taxSetting');
             
         // Tax Settings API endpoints
         Route::put('settings/update', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'updateSettings'])
-            ->name('settings.update');
+            ->name('settings.update')
+            ->middleware('can:update,App\Models\Setting');
             
         // Tax calculation endpoints
         Route::post('calculate-preview', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'calculatePreview'])
@@ -377,7 +385,8 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
             
         // Set default tax class
         Route::post('classes/{taxClass}/set-as-default', [\App\Http\Controllers\Admin\TaxSettingsController::class, 'setAsDefault'])
-            ->name('classes.set-default');
+            ->name('classes.set-default')
+            ->middleware('can:update,App\Models\TaxClass');
     });
     
     // Stock Management

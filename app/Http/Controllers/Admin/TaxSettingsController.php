@@ -9,14 +9,26 @@ use App\Models\TaxSetting;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use App\Services\TaxService;
 
 class TaxSettingsController extends Controller
 {
     protected $siteConfig;
+    protected $taxService;
 
-    public function __construct(SiteConfigService $siteConfig)
+    public function __construct(SiteConfigService $siteConfig, TaxService $taxService)
     {
         $this->siteConfig = $siteConfig;
+        $this->taxService = $taxService;
+        
+        // Apply middleware for authorization
+        $this->middleware('can:viewAny,TaxSetting')->only(['index', 'getActiveTaxes']);
+        $this->middleware('can:create,TaxSetting')->only(['storeRate']);
+        $this->middleware('can:update,taxSetting')->only(['updateRate', 'toggleStatus']);
+        $this->middleware('can:delete,taxSetting')->only(['destroyRate']);
+        $this->middleware('can:create,TaxClass')->only(['storeClass']);
+        $this->middleware('can:update,taxClass')->only(['updateClass', 'setAsDefault']);
+        $this->middleware('can:delete,taxClass')->only(['destroyClass']);
     }
     /**
      * Display the tax settings dashboard with tabs
@@ -164,6 +176,23 @@ class TaxSettingsController extends Controller
         return redirect()->route('admin.tax.settings.tab', 'classes')
             ->with('success', 'Tax class deleted successfully.');
     }
+    
+    /**
+     * Set a tax class as the default
+     */
+    public function setAsDefault(TaxClass $taxClass)
+    {
+        // Unset current default
+        TaxClass::where('is_default', true)->update(['is_default' => false]);
+        
+        // Set new default
+        $taxClass->update(['is_default' => true]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Default tax class updated successfully.'
+        ]);
+    }
 
     /**
      * Store a new tax rate
@@ -191,6 +220,23 @@ class TaxSettingsController extends Controller
             ->with('success', 'Tax rate created successfully.');
     }
 
+    /**
+     * Update the specified tax rate
+     */
+    /**
+     * Toggle the active status of a tax rate
+     */
+    public function toggleStatus(TaxSetting $taxSetting)
+    {
+        $taxSetting->update(['is_active' => !$taxSetting->is_active]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Tax rate status updated successfully.',
+            'is_active' => $taxSetting->fresh()->is_active
+        ]);
+    }
+    
     /**
      * Update the specified tax rate
      */
@@ -234,20 +280,90 @@ class TaxSettingsController extends Controller
     public function updateSettings(Request $request)
     {
         $validated = $request->validate([
-            'pricesIncludeTax' => 'required|boolean',
-            'shippingTaxClass' => 'nullable|exists:tax_classes,id',
-            'displayPricesInShop' => 'required|in:incl,excl',
-            'displayPricesInCart' => 'required|in:incl,excl',
+            'prices_include_tax' => 'required|boolean',
+            'shipping_tax_class' => 'nullable|exists:tax_classes,id',
+            'display_prices_in_shop' => 'required|in:incl,excl',
+            'display_prices_in_cart' => 'required|in:incl,excl',
+            'tax_based_on' => 'required|in:shipping,billing,base',
+            'shipping_tax_status' => 'required|in:taxable,none',
         ]);
 
         // Save settings using the SiteConfigService
-        $this->siteConfig->set('tax.prices_include_tax', $validated['pricesIncludeTax']);
-        $this->siteConfig->set('tax.shipping_tax_class', $validated['shippingTaxClass']);
-        $this->siteConfig->set('tax.display_prices_in_shop', $validated['displayPricesInShop']);
-        $this->siteConfig->set('tax.display_prices_in_cart', $validated['displayPricesInCart']);
+        foreach ($validated as $key => $value) {
+            $this->siteConfig->set("tax.{$key}", $value);
+        }
 
-        return redirect()->route('admin.tax.settings.tab', 'settings')
-            ->with('success', 'Tax settings updated successfully.');
+        return response()->json([
+            'success' => true,
+            'message' => 'Tax settings updated successfully.'
+        ]);
+    }
+    
+    /**
+     * Get active taxes for the given location
+     */
+    public function getActiveTaxes(Request $request)
+    {
+        $validated = $request->validate([
+            'country' => 'required|string|size:2',
+            'state' => 'nullable|string',
+            'city' => 'nullable|string',
+            'postal_code' => 'nullable|string',
+        ]);
+        
+        $taxes = $this->taxService->getTaxRatesForLocation($validated);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $taxes
+        ]);
+    }
+    
+    /**
+     * Calculate tax preview
+     */
+    public function calculatePreview(Request $request)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0',
+            'include_tax' => 'boolean',
+            'tax_class_id' => 'nullable|exists:tax_classes,id',
+            'country' => 'required_without:tax_rates|string|size:2',
+            'state' => 'nullable|string',
+            'city' => 'nullable|string',
+            'postal_code' => 'nullable|string',
+            'tax_rates' => 'nullable|array',
+            'tax_rates.*.id' => 'required|exists:tax_settings,id',
+            'tax_rates.*.rate' => 'required|numeric|min:0',
+            'tax_rates.*.type' => 'required|in:percentage,fixed',
+            'tax_rates.*.compound' => 'boolean',
+        ]);
+        
+        $amount = (float) $validated['amount'];
+        $includeTax = $validated['include_tax'] ?? false;
+        
+        $taxRates = $validated['tax_rates'] ?? null;
+        
+        if (!$taxRates) {
+            // If no specific rates provided, calculate based on location
+            $location = [
+                'country' => $validated['country'],
+                'state' => $validated['state'] ?? null,
+                'city' => $validated['city'] ?? null,
+                'postal_code' => $validated['postal_code'] ?? null,
+            ];
+            
+            $taxClassId = $validated['tax_class_id'] ?? null;
+            $taxRates = $this->taxService->getTaxRatesForLocation($location, $taxClassId);
+        }
+        
+        // Calculate taxes
+        $result = $this->taxService->calculateTaxes($amount, $taxRates, $includeTax);
+        
+        return response()->json([
+            'success' => true,
+            'data' => $result
+        ]);
     }
 
     /**

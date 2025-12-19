@@ -126,20 +126,19 @@ class AdminSiteConfigController extends Controller
             $bannerSecondaryImagePath = $request->file('banner_secondary_image')->store('images', 'public');
         }
         
-        // Build validation rules - only validate as string if no file was uploaded
+        // Build validation rules - all fields are optional
         $validationRules = [
             // Homepage Banner
-            'banner_main_title' => 'required|string|max:255',
-            'banner_main_subtitle' => 'required|string|max:255',
-            'banner_main_button_text' => 'required|string|max:100',
-            'banner_main_button_link' => 'required|string|max:255',
-            'banner_secondary_title' => 'required|string|max:255',
-            'banner_secondary_button_text' => 'required|string|max:100',
-            'banner_secondary_button_link' => 'required|string|max:255',
+            'banner_main_title' => 'nullable|string|max:255',
+            'banner_main_subtitle' => 'nullable|string|max:255',
+            'banner_main_button_text' => 'nullable|string|max:100',
+            'banner_main_button_link' => 'nullable|string|max:255',
+            'banner_secondary_title' => 'nullable|string|max:255',
+            'banner_secondary_button_text' => 'nullable|string|max:100',
+            'banner_secondary_button_link' => 'nullable|string|max:255',
         ];
         
         // Only validate image fields as strings if no file was uploaded
-        // Make them optional so updating one doesn't require the other
         if (!$request->hasFile('banner_main_image')) {
             $validationRules['banner_main_image'] = 'nullable|string|max:255';
         }
@@ -150,14 +149,14 @@ class AdminSiteConfigController extends Controller
         
         $validationRules = array_merge($validationRules, [
             // About Section
-            'about_title' => 'required|string|max:255',
-            'about_subtitle' => 'required|string|max:255',
-            'about_column1_title' => 'required|string|max:255',
-            'about_column1_text' => 'required|string|max:2000',
-            'about_column2_title' => 'required|string|max:255',
-            'about_column2_text' => 'required|string|max:2000',
-            'about_column3_title' => 'required|string|max:255',
-            'about_column3_text' => 'required|string|max:2000',
+            'about_title' => 'nullable|string|max:255',
+            'about_subtitle' => 'nullable|string|max:255',
+            'about_column1_title' => 'nullable|string|max:255',
+            'about_column1_text' => 'nullable|string|max:2000',
+            'about_column2_title' => 'nullable|string|max:255',
+            'about_column2_text' => 'nullable|string|max:2000',
+            'about_column3_title' => 'nullable|string|max:255',
+            'about_column3_text' => 'nullable|string|max:2000',
             'about_cta_text' => 'nullable|string|max:500',
             'about_cta_button_text' => 'nullable|string|max:100',
             'about_cta_button_link' => 'nullable|string|max:255',
@@ -174,13 +173,13 @@ class AdminSiteConfigController extends Controller
             'social_links' => 'nullable|string|max:2000', // JSON string
             
             // Privacy Policy
-            'privacy_policy_content' => 'required|string',
+            'privacy_policy_content' => 'nullable|string',
             
             // Payment Settings
-            'manual_payment_enabled' => 'boolean',
-            'require_admin_approval' => 'boolean',
-            'auto_approve_gateway_payments' => 'boolean',
-            'tax_rate' => 'numeric|min:0|max:1',
+            'manual_payment_enabled' => 'nullable|boolean',
+            'require_admin_approval' => 'nullable|boolean',
+            'auto_approve_gateway_payments' => 'nullable|boolean',
+            'tax_rate' => 'nullable|numeric|min:0|max:1',
         ]);
         
         $validated = $request->validate($validationRules);
