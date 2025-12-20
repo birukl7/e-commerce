@@ -63,17 +63,21 @@ Route::get('/', function () {
         $totalProducts = Product::query()->count();
         $zeroStock = Product::query()->where('stock_quantity', 0)->count();
         
-        // Get featured products (you can adjust the logic based on your needs)
+        // Get featured products with their categories
         $featuredProducts = Product::query()
             ->where('featured', true)
             ->where('status', 'published')
+            ->where('stock_quantity', '>', 0)
             ->with(['images', 'brand', 'category'])
-            ->limit(8)
-            ->get();
+            ->inRandomOrder()
+            ->limit(12)
+            ->get()
+            ->groupBy('category_id');
             
         // Get latest products
         $latestProducts = Product::query()
             ->where('status', 'published')
+            ->where('stock_quantity', '>', 0)
             ->with(['images', 'brand', 'category'])
             ->latest()
             ->limit(8)
@@ -82,6 +86,7 @@ Route::get('/', function () {
         Log::info('Welcome page diagnostics', [
             'total_products' => $totalProducts,
             'zero_stock_products' => $zeroStock,
+            'featured_products_count' => $featuredProducts->sum(fn($products) => $products->count())
         ]);
     } catch (\Throwable $e) {
         Log::error('Welcome page diagnostics failed', ['message' => $e->getMessage()]);
@@ -144,12 +149,44 @@ Route::get('/', function () {
         'footer_content' => '© ' . date('Y') . ' ' . config('app.name') . '. All rights reserved.',
     ], $bannerSettings);
     
+    // Prepare featured products data for the frontend
+    $formattedFeaturedProducts = [];
+    foreach ($featuredProducts as $categoryId => $products) {
+        $formattedProducts = [];
+        foreach ($products as $product) {
+            $primaryImage = $product->images->firstWhere('is_primary') ?? $product->images->first();
+            $formattedProducts[] = [
+                'id' => $product->id,
+                'name' => $product->name,
+                'slug' => $product->slug,
+                'price' => $product->price,
+                'sale_price' => $product->sale_price,
+                'featured' => $product->featured,
+                'status' => $product->status,
+                'stock_quantity' => $product->stock_quantity,
+                'category' => [
+                    'id' => $product->category->id,
+                    'name' => $product->category->name,
+                    'slug' => $product->category->slug,
+                ],
+                'images' => $product->images->map(fn($image) => [
+                    'id' => $image->id,
+                    'image_path' => $image->image_path,
+                    'is_primary' => $image->is_primary,
+                ])->toArray(),
+            ];
+        }
+        $formattedFeaturedProducts[$categoryId] = $formattedProducts;
+    }
+    
     return Inertia::render('welcome', [
         'settings' => $settings,
         'diagnostics' => [
             'totalProducts' => $totalProducts,
             'zeroStock' => $zeroStock,
         ],
+        'featuredProducts' => $formattedFeaturedProducts,
+        'latestProducts' => $latestProducts,
     ]);
 })->name('home');
 

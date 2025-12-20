@@ -3,21 +3,25 @@ import { Head } from "@inertiajs/react"
 import Header from "@/components/header"
 import { CartProvider } from "@/contexts/cart-context"
 import HomePageBanner from "@/components/home-page-banner"
-import { FeaturedInterests } from "@/components/homepage/featured-interests"
-import GiftShowcase from "@/components/homepage/gift-showcase"
-import DealsCarousel from "@/components/homepage/deals-carousel"
-import Section from "@/components/ui/section"
-import CTASection from "@/components/homepage/cta-section"
-import AboutSection from "@/components/homepage/about-section"
-import Footer from "@/components/footer"
+import { FeaturedInterests } from "@/components/homepage/featured-interests";
+import FeaturedProducts from "@/components/homepage/featured-products";
+import GiftShowcase from "@/components/homepage/gift-showcase";
+import DealsCarousel from "@/components/homepage/deals-carousel";
+import Section from "@/components/ui/section";
+import CTASection from "@/components/homepage/cta-section";
+import AboutSection from "@/components/homepage/about-section";
+import Footer from "@/components/footer";
 
 interface WelcomeProps {
   settings?: Record<string, string>;
-  diagnostics?: { totalProducts: number | null; zeroStock: number | null };
+  diagnostics?: { 
+    totalProducts: number | null; 
+    zeroStock: number | null;
+  };
+  featuredProducts?: Record<string, any>;
 }
 
-function WelcomeContent({ settings }: WelcomeProps) {
-
+function WelcomeContent({ settings, featuredProducts }: WelcomeProps) {
   return (
     <>
       <Head title="Serdo - Premium Products" />
@@ -33,6 +37,13 @@ function WelcomeContent({ settings }: WelcomeProps) {
         <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50 container mx-auto">
           <HomePageBanner settings={settings} />
         </section>
+
+        {/* Featured Products Section */}
+        {featuredProducts && Object.keys(featuredProducts).length > 0 && (
+          <section className="py-12">
+            <FeaturedProducts products={featuredProducts} />
+          </section>
+        )}
 
         <section className="container mx-auto">
           <FeaturedInterests />
@@ -57,7 +68,7 @@ function WelcomeContent({ settings }: WelcomeProps) {
   )
 }
 
-export default function Welcome({ settings, diagnostics }: WelcomeProps) {
+export default function Welcome({ settings, diagnostics, featuredProducts }: WelcomeProps) {
   React.useEffect(() => {
     // type-safe check for Inertia to avoid TS errors at runtime
 
@@ -82,7 +93,7 @@ export default function Welcome({ settings, diagnostics }: WelcomeProps) {
           <pre style={{ display: 'none' }} id="welcome-debug">
             {JSON.stringify({ settings, diagnostics }, null, 2)}
           </pre>
-          <WelcomeContent settings={settings} />
+          <WelcomeContent settings={settings} featuredProducts={featuredProducts} />
         </div>
       </CartProvider>
     )

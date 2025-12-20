@@ -366,18 +366,4 @@ class TaxSettingsController extends Controller
         ]);
     }
 
-    /**
-     * Toggle tax rate status
-     */
-    public function toggleStatus(TaxSetting $taxSetting)
-    {
-        $taxSetting->update([
-            'is_active' => !$taxSetting->is_active
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'is_active' => $taxSetting->is_active
-        ]);
-    }
 }
