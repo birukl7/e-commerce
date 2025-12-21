@@ -74,6 +74,7 @@ interface Order {
         name: string;
         email: string;
         phone?: string;
+        profile_image_url?: string;
     };
     total_amount: number;
     status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -343,11 +344,24 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="p-6">
-                                    <div className="space-y-3">
+                                    <div className="flex items-start gap-4 mb-4">
+                                        {order.user.profile_image_url ? (
+                                            <img 
+                                                src={order.user.profile_image_url} 
+                                                alt={order.user.name}
+                                                className="w-16 h-16 rounded-full object-cover border-2 border-purple-100"
+                                            />
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+                                                <User className="h-8 w-8 text-purple-600" />
+                                            </div>
+                                        )}
                                         <div>
-                                            <p className="text-sm text-gray-500">Name</p>
-                                            <p className="font-medium">{order.user.name}</p>
+                                            <h3 className="font-semibold text-lg">{order.user.name}</h3>
+                                            <p className="text-sm text-gray-500">Customer</p>
                                         </div>
+                                    </div>
+                                    <div className="space-y-3 border-t pt-4">
                                         <div>
                                             <p className="text-sm text-gray-500">Email</p>
                                             <p className="font-medium">{order.user.email}</p>

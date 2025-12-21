@@ -89,14 +89,19 @@ class AdminSalesController extends Controller
 
     public function showOrder(Request $request, Order $order)
     {
-        // Load order with all related data
+        // Load order with all related data including user's profile image
         $order->load([
-            'user:id,name,email,phone',
+            'user:id,name,email,phone,profile_image',
             'orderItems.product.images',
             'paymentTransactions',
             'shippingAddress',
             'billingAddress'
         ]);
+        
+        // Format user's profile image URL if it exists
+        if ($order->user && $order->user->profile_image) {
+            $order->user->profile_image_url = asset('storage/' . $order->user->profile_image);
+        }
         
         // Format image paths for product images
         if ($order->orderItems) {
