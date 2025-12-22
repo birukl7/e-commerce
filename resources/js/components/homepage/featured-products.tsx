@@ -116,7 +116,7 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                     return (
                                         <Card key={product.id} className="group relative overflow-hidden transition-shadow hover:shadow-lg">
                                             <div className="relative aspect-square overflow-hidden">
-                                                <Link href={route('products.show', product.slug)} className="block">
+                                                <Link href={route('web.products.show', { slug: product.slug })} className="block">
                                                     <img
                                                         src={imageUrl}
                                                         alt={product.name}
