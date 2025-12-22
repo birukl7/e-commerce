@@ -100,7 +100,7 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="text-2xl font-semibold text-gray-900">{category.name}</h3>
                                 <Link 
-                                    href={route('category.show', { category: category.slug })}
+                                    href={route('web.categories.show', { category: category.slug })}
                                     className="text-primary-600 hover:text-primary-800 flex items-center text-sm font-medium"
                                 >
                                     {t('View all')} <ArrowRight className="ml-1 h-4 w-4" />
@@ -149,7 +149,7 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                                 </button>
                                             </div>
                                             <CardContent className="p-4">
-                                                <Link href={route('products.show', product.slug)} className="block">
+                                                <Link href={route('web.products.show', { slug: product.slug })} className="block">
                                                     <h4 className="font-medium text-gray-900 mb-1 line-clamp-2 h-12">
                                                         {product.name}
                                                     </h4>

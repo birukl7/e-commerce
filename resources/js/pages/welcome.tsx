@@ -97,14 +97,26 @@ export default function Welcome({ settings, diagnostics, featuredProducts }: Wel
         </div>
       </CartProvider>
     )
-  } catch (error: any) {
-    console.error('[Welcome] Rendering error:', error)
+  } catch (error: unknown) {
+    console.error('Error in Welcome component:', error);
+    
+    // Get error message safely
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+    
     return (
-      <div style={{ color: 'red', padding: '20px' }}>
-        <h1>Error loading page</h1>
-        <p>Check console for details</p>
-        <pre>{error?.message}</pre>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
+          <p className="text-gray-600 mb-2">We're having trouble loading the page.</p>
+          <p className="text-sm text-gray-500 mb-6">Error: {errorMessage}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
       </div>
-    )
+    );
   }
 }
