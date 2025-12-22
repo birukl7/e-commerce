@@ -19,7 +19,8 @@ import {
     Calendar,
     DollarSign,
     FileText,
-    ExternalLink
+    ExternalLink,
+    ImageIcon,
 } from 'lucide-react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
@@ -220,7 +221,8 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                                         />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                                            <Package className="h-6 w-6" />
+                                                            <ImageIcon className="h-6 w-6" />
+                                                            <span className="ml-2 text-xs text-gray-500">No image uploaded</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -350,12 +352,36 @@ export default function OrderDetails({ order }: OrderDetailsProps) {
                                                 src={order.user.profile_image_url} 
                                                 alt={order.user.name}
                                                 className="w-16 h-16 rounded-full object-cover border-2 border-purple-100"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    const fallback = document.getElementById(`user-avatar-fallback-${order.user.id}`);
+                                                    if (fallback) {
+                                                        fallback.style.display = 'flex';
+                                                    }
+                                                }}
                                             />
-                                        ) : (
-                                            <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
-                                                <User className="h-8 w-8 text-purple-600" />
-                                            </div>
-                                        )}
+                                        ) : null}
+                                        <div
+                                            id={`user-avatar-fallback-${order.user.id}`}
+                                            className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center border border-purple-50"
+                                            style={{ display: order.user.profile_image_url ? 'none' : 'flex' }}
+                                        >
+                                            <svg
+                                                className="w-10 h-10 text-purple-600"
+                                                viewBox="0 0 40 40"
+                                                aria-hidden="true"
+                                            >
+                                                <circle cx="20" cy="14" r="8" fill="currentColor" fillOpacity="0.2" />
+                                                <path
+                                                    d="M8 34c0-6.627 5.373-12 12-12s12 5.373 12 12"
+                                                    fill="none"
+                                                    stroke="currentColor"
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                />
+                                            </svg>
+                                        </div>
                                         <div>
                                             <h3 className="font-semibold text-lg">{order.user.name}</h3>
                                             <p className="text-sm text-gray-500">Customer</p>

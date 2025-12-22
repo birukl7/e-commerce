@@ -83,13 +83,30 @@ class AdminSiteConfigController extends Controller
         
         // // Merge defaults with database settings (database settings take precedence)
         // $settings = array_merge($defaultSettings, $dbSettings);
+
+        // Active settings used by the admin UI:
+        // start from sensible defaults, then let DB values override them.
+        $defaultSettings = [
+            // Homepage Banner Settings
+            'banner_main_title' => 'Back to school',
+            'banner_main_subtitle' => 'For the first day and beyond',
+            'banner_main_button_text' => 'Shop school supplies',
+            'banner_main_button_link' => '/categories/school-supplies',
+            'banner_main_image' => 'image/image-3.jpg',
+            'banner_secondary_title' => 'Teacher Appreciation Gifts',
+            'banner_secondary_button_text' => 'Shop now',
+            'banner_secondary_button_link' => '/categories/gifts',
+            'banner_secondary_image' => 'image/image-4.jpg',
+        ];
+
+        $settings = array_merge($defaultSettings, $dbSettings);
         
         // Format image paths for display
-        if (!empty($dbSettings['banner_main_image'])) {
-            $dbSettings['banner_main_image'] = ImageUrlService::formatImageUrl($dbSettings['banner_main_image']) ?? $dbSettings['banner_main_image'];
+        if (!empty($settings['banner_main_image'])) {
+            $settings['banner_main_image'] = ImageUrlService::formatImageUrl($settings['banner_main_image']) ?? $settings['banner_main_image'];
         }
-        if (!empty($dbSettings['banner_secondary_image'])) {
-            $dbSettings['banner_secondary_image'] = ImageUrlService::formatImageUrl($dbSettings['banner_secondary_image']) ?? $dbSettings['banner_secondary_image'];
+        if (!empty($settings['banner_secondary_image'])) {
+            $settings['banner_secondary_image'] = ImageUrlService::formatImageUrl($settings['banner_secondary_image']) ?? $settings['banner_secondary_image'];
         }
         
         // Load offline payment methods
@@ -99,7 +116,7 @@ class AdminSiteConfigController extends Controller
         $chapaPaymentMethods = ChapaPaymentMethod::ordered()->get();
 
         return Inertia::render('admin/site-config/index', [
-            'settings' => $dbSettings,
+            'settings' => $settings,
             'offlinePaymentMethods' => $offlinePaymentMethods,
             'chapaPaymentMethods' => $chapaPaymentMethods,
         ]);
