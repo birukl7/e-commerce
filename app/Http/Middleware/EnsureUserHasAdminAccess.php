@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class EnsureUserHasAdminAccess
@@ -23,6 +24,12 @@ class EnsureUserHasAdminAccess
         
         // Check if user account is still active
         if ($user->status !== 'active') {
+            Log::warning('Admin access blocked: inactive user', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'status' => $user->status,
+                'path' => $request->path(),
+            ]);
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
@@ -33,6 +40,13 @@ class EnsureUserHasAdminAccess
         
         // Validate admin permissions on every request to prevent privilege escalation
         if (!$user->can('access admin dashboard') && !$user->hasRole('admin') && !$user->hasRole('super_admin')) {
+            Log::warning('Admin access blocked: missing admin role/permission', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'roles' => $user->getRoleNames()->toArray(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'path' => $request->path(),
+            ]);
             auth()->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

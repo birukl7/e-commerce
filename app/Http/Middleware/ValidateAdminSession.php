@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class ValidateAdminSession
@@ -39,6 +40,13 @@ class ValidateAdminSession
             
             // If stored roles don't match current roles, there's a session integrity issue
             if ($storedRoles !== $currentRoles) {
+                Log::warning('Admin access blocked: session role mismatch', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'stored_roles' => $storedRoles,
+                    'current_roles' => $currentRoles,
+                    'path' => $request->path(),
+                ]);
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -50,6 +58,13 @@ class ValidateAdminSession
             
             // Validate admin access
             if (!$user->hasRole(['admin', 'super_admin']) && !$user->can('access admin dashboard')) {
+                Log::warning('Admin access blocked: missing admin role/permission (ValidateAdminSession)', [
+                    'user_id' => $user->id,
+                    'email' => $user->email,
+                    'roles' => $currentRoles,
+                    'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                    'path' => $request->path(),
+                ]);
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();

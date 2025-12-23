@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use App\Services\TaxService;
+use Illuminate\Support\Facades\Log;
 
 class TaxSettingsController extends Controller
 {
@@ -44,6 +45,22 @@ class TaxSettingsController extends Controller
      */
     public function index($tab = 'classes')
     {
+        // Trace admin access to tax settings for debugging 403s
+        if (auth()->check()) {
+            $user = auth()->user();
+            Log::info('Tax settings index accessed', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'roles' => $user->getRoleNames()->toArray(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+                'tab' => $tab,
+            ]);
+        } else {
+            Log::warning('Tax settings index hit without auth', [
+                'tab' => $tab,
+            ]);
+        }
+
         // If tab is not one of the allowed values, default to 'classes'
         if (!in_array($tab, ['classes', 'rates', 'settings'])) {
             return redirect()->route('admin.tax.settings.tab', 'classes');
