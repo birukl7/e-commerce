@@ -21,7 +21,15 @@ class TaxClassPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $this->hasTaxAdminAccess($user);
+        $allowed = $this->hasTaxAdminAccess($user);
+        \Log::info('Policy:TaxClass:viewAny', [
+            'user_id' => $user->id,
+            'email' => $user->email,
+            'roles' => $user->getRoleNames()->toArray(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
+            'allowed' => $allowed,
+        ]);
+        return $allowed;
     }
 
     /**
