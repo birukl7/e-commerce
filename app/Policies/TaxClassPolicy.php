@@ -9,11 +9,19 @@ use Illuminate\Auth\Access\Response;
 class TaxClassPolicy
 {
     /**
+     * Quickly determine if the user has elevated admin access for tax features.
+     */
+    private function hasTaxAdminAccess(User $user): bool
+    {
+        return $user->hasRole(['admin', 'super_admin']) || $user->can('manage tax settings');
+    }
+
+    /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -21,7 +29,7 @@ class TaxClassPolicy
      */
     public function view(User $user, TaxClass $taxClass): bool
     {
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -29,7 +37,7 @@ class TaxClassPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -42,7 +50,7 @@ class TaxClassPolicy
             return false;
         }
         
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -60,7 +68,7 @@ class TaxClassPolicy
             return false;
         }
         
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**

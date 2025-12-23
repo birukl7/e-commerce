@@ -13,11 +13,19 @@ class TaxSettingPolicy
     use HandlesAuthorization;
 
     /**
+     * Shortcut for elevated admin access to tax configuration features.
+     */
+    private function hasTaxAdminAccess(User $user): bool
+    {
+        return $user->hasRole(['admin', 'super_admin']) || $user->can('manage tax settings');
+    }
+
+    /**
      * Determine whether the user can view any tax settings.
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -25,7 +33,7 @@ class TaxSettingPolicy
      */
     public function view(User $user, TaxSetting $taxSetting): bool
     {
-        return $user->can('manage tax settings');
+        return $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -33,7 +41,7 @@ class TaxSettingPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create tax settings');
+        return $user->can('create tax settings') || $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -41,7 +49,7 @@ class TaxSettingPolicy
      */
     public function update(User $user, TaxSetting $taxSetting): bool
     {
-        return $user->can('edit tax settings');
+        return $user->can('edit tax settings') || $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -54,7 +62,7 @@ class TaxSettingPolicy
             return false;
         }
         
-        return $user->can('delete tax settings');
+        return $user->can('delete tax settings') || $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -62,7 +70,7 @@ class TaxSettingPolicy
      */
     public function restore(User $user, TaxSetting $taxSetting): bool
     {
-        return $user->can('restore tax settings');
+        return $user->can('restore tax settings') || $this->hasTaxAdminAccess($user);
     }
 
     /**
@@ -75,7 +83,7 @@ class TaxSettingPolicy
             return false;
         }
         
-        return $user->can('force delete tax settings');
+        return $user->can('force delete tax settings') || $this->hasTaxAdminAccess($user);
     }
     
     /**
@@ -83,7 +91,7 @@ class TaxSettingPolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder tax settings');
+        return $user->can('reorder tax settings') || $this->hasTaxAdminAccess($user);
     }
     
     /**
@@ -91,6 +99,6 @@ class TaxSettingPolicy
      */
     public function toggleStatus(User $user, TaxSetting $taxSetting): bool
     {
-        return $user->can('edit tax settings');
+        return $user->can('edit tax settings') || $this->hasTaxAdminAccess($user);
     }
 }

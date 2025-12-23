@@ -116,16 +116,25 @@ class RoleAndPermissionSeeder extends Seeder
             'view public content',
         ];
 
-        // Create permissions
+        // Create permissions idempotently
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission, 'guard_name' => 'web']);
+            Permission::firstOrCreate(
+                ['name' => $permission, 'guard_name' => 'web'],
+                ['name' => $permission, 'guard_name' => 'web']
+            );
         }
 
         // Create roles and assign permissions
 
         // Super Admin Role - Full access
-        $superAdmin = Role::create(['name' => 'super_admin', 'guard_name' => 'web']);
-        $superAdmin->givePermissionTo(Permission::all());
+        $superAdmin = Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'web']);
+        $superAdmin->syncPermissions(Permission::all());
+
+        // Admin Role - Full admin capabilities (mirrors super admin permissions)
+        // Having an explicit admin role keeps middleware checks consistent and
+        // ensures admin users can manage tax settings and other console features.
+        $adminRole = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $adminRole->syncPermissions(Permission::all());
 
         // Product Manager Role
         $productManager = Role::create(['name' => 'product_manager', 'guard_name' => 'web']);
