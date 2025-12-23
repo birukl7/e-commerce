@@ -37,7 +37,6 @@ interface Product {
   sku: string
   price: number
   sale_price?: number | null
-  cost_price?: number | null
   stock_quantity: number
   manage_stock: boolean
   stock_status: string
@@ -211,9 +210,6 @@ const Show = ({ product, categories, brands }: Props) => {
                     <span className="text-base text-green-700 font-semibold">
                       Sale: {formatPrice(product.sale_price)}
                     </span>
-                  )}
-                  {product.cost_price && (
-                    <span className="text-xs text-gray-500 ml-2">Cost: {formatPrice(product.cost_price)}</span>
                   )}
                 </div>
               </div>

@@ -43,7 +43,7 @@ class UserDashboardController extends Controller
                     'price' => (float) $product->price,
                     'sale_price' => $product->sale_price ? (float) $product->sale_price : null,
                     'current_price' => (float) ($product->sale_price ?? $product->price),
-                    'image' => $primaryImage ? asset('image' . $primaryImage->image_path) : asset('image/placeholder.jpg'),
+                    'image' => $primaryImage ? asset('image' . $primaryImage->image_path) : asset('image/placeholder.png'),
                     'category' => $product->category ? $product->category->name : null,
                     'brand' => $product->brand ? $product->brand->name : null,
                     'stock_status' => $product->stock_status,

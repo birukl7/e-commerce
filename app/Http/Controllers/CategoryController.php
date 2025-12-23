@@ -207,7 +207,7 @@ class CategoryController extends Controller
                             
         $product_image = $primaryImage
              ? asset('/image/' . ltrim($primaryImage->image_path, '/'))
-            : asset('/image/placeholder.jpg'); // fallback image (public asset)
+            : asset('/image/placeholder.png'); // fallback image (public asset)
 
         return [
             'id' => $product->id,

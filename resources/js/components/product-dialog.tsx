@@ -33,7 +33,6 @@ interface Product {
   sku: string
   price: number
   sale_price?: number | null
-  cost_price?: number | null
   stock_quantity: number
   manage_stock: boolean
   stock_status: string
@@ -71,7 +70,6 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
     sku: string
     price: number
     sale_price: number | null
-    cost_price: number | null
     stock_quantity: number
     manage_stock: boolean
     stock_status: string
@@ -93,7 +91,6 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
     sku: "",
     price: 0,
     sale_price: null,
-    cost_price: null,
     stock_quantity: 0,
     manage_stock: true,
     stock_status: "in_stock",
@@ -122,7 +119,6 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           sku: product.sku || "",
           price: product.price || 0,
           sale_price: product.sale_price ?? null,
-          cost_price: product.cost_price ?? null,
           stock_quantity: product.stock_quantity || 0,
           manage_stock: product.manage_stock ?? true,
           stock_status: product.stock_status || "in_stock",
@@ -149,7 +145,6 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
           sku: "",
           price: 0,
           sale_price: null,
-          cost_price: null,
           stock_quantity: 0,
           manage_stock: true,
           stock_status: "in_stock",
@@ -407,24 +402,6 @@ const ProductDialog = ({ isOpen, onClose, action, product, categories, brands }:
                   placeholder="0.00"
                 />
                 {errors.sale_price && <p className="text-red-600 text-sm mt-1">{errors.sale_price}</p>}
-              </div>
-
-              {/* Cost Price */}
-              <div>
-                <label htmlFor="cost_price" className="block text-sm font-medium text-gray-700 mb-2">
-                  Cost Price
-                </label>
-                <input
-                  type="number"
-                  id="cost_price"
-                  value={data.cost_price ?? ""}
-                  onChange={(e) => setData("cost_price", e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-                {errors.cost_price && <p className="text-red-600 text-sm mt-1">{errors.cost_price}</p>}
               </div>
 
               {/* Stock Quantity */}

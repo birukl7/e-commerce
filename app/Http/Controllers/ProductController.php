@@ -283,7 +283,7 @@ class ProductController extends Controller
                     ? ImageUrlService::formatImageUrl($product->images->where('is_primary', true)->first()->image_path)
                     : ($product->images->first() 
                         ? ImageUrlService::formatImageUrl($product->images->first()->image_path)
-                        : ImageUrlService::formatImageUrl('image/placeholder.jpg')),
+                        : ImageUrlService::formatImageUrl('image/placeholder.png')),
                 'category' => [
                     'id' => $product->category->id,
                     'name' => $product->category->name,
@@ -320,7 +320,7 @@ class ProductController extends Controller
                     'description' => $product->description,
                     'image' => $primaryImage 
                         ? asset('image/' . $primaryImage->image_path)
-                            : asset('/storage/placeholder.jpg'),
+                            : asset('image/placeholder.png'),
                     'images' => $product->images->map(function ($image) {
                         return [
                             'id' => $image->id,
