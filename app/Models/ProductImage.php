@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Services\ImageUrlService;
 
 class ProductImage extends Model
 {
@@ -31,6 +32,6 @@ class ProductImage extends Model
     // Accessors
     public function getImageUrlAttribute()
     {
-        return asset('image' . $this->image_path);
+        return app(ImageUrlService::class)->formatImageUrl($this->image_path) ?? asset('image/placeholder.png');
     }
 }
