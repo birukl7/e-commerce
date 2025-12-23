@@ -34,7 +34,9 @@ class WishlistController extends Controller
                     'sale_price' => $product->sale_price ? (float) $product->sale_price : null,
                     'current_price' => (float) ($product->sale_price ?? $product->price),
                     'description' => $product->description,
-                    'image' => $primaryImage ? asset('image' . $primaryImage->image_path) : asset('image/placeholder.png'),
+                    'image' => $primaryImage
+                        ? asset('image' . $primaryImage->image_path)
+                        : asset('/placeholder.svg?height=120&width=120&text=No%20Image'),
                     'images' => $product->images->map(function ($image) {
                         return [
                             'id' => $image->id,

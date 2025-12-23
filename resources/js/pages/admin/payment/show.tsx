@@ -95,9 +95,10 @@ interface Props {
     paymentType?: 'advance' | 'final' | null;
     productRequest?: ProductRequest | null;
     rejectionReasons?: RejectionReason[];
+    customerProfileImage?: string | null;
 }
 
-export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null, rejectionReasons = [] }: Props) {
+export default function ShowPayment({ payment, orderItems, customerPaymentHistory, canApprove, canReject, orderStatus, isProductRequestPayment = false, paymentType = null, productRequest = null, rejectionReasons = [], customerProfileImage = null }: Props) {
     const [activeAction, setActiveAction] = useState<'approve' | 'reject' | null>(null);
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
@@ -584,6 +585,27 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100 border border-gray-200 flex items-center justify-center">
+                                        {customerProfileImage ? (
+                                            <img
+                                                src={customerProfileImage}
+                                                alt={payment.customer_name || 'Customer avatar'}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <img
+                                                src="/placeholder.svg?height=64&width=64&text=No%20Image"
+                                                alt="No image"
+                                                className="h-full w-full object-cover"
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold">{payment.customer_name}</p>
+                                        <p className="text-xs text-muted-foreground">{payment.customer_email}</p>
+                                    </div>
+                                </div>
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
                                         <Label className="text-sm font-medium text-muted-foreground">Name</Label>

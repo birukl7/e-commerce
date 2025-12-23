@@ -255,6 +255,9 @@ class AdminPaymentController extends Controller
             ->ordered()
             ->get(['id', 'reason_code', 'reason_text', 'description']);
 
+        // Load customer profile image (if user exists)
+        $customer = \App\Models\User::where('email', $payment->customer_email)->first();
+
         return Inertia::render('admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
@@ -266,6 +269,7 @@ class AdminPaymentController extends Controller
             'paymentType' => $paymentType,
             'productRequest' => $productRequest,
             'rejectionReasons' => $rejectionReasons,
+            'customerProfileImage' => $customer?->profile_image_url,
         ]);
     }
 
