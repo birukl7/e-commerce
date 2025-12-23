@@ -23,11 +23,11 @@ class TaxSettingsController extends Controller
         $this->taxService = $taxService;
         
         // Apply middleware for authorization
-        $this->middleware('can:viewAny,TaxSetting')->only(['index', 'getActiveTaxes']);
-        $this->middleware('can:create,TaxSetting')->only(['storeRate']);
+        $this->middleware('can:viewAny,' . \App\Models\TaxSetting::class)->only(['index', 'getActiveTaxes']);
+        $this->middleware('can:create,' . \App\Models\TaxSetting::class)->only(['storeRate']);
         $this->middleware('can:update,taxSetting')->only(['updateRate', 'toggleStatus']);
         $this->middleware('can:delete,taxSetting')->only(['destroyRate']);
-        $this->middleware('can:create,TaxClass')->only(['storeClass']);
+        $this->middleware('can:create,' . \App\Models\TaxClass::class)->only(['storeClass']);
         $this->middleware('can:update,taxClass')->only(['updateClass', 'setAsDefault']);
         $this->middleware('can:delete,taxClass')->only(['destroyClass']);
     }

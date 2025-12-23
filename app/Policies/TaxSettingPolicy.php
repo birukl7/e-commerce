@@ -26,7 +26,7 @@ class TaxSettingPolicy
     public function viewAny(User $user): bool
     {
         $allowed = $this->hasTaxAdminAccess($user);
-        \Log::info('Policy:TaxSetting:viewAny', [
+        \Log::error('Policy:TaxSetting:viewAny', [
             'user_id' => $user->id,
             'email' => $user->email,
             'roles' => $user->getRoleNames()->toArray(),
