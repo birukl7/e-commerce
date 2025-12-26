@@ -2,13 +2,14 @@
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Heart, ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import H2 from '../ui/h2';
 import { getImageUrl } from '@/lib/image';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/contexts/cart-context';
 
 interface Product {
     id: number;
@@ -38,6 +39,7 @@ interface FeaturedProductsProps {
 
 export default function FeaturedProducts({ products: productsByCategory }: FeaturedProductsProps) {
     const { t } = useTranslation();
+    const { addToCart } = useCart();
     const [wishlistItems, setWishlistItems] = useState<Set<number>>(new Set());
     const [wishlistLoading, setWishlistLoading] = useState<Set<number>>(new Set());
 
@@ -81,6 +83,27 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
         }
     };
 
+    const handleAddToCart = (product: Product) => {
+        // Transform product data to match what addToCart expects
+        const currentPrice = product.sale_price ? parseFloat(product.sale_price) : parseFloat(product.price);
+        const primaryImage = product.images?.find(img => img.is_primary) || product.images?.[0];
+        const imageUrl = primaryImage ? getImageUrl(primaryImage.image_path) : '/images/placeholder-product.jpg';
+        
+        // Determine stock status based on stock_quantity
+        const stockStatus = product.stock_quantity > 0 ? 'in_stock' : 'out_of_stock';
+        
+        addToCart({
+            id: product.id,
+            name: product.name,
+            current_price: currentPrice,
+            primary_image: imageUrl,
+            stock_quantity: product.stock_quantity,
+            stock_status: stockStatus,
+            manage_stock: true, // Default to true, adjust if you have this field
+            quantity: 1
+        });
+    };
+
     return (
         <section className="py-12 bg-white">
             <div className="container mx-auto px-4">
@@ -114,9 +137,19 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                     const isInWishlist = wishlistItems.has(product.id);
 
                                     return (
-                                        <Card key={product.id} className="group relative overflow-hidden transition-shadow hover:shadow-lg">
+                                        <Card 
+                                            key={product.id} 
+                                            className="group relative overflow-hidden transition-shadow hover:shadow-lg cursor-pointer"
+                                            onClick={() => {
+                                                router.visit(route('web.products.show', { slug: product.slug }));
+                                            }}
+                                        >
                                             <div className="relative aspect-square overflow-hidden">
-                                                <Link href={route('web.products.show', { slug: product.slug })} className="block">
+                                                <Link 
+                                                    href={route('web.products.show', { slug: product.slug })} 
+                                                    className="block"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
                                                     <img
                                                         src={imageUrl}
                                                         alt={product.name}
@@ -132,7 +165,7 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                                     }}
                                                     disabled={wishlistLoading.has(product.id)}
                                                     className={cn(
-                                                        'absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors',
+                                                        'absolute top-2 right-2 p-2 rounded-full bg-white/80 backdrop-blur-sm transition-colors z-10',
                                                         isInWishlist ? 'text-red-500 hover:bg-red-50' : 'text-gray-400 hover:bg-gray-100 hover:text-red-500'
                                                     )}
                                                     aria-label={isInWishlist ? t('Remove from wishlist') : t('Add to wishlist')}
@@ -146,7 +179,11 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                                 </button>
                                             </div>
                                             <CardContent className="p-4">
-                                                <Link href={route('web.products.show', { slug: product.slug })} className="block">
+                                                <Link 
+                                                    href={route('web.products.show', { slug: product.slug })} 
+                                                    className="block"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
                                                     <h4 className="font-medium text-gray-900 mb-1 line-clamp-2 h-12">
                                                         {product.name}
                                                     </h4>
@@ -178,8 +215,10 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                                 </Link>
                                                 <Button 
                                                     className="w-full mt-4"
-                                                    onClick={() => {
-                                                        // Add to cart logic here
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        handleAddToCart(product);
                                                     }}
                                                 >
                                                     {t('Add to Cart')}
