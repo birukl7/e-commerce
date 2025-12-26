@@ -76,14 +76,41 @@ function readFileContent($path) {
     return file_get_contents($path);
 }
 
-// Get project root directory
+// Get project root directory - try to find Laravel root
 $projectRoot = __DIR__;
 $laravelRoot = $projectRoot;
 
-// Check if we're in a Laravel project
+// Try to find artisan file - might be in parent directory
 if (!file_exists($laravelRoot . '/artisan')) {
-    printError("Laravel artisan file not found. Make sure you're running this from the Laravel root directory.");
-    exit(1);
+    // Check if we're in a subdirectory
+    $parentDir = dirname($projectRoot);
+    if (file_exists($parentDir . '/artisan')) {
+        $laravelRoot = $parentDir;
+        printInfo("Found Laravel root in parent directory: " . $laravelRoot);
+    } else {
+        // Try common Laravel project structures
+        $possiblePaths = [
+            $projectRoot,
+            dirname($projectRoot),
+            dirname(dirname($projectRoot)),
+        ];
+        
+        $found = false;
+        foreach ($possiblePaths as $path) {
+            if (file_exists($path . '/artisan')) {
+                $laravelRoot = $path;
+                $found = true;
+                printInfo("Found Laravel root: " . $laravelRoot);
+                break;
+            }
+        }
+        
+        if (!$found) {
+            printError("Laravel artisan file not found. Make sure you're running this from the Laravel root directory.");
+            printInfo("Searched in: " . implode(", ", $possiblePaths));
+            exit(1);
+        }
+    }
 }
 
 printHeader("Cronjob & Laravel Queue Diagnostic Tool");
@@ -147,27 +174,60 @@ $cpanelPaths = [
 ];
 
 $foundCpanelCron = false;
+$cpanelFilesFound = [];
 foreach ($cpanelPaths as $path) {
     if (checkFileExists($path)) {
+        $cpanelFilesFound[] = $path;
         printSuccess("Found cPanel cron file: " . $path);
         $content = readFileContent($path);
         if ($content) {
             $lines = explode("\n", $content);
+            $hasEntries = false;
             foreach ($lines as $line) {
-                if (trim($line) && !preg_match('/^#/', $line)) {
-                    echo "  " . Colors::GREEN . trim($line) . Colors::RESET . "\n";
+                $trimmed = trim($line);
+                if ($trimmed && !preg_match('/^#/', $trimmed)) {
+                    echo "  " . Colors::GREEN . $trimmed . Colors::RESET . "\n";
+                    $hasEntries = true;
                     $foundCpanelCron = true;
+                } elseif ($trimmed && preg_match('/^#/', $trimmed)) {
+                    // Show comments too for context
+                    echo "  " . Colors::BLUE . $trimmed . Colors::RESET . "\n";
                 }
             }
+            if (!$hasEntries) {
+                printWarning("File exists but contains no active cron entries (only comments or empty)");
+            }
+        } else {
+            printWarning("File exists but could not read contents");
         }
     }
 }
 
-if (!$foundCpanelCron) {
+if (empty($cpanelFilesFound)) {
     printWarning("Could not find cPanel cron files in common locations");
     printInfo("Common cPanel cron locations checked:");
     foreach ($cpanelPaths as $path) {
-        echo "  - " . $path . "\n";
+        $exists = checkFileExists($path) ? Colors::GREEN . "EXISTS" : Colors::RED . "NOT FOUND";
+        echo "  - " . $path . " [" . $exists . Colors::RESET . "]\n";
+    }
+} else {
+    // Try to read the file using cat command as well (in case of permission issues)
+    foreach ($cpanelFilesFound as $cronFile) {
+        printInfo("Attempting to read cPanel cron file using cat command:");
+        $catResult = executeCommand('cat ' . escapeshellarg($cronFile) . ' 2>&1');
+        if ($catResult['success'] && !empty($catResult['output'])) {
+            echo "Full contents of " . $cronFile . ":\n";
+            foreach ($catResult['output'] as $line) {
+                $trimmed = trim($line);
+                if ($trimmed && !preg_match('/^#/', $trimmed)) {
+                    echo "  " . Colors::GREEN . $trimmed . Colors::RESET . "\n";
+                } elseif ($trimmed) {
+                    echo "  " . Colors::BLUE . $trimmed . Colors::RESET . "\n";
+                }
+            }
+        } else {
+            printWarning("Could not read file using cat command. Error: " . implode("\n", $catResult['output']));
+        }
     }
 }
 
@@ -253,7 +313,7 @@ printSection("Laravel Scheduler Configuration");
 
 $kernelPath = $laravelRoot . '/app/Console/Kernel.php';
 if (checkFileExists($kernelPath)) {
-    printSuccess("Found Kernel.php");
+    printSuccess("Found Kernel.php (Laravel 10 or earlier)");
     $kernelContent = readFileContent($kernelPath);
     
     // Check for schedule method
@@ -282,20 +342,38 @@ if (checkFileExists($kernelPath)) {
         }
     }
 } else {
-    printError("Kernel.php not found at: " . $kernelPath);
+    printInfo("Kernel.php not found (this is normal for Laravel 11+)");
 }
 
 // Check for scheduled commands in routes/console.php (Laravel 11+)
 $consoleRoutesPath = $laravelRoot . '/routes/console.php';
 if (checkFileExists($consoleRoutesPath)) {
-    printSuccess("Found console.php routes file");
+    printSuccess("Found console.php routes file (Laravel 11+)");
     $consoleContent = readFileContent($consoleRoutesPath);
-    if (preg_match_all('/Schedule::[^;]+;/', $consoleContent, $scheduleMatches)) {
+    
+    // Look for Schedule::command, Schedule::call, etc.
+    if (preg_match_all('/Schedule::(command|call|job|exec)[^;]+;/', $consoleContent, $scheduleMatches)) {
         printInfo("Scheduled commands found:");
         foreach ($scheduleMatches[0] as $schedule) {
             echo "  " . Colors::GREEN . trim($schedule) . Colors::RESET . "\n";
         }
+    } else {
+        // Show the file content if it exists but no schedules found
+        $lines = explode("\n", $consoleContent);
+        $hasContent = false;
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed && !preg_match('/^\/\//', $trimmed) && !preg_match('/^<\?php/', $trimmed) && !preg_match('/^use /', $trimmed)) {
+                echo "  " . Colors::YELLOW . $trimmed . Colors::RESET . "\n";
+                $hasContent = true;
+            }
+        }
+        if (!$hasContent) {
+            printWarning("console.php exists but contains no scheduled tasks");
+        }
     }
+} else {
+    printInfo("console.php not found (checking if this is Laravel 10 or earlier)");
 }
 
 // ============================================================================
@@ -488,4 +566,5 @@ echo "- Queue workers running: " . (!empty($queueWorkers['output']) ? Colors::GR
 echo "- Cron service: " . ($cronStatus['success'] ? Colors::GREEN . "Running" : Colors::YELLOW . "Unknown") . Colors::RESET . "\n";
 
 echo "\n";
+
 
