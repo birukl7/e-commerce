@@ -26,7 +26,11 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
         e.preventDefault();
         
         if (editingRate) {
-            form.put(route('admin.tax.rates.update', editingRate.id), {
+            form.transform((data) => ({
+                ...data,
+                rate: parseFloat(data.rate) || 0,
+                priority: parseInt(data.priority) || 1,
+            })).put(route('admin.tax.rates.update', editingRate.id), {
                 preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);
@@ -35,7 +39,11 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                 },
             });
         } else {
-            form.post(route('admin.tax.rates.store'), {
+            form.transform((data) => ({
+                ...data,
+                rate: parseFloat(data.rate) || 0,
+                priority: parseInt(data.priority) || 1,
+            })).post(route('admin.tax.rates.store'), {
                 preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);

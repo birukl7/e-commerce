@@ -277,7 +277,11 @@ class TaxSettingsController extends Controller
         ]);
 
         $taxSetting->update($validated);
+        
+        // Refresh the model to ensure we have the latest data
+        $taxSetting->refresh();
 
+        // Use Inertia redirect to ensure data is reloaded
         return redirect()->route('admin.tax.settings.tab', 'rates')
             ->with('success', 'Tax rate updated successfully.');
     }
