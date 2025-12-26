@@ -79,6 +79,22 @@ function readFileContent($path) {
 // Get project root directory - try to find Laravel root
 $projectRoot = __DIR__;
 $laravelRoot = $projectRoot;
+$laravelVersion = 'Unknown';
+
+// Try to detect Laravel version from composer.json
+$composerPath = $projectRoot . '/composer.json';
+if (file_exists($composerPath)) {
+    $composer = json_decode(file_get_contents($composerPath), true);
+    if (isset($composer['require']['laravel/framework'])) {
+        $versionConstraint = $composer['require']['laravel/framework'];
+        // Extract version number
+        if (preg_match('/\^?(\d+)\./', $versionConstraint, $matches)) {
+            $laravelVersion = 'Laravel ' . $matches[1];
+        } else {
+            $laravelVersion = 'Laravel (' . $versionConstraint . ')';
+        }
+    }
+}
 
 // Try to find artisan file - might be in parent directory
 if (!file_exists($laravelRoot . '/artisan')) {
@@ -128,6 +144,7 @@ $osInfo = php_uname();
 echo "User: " . Colors::BOLD . trim(implode("\n", $whoami['output'])) . Colors::RESET . "\n";
 echo "Hostname: " . Colors::BOLD . trim(implode("\n", $hostname['output'])) . Colors::RESET . "\n";
 echo "PHP Version: " . Colors::BOLD . $phpVersion . Colors::RESET . "\n";
+echo "Laravel Version: " . Colors::BOLD . $laravelVersion . Colors::RESET . "\n";
 echo "OS: " . Colors::BOLD . $osInfo . Colors::RESET . "\n";
 echo "Project Root: " . Colors::BOLD . $projectRoot . Colors::RESET . "\n";
 
@@ -211,12 +228,14 @@ if (empty($cpanelFilesFound)) {
         echo "  - " . $path . " [" . $exists . Colors::RESET . "]\n";
     }
 } else {
-    // Try to read the file using cat command as well (in case of permission issues)
+    // Try multiple methods to read the cPanel cron file
     foreach ($cpanelFilesFound as $cronFile) {
-        printInfo("Attempting to read cPanel cron file using cat command:");
+        printInfo("Attempting to read cPanel cron file: " . $cronFile);
+        
+        // Method 1: Try cat
         $catResult = executeCommand('cat ' . escapeshellarg($cronFile) . ' 2>&1');
         if ($catResult['success'] && !empty($catResult['output'])) {
-            echo "Full contents of " . $cronFile . ":\n";
+            echo "Full contents:\n";
             foreach ($catResult['output'] as $line) {
                 $trimmed = trim($line);
                 if ($trimmed && !preg_match('/^#/', $trimmed)) {
@@ -225,9 +244,96 @@ if (empty($cpanelFilesFound)) {
                     echo "  " . Colors::BLUE . $trimmed . Colors::RESET . "\n";
                 }
             }
-        } else {
-            printWarning("Could not read file using cat command. Error: " . implode("\n", $catResult['output']));
+            continue;
         }
+        
+        // Method 2: Try less/more
+        $lessResult = executeCommand('less ' . escapeshellarg($cronFile) . ' 2>&1 | head -50');
+        if ($lessResult['success'] && !empty($lessResult['output'])) {
+            echo "Contents (first 50 lines):\n";
+            foreach ($lessResult['output'] as $line) {
+                $trimmed = trim($line);
+                if ($trimmed && !preg_match('/^#/', $trimmed)) {
+                    echo "  " . Colors::GREEN . $trimmed . Colors::RESET . "\n";
+                }
+            }
+            continue;
+        }
+        
+        // Method 3: Check file permissions
+        $perms = executeCommand('ls -la ' . escapeshellarg($cronFile) . ' 2>&1');
+        if ($perms['success']) {
+            echo "File permissions:\n";
+            foreach ($perms['output'] as $line) {
+                echo "  " . $line . "\n";
+            }
+        }
+        
+        // Method 4: Try to get file owner
+        $owner = executeCommand('stat -c "%U:%G %a" ' . escapeshellarg($cronFile) . ' 2>&1 || ls -ld ' . escapeshellarg($cronFile) . ' 2>&1');
+        if ($owner['success']) {
+            echo "File ownership:\n";
+            foreach ($owner['output'] as $line) {
+                echo "  " . $line . "\n";
+            }
+        }
+        
+        printWarning("Cannot read cPanel cron file directly (permission denied).");
+        printInfo("This is normal - cPanel cron files are usually readable only by root/cron daemon.");
+        echo "\n";
+        printInfo("To view your cPanel cron jobs:");
+        echo "  1. Log into cPanel → Cron Jobs\n";
+        echo "  2. Or check cPanel email notifications for cron job errors\n";
+        echo "  3. Or check: " . getenv('HOME') . "/logs/error_log\n";
+        echo "\n";
+        printInfo("Common cPanel cron job issues:");
+        echo "  - Wrong PHP path (should be: /opt/cpanel/ea-php81/root/usr/bin/php or similar)\n";
+        echo "  - Wrong project path (should be absolute: " . $laravelRoot . ")\n";
+        echo "  - Missing environment variables (use full path to .env or set them)\n";
+        echo "  - Permission issues (make sure files are readable)\n";
+    }
+}
+
+// ============================================================================
+// 3.5. CHECK CPANEL ERROR LOGS
+// ============================================================================
+printSection("cPanel Error Logs");
+
+$cpanelLogPaths = [
+    getenv('HOME') . '/logs/error_log',
+    getenv('HOME') . '/logs/cpanel_error_log',
+    getenv('HOME') . '/public_html/error_log',
+    '/usr/local/cpanel/logs/error_log',
+];
+
+$foundCpanelLogs = false;
+foreach ($cpanelLogPaths as $logPath) {
+    if (checkFileExists($logPath)) {
+        printSuccess("Found cPanel log: " . $logPath);
+        $foundCpanelLogs = true;
+        
+        // Check for cron-related errors
+        $grepResult = executeCommand('grep -i "cron\|CRON\|schedule\|artisan" ' . escapeshellarg($logPath) . ' | tail -20 2>&1');
+        if ($grepResult['success'] && !empty($grepResult['output'])) {
+            printInfo("Recent cron-related errors from log:");
+            foreach (array_slice($grepResult['output'], -10) as $line) {
+                if (stripos($line, 'error') !== false || stripos($line, 'failed') !== false) {
+                    echo "  " . Colors::RED . $line . Colors::RESET . "\n";
+                } else {
+                    echo "  " . $line . "\n";
+                }
+            }
+        } else {
+            printInfo("No cron-related entries found in this log");
+        }
+    }
+}
+
+if (!$foundCpanelLogs) {
+    printWarning("Could not find cPanel error logs");
+    printInfo("Common locations checked:");
+    foreach ($cpanelLogPaths as $path) {
+        echo "  - " . $path . "\n";
     }
 }
 
@@ -343,12 +449,19 @@ if (checkFileExists($kernelPath)) {
     }
 } else {
     printInfo("Kernel.php not found (this is normal for Laravel 11+)");
+    if (strpos($laravelVersion, '12') !== false) {
+        printInfo("Laravel 12 uses routes/console.php for scheduled tasks");
+    }
 }
 
 // Check for scheduled commands in routes/console.php (Laravel 11+)
 $consoleRoutesPath = $laravelRoot . '/routes/console.php';
 if (checkFileExists($consoleRoutesPath)) {
-    printSuccess("Found console.php routes file (Laravel 11+)");
+    if (strpos($laravelVersion, '12') !== false) {
+        printSuccess("Found console.php routes file (Laravel 12)");
+    } else {
+        printSuccess("Found console.php routes file (Laravel 11+)");
+    }
     $consoleContent = readFileContent($consoleRoutesPath);
     
     // Look for Schedule::command, Schedule::call, etc.
@@ -373,7 +486,11 @@ if (checkFileExists($consoleRoutesPath)) {
         }
     }
 } else {
-    printInfo("console.php not found (checking if this is Laravel 10 or earlier)");
+    if (strpos($laravelVersion, '12') !== false || strpos($laravelVersion, '11') !== false) {
+        printWarning("console.php not found - scheduled tasks should be defined here for Laravel 11+");
+    } else {
+        printInfo("console.php not found (checking if this is Laravel 10 or earlier)");
+    }
 }
 
 // ============================================================================
@@ -495,7 +612,47 @@ if ($scheduleTest['success']) {
 }
 
 // ============================================================================
-// 13. RECOMMENDATIONS
+// 13. PHP PATH DETECTION
+// ============================================================================
+printSection("PHP Path Detection");
+
+$phpPath = executeCommand('which php');
+$phpVersionCmd = executeCommand('php -v | head -1');
+$phpPathFromProcess = '';
+$detectedPhp = '';
+
+// Try to get PHP path from running queue worker
+if (!empty($queueWorkers['output'])) {
+    foreach ($queueWorkers['output'] as $worker) {
+        if (preg_match('/(\/[^\s]+\/php)\s+artisan/', $worker, $matches)) {
+            $phpPathFromProcess = $matches[1];
+            break;
+        }
+    }
+}
+
+if ($phpPath['success'] && !empty($phpPath['output'])) {
+    $detectedPhp = trim($phpPath['output'][0]);
+    printSuccess("PHP path detected: " . $detectedPhp);
+    if ($phpVersionCmd['success'] && !empty($phpVersionCmd['output'])) {
+        echo "PHP version: " . trim($phpVersionCmd['output'][0]) . "\n";
+    }
+} else {
+    printWarning("Could not detect PHP path using 'which php'");
+}
+
+if ($phpPathFromProcess) {
+    printInfo("PHP path from running queue worker: " . $phpPathFromProcess);
+    if ($detectedPhp && $detectedPhp !== $phpPathFromProcess) {
+        printWarning("PHP path mismatch! Queue worker uses: " . $phpPathFromProcess);
+        printInfo("Use the same PHP path in your cron job that your queue worker uses.");
+    }
+}
+
+$finalPhpPath = $phpPathFromProcess ?: ($phpPath['success'] && !empty($phpPath['output']) ? trim($phpPath['output'][0]) : 'php');
+
+// ============================================================================
+// 14. RECOMMENDATIONS
 // ============================================================================
 printSection("Recommendations & Next Steps");
 
@@ -518,11 +675,19 @@ if (!$hasScheduler) {
     printWarning("Laravel scheduler not found in crontab!");
     echo "\n";
     printInfo("Add this to your crontab:");
-    echo Colors::BOLD . Colors::GREEN . $schedulerCommand . Colors::RESET . "\n";
+    $correctSchedulerCommand = "* * * * * cd " . $laravelRoot . " && " . $finalPhpPath . " artisan schedule:run >> /dev/null 2>&1";
+    echo Colors::BOLD . Colors::GREEN . $correctSchedulerCommand . Colors::RESET . "\n";
     echo "\n";
     printInfo("To add it, run:");
     echo Colors::BOLD . "crontab -e" . Colors::RESET . "\n";
     echo "Then paste the line above.\n";
+    echo "\n";
+    printInfo("For cPanel Cron Jobs:");
+    echo "1. Go to cPanel → Cron Jobs\n";
+    echo "2. Add a new cron job with:\n";
+    echo "   - Common Settings: Every Minute (* * * * *)\n";
+    echo "   - Command: " . Colors::BOLD . "cd " . $laravelRoot . " && " . $finalPhpPath . " artisan schedule:run >> /dev/null 2>&1" . Colors::RESET . "\n";
+    echo "\n";
 }
 
 // Check queue workers
