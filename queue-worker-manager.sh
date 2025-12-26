@@ -21,7 +21,7 @@
 
 # Configuration
 PROJECT_DIR="$HOME/e-commerce.biruklemma.com/biruklir"
-PHP_BIN="/opt/alt/php83/usr/bin/php"
+PHP_BIN="/opt/cpanel/ea-php81/root/usr/bin/php"
 LOG_FILE="$PROJECT_DIR/storage/logs/queue-manager.log"
 WORKER_LOG="$PROJECT_DIR/storage/logs/queue-worker.log"
 MAX_WORKERS=1  # Only allow one worker at a time
