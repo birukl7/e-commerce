@@ -121,10 +121,7 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
                                                         src={imageUrl}
                                                         alt={product.name}
                                                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                                        onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            target.src = '/images/placeholder-product.jpg';
-                                                        }}
+                                                      
                                                     />
                                                 </Link>
                                                 <button
