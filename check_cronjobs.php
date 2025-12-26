@@ -260,12 +260,18 @@ if (empty($cpanelFilesFound)) {
             continue;
         }
         
-        // Method 3: Check file permissions
+        // Method 3: Check file permissions and size
         $perms = executeCommand('ls -la ' . escapeshellarg($cronFile) . ' 2>&1');
         if ($perms['success']) {
             echo "File permissions:\n";
             foreach ($perms['output'] as $line) {
                 echo "  " . $line . "\n";
+                // Check if file is empty (0 bytes)
+                if (preg_match('/\s+0\s+Dec/', $line)) {
+                    printError("cPanel cron file is EMPTY (0 bytes)!");
+                    printWarning("This means no cron jobs are configured in cPanel.");
+                    printInfo("You need to add cron jobs via cPanel → Cron Jobs interface.");
+                }
             }
         }
         
@@ -278,8 +284,17 @@ if (empty($cpanelFilesFound)) {
             }
         }
         
-        printWarning("Cannot read cPanel cron file directly (permission denied).");
-        printInfo("This is normal - cPanel cron files are usually readable only by root/cron daemon.");
+        // Check file size directly
+        if (file_exists($cronFile)) {
+            $fileSize = filesize($cronFile);
+            if ($fileSize === 0) {
+                printError("cPanel cron file exists but is EMPTY (0 bytes)!");
+                printWarning("No cron jobs are currently configured in cPanel.");
+            } elseif ($fileSize > 0) {
+                printWarning("Cannot read cPanel cron file directly (permission denied).");
+                printInfo("This is normal - cPanel cron files are usually readable only by root/cron daemon.");
+            }
+        }
         echo "\n";
         printInfo("To view your cPanel cron jobs:");
         echo "  1. Log into cPanel → Cron Jobs\n";
@@ -652,7 +667,7 @@ if ($phpPathFromProcess) {
 $finalPhpPath = $phpPathFromProcess ?: ($phpPath['success'] && !empty($phpPath['output']) ? trim($phpPath['output'][0]) : 'php');
 
 // ============================================================================
-// 14. RECOMMENDATIONS
+// 15. RECOMMENDATIONS
 // ============================================================================
 printSection("Recommendations & Next Steps");
 
@@ -688,6 +703,21 @@ if (!$hasScheduler) {
     echo "   - Common Settings: Every Minute (* * * * *)\n";
     echo "   - Command: " . Colors::BOLD . "cd " . $laravelRoot . " && " . $finalPhpPath . " artisan schedule:run >> /dev/null 2>&1" . Colors::RESET . "\n";
     echo "\n";
+    
+    // If queue-worker-manager.sh exists, provide specific recommendation
+    $managerScript = $laravelRoot . '/queue-worker-manager.sh';
+    if (checkFileExists($managerScript)) {
+        printInfo("Queue Worker Manager Detected:");
+        echo "You have a queue-worker-manager.sh script. You may want to add TWO cron jobs:\n";
+        echo "\n";
+        echo "1. Laravel Scheduler (every minute):\n";
+        echo "   " . Colors::BOLD . "* * * * * cd " . $laravelRoot . " && " . $finalPhpPath . " artisan schedule:run >> /dev/null 2>&1" . Colors::RESET . "\n";
+        echo "\n";
+        echo "2. Queue Worker Manager (every 2 minutes):\n";
+        echo "   " . Colors::BOLD . "*/2 * * * * cd " . $laravelRoot . " && bash queue-worker-manager.sh >> storage/logs/queue-manager.log 2>&1" . Colors::RESET . "\n";
+        echo "\n";
+        printWarning("IMPORTANT: Make sure the PHP path in queue-worker-manager.sh matches: " . $finalPhpPath);
+    }
 }
 
 // Check queue workers
