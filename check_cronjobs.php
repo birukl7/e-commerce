@@ -290,9 +290,14 @@ if (empty($cpanelFilesFound)) {
             if ($fileSize === 0) {
                 printError("cPanel cron file exists but is EMPTY (0 bytes)!");
                 printWarning("No cron jobs are currently configured in cPanel.");
+                echo "\n";
+                printInfo("This explains why your cron jobs aren't running!");
+                echo "You need to add cron jobs via cPanel → Cron Jobs interface.\n";
+                echo "The file will be populated automatically when you add jobs.\n";
             } elseif ($fileSize > 0) {
                 printWarning("Cannot read cPanel cron file directly (permission denied).");
                 printInfo("This is normal - cPanel cron files are usually readable only by root/cron daemon.");
+                printInfo("File size: " . $fileSize . " bytes (contains cron jobs)");
             }
         }
         echo "\n";
@@ -552,8 +557,77 @@ printSection("Running Queue Workers");
 $queueWorkers = executeCommand('ps aux | grep -i "[q]ueue:work\|[q]ueue:listen\|artisan queue"');
 if ($queueWorkers['success'] && !empty($queueWorkers['output'])) {
     printSuccess("Found queue worker processes:");
+    $workerPids = [];
     foreach ($queueWorkers['output'] as $worker) {
         echo "  " . Colors::GREEN . $worker . Colors::RESET . "\n";
+        
+        // Extract PID and check runtime
+        if (preg_match('/^\S+\s+(\d+)/', $worker, $pidMatch)) {
+            $pid = $pidMatch[1];
+            $workerPids[] = $pid;
+            
+            // Get process runtime
+            $runtime = executeCommand("ps -o etime= -p $pid 2>/dev/null");
+            if ($runtime['success'] && !empty($runtime['output'])) {
+                $etime = trim($runtime['output'][0]);
+                echo "    Runtime: " . Colors::BLUE . $etime . Colors::RESET . "\n";
+                
+                // Check if worker has --max-time flag
+                if (strpos($worker, '--max-time') !== false) {
+                    if (preg_match('/--max-time=(\d+)/', $worker, $maxTimeMatch)) {
+                        $maxTime = (int)$maxTimeMatch[1];
+                        printInfo("Worker has --max-time=$maxTime seconds (" . round($maxTime/60) . " minutes)");
+                        
+                        // Parse runtime and warn if approaching limit
+                        // This is a simple check - etime format is like "08:07" or "1-08:07:30"
+                        if (preg_match('/(\d+):(\d+)/', $etime, $timeMatch)) {
+                            $hours = isset($timeMatch[1]) ? (int)$timeMatch[1] : 0;
+                            $minutes = isset($timeMatch[2]) ? (int)$timeMatch[2] : 0;
+                            $totalMinutes = ($hours * 60) + $minutes;
+                            
+                            if ($maxTime > 0 && $totalMinutes >= ($maxTime / 60) * 0.9) {
+                                printWarning("Worker is approaching --max-time limit! It will stop soon.");
+                            }
+                        }
+                    }
+                } else {
+                    printInfo("Worker running without --max-time (will run indefinitely until stopped)");
+                    printWarning("If worker crashes or stops, cron job should restart it");
+                }
+            }
+            
+            // Analyze worker command for queue names
+            if (preg_match('/--queue=([^\s]+)/', $worker, $queueMatch)) {
+                $queues = $queueMatch[1];
+                printInfo("Worker processing queues: " . $queues);
+            }
+        }
+    }
+    
+    // Check for pending jobs if we can access Laravel
+    printInfo("Checking pending queue jobs...");
+    $pendingJobs = executeCommand('cd ' . escapeshellarg($laravelRoot) . ' && ' . $finalPhpPath . ' artisan tinker --execute="echo DB::table(\'jobs\')->count();" 2>&1 | tail -1');
+    if ($pendingJobs['success'] && !empty($pendingJobs['output'])) {
+        $pending = trim($pendingJobs['output'][0]);
+        // Filter out non-numeric output
+        $pending = preg_replace('/[^0-9]/', '', $pending);
+        if ($pending !== '' && is_numeric($pending)) {
+            $pendingCount = (int)$pending;
+            if ($pendingCount > 0) {
+                printWarning("Found $pendingCount pending job(s) in queue");
+                printInfo("Worker should process these jobs. If they're not processing:");
+                echo "  - Check worker logs: tail -f storage/logs/queue-worker.log\n";
+                echo "  - Check for database connection errors\n";
+                echo "  - Verify worker is processing the correct queue names\n";
+                echo "  - Check if worker is stuck or crashed\n";
+            } else {
+                printSuccess("No pending jobs in queue");
+            }
+        } else {
+            printWarning("Could not determine pending job count (output: " . implode(' ', $pendingJobs['output']) . ")");
+        }
+    } else {
+        printWarning("Could not check pending jobs - database may not be accessible");
     }
 } else {
     printWarning("No queue workers are currently running");
