@@ -67,66 +67,65 @@ export function ProductImageGallery({ images, productName, productId, price, onA
     };
 
     return (
-        <div className="space-y-4">
-            {/* Main Image - Made smaller */}
-            <div className="relative mx-auto aspect-square max-w-md overflow-hidden rounded-lg bg-gray-100">
+        <div className="space-y-3">
+            {/* Main Image Container */}
+            <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-50 border border-gray-100 shadow-xs">
                 <img
-                    src={getImageUrl(currentImage.url, { placeholderText: productName, width: 500, height: 500, bucket: "products" })}
+                    src={getImageUrl(currentImage.url, { placeholderText: productName, width: 600, height: 600, bucket: "products" })}
                     alt={currentImage.alt_text || productName}
                     className={`h-full w-full object-cover transition-transform duration-300 ${
                         isZoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
                     }`}
                     onClick={() => setIsZoomed(!isZoomed)}
-                   
                 />
 
                 {/* Zoom Icon */}
                 <button
                     onClick={() => setIsZoomed(!isZoomed)}
-                    className="bg-opacity-75 hover:bg-opacity-100 absolute top-4 right-4 rounded-full bg-white p-2 transition-all"
+                    className="absolute top-3 right-3 rounded-full bg-white/90 p-1.5 text-gray-700 shadow-xs backdrop-blur-xs hover:bg-white transition-all"
                 >
-                    <ZoomIn className="h-5 w-5 text-gray-700" />
+                    <ZoomIn className="h-4 w-4" />
                 </button>
 
-                {/* Navigation Arrows - only show if multiple images */}
+                {/* Navigation Arrows */}
                 {sortedImages.length > 1 && (
                     <>
                         <button
                             onClick={prevImage}
-                            className="bg-opacity-75 hover:bg-opacity-100 absolute top-1/2 left-4 -translate-y-1/2 rounded-full bg-white p-2 transition-all"
+                            className="absolute top-1/2 left-3 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-gray-700 shadow-xs backdrop-blur-xs hover:bg-white transition-all"
                         >
-                            <ChevronLeft className="h-5 w-5 text-gray-700" />
+                            <ChevronLeft className="h-4 w-4" />
                         </button>
                         <button
                             onClick={nextImage}
-                            className="bg-opacity-75 hover:bg-opacity-100 absolute top-1/2 right-4 -translate-y-1/2 rounded-full bg-white p-2 transition-all"
+                            className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full bg-white/90 p-1.5 text-gray-700 shadow-xs backdrop-blur-xs hover:bg-white transition-all"
                         >
-                            <ChevronRight className="h-5 w-5 text-gray-700" />
+                            <ChevronRight className="h-4 w-4" />
                         </button>
                     </>
                 )}
 
                 {/* Image Counter */}
                 {sortedImages.length > 1 && (
-                    <div className="bg-opacity-50 absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-black px-3 py-1 text-sm text-white">
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/60 px-2.5 py-0.5 text-xs text-white backdrop-blur-xs">
                         {currentImageIndex + 1} / {sortedImages.length}
                     </div>
                 )}
             </div>
 
-            {/* Thumbnail Images - only show if multiple images */}
+            {/* Thumbnail Images */}
             {sortedImages.length > 1 && (
-                <div className="flex justify-center gap-2 overflow-x-auto pb-2">
+                <div className="flex justify-center gap-2 overflow-x-auto py-1">
                     {sortedImages.map((image, index) => (
                         <button
                             key={image.id}
                             onClick={() => setCurrentImageIndex(index)}
-                            className={`aspect-square h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
-                                index === currentImageIndex ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-300'
+                            className={`aspect-square h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-all ${
+                                index === currentImageIndex ? 'border-primary ring-2 ring-primary/20' : 'border-gray-200 hover:border-gray-300'
                             }`}
                         >
                             <img
-                                src={getImageUrl(image.url, { placeholderText: productName, width: 80, height: 80, bucket: "products" })}
+                                src={getImageUrl(image.url, { placeholderText: productName, width: 100, height: 100, bucket: "products" })}
                                 alt={image.alt_text || productName}
                                 className="h-full w-full object-cover"
                                 onError={handleImageError}
@@ -135,16 +134,6 @@ export function ProductImageGallery({ images, productName, productId, price, onA
                     ))}
                 </div>
             )}
-
-            {/* Add to Cart Section */}
-            <div className="mx-auto max-w-md space-y-3">
-                {price && (
-                    <div className="text-center">
-                        <span className="text-2xl font-bold text-gray-900">{formatPrice(price)}</span>
-                    </div>
-                )}
-
-            </div>
         </div>
     );
 }

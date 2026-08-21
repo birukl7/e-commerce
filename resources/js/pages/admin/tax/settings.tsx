@@ -1,8 +1,8 @@
 import AdminLayout from '@/layouts/AdminLayout';
 import { Head, Link } from '@inertiajs/react';
-import TaxClassesTab from '@/Pages/Admin/Tax/Tabs/TaxClassesTab';
-import TaxRatesTab from '@/Pages/Admin/Tax/Tabs/TaxRatesTab';
-import TaxSettingsTab from '@/Pages/Admin/Tax/Tabs/TaxSettingsTab';
+import TaxClassesTab from './Tabs/TaxClassesTab';
+import TaxRatesTab from './Tabs/TaxRatesTab';
+import TaxSettingsTab from './Tabs/TaxSettingsTab';
 import { cn } from '@/lib/utils';
 
 type TabsMap = Record<string, { label: string; route: string }>;

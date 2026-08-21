@@ -1,20 +1,33 @@
 import { useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Pencil, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function TaxClassesTab({ classes, taxClasses }) {
+export interface TaxClassItem {
+    id: number;
+    name: string;
+    description?: string | null;
+    is_default: boolean;
+    tax_settings_count?: number;
+}
+
+interface TaxClassesTabProps {
+    classes?: TaxClassItem[];
+    taxClasses?: TaxClassItem[];
+}
+
+export default function TaxClassesTab({ classes = [], taxClasses = [] }: TaxClassesTabProps) {
     const [showForm, setShowForm] = useState(false);
-    const [editingClass, setEditingClass] = useState(null);
+    const [editingClass, setEditingClass] = useState<TaxClassItem | null>(null);
     
     const form = useForm({
         name: '',
         description: '',
     });
     
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const data = form.data();
+        const data = form.data;
         
         if (editingClass) {
             router.put(route('admin.tax.classes.update', editingClass.id), data, {
@@ -34,7 +47,7 @@ export default function TaxClassesTab({ classes, taxClasses }) {
         }
     };
     
-    const editClass = (taxClass) => {
+    const editClass = (taxClass: TaxClassItem) => {
         setEditingClass(taxClass);
         form.setData({
             name: taxClass.name,
@@ -43,7 +56,7 @@ export default function TaxClassesTab({ classes, taxClasses }) {
         setShowForm(true);
     };
     
-    const deleteClass = (id) => {
+    const deleteClass = (id: number) => {
         if (confirm('Are you sure you want to delete this tax class?')) {
             router.delete(route('admin.tax.classes.destroy', id));
         }

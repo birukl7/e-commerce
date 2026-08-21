@@ -138,22 +138,21 @@ class ImageUrlService
 
         // Remove /storage/ prefix if present
         if (str_starts_with($imagePath, '/storage/')) {
-            return ltrim($imagePath, '/storage/');
+            return preg_replace('#^/storage/#', '', $imagePath);
         }
 
         // Remove /image/ prefix if present (legacy format)
         if (str_starts_with($imagePath, '/image/')) {
-            $pathWithoutPrefix = ltrim($imagePath, '/image/');
-            // If it's just a filename, assume it's in images/ bucket
+            $pathWithoutPrefix = preg_replace('#^/image/#', '', $imagePath);
             if (!str_contains($pathWithoutPrefix, '/')) {
-                return 'images/' . $pathWithoutPrefix;
+                return 'image/' . $pathWithoutPrefix;
             }
             return $pathWithoutPrefix;
         }
 
         // Remove storage/ prefix if present (without leading slash)
         if (str_starts_with($imagePath, 'storage/')) {
-            return ltrim($imagePath, 'storage/');
+            return preg_replace('#^storage/#', '', $imagePath);
         }
 
         // If it starts with / and is just a filename, assume images/ bucket

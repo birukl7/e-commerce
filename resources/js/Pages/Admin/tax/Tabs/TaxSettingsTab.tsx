@@ -1,6 +1,20 @@
 import { useForm } from '@inertiajs/react';
+import React from 'react';
+import { TaxClass } from './TaxRatesTab';
 
-export default function TaxSettingsTab({ settings, taxClasses }) {
+interface TaxSettings {
+    pricesIncludeTax?: boolean;
+    shippingTaxClass?: string | number;
+    displayPricesInShop?: 'incl' | 'excl';
+    displayPricesInCart?: 'incl' | 'excl';
+}
+
+interface TaxSettingsTabProps {
+    settings?: TaxSettings;
+    taxClasses?: TaxClass[];
+}
+
+export default function TaxSettingsTab({ settings = {}, taxClasses = [] }: TaxSettingsTabProps) {
     const form = useForm({
         pricesIncludeTax: settings.pricesIncludeTax || false,
         shippingTaxClass: settings.shippingTaxClass || '',
@@ -8,7 +22,7 @@ export default function TaxSettingsTab({ settings, taxClasses }) {
         displayPricesInCart: settings.displayPricesInCart || 'incl',
     });
     
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         form.put(route('admin.tax.settings.update'));
     };
@@ -83,7 +97,7 @@ export default function TaxSettingsTab({ settings, taxClasses }) {
                                             className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
                                             value="incl"
                                             checked={form.data.displayPricesInShop === 'incl'}
-                                            onChange={(e) => form.setData('displayPricesInShop', e.target.value)}
+                                            onChange={(e) => form.setData('displayPricesInShop', e.target.value as 'incl' | 'excl')}
                                         />
                                         <label htmlFor="displayPricesInShopIncl" className="ml-2 block text-sm text-gray-700">
                                             Including tax
@@ -97,7 +111,7 @@ export default function TaxSettingsTab({ settings, taxClasses }) {
                                             className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
                                             value="excl"
                                             checked={form.data.displayPricesInShop === 'excl'}
-                                            onChange={(e) => form.setData('displayPricesInShop', e.target.value)}
+                                            onChange={(e) => form.setData('displayPricesInShop', e.target.value as 'incl' | 'excl')}
                                         />
                                         <label htmlFor="displayPricesInShopExcl" className="ml-2 block text-sm text-gray-700">
                                             Excluding tax
@@ -119,7 +133,7 @@ export default function TaxSettingsTab({ settings, taxClasses }) {
                                             className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
                                             value="incl"
                                             checked={form.data.displayPricesInCart === 'incl'}
-                                            onChange={(e) => form.setData('displayPricesInCart', e.target.value)}
+                                            onChange={(e) => form.setData('displayPricesInCart', e.target.value as 'incl' | 'excl')}
                                         />
                                         <label htmlFor="displayPricesInCartIncl" className="ml-2 block text-sm text-gray-700">
                                             Including tax
@@ -133,7 +147,7 @@ export default function TaxSettingsTab({ settings, taxClasses }) {
                                             className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300"
                                             value="excl"
                                             checked={form.data.displayPricesInCart === 'excl'}
-                                            onChange={(e) => form.setData('displayPricesInCart', e.target.value)}
+                                            onChange={(e) => form.setData('displayPricesInCart', e.target.value as 'incl' | 'excl')}
                                         />
                                         <label htmlFor="displayPricesInCartExcl" className="ml-2 block text-sm text-gray-700">
                                             Excluding tax

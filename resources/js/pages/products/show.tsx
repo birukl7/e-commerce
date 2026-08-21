@@ -82,36 +82,28 @@ interface ShowProps {
 
 const Show = ({ product, related_products, reviews, userHasReviewed }: ShowProps) => {
   const { t } = useTranslation()
-  console.log("products images", product.images);
+
   return (
     <MainLayout 
       title={product?.name || t('productDetail.productDetails')} 
-      className=""
       showBackButton
     >
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">
-          {product?.name || t('productDetail.productDetails')}
-        </h1>
-        
-        {/* Test ProductImageGallery */}
-        <div className="mb-8">
-          <ProductImageGallery images={product.images || []} productName={product.name} />
-        </div>
+      <div className="max-w-6xl mx-auto px-4 py-6 sm:px-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+          {/* Left Column: Image Gallery */}
+          <div className="lg:col-span-5 lg:sticky lg:top-24">
+            <ProductImageGallery images={product.images || []} productName={product.name} />
+          </div>
 
-         <ProductDetails 
-           product={product} 
-           reviews={reviews || { data: [], pagination: { current_page: 1, last_page: 1, per_page: 10, total: 0 } }}
-           userHasReviewed={userHasReviewed || false}
-         />
-        
-        {/* <ProductReviews 
-          reviews={product.reviews}
-          averageRating={product.average_rating}
-          reviewsCount={product.reviews_count}
-          productId={product.id}
-        />
-        <RelatedProducts products={related_products} />  */}
+          {/* Right Column: Product Details & Actions */}
+          <div className="lg:col-span-7">
+            <ProductDetails 
+              product={product} 
+              reviews={reviews || { data: [], pagination: { current_page: 1, last_page: 1, per_page: 10, total: 0 } }}
+              userHasReviewed={userHasReviewed || false}
+            />
+          </div>
+        </div>
       </div>
     </MainLayout>
   )

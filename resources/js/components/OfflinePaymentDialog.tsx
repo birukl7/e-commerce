@@ -1,12 +1,7 @@
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Building, Loader2, Smartphone, X } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Building, Check, Copy, Loader2, Smartphone, Upload, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from '@inertiajs/react';
-import PaymentDetailsModal from './payment-details-modal';
 import { useTranslation } from 'react-i18next';
 
 interface OfflinePaymentMethod {
@@ -15,7 +10,7 @@ interface OfflinePaymentMethod {
     type: string;
     description: string;
     instructions: string;
-    details: any;
+    details: Record<string, any>;
 }
 
 interface TaxBreakdownItem {
@@ -60,20 +55,21 @@ export default function OfflinePaymentDialog({
     const { t } = useTranslation();
     const [offlinePaymentMethods, setOfflinePaymentMethods] = useState<OfflinePaymentMethod[]>([]);
     const [selectedOfflineMethod, setSelectedOfflineMethod] = useState('');
-    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-    const [modalPaymentReference, setModalPaymentReference] = useState('');
-    const [modalPaymentNotes, setModalPaymentNotes] = useState('');
-    const [modalPaymentScreenshot, setModalPaymentScreenshot] = useState<File | null>(null);
+    const [paymentReference, setPaymentReference] = useState('');
+    const [paymentNotes, setPaymentNotes] = useState('');
+    const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // Simple URL builder to avoid Ziggy at build-time
+    // Simple URL builder
     const buildUrl = (path: string, params?: Record<string, any>) => {
         if (!params) return path;
         const search = new URLSearchParams();
         Object.entries(params).forEach(([key, value]) => {
             if (value === undefined || value === null) return;
-            // stringify objects
             if (typeof value === 'object') {
                 search.set(key, JSON.stringify(value));
             } else {
@@ -84,41 +80,41 @@ export default function OfflinePaymentDialog({
         return qs ? `${path}?${qs}` : path;
     };
 
-    // Form for offline payment submission
-    type OfflineFormData = {
-        order_id: string;
-        amount: number;
-        currency: string;
-        offline_payment_method_id: string;
-        payment_reference: string;
-        payment_notes: string;
-        payment_screenshot: File | null;
-    };
-
-    const offlineForm = useForm<OfflineFormData & { [key: string]: any }>({
+    const offlineForm = useForm({
         order_id: orderId,
         amount: totalAmount,
         currency: currency,
         offline_payment_method_id: '',
         payment_reference: '',
         payment_notes: '',
-        payment_screenshot: null,
+        payment_screenshot: null as File | null,
     });
 
-    // Create order and fetch offline payment methods when dialog opens
     useEffect(() => {
         if (isOpen) {
             createOrderIfNeeded();
             fetchOfflinePaymentMethods();
         } else {
             setSelectedOfflineMethod('');
-            setIsPaymentModalOpen(false);
-            setModalPaymentReference('');
-            setModalPaymentNotes('');
-            setModalPaymentScreenshot(null);
+            setPaymentReference('');
+            setPaymentNotes('');
+            setPaymentScreenshot(null);
+            setPreviewUrl(null);
             offlineForm.reset();
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        if (!paymentScreenshot) {
+            setPreviewUrl(null);
+            return;
+        }
+        const url = URL.createObjectURL(paymentScreenshot);
+        setPreviewUrl(url);
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [paymentScreenshot]);
 
     const createOrderIfNeeded = async () => {
         try {
@@ -154,8 +150,9 @@ export default function OfflinePaymentDialog({
 
             if (response.ok) {
                 const data = await response.json();
-                if (data.success && data.methods) {
+                if (data.success && data.methods && data.methods.length > 0) {
                     setOfflinePaymentMethods(data.methods);
+                    setSelectedOfflineMethod(data.methods[0].id.toString());
                 }
             } else {
                 console.error('Failed to fetch offline payment methods:', response.status);
@@ -167,67 +164,68 @@ export default function OfflinePaymentDialog({
         }
     };
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: currency === 'ETB' ? 'USD' : currency,
-        })
-            .format(price)
-            .replace('$', currency + ' ');
+    const currentMethod = offlinePaymentMethods.find(m => m.id.toString() === selectedOfflineMethod);
+    const details = currentMethod?.details || {};
+    const accountNumber = details.account_number || details.phone_number || details.till_number || 'N/A';
+    const accountName = details.account_name || details.name || '';
+    const bankName = details.bank_name || currentMethod?.name || '';
+
+    const handleCopy = (text: string) => {
+        navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
     };
 
-    const handleBankSelection = (methodId: string) => {
-        setSelectedOfflineMethod(methodId);
-        setModalPaymentReference('');
-        setModalPaymentNotes('');
-        setModalPaymentScreenshot(null);
-        setIsPaymentModalOpen(true);
+    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
     };
 
-    const handleModalClose = () => {
-        setIsPaymentModalOpen(false);
-        setSelectedOfflineMethod('');
-        setModalPaymentReference('');
-        setModalPaymentNotes('');
-        setModalPaymentScreenshot(null);
+    const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = e.dataTransfer.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file');
+            return;
+        }
+        setPaymentScreenshot(file);
     };
 
-    const handleModalConfirm = () => {
-        offlineForm.setData('payment_reference', modalPaymentReference);
-        offlineForm.setData('payment_notes', modalPaymentNotes);
-        offlineForm.setData('payment_screenshot', modalPaymentScreenshot);
-        offlineForm.setData('offline_payment_method_id', selectedOfflineMethod);
-        
-        setIsPaymentModalOpen(false);
-        setIsSubmitting(true);
-        handleOfflineSubmit(new Event('submit') as any);
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        if (file && !file.type.startsWith('image/')) {
+            alert('Please upload an image file');
+            return;
+        }
+        setPaymentScreenshot(file);
     };
 
     const handleOfflineSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!selectedOfflineMethod) {
+            alert('Please select a payment method');
+            return;
+        }
+
+        if (!paymentScreenshot) {
+            alert('Please upload a payment screenshot');
+            return;
+        }
+
+        setIsSubmitting(true);
+
         try {
-            if (!selectedOfflineMethod) {
-                setIsSubmitting(false);
-                alert('Please select a payment method');
-                return;
-            }
-
-            const paymentScreenshot = offlineForm.data.payment_screenshot || modalPaymentScreenshot;
-            if (!paymentScreenshot) {
-                setIsSubmitting(false);
-                alert('Please upload a payment screenshot');
-                return;
-            }
-
             const formData = new FormData();
             const formFields = {
                 order_id: orderId,
                 amount: totalAmount.toString(),
                 currency: currency,
                 offline_payment_method_id: selectedOfflineMethod,
-                payment_reference: modalPaymentReference || offlineForm.data.payment_reference || '',
-                payment_notes: modalPaymentNotes || offlineForm.data.payment_notes || '',
+                payment_reference: paymentReference,
+                payment_notes: paymentNotes,
                 payment_type: paymentType || 'regular',
                 product_request_id: productRequestId?.toString() || '',
                 description: description || '',
@@ -272,7 +270,6 @@ export default function OfflinePaymentDialog({
             if (contentType && contentType.includes('application/json')) {
                 result = await response.json();
             } else {
-                const text = await response.text();
                 throw new Error(`Unexpected response type: ${contentType}`);
             }
 
@@ -290,9 +287,6 @@ export default function OfflinePaymentDialog({
                 if (result.errors) {
                     if (result.errors.payment_reference) {
                         offlineForm.setError('payment_reference', result.errors.payment_reference[0]);
-                    }
-                    if (result.errors.payment_notes) {
-                        offlineForm.setError('payment_notes', result.errors.payment_notes[0]);
                     }
                     if (result.errors.payment_screenshot) {
                         offlineForm.setError('payment_screenshot', result.errors.payment_screenshot[0]);
@@ -313,200 +307,237 @@ export default function OfflinePaymentDialog({
         }
     };
 
-    if (!isLoading && offlinePaymentMethods.length === 0 && isOpen) {
-        return (
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="w-[95vw] max-w-2xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{t('payment.offlinePaymentNotAvailable')}</DialogTitle>
-                        <DialogDescription>
-                            {t('payment.offlinePaymentNotAvailableDesc')}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex gap-3 pt-4">
-                        <Button variant="outline" onClick={onClose} className="flex-1">
-                            {t('payment.goBack')}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-        );
-    }
-
     return (
-        <>
-            {/* Loading Overlay */}
-            {isSubmitting && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-lg p-8 shadow-xl flex flex-col items-center gap-4">
-                        <Loader2 className="h-12 w-12 animate-spin text-primary-600" />
-                        <p className="text-lg font-semibold text-gray-900">{t('payment.processing')}</p>
-                        <p className="text-sm text-gray-600">{t('payment.processingPayment')}</p>
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="w-[95vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[92vh] overflow-y-auto bg-[#09090b] text-white border border-zinc-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+                {/* Header Row: Total Due */}
+                <div className="relative text-center space-y-1 mb-4">
+                    <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-widest">TOTAL DUE</span>
+                    <div className="flex items-baseline justify-center gap-1.5">
+                        <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">
+                            {Math.round(totalAmount)}
+                        </span>
+                        <span className="text-sm font-bold text-zinc-400">{currency || 'ETB'}</span>
+                    </div>
+
+                    <div className="flex items-center justify-center gap-2 pt-2">
+                        <span className="px-3 py-1 rounded-full bg-zinc-900 text-zinc-300 text-xs font-semibold border border-zinc-800">
+                            Order #{orderId.slice(-8)}
+                        </span>
+                        {cartItems && cartItems.length > 0 && (
+                            <span className="px-3 py-1 rounded-full bg-zinc-900 text-zinc-300 text-xs font-semibold border border-zinc-800">
+                                {cartItems.length} {cartItems.length === 1 ? 'Item' : 'Items'}
+                            </span>
+                        )}
                     </div>
                 </div>
-            )}
 
-            <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto sm:w-[90vw] md:w-[85vw] lg:w-[75vw] xl:w-[70vw] 2xl:max-w-7xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl">{t('payment.uploadPaymentProof')}</DialogTitle>
-                        <DialogDescription className="text-base">
-                            {paymentType === 'product_request_advance' ? t('payment.advancePayment') :
-                             paymentType === 'product_request_final' ? t('payment.finalPayment') :
-                             `${t('payment.orderId')} ${orderId}`}
-                        </DialogDescription>
-                    </DialogHeader>
+                <div className="h-px bg-zinc-800/70 mb-6" />
 
-                    <div className="space-y-6 mt-4">
-                        {/* Order Summary */}
-                        {subtotal && taxBreakdown ? (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>{t('checkout.orderSummary')}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-2 text-sm">
-                                        <div className="flex justify-between">
-                                            <span>{t('checkout.subtotal')}:</span>
-                                            <span className="font-medium">{formatPrice(subtotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span>Tax:</span>
-                                            <span className="font-medium">
-                                                {formatPrice(taxBreakdown.reduce((sum, tax) => sum + tax.amount, 0))}
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                        <p className="text-sm font-medium text-zinc-400">Loading payment methods...</p>
+                    </div>
+                ) : (
+                    <form onSubmit={handleOfflineSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                            {/* Left Column: Step 1 & Step 2 */}
+                            <div className="space-y-6">
+                                {/* Step 1: Choose your payment method */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-white shrink-0">
+                                            1
+                                        </span>
+                                        <h4 className="text-sm font-bold text-white">Choose your payment method</h4>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {offlinePaymentMethods.map((method) => {
+                                            const isSelected = selectedOfflineMethod === method.id.toString();
+                                            const isCbe = method.name.toLowerCase().includes('cbe') || method.name.toLowerCase().includes('commercial bank');
+                                            const isTele = method.name.toLowerCase().includes('tele') || method.name.toLowerCase().includes('telebirr');
+
+                                            return (
+                                                <button
+                                                    key={method.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedOfflineMethod(method.id.toString())}
+                                                    className={`relative flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
+                                                        isSelected
+                                                            ? 'border-white bg-zinc-800/90 ring-1 ring-white shadow-lg'
+                                                            : 'border-zinc-800 bg-zinc-900/80 hover:border-zinc-700 hover:bg-zinc-900 text-zinc-400'
+                                                    }`}
+                                                >
+                                                    <div className="mb-2.5">
+                                                        {isCbe ? (
+                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-extrabold text-xs tracking-wider">
+                                                                CBE
+                                                            </div>
+                                                        ) : isTele ? (
+                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 font-extrabold text-xs tracking-wider">
+                                                                tele
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-xs">
+                                                                {method.type === 'bank' ? <Building className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-xs sm:text-sm font-bold text-white text-center leading-tight">
+                                                        {method.name}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                {/* Step 2: Transfer details */}
+                                {currentMethod && (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-white shrink-0">
+                                                2
                                             </span>
+                                            <h4 className="text-sm font-bold text-white">
+                                                Transfer exactly {Math.round(totalAmount)} {currency || 'ETB'}
+                                            </h4>
                                         </div>
-                                        <div className="flex justify-between border-t pt-2 font-semibold">
-                                            <span>{t('payment.totalToPay')}</span>
-                                            <span className="text-primary-700">{formatPrice(totalAmount)}</span>
+
+                                        <div className="flex items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/90 p-4 sm:p-5">
+                                            <div className="overflow-hidden">
+                                                <p className="text-xl sm:text-2xl font-bold font-mono tracking-wider text-white truncate">
+                                                    {accountNumber}
+                                                </p>
+                                                <p className="text-xs font-semibold text-zinc-400 mt-1 uppercase tracking-wide truncate">
+                                                    {accountName || bankName}
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleCopy(accountNumber)}
+                                                className="flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-semibold text-zinc-200 hover:bg-zinc-700 hover:text-white transition-all cursor-pointer shrink-0 ml-3"
+                                            >
+                                                {copied ? (
+                                                    <>
+                                                        <Check className="h-4 w-4 text-green-400" />
+                                                        <span className="text-green-400">Copied</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy className="h-4 w-4" />
+                                                        <span>Copy</span>
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            <Card>
-                                <CardContent className="pt-6">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-lg font-medium">{t('payment.amount')}</span>
-                                        <span className="text-2xl font-bold text-primary-600">{formatPrice(totalAmount)}</span>
+                                )}
+                            </div>
+
+                            {/* Right Column: Step 3 & Submit Button */}
+                            <div className="space-y-6 flex flex-col justify-between">
+                                {/* Step 3: Enter reference & upload proof */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-white shrink-0">
+                                            3
+                                        </span>
+                                        <h4 className="text-sm font-bold text-white">Enter reference number & upload proof</h4>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        )}
 
-                        {/* Payment Method Selection */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{t('payment.selectPaymentMethod')}</CardTitle>
-                                <CardDescription>{t('payment.chooseHowYouMadePayment')}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                {isLoading ? (
-                                    <div className="text-center py-8">
-                                        <p className="text-gray-600">{t('payment.processing')}</p>
-                                    </div>
-                                ) : (
-                                    <RadioGroup value={selectedOfflineMethod} onValueChange={setSelectedOfflineMethod} className="space-y-4">
-                                        {offlinePaymentMethods.map((method) => (
-                                            <div key={method.id} className="space-y-3">
-                                                <div className="flex items-center space-x-2">
-                                                    <RadioGroupItem 
-                                                        value={method.id.toString()} 
-                                                        id={`method-${method.id}`}
-                                                    />
-                                                    <Label htmlFor={`method-${method.id}`} className="cursor-pointer flex-1">
-                                                        <div className="flex items-center gap-3">
-                                                            {method.type === 'bank' ? (
-                                                                <Building className="h-5 w-5 text-primary-600" />
-                                                            ) : (
-                                                                <Smartphone className="h-5 w-5 text-green-600" />
-                                                            )}
-                                                            <div>
-                                                                <p className="font-medium">{method.name}</p>
-                                                                <p className="text-sm text-gray-600">{method.description}</p>
-                                                            </div>
-                                                        </div>
-                                                    </Label>
-                                                </div>
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                                                Transaction Reference Number
+                                            </label>
+                                            <input
+                                                type="text"
+                                                placeholder="Reference number (e.g. FT2408...)"
+                                                value={paymentReference}
+                                                onChange={(e) => setPaymentReference(e.target.value)}
+                                                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                                            />
+                                            {offlineForm.errors.payment_reference && (
+                                                <p className="mt-1 text-xs text-red-400">{offlineForm.errors.payment_reference}</p>
+                                            )}
+                                        </div>
 
-                                                {selectedOfflineMethod === method.id.toString() && (
-                                                    <div className="ml-6 rounded-lg bg-gray-50 p-4">
-                                                        <h4 className="mb-2 font-medium text-gray-900">{t('payment.paymentInstructions')}</h4>
-                                                        <p className="mb-3 text-sm text-gray-700">{method.instructions}</p>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-zinc-400 mb-1">
+                                                Payment Screenshot / Receipt <span className="text-red-400">*</span>
+                                            </label>
+                                            <div
+                                                onDragOver={onDragOver}
+                                                onDrop={onDrop}
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className="flex min-h-[110px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/60 p-4 text-center hover:border-zinc-700 hover:bg-zinc-900 transition-all"
+                                            >
+                                                <input
+                                                    ref={fileInputRef}
+                                                    type="file"
+                                                    accept="image/*"
+                                                    className="hidden"
+                                                    onChange={onFileChange}
+                                                />
 
-                                                        <div className="rounded border bg-white p-3">
-                                                            <h5 className="mb-2 font-medium text-gray-900">{t('orders.paymentDetails')}</h5>
-                                                            <div className="space-y-1 text-sm">
-                                                                {Object.entries(method.details).map(([key, value]: [string, any]) => (
-                                                                    <div key={key} className="flex justify-between">
-                                                                        <span className="text-gray-600 capitalize">{key.replace('_', ' ')}:</span>
-                                                                        <span className="font-medium">{value}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                                {paymentScreenshot && previewUrl ? (
+                                                    <div className="flex items-center gap-3 w-full">
+                                                        <img src={previewUrl} alt="Receipt preview" className="h-12 w-12 rounded-lg object-cover border border-zinc-700 shrink-0" />
+                                                        <div className="flex-1 text-left truncate">
+                                                            <p className="text-xs font-semibold text-white truncate">{paymentScreenshot.name}</p>
+                                                            <p className="text-[11px] text-zinc-400">{(paymentScreenshot.size / 1024 / 1024).toFixed(2)} MB</p>
                                                         </div>
-                                                        
-                                                        <div className="mt-4">
-                                                            <Button 
-                                                                onClick={() => handleBankSelection(method.id.toString())}
-                                                                className="w-full bg-primary-600 hover:bg-primary-700"
-                                                            >
-                                                                {t('payment.continueWith')} {method.name}
-                                                            </Button>
-                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setPaymentScreenshot(null);
+                                                            }}
+                                                            className="rounded-full bg-zinc-800 p-1.5 text-zinc-400 hover:text-white"
+                                                        >
+                                                            <X className="h-4 w-4" />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center gap-1.5 text-zinc-400 py-2">
+                                                        <Upload className="h-5 w-5 text-zinc-300" />
+                                                        <span className="text-xs font-semibold text-zinc-200">Upload receipt screenshot</span>
+                                                        <span className="text-[10px] text-zinc-500">PNG, JPG or GIF up to 5MB</span>
                                                     </div>
                                                 )}
                                             </div>
-                                        ))}
-                                    </RadioGroup>
-                                )}
-                                {offlineForm.errors.offline_payment_method_id && (
-                                    <p className="mt-2 text-sm text-red-600">{offlineForm.errors.offline_payment_method_id}</p>
-                                )}
-                            </CardContent>
-                        </Card>
+                                            {offlineForm.errors.payment_screenshot && (
+                                                <p className="mt-1 text-xs text-red-400">{offlineForm.errors.payment_screenshot}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
 
-                        {/* Error Display */}
-                        {offlineForm.errors?.general && (
-                            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-                                <p className="text-sm text-red-600">{offlineForm.errors.general as string}</p>
+                                {/* Submit Button */}
+                                <div className="pt-2">
+                                    <button
+                                        type="submit"
+                                        disabled={isSubmitting || !paymentScreenshot}
+                                        className="w-full rounded-full bg-white py-4 text-base font-bold text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 shadow-lg cursor-pointer flex items-center justify-center gap-2"
+                                    >
+                                        {isSubmitting ? (
+                                            <>
+                                                <Loader2 className="h-5 w-5 animate-spin" />
+                                                <span>Confirming Payment...</span>
+                                            </>
+                                        ) : (
+                                            <span>Confirm Payment</span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 pt-4">
-                            <Button variant="outline" onClick={onClose} className="flex-1" disabled={offlineForm.processing}>
-                                <X className="mr-2 h-4 w-4" />
-                                {t('payment.back')}
-                            </Button>
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* Payment Details Modal */}
-            <PaymentDetailsModal
-                isOpen={isPaymentModalOpen}
-                onClose={handleModalClose}
-                onConfirm={handleModalConfirm}
-                selectedMethod={offlinePaymentMethods.find(m => m.id.toString() === selectedOfflineMethod) || null}
-                paymentReference={modalPaymentReference}
-                onPaymentReferenceChange={setModalPaymentReference}
-                paymentNotes={modalPaymentNotes}
-                onPaymentNotesChange={setModalPaymentNotes}
-                paymentScreenshot={modalPaymentScreenshot}
-                onPaymentScreenshotChange={setModalPaymentScreenshot}
-                errors={{
-                    payment_reference: offlineForm.errors.payment_reference,
-                    payment_notes: offlineForm.errors.payment_notes,
-                    payment_screenshot: offlineForm.errors.payment_screenshot,
-                }}
-                isProcessing={isSubmitting || offlineForm.processing}
-                formatPrice={formatPrice}
-                totalAmount={totalAmount}
-                currency={currency}
-            />
-        </>
+                    </form>
+                )}
+            </DialogContent>
+        </Dialog>
     );
 }
-

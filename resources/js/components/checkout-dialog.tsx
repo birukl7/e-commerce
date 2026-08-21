@@ -53,22 +53,24 @@ interface SavedAddress {
 
 const paymentMethods = [
   {
-    id: "chapa",
-    name: "Chapa Online Payment",
-    description: "Pay instantly with Chapa (Cards, Mobile Money)",
-    icon: <CreditCard className="h-5 w-5" />,
-  },
-  {
     id: "offline",
     name: "Pay & Upload Proof",
     description: "Bank transfer or mobile money with proof upload",
     icon: <Wallet className="h-5 w-5" />,
+    isAvailable: true,
+  },
+  {
+    id: "chapa",
+    name: "Chapa Online Payment",
+    description: "Pay instantly with Chapa (Cards, Mobile Money)",
+    icon: <CreditCard className="h-5 w-5" />,
+    isAvailable: false,
   },
 ]
 
 export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods = [] }: CheckoutDialogProps) {
   const [currentStep, setCurrentStep] = useState(1)
-  const [selectedPayment, setSelectedPayment] = useState("")
+  const [selectedPayment, setSelectedPayment] = useState("offline")
   const [selectedOfflineMethod, setSelectedOfflineMethod] = useState<number | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const { items, getTotalPrice, clearCart } = useCart()
@@ -506,9 +508,9 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
 
             {/* Step 2: Payment Method */}
             {currentStep === 2 && (
@@ -539,19 +541,47 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
                 </Card>
 
                 {/* Payment Methods */}
-                <RadioGroup value={selectedPayment} onValueChange={setSelectedPayment}>
+                <RadioGroup
+                  value={selectedPayment}
+                  onValueChange={(val) => {
+                    const method = paymentMethods.find(m => m.id === val);
+                    if (method?.isAvailable) {
+                      setSelectedPayment(val);
+                    }
+                  }}
+                >
                   <div className="space-y-3">
                     {paymentMethods.map((method) => (
-                      <div key={method.id} className="flex items-center space-x-3">
-                        <RadioGroupItem value={method.id} id={method.id} />
-                        <Label htmlFor={method.id} className="flex items-center space-x-3 cursor-pointer flex-1">
-                          <div className="flex items-center justify-center w-10 h-10 bg-slate-100 rounded-lg">
-                            {method.icon}
+                      <div
+                        key={method.id}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border transition-all ${
+                          !method.isAvailable
+                            ? 'opacity-65 bg-gray-50 border-gray-200 cursor-not-allowed'
+                            : selectedPayment === method.id
+                            ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <RadioGroupItem value={method.id} id={method.id} disabled={!method.isAvailable} />
+                        <Label htmlFor={method.id} className={`flex items-center justify-between flex-1 ${!method.isAvailable ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                          <div className="flex items-center space-x-3">
+                            <div className="flex items-center justify-center w-10 h-10 bg-slate-100 rounded-lg">
+                              {method.icon}
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900">{method.name}</div>
+                              <div className="text-sm text-slate-600">{method.description}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-medium">{method.name}</div>
-                            <div className="text-sm text-slate-600">{method.description}</div>
-                          </div>
+                          {!method.isAvailable ? (
+                            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 shrink-0">
+                              Coming Soon
+                            </span>
+                          ) : (
+                            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-green-100 text-green-800 border border-green-200 shrink-0">
+                              Available
+                            </span>
+                          )}
                         </Label>
                       </div>
                     ))}

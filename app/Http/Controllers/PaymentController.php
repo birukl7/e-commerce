@@ -1037,6 +1037,8 @@ class PaymentController extends Controller
             $amount = $request->get('amount', 0);
             $currency = $request->get('currency', 'ETB');
             $paymentMethod = $request->get('payment_method', 'Offline Payment');
+            $paymentType = $request->get('payment_type', 'regular');
+            $productRequestId = $request->get('product_request_id');
 
             return Inertia::render('payment/offline-submission-success', [
                 'submission_ref' => $submissionRef,
@@ -1044,6 +1046,8 @@ class PaymentController extends Controller
                 'amount' => floatval($amount),
                 'currency' => $currency,
                 'payment_method' => $paymentMethod,
+                'payment_type' => $paymentType,
+                'product_request_id' => $productRequestId ? intval($productRequestId) : null,
             ]);
         } catch (\Exception $e) {
             Log::error('Offline submission success page error: ' . $e->getMessage());

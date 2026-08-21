@@ -1,17 +1,51 @@
 import { useForm, router } from '@inertiajs/react';
-import { useState } from 'react';
-import { Pencil, Trash, Check, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Pencil, Trash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export default function TaxRatesTab({ taxRates, taxClasses }) {
+export interface TaxClass {
+    id: number;
+    name: string;
+    description?: string | null;
+    is_default?: boolean;
+}
+
+export interface TaxRate {
+    id: number;
+    name: string;
+    tax_class_id: number | string;
+    tax_class?: TaxClass;
+    rate: number | string;
+    type: 'percentage' | 'fixed';
+    country: string;
+    state?: string | null;
+    city?: string | null;
+    postal_code?: string | null;
+    priority: number;
+    compound: boolean;
+    shipping_taxable: boolean;
+    is_active: boolean;
+}
+
+interface TaxRatesTabProps {
+    taxRates?: TaxRate[];
+    taxClasses?: TaxClass[];
+}
+
+export default function TaxRatesTab({ taxRates = [], taxClasses = [] }: TaxRatesTabProps) {
     const [showForm, setShowForm] = useState(false);
-    const [editingRate, setEditingRate] = useState(null);
+    const [editingRate, setEditingRate] = useState<TaxRate | null>(null);
+
+    const defaultTaxClass = taxClasses.find(tc => tc.name.toLowerCase() === 'standard')
+        || taxClasses.find(tc => tc.is_default)
+        || taxClasses[0];
+    const defaultTaxClassId = defaultTaxClass ? defaultTaxClass.id : '';
     
     const form = useForm({
         name: '',
-        tax_class_id: '',
-        rate: '',
-        type: 'percentage',
+        tax_class_id: (defaultTaxClassId || '') as number | string,
+        rate: '' as number | string,
+        type: 'percentage' as 'percentage' | 'fixed',
         country: 'ET',
         state: '',
         city: '',
@@ -21,16 +55,24 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
         shipping_taxable: true,
         is_active: true,
     });
+
+    useEffect(() => {
+        if (!editingRate && !form.data.tax_class_id && defaultTaxClassId) {
+            form.setData('tax_class_id', defaultTaxClassId);
+        }
+    }, [defaultTaxClassId, editingRate]);
     
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         
+        form.transform((data) => ({
+            ...data,
+            rate: parseFloat(data.rate as string) || 0,
+            priority: parseInt(data.priority as unknown as string) || 1,
+        }));
+
         if (editingRate) {
-            form.transform((data) => ({
-                ...data,
-                rate: parseFloat(data.rate) || 0,
-                priority: parseInt(data.priority) || 1,
-            })).put(route('admin.tax.rates.update', editingRate.id), {
+            form.put(route('admin.tax.rates.update', editingRate.id), {
                 preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);
@@ -39,11 +81,7 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                 },
             });
         } else {
-            form.transform((data) => ({
-                ...data,
-                rate: parseFloat(data.rate) || 0,
-                priority: parseInt(data.priority) || 1,
-            })).post(route('admin.tax.rates.store'), {
+            form.post(route('admin.tax.rates.store'), {
                 preserveScroll: false,
                 onSuccess: () => {
                     setShowForm(false);
@@ -53,14 +91,14 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
         }
     };
     
-    const editRate = (rate) => {
+    const editRate = (rate: TaxRate) => {
         setEditingRate(rate);
         form.setData({
             name: rate.name,
-            tax_class_id: rate.tax_class_id,
+            tax_class_id: rate.tax_class_id || defaultTaxClassId || '',
             rate: rate.rate,
             type: rate.type,
-            country: rate.country,
+            country: rate.country || 'ET',
             state: rate.state || '',
             city: rate.city || '',
             postal_code: rate.postal_code || '',
@@ -71,14 +109,33 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
         });
         setShowForm(true);
     };
+
+    const handleAddRateClick = () => {
+        setEditingRate(null);
+        form.setData({
+            name: '',
+            tax_class_id: defaultTaxClassId || '',
+            rate: '',
+            type: 'percentage',
+            country: 'ET',
+            state: '',
+            city: '',
+            postal_code: '',
+            priority: 1,
+            compound: false,
+            shipping_taxable: true,
+            is_active: true,
+        });
+        setShowForm(!showForm);
+    };
     
-    const deleteRate = (id) => {
+    const deleteRate = (id: number) => {
         if (confirm('Are you sure you want to delete this tax rate?')) {
             router.delete(route('admin.tax.rates.destroy', id));
         }
     };
     
-    const toggleStatus = (rate) => {
+    const toggleStatus = (rate: TaxRate) => {
         router.put(route('admin.tax.rates.toggle-status', rate.id), {
             is_active: !rate.is_active,
         });
@@ -90,11 +147,7 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                 <h3 className="text-lg font-medium">Tax Rates</h3>
                 <Button
                     type="button"
-                    onClick={() => {
-                        setEditingRate(null);
-                        form.reset();
-                        setShowForm(!showForm);
-                    }}
+                    onClick={handleAddRateClick}
                 >
                     Add Rate
                 </Button>
@@ -119,6 +172,9 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                     onChange={(e) => form.setData('name', e.target.value)}
                                     required
                                 />
+                                {form.errors.name && (
+                                    <p className="mt-1 text-sm text-red-600">{form.errors.name}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -139,6 +195,9 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                         </option>
                                     ))}
                                 </select>
+                                {form.errors.tax_class_id && (
+                                    <p className="mt-1 text-sm text-red-600">{form.errors.tax_class_id}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -162,6 +221,9 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                         </span>
                                     </div>
                                 </div>
+                                {form.errors.rate && (
+                                    <p className="mt-1 text-sm text-red-600">{form.errors.rate}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -172,7 +234,7 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                     id="type"
                                     className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
                                     value={form.data.type}
-                                    onChange={(e) => form.setData('type', e.target.value)}
+                                    onChange={(e) => form.setData('type', e.target.value as 'percentage' | 'fixed')}
                                 >
                                     <option value="percentage">Percentage</option>
                                     <option value="fixed">Fixed Amount</option>
@@ -196,6 +258,9 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                     <option value="CA">Canada</option>
                                     <option value="">All Countries</option>
                                 </select>
+                                {form.errors.country && (
+                                    <p className="mt-1 text-sm text-red-600">{form.errors.country}</p>
+                                )}
                             </div>
                             
                             <div>
@@ -348,12 +413,12 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                         <div className="text-sm font-medium text-gray-900">{rate.name}</div>
                                         <div className="text-sm text-gray-500">
                                             {rate.compound && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mr-1">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mr-1">
                                                     Compound
                                                 </span>
                                             )}
                                             {rate.shipping_taxable && (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
                                                     Shipping
                                                 </span>
                                             )}
@@ -363,7 +428,7 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                                         {rate.tax_class?.name || 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {rate.type === 'percentage' ? `${rate.rate}%` : `ETB ${parseFloat(rate.rate).toFixed(2)}`}
+                                        {rate.type === 'percentage' ? `${rate.rate}%` : `ETB ${parseFloat(rate.rate as string).toFixed(2)}`}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         <div>
@@ -412,7 +477,7 @@ export default function TaxRatesTab({ taxRates, taxClasses }) {
                             ))
                         ) : (
                             <tr>
-                                <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
+                                <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
                                     No tax rates found.
                                 </td>
                             </tr>

@@ -2,12 +2,12 @@
 import { useCart } from '@/contexts/cart-context';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Heart, RotateCcw, Share2, Shield, Star, Tag } from 'lucide-react';
+import { Heart, RotateCcw, Share2, Shield, Star, Tag, FileText, MessageSquare, Truck } from 'lucide-react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Button } from '../ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ReviewSection } from './review-section';
 import { useTranslation } from 'react-i18next';
-// import { ReviewSection } from "./review-section"
 
 interface ProductImage {
     id: number;
@@ -130,8 +130,6 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
     };
 
     const handleAddToCart = () => {
-        // Use ref to ensure we get the latest quantity value, even if state hasn't updated yet
-        // This prevents issues with stale closures
         const currentQuantity = quantityRef.current || quantity;
         const quantityToAdd = Math.max(1, Math.min(currentQuantity, product.stock_quantity));
         
@@ -140,7 +138,6 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
         }
         
         addToCart({ ...product, quantity: quantityToAdd });
-        // Keep the selected quantity so user can add more if needed
     };
 
     const handleShare = () => {
@@ -218,7 +215,6 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
             const data = await response.json();
             if (data.success) {
                 setIsWishlisted(data.in_wishlist);
-                console.log(data.message);
             } else {
                 console.error('Wishlist toggle failed:', data.message);
             }
@@ -237,80 +233,79 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
     }, [fetchWishlistStatus]);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             {/* Product Title and Brand */}
             <div>
-                <div className="mb-2 flex items-center gap-2">
-                    <span className="text-sm text-gray-600">{product.brand.name}</span>
+                <div className="mb-1.5 flex items-center gap-2">
+                    {product.brand?.name && (
+                        <span className="text-[11px] font-semibold uppercase tracking-wider text-primary-700 bg-primary/10 px-2 py-0.5 rounded">
+                            {product.brand.name}
+                        </span>
+                    )}
                     {product.featured && (
-                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                        <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-800">
                             {t('wishlist.featured')}
                         </span>
                     )}
                 </div>
-                <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-                <p className="mt-1 text-sm text-gray-500">{t('productDetail.sku')} {product.sku}</p>
+                <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
+                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
+                    <span>{t('productDetail.sku')} {product.sku}</span>
+                    <span>•</span>
+                    <div className="flex items-center gap-1">
+                        <div className="flex items-center">
+                            {[...Array(5)].map((_, i) => (
+                                <Star
+                                    key={i}
+                                    className={`h-3.5 w-3.5 ${
+                                        i < Math.floor(product.average_rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'
+                                    }`}
+                                />
+                            ))}
+                        </div>
+                        <span className="font-medium text-gray-700">
+                            {product.average_rating.toFixed(1)} ({product.reviews_count})
+                        </span>
+                    </div>
+                </div>
             </div>
 
-            {/* Rating and Reviews */}
-            <div className="flex items-center gap-4">
-                <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                        <Star
-                            key={i}
-                            className={`h-5 w-5 ${
-                                i < Math.floor(product.average_rating) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'
-                            }`}
-                        />
-                    ))}
-                    <span className="ml-2 text-sm text-gray-600">
-                        {product.average_rating.toFixed(1)} ({product.reviews_count} {t('productDetail.reviews')})
+            {/* Price & Stock */}
+            <div className="flex items-center justify-between border-y border-gray-100 py-2.5">
+                <div className="space-y-0.5">
+                    {isOnSale ? (
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-bold text-red-600">{formatPrice(product.current_price)}</span>
+                            <span className="text-sm text-gray-400 line-through">{formatPrice(product.price)}</span>
+                            <span className="inline-flex items-center rounded bg-red-50 px-1.5 py-0.5 text-xs font-semibold text-red-700">
+                                {t('productDetail.save')} {formatPrice(product.price - product.current_price)}
+                            </span>
+                        </div>
+                    ) : (
+                        <span className="text-2xl font-bold text-gray-900">{formatPrice(product.current_price)}</span>
+                    )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                    <div className={`h-2.5 w-2.5 rounded-full ${isOutOfStock ? 'bg-red-500' : isLowStock ? 'bg-yellow-500' : 'bg-green-500'}`} />
+                    <span className={`text-xs font-medium ${isOutOfStock ? 'text-red-600' : isLowStock ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {isOutOfStock ? t('productDetail.outOfStock') : isLowStock ? t('productDetail.onlyLeft', { count: product.stock_quantity }) : t('productDetail.inStock')}
                     </span>
                 </div>
             </div>
 
-            {/* Price */}
-            <div className="space-y-2">
-                {isOnSale ? (
-                    <div className="flex items-center gap-3">
-                        <span className="text-3xl font-bold text-red-600">{formatPrice(product.current_price)}</span>
-                        <span className="text-xl text-gray-500 line-through">{formatPrice(product.price)}</span>
-                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-1 text-sm font-medium text-red-800">
-                            <Tag className="mr-1 h-4 w-4" />
-                            {t('productDetail.save')} {formatPrice(product.price - product.current_price)}
-                        </span>
-                    </div>
-                ) : (
-                    <span className="text-3xl font-bold text-gray-900">{formatPrice(product.current_price)}</span>
-                )}
-            </div>
-
-            {/* Stock Status */}
-            <div className="flex items-center gap-2">
-                <div className={`h-3 w-3 rounded-full ${isOutOfStock ? 'bg-red-500' : isLowStock ? 'bg-yellow-500' : 'bg-green-500'}`} />
-                <span className={`text-sm font-medium ${isOutOfStock ? 'text-red-600' : isLowStock ? 'text-yellow-600' : 'text-green-600'}`}>
-                    {isOutOfStock ? t('productDetail.outOfStock') : isLowStock ? t('productDetail.onlyLeft', { count: product.stock_quantity }) : t('productDetail.inStock')}
-                </span>
-            </div>
-
-            {/* Description */}
-            <div>
-                <h3 className="mb-2 text-lg font-medium text-gray-900">{t('productDetail.description')}</h3>
-                <p className="leading-relaxed text-gray-600">{product.description}</p>
-            </div>
-
             {/* Quantity and Add to Cart */}
             {!isOutOfStock && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <label htmlFor="quantity" className="text-sm font-medium text-gray-700">
+                <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                        <label htmlFor="quantity" className="text-xs font-medium text-gray-700">
                             {t('productDetail.quantity')}
                         </label>
-                        <div className="flex items-center rounded-md border border-gray-300">
+                        <div className="flex items-center rounded-lg border border-gray-200 bg-gray-50/50">
                             <button
                                 onClick={() => handleQuantityChange(quantity - 1)}
                                 disabled={quantity <= 1}
-                                className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="px-2.5 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 rounded-l-lg transition-colors"
                             >
                                 -
                             </button>
@@ -325,77 +320,114 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                                     handleQuantityChange(newValue);
                                 }}
                                 onBlur={(e) => {
-                                    // Ensure quantity is valid when input loses focus
                                     const value = Number.parseInt(e.target.value) || 1;
                                     const validValue = Math.max(1, Math.min(value, product.stock_quantity));
                                     if (value !== validValue) {
                                         setQuantity(validValue);
                                     }
                                 }}
-                                className="w-16 border-0 px-3 py-2 text-center focus:ring-0"
+                                className="w-10 border-0 bg-transparent px-1 py-1 text-center text-sm font-medium focus:ring-0"
                             />
                             <button
                                 onClick={() => handleQuantityChange(quantity + 1)}
                                 disabled={quantity >= product.stock_quantity}
-                                className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="px-2.5 py-1 text-sm text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40 rounded-r-lg transition-colors"
                             >
                                 +
                             </button>
                         </div>
                     </div>
-                    <div className="flex gap-4">
-                        <Button onClick={handleAddToCart} className="flex-1 rounded-md px-6 py-3 font-medium text-white transition-colors max-w-[300px]">
+                    <div className="flex gap-2.5">
+                        <Button onClick={handleAddToCart} className="flex-1 rounded-lg py-2.5 text-sm font-semibold shadow-xs transition-all">
                             {t('productDetail.addToCart')}
                         </Button>
                         <Button
                             onClick={handleToggleWishlist}
                             disabled={wishlistLoading}
-                            className={`rounded-md border p-3 transition-colors ${
-                                isWishlisted ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 bg-gray-50 text-gray-600 hover:text-red-600'
+                            variant="outline"
+                            className={`rounded-lg p-2.5 transition-colors ${
+                                isWishlisted ? 'border-red-200 bg-red-50 text-red-600' : 'border-gray-200 hover:text-red-600'
                             } ${wishlistLoading ? 'cursor-not-allowed opacity-50' : ''}`}
                         >
-                            <Heart className={`h-5 w-5 ${isWishlisted ? 'fill-current' : ''}`} />
+                            <Heart className={`h-4 w-4 ${isWishlisted ? 'fill-current' : ''}`} />
                         </Button>
-                        <Button onClick={handleShare} className="rounded-md border border-gray-200 bg-gray-50 p-3 text-gray-600 transition-colors">
-                            <Share2 className="h-5 w-5" />
+                        <Button onClick={handleShare} variant="outline" className="rounded-lg border-gray-200 p-2.5 text-gray-600 transition-colors">
+                            <Share2 className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
             )}
 
-
-            {/* Product Details */}
-            <div className="border-t pt-6">
-                <h3 className="mb-4 text-lg font-medium text-gray-900">{t('productDetail.productDetails')}</h3>
-                <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-                    <div>
-                        <dt className="font-medium text-gray-900">{t('productDetail.category')}</dt>
-                        <dd className="text-gray-600">{product.category.name}</dd>
-                    </div>
-                    <div>
-                        <dt className="font-medium text-gray-900">{t('productDetail.brand')}</dt>
-                        <dd className="text-gray-600">{product.brand.name}</dd>
-                    </div>
-                    <div>
-                        <dt className="font-medium text-gray-900">{t('productDetail.sku')}</dt>
-                        <dd className="text-gray-600">{product.sku}</dd>
-                    </div>
-                    <div>
-                        <dt className="font-medium text-gray-900">{t('productDetail.availability')}</dt>
-                        <dd className="text-gray-600">{product.stock_quantity} {t('productDetail.unitsInStock')}</dd>
-                    </div>
-                </dl>
+            {/* Quick Benefits Badges */}
+            <div className="grid grid-cols-3 gap-2 py-2 border-t border-gray-100 text-[11px] text-gray-600">
+                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
+                    <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Fast Shipping</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
+                    <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Authentic</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
+                    <RotateCcw className="h-3.5 w-3.5 text-primary shrink-0" />
+                    <span className="truncate">Easy Returns</span>
+                </div>
             </div>
 
-            {/* Reviews Section */}
-            <ReviewSection
-                productId={product.id}
-                averageRating={product.average_rating}
-                reviewsCount={product.reviews_count}
-                ratingBreakdown={product.rating_breakdown}
-                reviews={reviews}
-                userHasReviewed={userHasReviewed}
-            />
+            {/* Tabbed Secondary Information */}
+            <div className="pt-1">
+                <Tabs defaultValue="description" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 bg-gray-100/80 p-1 rounded-lg">
+                        <TabsTrigger value="description" className="text-xs font-semibold py-1.5">
+                            <FileText className="h-3.5 w-3.5 mr-1.5" />
+                            Description & Details
+                        </TabsTrigger>
+                        <TabsTrigger value="reviews" className="text-xs font-semibold py-1.5">
+                            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                            Reviews ({product.reviews_count})
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="description" className="mt-3 space-y-4">
+                        <div className="prose prose-sm text-gray-600 leading-relaxed text-sm">
+                            <p>{product.description}</p>
+                        </div>
+
+                        <div className="bg-gray-50/70 p-3.5 rounded-lg border border-gray-100">
+                            <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-2.5">Specifications</h4>
+                            <dl className="grid grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <dt className="font-medium text-gray-500">{t('productDetail.category')}</dt>
+                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.category?.name}</dd>
+                                </div>
+                                <div>
+                                    <dt className="font-medium text-gray-500">{t('productDetail.brand')}</dt>
+                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.brand?.name}</dd>
+                                </div>
+                                <div>
+                                    <dt className="font-medium text-gray-500">{t('productDetail.sku')}</dt>
+                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.sku}</dd>
+                                </div>
+                                <div>
+                                    <dt className="font-medium text-gray-500">{t('productDetail.availability')}</dt>
+                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.stock_quantity} {t('productDetail.unitsInStock')}</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="reviews" className="mt-3">
+                        <ReviewSection
+                            productId={product.id}
+                            averageRating={product.average_rating}
+                            reviewsCount={product.reviews_count}
+                            ratingBreakdown={product.rating_breakdown}
+                            reviews={reviews}
+                            userHasReviewed={userHasReviewed}
+                        />
+                    </TabsContent>
+                </Tabs>
+            </div>
         </div>
     );
 }

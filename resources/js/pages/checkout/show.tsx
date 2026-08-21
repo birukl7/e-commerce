@@ -49,7 +49,9 @@ function CheckoutContent() {
             return;
         }
 
-        setShowPaymentMethods(true);
+        const orderId = generateOrderId();
+        setPendingOrderId(orderId);
+        setShowOfflinePaymentDialog(true);
     };
 
     // Update the handlePaymentMethod function in your checkout component
@@ -210,55 +212,13 @@ function CheckoutContent() {
                                 </div>
                             </div>
 
-                            {!showPaymentMethods ? (
-                                <Button
-                                    onClick={handlePayNow}
-                                    className="mt-6 w-full py-3 text-base md:mt-8 md:text-lg"
-                                    disabled={items.length === 0}
-                                >
-                                    {t('checkout.payNow')}
-                                </Button>
-                            ) : (
-                                <div className="mt-6 space-y-4 md:mt-8">
-                                    <h3 className="text-lg font-semibold text-gray-900">{t('checkout.choosePaymentMethod')}</h3>
-
-                                    {/* Online Payment with Chapa */}
-                                    <button
-                                        onClick={() => handlePaymentMethod('online')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
-                                                <CreditCard className="h-6 w-6 text-primary-600" />
-                                            </div>
-                                            <div className="text-left">
-                                                <h4 className="font-semibold text-gray-900">{t('checkout.payWithChapa')}</h4>
-                                                <p className="text-sm text-gray-600">{t('checkout.secureOnlinePayment')}</p>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    {/* Offline Payment */}
-                                    <button
-                                        onClick={() => handlePaymentMethod('offline')}
-                                        className="group relative w-full overflow-hidden rounded-lg border-2 border-primary-200 bg-white p-4 transition-all hover:border-primary-400 hover:shadow-lg cursor-pointer"
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-100 group-hover:bg-primary-200">
-                                                <Upload className="h-6 w-6 text-primary-600" />
-                                            </div>
-                                            <div className="text-left">
-                                                <h4 className="font-semibold text-gray-900">{t('checkout.payUploadProof')}</h4>
-                                                <p className="text-sm text-gray-600">{t('checkout.bankTransfer')}</p>
-                                            </div>
-                                        </div>
-                                    </button>
-
-                                    <Button variant="outline" onClick={() => setShowPaymentMethods(false)} className="w-full">
-                                        {t('checkout.back')}
-                                    </Button>
-                                </div>
-                            )}
+                            <Button
+                                onClick={handlePayNow}
+                                className="mt-6 w-full py-3 text-base md:mt-8 md:text-lg rounded-xl shadow-md font-bold transition-all"
+                                disabled={items.length === 0}
+                            >
+                                {t('checkout.payNow')}
+                            </Button>
 
                             {/* How tax is calculated - dialog trigger */}
                             {activeTaxes && activeTaxes.length > 0 && (
