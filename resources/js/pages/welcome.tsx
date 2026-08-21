@@ -27,37 +27,38 @@ function WelcomeContent({ settings, featuredProducts }: WelcomeProps) {
       <Head title="Serdo - Premium Products" />
 
       <div
-        className="min-h-screen bg-white text-slate-900"
-        style={{ fontFamily: "Poppins, sans-serif" }}
+        className="min-h-screen bg-[#FAF6F0] text-[#222222]"
+        style={{ fontFamily: "'Nunito Sans', sans-serif" }}
       >
         {/* Header */}
         <Header />
 
-        {/* Hero Section with Search Bar */}
-        <section className="relative py-20 lg:py-22 overflow-hidden bg-slate-50 container mx-auto">
+        {/* Hero Section - Split Asymmetric */}
+        <section className="container mx-auto px-4 pt-6 pb-8">
           <HomePageBanner settings={settings} />
+        </section>
+
+        {/* Featured Interests (Category Cards) */}
+        <section className="container mx-auto px-4">
+          <FeaturedInterests />
         </section>
 
         {/* Featured Products Section */}
         {featuredProducts && Object.keys(featuredProducts).length > 0 && (
-          <section className="py-12">
+          <section className="py-10">
             <FeaturedProducts products={featuredProducts} />
           </section>
         )}
-
-        <section className="container mx-auto">
-          <FeaturedInterests />
-        </section>
 
         <Section>
           <CTASection />
         </Section>
 
-        <section className="container mx-auto">
+        <section className="container mx-auto px-4">
           <GiftShowcase />
         </section>
 
-        <section className="container mx-auto">
+        <section className="container mx-auto px-4">
           <DealsCarousel />
         </section>
 

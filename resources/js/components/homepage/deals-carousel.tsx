@@ -3,9 +3,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import type React from "react"
 import { Link } from "@inertiajs/react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { ChevronLeft, ChevronRight, Clock, Star, Heart } from "lucide-react"
-import H2 from "../ui/h2"
+import { ChevronLeft, ChevronRight, Clock, Heart } from "lucide-react"
 import { getImageUrl } from "@/lib/image"
 
 interface Product {
@@ -32,7 +30,6 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [hoveredProduct, setHoveredProduct] = useState<number | null>(null)
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
   const [timeLeft, setTimeLeft] = useState({
     hours: 7,
@@ -40,40 +37,29 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
     seconds: 14,
   })
 
-  // Use refs to track loading states and prevent multiple simultaneous requests
   const loadingRef = useRef(false)
   const lastExcludedIdsRef = useRef<string>("")
 
-  // Create a base64 placeholder image to avoid server requests
   const createPlaceholderDataUrl = (text: string, width = 200, height = 200) => {
     const canvas = document.createElement("canvas")
     canvas.width = width
     canvas.height = height
     const ctx = canvas.getContext("2d")
-
     if (ctx) {
-      // Fill background
-      ctx.fillStyle = "#f3f4f6"
+      ctx.fillStyle = "#F0E6D3"
       ctx.fillRect(0, 0, width, height)
-
-      // Add text
-      ctx.fillStyle = "#9ca3af"
+      ctx.fillStyle = "#888888"
       ctx.font = "14px Arial"
       ctx.textAlign = "center"
       ctx.textBaseline = "middle"
-
-      // Wrap text if too long
       const maxWidth = width - 20
       const words = text.split(" ")
       let line = ""
-      const lines = []
-
+      const lines: string[] = []
       for (let n = 0; n < words.length; n++) {
         const testLine = line + words[n] + " "
         const metrics = ctx.measureText(testLine)
-        const testWidth = metrics.width
-
-        if (testWidth > maxWidth && n > 0) {
+        if (metrics.width > maxWidth && n > 0) {
           lines.push(line)
           line = words[n] + " "
         } else {
@@ -81,54 +67,37 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
         }
       }
       lines.push(line)
-
-      // Draw lines
       const lineHeight = 16
       const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2
-
-      lines.forEach((line, index) => {
-        ctx.fillText(line.trim(), width / 2, startY + index * lineHeight)
+      lines.forEach((l, index) => {
+        ctx.fillText(l.trim(), width / 2, startY + index * lineHeight)
       })
     }
-
     return canvas.toDataURL()
   }
 
   const fetchProducts = useCallback(
     async (excludeIds: number[] = []) => {
-      // Prevent multiple simultaneous requests
       if (loadingRef.current) return
-
       try {
         loadingRef.current = true
         setLoading(true)
         setError(null)
-
         const params = new URLSearchParams({
           count: productCount.toString(),
           status: "published",
           stock_status: "in_stock",
-          featured: "true", // Get featured/deal products
+          featured: "true",
         })
-
-        // Add excluded category IDs if provided
         if (excludeIds.length > 0) {
           params.append("exclude_categories", excludeIds.join(","))
         }
-
         const response = await fetch(`/api/products/featured?${params}`, {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
           cache: "no-store",
         })
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
-        }
-
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
         const data = await response.json()
         setProducts(data.data || data || [])
       } catch (err) {
@@ -142,32 +111,25 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
     [productCount],
   )
 
-  // Initial load effect
   useEffect(() => {
     fetchProducts(excludeCategoryIds)
   }, [])
 
-  // Effect to handle changes in excludeCategoryIds
   useEffect(() => {
     const currentExcludedIds = JSON.stringify(excludeCategoryIds.sort())
-    // Only refetch if excludeCategoryIds actually changed
     if (lastExcludedIdsRef.current !== currentExcludedIds && lastExcludedIdsRef.current !== "") {
       fetchProducts(excludeCategoryIds)
     }
     lastExcludedIdsRef.current = currentExcludedIds
   }, [excludeCategoryIds, fetchProducts])
 
-  // Countdown timer effect
+  // Countdown timer
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 }
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 }
-        } else if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
-        }
+        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 }
+        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 }
+        if (prev.hours > 0) return { hours: prev.hours - 1, minutes: 59, seconds: 59 }
         return prev
       })
     }, 1000)
@@ -188,9 +150,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   const totalSlides = loading ? productCount : products.length
 
   useEffect(() => {
-    const handleResize = () => {
-      setVisibleCards(getVisibleCards())
-    }
+    const handleResize = () => setVisibleCards(getVisibleCards())
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
@@ -206,11 +166,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
 
   const formatTime = (time: number) => time.toString().padStart(2, "0")
 
-  const formatPrice = (price: string, salePrice?: string) => {
-    const formattedPrice = `ETB ${Number.parseFloat(price).toFixed(2)}`
-    const formattedSalePrice = salePrice ? `ETB ${Number.parseFloat(salePrice).toFixed(2)}` : null
-    return formattedSalePrice ? formattedSalePrice : formattedPrice
-  }
+  const formatPrice = (price: string) => `ETB ${Number.parseFloat(price).toFixed(2)}`
 
   const getProductImage = (product: Product) => {
     return getImageUrl(product.image, { bucket: "products", placeholderText: product.name, width: 400, height: 400 })
@@ -219,38 +175,28 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {
     const target = e.currentTarget
     const currentSrc = target.src
-
-    // Prevent infinite loop by checking if we've already failed this image
-    if (failedImages.has(currentSrc)) {
-      return
-    }
-
-    // Add to failed images set
+    if (failedImages.has(currentSrc)) return
     setFailedImages((prev) => new Set(prev).add(currentSrc))
-
-    // Set to data URL placeholder instead of server-dependent placeholder
     target.src = createPlaceholderDataUrl(fallbackText)
   }
 
   const calculateDiscount = (originalPrice: string, salePrice: string) => {
     const original = Number.parseFloat(originalPrice)
     const sale = Number.parseFloat(salePrice)
-    const discount = Math.round(((original - sale) / original) * 100)
-    return `${discount}% off`
+    return `${Math.round(((original - sale) / original) * 100)}% off`
   }
 
   const handleRetry = () => {
-    // Clear failed images when retrying
     setFailedImages(new Set())
     fetchProducts(excludeCategoryIds)
   }
 
   if (error) {
     return (
-      <div className="mx-auto p-2 md:p-2 lg:p-2">
+      <div className="mx-auto py-2">
         <div className="py-8 text-center">
-          <p className="mb-4 text-red-500">Failed to load deals</p>
-          <Button onClick={handleRetry} className="px-6 py-2">
+          <p className="mb-4 text-[#A61A2E]">Failed to load deals</p>
+          <Button onClick={handleRetry} className="rounded-full bg-[#222222] px-6 py-2 text-white hover:bg-[#333333]">
             Try Again
           </Button>
         </div>
@@ -259,12 +205,17 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
   }
 
   return (
-    <div className="mx-auto p-2 md:p-2 lg:p-2">
+    <div className="mx-auto py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <H2 className="text-gray-900">Today's big deals</H2>
-          <div className="flex items-center gap-2 text-gray-600">
+          <h2
+            className="text-2xl font-bold text-[#222222]"
+            style={{ fontFamily: "'Lora', Georgia, serif" }}
+          >
+            Today's big deals
+          </h2>
+          <div className="flex items-center gap-1.5 text-[#595959]">
             <Clock className="w-4 h-4" />
             <span className="text-sm font-medium">
               Fresh deals in {formatTime(timeLeft.hours)}:{formatTime(timeLeft.minutes)}:{formatTime(timeLeft.seconds)}
@@ -273,24 +224,20 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
         </div>
         {/* Navigation Arrows */}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="icon"
+          <button
             onClick={prevSlide}
-            className="rounded-full w-10 h-10 border-gray-300 hover:bg-gray-50 bg-transparent"
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-[#222222] text-[#222222] bg-transparent hover:bg-[#222222] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             disabled={currentIndex === 0 || loading}
           >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
             onClick={nextSlide}
-            className="rounded-full w-10 h-10 border-gray-300 hover:bg-gray-50 bg-transparent"
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-[#222222] text-[#222222] bg-transparent hover:bg-[#222222] hover:text-white transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             disabled={currentIndex + visibleCards >= products.length || loading}
           >
-            <ChevronRight className="w-5 h-5" />
-          </Button>
+            <ChevronRight className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
@@ -309,18 +256,14 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
                   key={index}
                   className="flex-shrink-0 px-2"
                   style={{ flex: `0 0 calc(100% / ${visibleCards})` }}
-               >
-                  <Card className="overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="h-[200px] sm:h-[300px] md:h-[400px] bg-gray-200 animate-pulse" />
-                      <div className="p-4 space-y-2">
-                        <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                        <div className="h-3 bg-gray-200 rounded w-1/2 animate-pulse" />
-                        <div className="h-4 bg-gray-200 rounded w-2/3 animate-pulse" />
-                        <div className="h-3 bg-gray-200 rounded w-3/4 animate-pulse" />
-                      </div>
-                    </CardContent>
-                  </Card>
+                >
+                  <div className="overflow-hidden rounded-lg">
+                    <div className="h-[200px] sm:h-[260px] md:h-[320px] bg-[#F0E6D3] animate-pulse" />
+                    <div className="pt-3 space-y-2">
+                      <div className="h-3 bg-[#F0E6D3] rounded animate-pulse" />
+                      <div className="h-3 bg-[#F0E6D3] rounded w-2/3 animate-pulse" />
+                    </div>
+                  </div>
                 </div>
               ))
             : products.map((product) => (
@@ -328,79 +271,62 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
                   key={product.id}
                   className="flex-shrink-0 px-2"
                   style={{ flex: `0 0 calc(100% / ${visibleCards})` }}
-               >
+                >
                   <Link href={`/products/${product.slug}`}>
-                    <Card
-                      className="overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow duration-200"
-                      onMouseEnter={() => setHoveredProduct(product.id)}
-                      onMouseLeave={() => setHoveredProduct(null)}
-                    >
-                      <CardContent className="p-0">
-                        {/* Product Image */}
-                        <div className="h-[200px] sm:h-[300px] md:h-[400px] w-full relative aspect-square overflow-hidden">
-                          <img
-                            loading="lazy"
-                            decoding="async"
-                            src={getProductImage(product) || "/placeholder.svg"}
-                            alt={product.name}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            onError={(e) => handleImageError(e, product.name)}
-                          />
-                          {/* Discount Badge */}
-                          {product.sale_price && (
-                            <div className="absolute top-3 left-3 bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                              {calculateDiscount(product.price, product.sale_price)}
-                            </div>
-                          )}
-                          {/* Wishlist Button */}
-                          <div
-                            className={`absolute top-3 right-3 transition-opacity duration-200 ${
-                              hoveredProduct === product.id ? "opacity-100" : "opacity-0"
-                            }`}
+                    <div className="group cursor-pointer">
+                      {/* Product Image */}
+                      <div className="h-[200px] sm:h-[260px] md:h-[320px] w-full relative overflow-hidden rounded-lg">
+                        <img
+                          loading="lazy"
+                          decoding="async"
+                          src={getProductImage(product) || "/placeholder.svg"}
+                          alt={product.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={(e) => handleImageError(e, product.name)}
+                        />
+                        {/* Discount Badge */}
+                        {product.sale_price && (
+                          <div className="absolute top-2.5 left-2.5 bg-[#2F7431] text-white px-2 py-0.5 rounded text-xs font-semibold">
+                            {calculateDiscount(product.price, product.sale_price)}
+                          </div>
+                        )}
+                        {/* Wishlist Button */}
+                        <div className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <button
+                            className="bg-white/90 rounded-full p-2 transition-colors"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                            }}
                           >
-                            <button
-                              className="bg-white rounded-full p-2 shadow-md hover:bg-gray-50 transition-colors"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                console.log("Added to wishlist:", product.id)
-                              }}
-                            >
-                              <Heart className="w-4 h-4 text-gray-600" />
-                            </button>
-                          </div>
+                            <Heart className="w-4 h-4 text-[#595959]" />
+                          </button>
                         </div>
-                        {/* Product Info */}
-                        <div className="p-4">
-                          <h3 className="font-medium text-gray-900 mb-2 line-clamp-2 text-sm group-hover:text-blue-600 transition-colors">
-                            {product.name}
-                          </h3>
-                          {/* Rating */}
-                          <div className="flex items-center gap-1 mb-2">
-                            <span className="text-sm font-medium">{product.rating || 4.9}</span>
-                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                          </div>
-                          {/* Price */}
-                          <div className="flex items-center gap-2 mb-2">
-                            {product.sale_price ? (
-                              <>
-                                <span className="font-bold text-lg text-gray-900">{formatPrice(product.sale_price)}</span>
-                                <span className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</span>
-                                <span className="text-sm font-medium text-green-600">
-                                  {calculateDiscount(product.price, product.sale_price)}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="font-bold text-lg text-gray-900">{ formatPrice(product.price)}</span>
-                            )}
-                          </div>
-                          {/* Sale Info */}
-                          <p className="text-xs text-gray-600">
-                            {product.sale_price ? "Biggest sale in 60+ days" : "Limited time offer"}
+                      </div>
+                      {/* Product Info */}
+                      <div className="pt-2.5">
+                        <h3 className="font-medium text-[#222222] mb-1.5 line-clamp-2 text-sm">
+                          {product.name}
+                        </h3>
+                        {/* Price */}
+                        <div className="flex items-center gap-2 mb-1">
+                          {product.sale_price ? (
+                            <>
+                              <span className="font-bold text-base text-[#2F7431]">{formatPrice(product.sale_price)}</span>
+                              <span className="text-xs text-[#888888] line-through">{formatPrice(product.price)}</span>
+                            </>
+                          ) : (
+                            <span className="font-bold text-base text-[#222222]">{formatPrice(product.price)}</span>
+                          )}
+                        </div>
+                        {/* Sale Info */}
+                        {product.sale_price && (
+                          <p className="text-xs text-[#2F7431] font-medium">
+                            {calculateDiscount(product.price, product.sale_price)}
                           </p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        )}
+                      </div>
+                    </div>
                   </Link>
                 </div>
               ))}
@@ -415,7 +341,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
               key={index}
               onClick={() => setCurrentIndex(index * visibleCards)}
               className={`w-2 h-2 rounded-full transition-colors ${
-                Math.floor(currentIndex / visibleCards) === index ? "bg-gray-900" : "bg-gray-300"
+                Math.floor(currentIndex / visibleCards) === index ? "bg-[#222222]" : "bg-[#D4CFC7]"
               }`}
             />
           ))}
@@ -424,7 +350,7 @@ export default function DealsCarousel({ excludeCategoryIds = [], productCount = 
 
       {!loading && products.length === 0 && (
         <div className="py-8 text-center">
-          <p className="text-gray-500">No deals available at the moment.</p>
+          <p className="text-[#595959]">No deals available at the moment.</p>
         </div>
       )}
     </div>

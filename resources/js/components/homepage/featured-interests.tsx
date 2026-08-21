@@ -87,9 +87,14 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
   }
 
   return (
-    <section className="mx-auto w-full px-4 py-12">
-      <h2 className="mb-8 text-2xl font-bold text-gray-900">{t("featuredInterests.title")}</h2>
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="mx-auto w-full py-10">
+      <h2
+        className="mb-6 text-2xl font-bold text-[#222222]"
+        style={{ fontFamily: "'Lora', Georgia, serif" }}
+      >
+        {t("featuredInterests.title")}
+      </h2>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {loading
           ? Array.from({ length: count }).map((_, index) => <InterestCardSkeleton key={index} />)
           : interests.map((interest) => (
@@ -106,7 +111,7 @@ export function FeaturedInterests({ count = 4 }: FeaturedInterestsProps) {
       </div>
       {!loading && interests.length === 0 && (
         <div className="py-8 text-center">
-          <p className="text-gray-500">{t("featuredInterests.noInterests")}</p>
+          <p className="text-[#595959]">{t("featuredInterests.noInterests")}</p>
         </div>
       )}
     </section>

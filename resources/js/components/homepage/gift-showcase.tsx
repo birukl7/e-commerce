@@ -1,14 +1,12 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import type { SharedData } from '@/types';
 import { Link, router, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
 import { Heart } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import H2 from '../ui/h2';
 import { getImageUrl } from '@/lib/image';
 
 interface Product {
@@ -47,24 +45,17 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
     const [categoriesLoading, setCategoriesLoading] = useState(true);
     const [productsError, setProductsError] = useState<string | null>(null);
     const [categoriesError, setCategoriesError] = useState<string | null>(null);
-    const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
     const [wishlistItems, setWishlistItems] = useState<Set<number>>(new Set());
     const [wishlistLoading, setWishlistLoading] = useState<Set<number>>(new Set());
-
-    // Track failed images to prevent infinite loops
     const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
-    // Use refs to track loading states and prevent multiple simultaneous requests
     const productsLoadingRef = useRef(false);
     const categoriesLoadingRef = useRef(false);
     const lastExcludedIdsRef = useRef<string>('');
 
-    // Get CSRF token
     const getCsrfToken = () => {
         const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
         if (metaToken) return metaToken;
-
-        // Fallback to cookie
         const cookies = document.cookie.split(';');
         for (const cookie of cookies) {
             const [name, value] = cookie.trim().split('=');
@@ -75,31 +66,26 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
         return '';
     };
 
-    // Create a base64 placeholder image to avoid server requests
     const createPlaceholderDataUrl = (text: string, width = 200, height = 200) => {
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-            // Fill background
-            ctx.fillStyle = '#f3f4f6';
+            ctx.fillStyle = '#F0E6D3';
             ctx.fillRect(0, 0, width, height);
-            // Add text
-            ctx.fillStyle = '#9ca3af';
+            ctx.fillStyle = '#888888';
             ctx.font = '14px Arial';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            // Wrap text if too long
             const maxWidth = width - 20;
             const words = text.split(' ');
             let line = '';
-            const lines = [];
+            const lines: string[] = [];
             for (let n = 0; n < words.length; n++) {
                 const testLine = line + words[n] + ' ';
                 const metrics = ctx.measureText(testLine);
-                const testWidth = metrics.width;
-                if (testWidth > maxWidth && n > 0) {
+                if (metrics.width > maxWidth && n > 0) {
                     lines.push(line);
                     line = words[n] + ' ';
                 } else {
@@ -107,20 +93,17 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                 }
             }
             lines.push(line);
-            // Draw lines
             const lineHeight = 16;
             const startY = height / 2 - ((lines.length - 1) * lineHeight) / 2;
-            lines.forEach((line, index) => {
-                ctx.fillText(line.trim(), width / 2, startY + index * lineHeight);
+            lines.forEach((l, index) => {
+                ctx.fillText(l.trim(), width / 2, startY + index * lineHeight);
             });
         }
         return canvas.toDataURL();
     };
 
-    // Fetch user's wishlist items
     const fetchWishlist = useCallback(async () => {
         if (!auth.user) return;
-
         try {
             const csrfToken = getCsrfToken();
             const response = await fetch('/api/wishlist', {
@@ -133,7 +116,6 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                 },
                 credentials: 'same-origin',
             });
-
             if (response.ok) {
                 const data = await response.json();
                 if (data.success) {
@@ -146,31 +128,20 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
         }
     }, [auth.user]);
 
-    // Toggle wishlist item using Inertia router (more reliable for CSRF)
-
-    // Handle successful toggle
-
-    // Alternative: Use fetch with better error handling
     const toggleWishlistFetch = async (productId: number, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-
         if (!auth.user) {
             router.visit('/login');
             return;
         }
-
         setWishlistLoading((prev) => new Set(prev).add(productId));
-
         try {
             const csrfToken = getCsrfToken();
-
             if (!csrfToken) {
-                throw new Error('CSRF token not found. Please refresh the page.');
+                throw new Error('CSRF token not found.');
             }
-
-            const url = '/api/wishlist/toggle';
-            const options = {
+            const response = await fetch('/api/wishlist/toggle', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -180,28 +151,12 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                 },
                 credentials: 'same-origin',
                 body: JSON.stringify({ product_id: productId }),
-            };
-
-            // Send the wishlist toggle request and log for debugging
-            // console.log("Sending request to:", url, "with method:", options.method, "and CSRF token:", csrfToken)
-            const response = await fetch(url, {
-                ...options,
-                credentials: 'same-origin' as RequestCredentials, // Fix: ensure correct type
             });
-
-            // console.log("Received response status:", response.status)
-            // const responseText = await response.clone().text()
-            // console.log("Received response body:", responseText)
-
             if (response.status === 419) {
-                // CSRF token expired
-                console.warn('CSRF token expired, refreshing page...');
                 window.location.reload();
                 return;
             }
-
             const data = await response.json();
-
             if (data.success) {
                 setWishlistItems((prev) => {
                     const newSet = new Set(prev);
@@ -212,16 +167,9 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                     }
                     return newSet;
                 });
-                // console.log(data.message)
-            } else {
-                console.error('Wishlist toggle failed:', data.message);
             }
         } catch (error) {
             console.error('Error toggling wishlist:', error);
-            if (error instanceof Error && error.message.includes('CSRF')) {
-                // Refresh page to get new CSRF token
-                window.location.reload();
-            }
         } finally {
             setWishlistLoading((prev) => {
                 const newSet = new Set(prev);
@@ -233,7 +181,6 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
 
     const fetchProducts = useCallback(
         async (excludeIds: number[] = []) => {
-            // Prevent multiple simultaneous requests
             if (productsLoadingRef.current) return;
             try {
                 productsLoadingRef.current = true;
@@ -244,24 +191,17 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
                     status: 'published',
                     stock_status: 'in_stock',
                 });
-                // Add excluded category IDs if provided
                 if (excludeIds.length > 0) {
                     params.append('exclude_categories', excludeIds.join(','));
                 }
                 const response = await fetch(`/api/products/showcase?${params}`, {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                     cache: 'no-store',
                 });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 setProducts(data.data || data || []);
-                // console.log("Products data:", data.data)
             } catch (err) {
                 console.error('Error fetching products:', err);
                 setProductsError(err instanceof Error ? err.message : 'Failed to fetch products');
@@ -275,30 +215,21 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
 
     const fetchCategories = useCallback(
         async (excludeIds: number[] = []) => {
-            // Prevent multiple simultaneous requests
             if (categoriesLoadingRef.current) return;
             try {
                 categoriesLoadingRef.current = true;
                 setCategoriesLoading(true);
                 setCategoriesError(null);
-                const params = new URLSearchParams({
-                    count: categoryCount.toString(),
-                });
-                // Add excluded category IDs if provided
+                const params = new URLSearchParams({ count: categoryCount.toString() });
                 if (excludeIds.length > 0) {
                     params.append('exclude_categories', excludeIds.join(','));
                 }
                 const response = await fetch(`/api/categories/showcase?${params}`, {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        Accept: 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                     cache: 'no-store',
                 });
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
                 setCategories(data.data || data || []);
             } catch (err) {
@@ -312,17 +243,14 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
         [categoryCount],
     );
 
-    // Initial load effect
     useEffect(() => {
         fetchProducts(excludeCategoryIds);
         fetchCategories(excludeCategoryIds);
         fetchWishlist();
     }, []);
 
-    // Effect to handle changes in excludeCategoryIds
     useEffect(() => {
         const currentExcludedIds = JSON.stringify(excludeCategoryIds.sort());
-        // Only refetch if excludeCategoryIds actually changed
         if (lastExcludedIdsRef.current !== currentExcludedIds && lastExcludedIdsRef.current !== '') {
             fetchProducts(excludeCategoryIds);
             fetchCategories(excludeCategoryIds);
@@ -347,18 +275,12 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>, fallbackText: string) => {
         const target = e.currentTarget;
         const currentSrc = target.src;
-        // Prevent infinite loop by checking if we've already failed this image
-        if (failedImages.has(currentSrc)) {
-            return;
-        }
-        // Add to failed images set
+        if (failedImages.has(currentSrc)) return;
         setFailedImages((prev) => new Set(prev).add(currentSrc));
-        // Set to data URL placeholder instead of server-dependent placeholder
         target.src = createPlaceholderDataUrl(fallbackText);
     };
 
     const handleRetry = () => {
-        // Clear failed images when retrying
         setFailedImages(new Set());
         fetchProducts(excludeCategoryIds);
         fetchCategories(excludeCategoryIds);
@@ -366,10 +288,10 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
 
     if (productsError && categoriesError) {
         return (
-            <div className="mx-auto p-2 md:p-2 lg:p-2">
+            <div className="mx-auto py-2">
                 <div className="py-8 text-center">
-                    <p className="mb-4 text-red-500">{t("giftShowcase.failedToLoad")}</p>
-                    <Button onClick={handleRetry} className="px-6 py-2">
+                    <p className="mb-4 text-[#A61A2E]">{t("giftShowcase.failedToLoad")}</p>
+                    <Button onClick={handleRetry} className="rounded-full bg-[#222222] px-6 py-2 text-white hover:bg-[#333333]">
                         {t("giftShowcase.tryAgain")}
                     </Button>
                 </div>
@@ -378,50 +300,52 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
     }
 
     return (
-        <div className="mx-auto p-2 md:p-2 lg:p-2">
+        <div className="mx-auto py-2">
             {/* Header Section */}
             <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between">
                 <div className="mb-6 lg:mb-0">
-                    <H2 className="mb-4 leading-tight text-gray-900">
+                    <h2
+                        className="mb-4 text-2xl font-bold leading-tight text-[#222222]"
+                        style={{ fontFamily: "'Lora', Georgia, serif" }}
+                    >
                         {t("giftShowcase.title")}
                         <br />
                         {t("giftShowcase.subtitle")}
-                    </H2>
-                    <Button variant="outline" className="border-gray-300 bg-transparent px-6 py-2 text-sm font-medium hover:bg-gray-50">
+                    </h2>
+                    <Button
+                        variant="outline"
+                        className="rounded-full border-[#222222] bg-transparent px-6 py-2 text-sm font-medium text-[#222222] hover:bg-[#222222] hover:text-white transition-colors"
+                    >
                         {t("giftShowcase.getInspired")}
                     </Button>
                 </div>
                 {/* Featured Categories Grid */}
-                <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-3 lg:ml-8 lg:gap-6">
+                <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-3 lg:ml-8 lg:gap-5">
                     {categoriesLoading
                         ? Array.from({ length: categoryCount }).map((_, index) => (
-                              <Card key={index} className="overflow-hidden">
-                                  <CardContent className="p-0">
-                                      <div className="h-[200px] animate-pulse bg-gray-200 sm:h-[300px] md:h-[400px]" />
-                                  </CardContent>
-                              </Card>
+                              <div key={index} className="overflow-hidden rounded-lg">
+                                  <div className="h-[200px] animate-pulse bg-[#F0E6D3] sm:h-[280px]" />
+                              </div>
                           ))
                         : categories.map((category) => (
                               <Link prefetch key={category.id} href={`/categories/${category.slug}`}>
-                                  <Card className="group cursor-pointer overflow-hidden">
-                                      <CardContent className="relative p-0">
-                                          <div className="relative h-[200px] w-full overflow-hidden sm:h-[300px] md:h-[400px]">
-                                              <img
-                                                  src={getCategoryImage(category) || '/placeholder.svg'}
-                                                  alt={category.name}
-                                                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                                  onError={(e) => handleImageError(e, category.name)}
-                                              />
-                                              <div className="absolute inset-0 bg-black/20 transition-colors duration-300 group-hover:bg-black/30" />
-                                              <div className="absolute bottom-4 left-4">
-                                                  <h3 className="group-hover:primary text-lg font-semibold text-white transition-colors md:text-xl">
-                                                      {category.name}
-                                                  </h3>
-                                                  <p className="text-sm text-white/80">{category.product_count} {t("giftShowcase.products")}</p>
-                                              </div>
+                                  <div className="group cursor-pointer overflow-hidden rounded-lg">
+                                      <div className="relative h-[200px] w-full overflow-hidden sm:h-[280px]">
+                                          <img
+                                              src={getCategoryImage(category) || '/placeholder.svg'}
+                                              alt={category.name}
+                                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                              onError={(e) => handleImageError(e, category.name)}
+                                          />
+                                          <div className="absolute inset-0 bg-black/20 transition-colors duration-300 group-hover:bg-black/30" />
+                                          <div className="absolute bottom-4 left-4">
+                                              <h3 className="text-base font-semibold text-white">
+                                                  {category.name}
+                                              </h3>
+                                              <p className="text-xs text-white/80">{category.product_count} {t("giftShowcase.products")}</p>
                                           </div>
-                                      </CardContent>
-                                  </Card>
+                                      </div>
+                                  </div>
                               </Link>
                           ))}
                 </div>
@@ -431,84 +355,74 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
             <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
                 {productsLoading
                     ? Array.from({ length: productCount }).map((_, index) => (
-                          <Card key={index} className="overflow-hidden">
-                              <CardContent className="p-0">
-                                  <div className="h-[200px] animate-pulse bg-gray-200" />
-                                  <div className="space-y-2 p-3">
-                                      <div className="h-4 animate-pulse rounded bg-gray-200" />
-                                      <div className="h-4 w-2/3 animate-pulse rounded bg-gray-200" />
-                                  </div>
-                              </CardContent>
-                          </Card>
+                          <div key={index} className="overflow-hidden rounded-lg">
+                              <div className="h-[200px] animate-pulse bg-[#F0E6D3]" />
+                              <div className="space-y-2 pt-3">
+                                  <div className="h-3 animate-pulse rounded bg-[#F0E6D3]" />
+                                  <div className="h-3 w-2/3 animate-pulse rounded bg-[#F0E6D3]" />
+                              </div>
+                          </div>
                       ))
                     : products.map((product) => (
                           <Link prefetch key={product.id} href={`/products/${product.slug}`}>
-                              <Card
-                                  className="group relative cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-lg"
-                                  onMouseEnter={() => setHoveredProduct(product.id)}
-                                  onMouseLeave={() => setHoveredProduct(null)}
-                              >
-                                  <CardContent className="p-0">
-                                      <div className="relative aspect-square h-[200px] w-full overflow-hidden">
-                                          <img
-                                              src={getProductImage(product) || '/placeholder.svg'}
-                                              alt={product.name}
-                                              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                              // onError={(e) => handleImageError(e, product.name)}
-                                          />
-                                          {product.sale_price && (
-                                              <div className="absolute top-2 left-2 rounded bg-red-500 px-2 py-1 text-xs font-semibold text-white">
-                                                  SALE
-                                              </div>
-                                          )}
-                                          <div
-                                              className={`absolute top-3 right-3 transition-opacity duration-200 ${
-                                                  hoveredProduct === product.id ? 'opacity-100' : 'opacity-0'
-                                              }`}
+                              <div className="group cursor-pointer">
+                                  <div className="relative aspect-square h-[200px] w-full overflow-hidden rounded-lg">
+                                      <img
+                                          src={getProductImage(product) || '/placeholder.svg'}
+                                          alt={product.name}
+                                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                      />
+                                      {/* Wishlist Button */}
+                                      <div className="absolute top-2.5 right-2.5 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                                          <button
+                                              className={`rounded-full p-2 transition-colors ${
+                                                  wishlistItems.has(product.id) ? 'bg-white opacity-100' : 'bg-white/90'
+                                              } ${wishlistLoading.has(product.id) ? 'cursor-not-allowed opacity-50' : ''}`}
+                                              onClick={(e) => toggleWishlistFetch(product.id, e)}
+                                              disabled={wishlistLoading.has(product.id)}
+                                              style={wishlistItems.has(product.id) ? { opacity: 1 } : {}}
                                           >
-                                              <button
-                                                  className={`rounded-full p-2 shadow-md transition-colors ${
-                                                      wishlistItems.has(product.id) ? 'bg-red-500 hover:bg-red-600' : 'bg-white hover:bg-gray-50'
-                                                  } ${wishlistLoading.has(product.id) ? 'cursor-not-allowed opacity-50' : ''}`}
-                                                  onClick={(e) => toggleWishlistFetch(product.id, e)} // Use the fetch version
-                                                  disabled={wishlistLoading.has(product.id)}
-                                              >
-                                                  <Heart
-                                                      className={`h-4 w-4 ${
-                                                          wishlistItems.has(product.id) ? 'fill-current text-white' : 'text-gray-600'
-                                                      }`}
-                                                  />
-                                              </button>
-                                          </div>
+                                              <Heart
+                                                  className={`h-4 w-4 ${
+                                                      wishlistItems.has(product.id) ? 'fill-[#A61A2E] text-[#A61A2E]' : 'text-[#595959]'
+                                                  }`}
+                                              />
+                                          </button>
                                       </div>
-                                      <div className="p-3">
-                                          <p className="group-hover:text-sprimary mb-1 line-clamp-2 text-sm font-medium text-gray-900 transition-colors">
-                                              {product.name}
-                                          </p>
-                                          <div className="flex items-center gap-2">
-                                              {product.sale_price ? (
-                                                  <>
-                                                      <p className="text-sm font-semibold text-gray-900">{formatPrice(product.sale_price)}</p>
-                                                      <p className="text-xs text-gray-500 line-through">{formatPrice(product.price)}</p>
-                                                  </>
-                                              ) : (
-                                                  <p className="text-sm font-semibold text-gray-900">{formatPrice(product.price)}</p>
-                                              )}
+                                      {/* Sale indicator */}
+                                      {product.sale_price && (
+                                          <div className="absolute top-2.5 left-2.5 rounded bg-[#2F7431] px-2 py-0.5 text-xs font-semibold text-white">
+                                              SALE
                                           </div>
+                                      )}
+                                  </div>
+                                  <div className="pt-2.5">
+                                      <p className="mb-1 line-clamp-2 text-sm font-medium text-[#222222]">
+                                          {product.name}
+                                      </p>
+                                      <div className="flex items-center gap-2">
+                                          {product.sale_price ? (
+                                              <>
+                                                  <p className="text-sm font-bold text-[#2F7431]">{formatPrice(product.sale_price)}</p>
+                                                  <p className="text-xs text-[#888888] line-through">{formatPrice(product.price)}</p>
+                                              </>
+                                          ) : (
+                                              <p className="text-sm font-bold text-[#222222]">{formatPrice(product.price)}</p>
+                                          )}
                                       </div>
-                                  </CardContent>
-                              </Card>
+                                  </div>
+                              </div>
                           </Link>
                       ))}
             </div>
 
             {!productsLoading && products.length === 0 && (
                 <div className="py-8 text-center">
-                    <p className="text-gray-500">{t("giftShowcase.noProducts")}</p>
+                    <p className="text-[#595959]">{t("giftShowcase.noProducts")}</p>
                 </div>
             )}
 
-            <p className="text-center text-sm text-gray-600">{t("giftShowcase.footerText")}</p>
+            <p className="text-center text-sm text-[#595959]">{t("giftShowcase.footerText")}</p>
         </div>
     );
 }
