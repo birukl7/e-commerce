@@ -493,24 +493,25 @@ export default function CheckoutDialog({ isOpen, onClose, offlinePaymentMethods 
                       placeholder="Enter your country"
                     />
                   </div>
-                    {savedAddresses.length === 0 && (
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id="saveAddress"
-                          checked={saveNewAddress}
-                          onChange={(e) => setSaveNewAddress(e.target.checked)}
-                          className="rounded"
-                        />
-                        <Label htmlFor="saveAddress" className="text-sm cursor-pointer">
-                          Save this address to my profile
-                        </Label>
-                      </div>
-                    )}
-                  </div>
                 </div>
-              )}
-            </div>
+                {savedAddresses.length === 0 && (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="saveAddress"
+                      checked={saveNewAddress}
+                      onChange={(e) => setSaveNewAddress(e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="saveAddress" className="text-sm cursor-pointer">
+                      Save this address to my profile
+                    </Label>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
             {/* Step 2: Payment Method */}
             {currentStep === 2 && (

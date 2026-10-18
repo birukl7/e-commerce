@@ -187,7 +187,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
 
     const handleToggleWishlist = async () => {
         if (!auth.user) {
-            router.visit('/login');
+            window.dispatchEvent(new CustomEvent('auth:open-login'));
             return;
         }
         setWishlistLoading(true);

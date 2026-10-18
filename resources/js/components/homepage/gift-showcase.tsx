@@ -132,7 +132,7 @@ export default function GiftShowcase({ excludeCategoryIds = [], productCount = 6
         e.preventDefault();
         e.stopPropagation();
         if (!auth.user) {
-            router.visit('/login');
+            window.dispatchEvent(new CustomEvent('auth:open-login'));
             return;
         }
         setWishlistLoading((prev) => new Set(prev).add(productId));

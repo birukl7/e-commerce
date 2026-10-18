@@ -109,9 +109,25 @@ export function SignupDialog({ trigger, listenForOpenEvent = false }: SignupDial
   const content = (
     <DialogContent className="w-full max-w-sm p-6">
       <DialogClose className="absolute right-4 top-4" />
-      <DialogHeader>
-        <DialogTitle>{t("auth.createAccount")}</DialogTitle>
-        <DialogDescription>{t("auth.signUpDescription")}</DialogDescription>
+      <DialogHeader className="gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <DialogTitle>{t("auth.createAccount")}</DialogTitle>
+            <DialogDescription>{t("auth.signUpDescription")}</DialogDescription>
+          </div>
+          <button
+            type="button"
+            className="rounded-full border border-input px-6 py-1.5 text-sm font-medium text-foreground hover:bg-accent shrink-0"
+            onClick={() => {
+              setOpen(false)
+              window.setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("auth:open-login"))
+              }, 150)
+            }}
+          >
+            {t("auth.signIn")}
+          </button>
+        </div>
       </DialogHeader>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">

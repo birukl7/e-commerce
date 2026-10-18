@@ -134,6 +134,7 @@ const Header = () => {
 
   return (
     <>
+      <LoginDialog listenForOpenEvent />
       <SignupDialog listenForOpenEvent />
       <ChooseRoleDialog listenForOpenEvent />
       <header
@@ -259,7 +260,12 @@ const Header = () => {
                   </DropdownMenu>
                 ) : (
                   <div className="flex items-center space-x-1 pl-2">
-                    <LoginDialog trigger={<Button size="sm">{t("header.signIn")}</Button>} />
+                    <Button
+                      size="sm"
+                      onClick={() => window.dispatchEvent(new CustomEvent("auth:open-login"))}
+                    >
+                      {t("header.signIn")}
+                    </Button>
                   </div>
                 )}
 
@@ -309,12 +315,29 @@ const Header = () => {
                         </div>
                       ) : (
                         <div className="flex flex-col space-y-3">
-                          <LoginDialog
-                            trigger={<Button className="w-full">{t("header.signIn")}</Button>}
-                          />
-                          <SignupDialog
-                            trigger={<Button variant="outline" className="w-full bg-transparent">{t("header.signUp")}</Button>}
-                          />
+                          <Button
+                            className="w-full"
+                            onClick={() => {
+                              closeMobileMenu()
+                              window.setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent("auth:open-login"))
+                              }, 150)
+                            }}
+                          >
+                            {t("header.signIn")}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full bg-transparent"
+                            onClick={() => {
+                              closeMobileMenu()
+                              window.setTimeout(() => {
+                                window.dispatchEvent(new CustomEvent("auth:open-signup"))
+                              }, 150)
+                            }}
+                          >
+                            {t("header.signUp")}
+                          </Button>
                         </div>
                       )}
 
