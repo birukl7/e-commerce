@@ -109,16 +109,6 @@ export function ProductCard({ product, index }: ProductCardProps) {
 
           {/* Stock Status */}
           <div className="mt-2 flex items-center justify-between">
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <div className="flex items-center flex-col justify-start">
-                <div className="flex items-center justify-start">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-3 w-3 fill-gray-300 text-gray-300" />
-                  ))}
-                </div>
-                <span className="ml-1">No reviews yet</span>
-              </div>
-            </div>
 
             {product.stock_status === "in_stock" && (
               <span className="text-xs text-green-600 font-medium">In Stock</span>

@@ -13,7 +13,7 @@ import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import React from 'react';
-import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, CheckCircle, AlertTriangle, Eye, Ban, Plus, X } from 'lucide-react';
+import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, CheckCircle, AlertTriangle, Eye, Ban, Plus, X, Edit } from 'lucide-react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
 interface OfflinePaymentMethod {
@@ -58,12 +58,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function SiteConfig({ settings, offlinePaymentMethods, chapaPaymentMethods }: SiteConfigProps) {
     const [showAddPaymentModal, setShowAddPaymentModal] = React.useState(false);
     const [showAddChapaPaymentModal, setShowAddChapaPaymentModal] = React.useState(false);
+    const [editingOfflineMethod, setEditingOfflineMethod] = React.useState<OfflinePaymentMethod | null>(null);
     
     const paymentForm = useForm({
         name: '',
         type: 'bank',
         description: '',
         instructions: '',
+        details: {} as Record<string, any>,
+    });
+
+    const editPaymentForm = useForm({
+        name: '',
+        type: 'bank',
+        description: '',
+        instructions: '',
+        is_active: true,
         details: {} as Record<string, any>,
     });
 
@@ -1108,16 +1118,37 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                                     <p className="text-sm text-gray-600 mb-2">{method.description}</p>
                                                                     <div className="text-xs text-gray-500">
                                                                         <p><strong>Instructions:</strong> {method.instructions}</p>
-                                                                        {method.details && Object.keys(method.details).length > 0 && (
-                                                                            <div className="mt-1">
-                                                                                <strong>Details:</strong>
-                                                                                {Object.entries(method.details).map(([key, value]) => (
-                                                                                    <span key={key} className="ml-2">
-                                                                                        {key}: {String(value)}
+                                                                        <div className="mt-2 flex flex-wrap gap-2">
+                                                                            {method.details && Object.keys(method.details).length > 0 && (
+                                                                                Object.entries(method.details).map(([key, value]) => (
+                                                                                    <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-800 border">
+                                                                                        <strong className="mr-1 capitalize font-sans">{key.replace('_', ' ')}:</strong> {String(value)}
                                                                                     </span>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
+                                                                                ))
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-2 mt-3 pt-2 border-t">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                onClick={() => {
+                                                                                    setEditingOfflineMethod(method);
+                                                                                    editPaymentForm.setData({
+                                                                                        name: method.name || '',
+                                                                                        type: method.type || 'bank',
+                                                                                        description: method.description || '',
+                                                                                        instructions: method.instructions || '',
+                                                                                        is_active: method.is_active ?? true,
+                                                                                        details: method.details ? { ...method.details } : {},
+                                                                                    });
+                                                                                }}
+                                                                                className="h-8 gap-1.5 text-xs text-primary hover:text-primary hover:border-primary"
+                                                                            >
+                                                                                <Edit className="h-3.5 w-3.5" />
+                                                                                Edit Numbers & Details
+                                                                            </Button>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1458,6 +1489,260 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                                                 Create Payment Method
                                             </div>
                                         )}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+
+                    {/* Edit Offline Payment Method Modal */}
+                    <Dialog open={!!editingOfflineMethod} onOpenChange={(open) => {
+                        if (!open) {
+                            setEditingOfflineMethod(null);
+                            editPaymentForm.reset();
+                        }
+                    }}>
+                        <DialogContent className="sm:max-w-[620px] max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle className="text-xl font-semibold text-gray-900">
+                                    Edit {editingOfflineMethod?.name}
+                                </DialogTitle>
+                                <DialogDescription className="text-gray-600">
+                                    Update bank account or mobile money phone numbers and details displayed to customers during checkout.
+                                </DialogDescription>
+                            </DialogHeader>
+                            
+                            <form onSubmit={(e) => {
+                                e.preventDefault();
+                                if (!editingOfflineMethod) return;
+                                editPaymentForm.patch(route('admin.offline-payment-methods.update', editingOfflineMethod.id), {
+                                    onSuccess: () => {
+                                        setEditingOfflineMethod(null);
+                                        editPaymentForm.reset();
+                                    }
+                                });
+                            }} className="space-y-5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <Label htmlFor="edit_payment_name" className="text-sm font-medium text-gray-700">
+                                            Payment Method Name *
+                                        </Label>
+                                        <Input
+                                            id="edit_payment_name"
+                                            type="text"
+                                            value={editPaymentForm.data.name}
+                                            onChange={(e) => editPaymentForm.setData('name', e.target.value)}
+                                            required
+                                            className="mt-1"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <Label htmlFor="edit_payment_type" className="text-sm font-medium text-gray-700">
+                                            Type *
+                                        </Label>
+                                        <Select 
+                                            value={editPaymentForm.data.type} 
+                                            onValueChange={(value) => editPaymentForm.setData('type', value)}
+                                        >
+                                            <SelectTrigger className="mt-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="bank">Bank Transfer</SelectItem>
+                                                <SelectItem value="mobile">Mobile Money</SelectItem>
+                                                <SelectItem value="cash">Cash on Delivery</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="edit_payment_desc" className="text-sm font-medium text-gray-700">
+                                        Description
+                                    </Label>
+                                    <Input
+                                        id="edit_payment_desc"
+                                        type="text"
+                                        value={editPaymentForm.data.description}
+                                        onChange={(e) => editPaymentForm.setData('description', e.target.value)}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                <div>
+                                    <Label htmlFor="edit_payment_instr" className="text-sm font-medium text-gray-700">
+                                        Instructions for Customer
+                                    </Label>
+                                    <Textarea
+                                        id="edit_payment_instr"
+                                        value={editPaymentForm.data.instructions}
+                                        onChange={(e) => editPaymentForm.setData('instructions', e.target.value)}
+                                        rows={2}
+                                        className="mt-1"
+                                    />
+                                </div>
+
+                                {/* Dynamic Details Section */}
+                                <div className="p-4 bg-slate-50 border rounded-xl space-y-4">
+                                    <h5 className="font-semibold text-sm text-slate-900 flex items-center justify-between">
+                                        <span>Account & Phone Number Details</span>
+                                        <span className="text-xs text-muted-foreground font-normal">
+                                            These are shown directly in the checkout dialog
+                                        </span>
+                                    </h5>
+
+                                    {editPaymentForm.data.type === 'bank' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Account Number *
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.account_number || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        account_number: e.target.value
+                                                    })}
+                                                    placeholder="e.g., 1000123456789"
+                                                    className="mt-1 font-mono text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Account Name *
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.account_name || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        account_name: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Serdo E-commerce"
+                                                    className="mt-1 text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Bank Name
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.bank_name || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        bank_name: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Commercial Bank of Ethiopia"
+                                                    className="mt-1 text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Branch (optional)
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.branch || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        branch: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Main Branch"
+                                                    className="mt-1 text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Mobile Number / Phone *
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.phone_number || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        phone_number: e.target.value
+                                                    })}
+                                                    placeholder="e.g., +251911234567 or 0911234567"
+                                                    className="mt-1 font-mono text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Account Name / Receiver
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.account_name || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        account_name: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Serdo Store"
+                                                    className="mt-1 text-sm"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <Label className="text-xs font-semibold text-gray-700">
+                                                    Service Name
+                                                </Label>
+                                                <Input
+                                                    type="text"
+                                                    value={editPaymentForm.data.details?.service || ''}
+                                                    onChange={(e) => editPaymentForm.setData('details', {
+                                                        ...editPaymentForm.data.details,
+                                                        service: e.target.value
+                                                    })}
+                                                    placeholder="e.g., Telebirr"
+                                                    className="mt-1 text-sm"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        id="edit_is_active"
+                                        checked={editPaymentForm.data.is_active}
+                                        onChange={(e) => editPaymentForm.setData('is_active', e.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    />
+                                    <Label htmlFor="edit_is_active" className="text-sm font-medium text-gray-700 cursor-pointer">
+                                        Method is Active (available during checkout)
+                                    </Label>
+                                </div>
+
+                                <DialogFooter className="flex gap-3 pt-4 border-t">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => {
+                                            setEditingOfflineMethod(null);
+                                            editPaymentForm.reset();
+                                        }}
+                                        className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={editPaymentForm.processing}
+                                        className="bg-primary hover:bg-primary/90 text-white font-medium"
+                                        style={{ backgroundColor: '#ef4e2a' }}
+                                    >
+                                        {editPaymentForm.processing ? 'Saving...' : 'Save Changes'}
                                     </Button>
                                 </DialogFooter>
                             </form>

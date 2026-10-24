@@ -364,31 +364,44 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
             )}
 
             {/* Expandable Reviews */}
-            <div className="border-t border-gray-100 pt-2">
-                <button
-                    type="button"
-                    onClick={() => setIsReviewsExpanded(!isReviewsExpanded)}
-                    className="flex w-full items-center justify-between py-2.5 text-left text-sm font-semibold text-gray-900 hover:text-primary transition-colors cursor-pointer"
-                >
-                    <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-gray-500" />
-                        <span>{t('productDetail.reviews', 'Reviews')} ({product.reviews_count || 0})</span>
+            <div className="border-t border-gray-100 pt-3">
+                <div className="flex items-center justify-between">
+                    <button
+                        type="button"
+                        onClick={() => setIsReviewsExpanded(!isReviewsExpanded)}
+                        className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
+                            isReviewsExpanded
+                                ? 'bg-primary text-white border-primary shadow-xs'
+                                : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                        }`}
+                    >
+                        <MessageSquare className="h-3.5 w-3.5" />
+                        <span>{t('productDetail.reviews', 'Reviews')}</span>
                         {product.reviews_count > 0 && (
-                            <span className="flex items-center text-xs font-normal text-gray-500">
-                                • <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mx-1" />
-                                {product.average_rating.toFixed(1)}
+                            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                                isReviewsExpanded ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                                {product.reviews_count}
                             </span>
                         )}
-                    </div>
-                    <ChevronDown
-                        className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
-                            isReviewsExpanded ? 'rotate-180' : ''
-                        }`}
-                    />
-                </button>
+                        <ChevronDown
+                            className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                                isReviewsExpanded ? 'rotate-180' : ''
+                            }`}
+                        />
+                    </button>
+
+                    {product.reviews_count > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                            <span className="font-semibold text-gray-800">{product.average_rating.toFixed(1)}</span>
+                            <span>({product.reviews_count})</span>
+                        </div>
+                    )}
+                </div>
 
                 {isReviewsExpanded && (
-                    <div className="pt-3">
+                    <div className="pt-4">
                         <ReviewSection
                             productId={product.id}
                             averageRating={product.average_rating}

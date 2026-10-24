@@ -29,7 +29,7 @@ class AdminSalesController extends Controller
         // Get consolidated stats
         $stats = $this->getConsolidatedStats();
 
-        return Inertia::render('admin/sales/index', [
+        return Inertia::render('Admin/sales/index', [
             'payments' => [
                 'data' => $payments->items(),
                 'links' => $payments->toArray()['links'],
@@ -115,7 +115,7 @@ class AdminSalesController extends Controller
             });
         }
 
-        return Inertia::render('admin/sales/order-details', [
+        return Inertia::render('Admin/sales/order-details', [
             'order' => $order
         ]);
     }

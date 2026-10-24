@@ -45,7 +45,7 @@ class AdminSupplierController extends Controller
                 ] : null,
             ]);
 
-        return Inertia::render('admin/suppliers/index', [
+        return Inertia::render('Admin/suppliers/index', [
             'suppliers' => $suppliers,
             'filters' => $request->only(['search', 'status']),
             'statuses' => [
@@ -61,7 +61,7 @@ class AdminSupplierController extends Controller
     {
         $supplier->load(['user', 'createdByAdmin', 'products']);
         
-        return Inertia::render('admin/suppliers/show', [
+        return Inertia::render('Admin/suppliers/show', [
             'supplier' => [
                 'id' => $supplier->id,
                 'business_name' => $supplier->business_name,

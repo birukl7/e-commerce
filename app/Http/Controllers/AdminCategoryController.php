@@ -27,7 +27,7 @@ class AdminCategoryController extends Controller
             
         $brands = Brand::orderBy('name')->get();
 
-        return Inertia::render('admin/category/index', [
+        return Inertia::render('Admin/category/index', [
             'categories' => $categories,
             'brands' => $brands
         ]);
@@ -40,7 +40,7 @@ class AdminCategoryController extends Controller
         // Format category image
         $category->image = $category->image_url; // Use the accessor
         
-        return Inertia::render('admin/category/show', [
+        return Inertia::render('Admin/category/show', [
             'category' => $category
         ]);
     }

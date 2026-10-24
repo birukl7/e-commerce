@@ -7,6 +7,8 @@ import { Link } from "@inertiajs/react"
 import { useTranslation } from "react-i18next"
 // import { route } from "@/utils/route" // Import the route function
 
+import { useEffect, useRef } from "react"
+
 interface CartDrawerProps {
   isOpen: boolean
   onClose: () => void
@@ -15,6 +17,26 @@ interface CartDrawerProps {
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { items, removeFromCart, updateQuantity, getTotalPrice } = useCart()
   const { t } = useTranslation()
+  const drawerRef = useRef<HTMLDivElement>(null)
+
+  // Close when clicking outside of the drawer
+  useEffect(() => {
+    if (!isOpen) return
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      if (drawerRef.current && !drawerRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown)
+    document.addEventListener("touchstart", handlePointerDown)
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown)
+      document.removeEventListener("touchstart", handlePointerDown)
+    }
+  }, [isOpen, onClose])
   
   const getStockStatusText = (item: any) => {
     if (!item.manageStock) return ''
@@ -42,17 +64,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
   return (
     <>
-      {/* Backdrop overlay - Fixed the opacity issue */}
+      {/* Cart Drawer without dark overlay */}
       <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-        aria-hidden="true"
-        style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }} // Explicit inline style as fallback
-      />
-
-      {/* Cart Drawer */}
-      <div
-        className="fixed inset-y-0 right-0 z-50 bg-white shadow-xl h-screen w-full sm:w-96 md:w-[400px] max-w-full transform transition-transform duration-300 ease-in-out"
+        ref={drawerRef}
+        className="fixed inset-y-0 right-0 z-50 bg-white shadow-2xl border-l border-gray-200 h-screen w-full sm:w-96 md:w-[400px] max-w-full transform transition-transform duration-300 ease-in-out"
         style={{
           transform: isOpen ? "translateX(0)" : "translateX(100%)",
         }}

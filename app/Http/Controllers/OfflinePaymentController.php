@@ -6,6 +6,7 @@ use App\Models\PaymentTransaction;
 use App\Models\OfflinePaymentMethod;
 use App\Models\Order;
 use App\Services\PaymentFinalizer;
+use App\Services\LinksEtService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,8 @@ use Illuminate\Support\Str;
 class OfflinePaymentController extends Controller
 {
     public function __construct(
-        private PaymentFinalizer $paymentFinalizer
+        private PaymentFinalizer $paymentFinalizer,
+        private LinksEtService $linksEtService
     ) {}
 
     /**
@@ -228,8 +230,96 @@ class OfflinePaymentController extends Controller
                 // Use PaymentFinalizer to handle proof upload
                 $this->paymentFinalizer->handleProofUpload($payment);
 
+                // --- LIVE ACTION: Verify with links.et immediately during submission ---
+                if ($this->linksEtService->isConfigured()) {
+                    try {
+                        $reference = $request->payment_reference;
+                        $verificationResult = null;
+
+                        // 1. If reference/link provided, verify via verify()
+                        if (!empty($reference)) {
+                            $isUrl = filter_var($reference, FILTER_VALIDATE_URL) || str_starts_with($reference, 'http://') || str_starts_with($reference, 'https://');
+                            if ($isUrl || preg_match('/^[A-Za-z0-9_-]{6,32}$/', trim($reference))) {
+                                $verificationResult = $this->linksEtService->verify($reference, ['waitMs' => 10000]);
+                            }
+                        }
+
+                        // 2. If reference verify didn't succeed and screenshot was uploaded, verify via verifyImage()
+                        if ((empty($verificationResult) || empty($verificationResult['ok'])) && !empty($screenshotPath)) {
+                            $fullDiskPath = Storage::disk('public')->path($screenshotPath);
+                            if (file_exists($fullDiskPath)) {
+                                $imageResult = $this->linksEtService->verifyImage($fullDiskPath);
+                                if (!empty($imageResult['ok']) || !empty($imageResult['detected'])) {
+                                    $verificationResult = $imageResult;
+                                }
+                            }
+                        }
+
+                        if (!empty($verificationResult)) {
+                            $isVerifiedOk = !empty($verificationResult['ok']);
+                            $receipt = $verificationResult['receipt'] ?? ($verificationResult['upstream']['result']['receipt'] ?? null);
+
+                            $payload = $payment->gateway_payload ?? [];
+                            $payload['links_et_verification'] = [
+                                'verified_at' => now()->toIso8601String(),
+                                'ok' => $isVerifiedOk,
+                                'providerKey' => $verificationResult['providerKey'] ?? ($verificationResult['detected']['provider'] ?? null),
+                                'detected' => $verificationResult['detected'] ?? null,
+                                'upstream_attempted' => $verificationResult['upstream']['attempted'] ?? false,
+                                'raw_result' => $verificationResult,
+                            ];
+
+                            if ($receipt) {
+                                $extractedAmount = LinksEtService::extractAmount($receipt);
+                                $extractedRef = LinksEtService::extractReference($receipt);
+                                $extractedPayer = LinksEtService::extractPayerName($receipt);
+
+                                $payload['links_et_verification']['extracted_amount'] = $extractedAmount;
+                                $payload['links_et_verification']['extracted_reference'] = $extractedRef;
+                                $payload['links_et_verification']['extracted_payer'] = $extractedPayer;
+                                $payload['links_et_verification']['receipt_source'] = $receipt['source'] ?? null;
+
+                                if ($extractedAmount !== null) {
+                                    $expectedAmount = (float) $payment->amount;
+                                    $amountMatches = abs($extractedAmount - $expectedAmount) < 0.50;
+                                    $payload['links_et_verification']['amount_matches'] = $amountMatches;
+
+                                    if ($amountMatches && $isVerifiedOk) {
+                                        $payment->gateway_status = 'paid';
+                                    }
+                                }
+                            }
+
+                            $payment->gateway_payload = $payload;
+                            $payment->save();
+                            Log::info('Live links.et verification completed', [
+                                'payment_id' => $payment->id,
+                                'ok' => $isVerifiedOk
+                            ] + $logContext);
+                        }
+                    } catch (\Throwable $ve) {
+                        Log::warning('Live links.et verification skipped or failed', [
+                            'error' => $ve->getMessage()
+                        ] + $logContext);
+                    }
+                }
+
                 DB::commit();
                 Log::info('Database transaction committed successfully', $logContext);
+
+                // If AJAX / JSON request, return JSON so frontend can redirect cleanly
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'redirect' => route('payment.offline.success', [
+                            'submission_ref' => $txRef,
+                            'order_id' => $request->order_id,
+                            'amount' => $request->amount,
+                            'currency' => $request->currency,
+                            'payment_method' => $offlineMethod->name,
+                        ])
+                    ]);
+                }
 
                 // Redirect to success page
                 return redirect()->route('payment.offline.success', [
@@ -320,7 +410,7 @@ class OfflinePaymentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
-            return inertia('admin/offline-payments/index', [
+            return inertia('Admin/offline-payments/index', [
                 'submissions' => $submissions
             ]);
         } catch (\Exception $e) {
@@ -337,7 +427,7 @@ class OfflinePaymentController extends Controller
         try {
             $submission->load(['order', 'admin']);
             
-            return inertia('admin/offline-payments/show', [
+            return inertia('Admin/offline-payments/show', [
                 'submission' => $submission
             ]);
         } catch (\Exception $e) {

@@ -118,7 +118,7 @@ class TaxSettingsController extends Controller
 
         // Inertia component path must match the actual TSX file path (case-sensitive)
         // The page file is at resources/js/pages/admin/tax/settings.tsx
-        return Inertia::render('admin/tax/settings', $data);
+        return Inertia::render('Admin/tax/settings', $data);
     }
 
     /**

@@ -25,7 +25,7 @@ class AdminPaymentController extends Controller
             'path' => $request->path(),
             'full_url' => $request->fullUrl(),
             'query' => $request->query(),
-            'intended_component' => 'admin/payment/index',
+            'intended_component' => 'Admin/payment/index',
         ]);
         
         try {
@@ -150,7 +150,7 @@ class AdminPaymentController extends Controller
             ->limit(5)
             ->get();
 
-        $response = Inertia::render('admin/payment/index', [
+        $response = Inertia::render('Admin/payment/index', [
             'payments' => $payments,
             'stats' => $stats,
             'filters' => (object) $request->only([
@@ -163,7 +163,7 @@ class AdminPaymentController extends Controller
         ]);
 
         \Log::info('AdminPaymentController@index returning component', [
-            'component' => 'admin/payment/index',
+            'component' => 'Admin/payment/index',
             'payments_count' => $payments->total(),
             'response_type' => get_class($response),
         ]);
@@ -258,7 +258,7 @@ class AdminPaymentController extends Controller
         // Load customer profile image (if user exists)
         $customer = \App\Models\User::where('email', $payment->customer_email)->first();
 
-        return Inertia::render('admin/payment/show', [
+        return Inertia::render('Admin/payment/show', [
             'payment' => $payment,
             'orderItems' => $orderItems,
             'customerPaymentHistory' => $customerPaymentHistory,
@@ -527,5 +527,84 @@ class AdminPaymentController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * Verify payment receipt at source using links.et
+     */
+    public function verifyWithLinksEt(Request $request, $paymentId, \App\Services\LinksEtService $linksEtService)
+    {
+        $payment = PaymentTransaction::findOrFail($paymentId);
+
+        if (!$linksEtService->isConfigured()) {
+            return back()->with('error', 'links.et API key is not configured.');
+        }
+
+        $payload = $payment->gateway_payload ?? [];
+        $reference = $request->input('reference') ?? ($payload['payment_reference'] ?? null);
+        $screenshotPath = $payload['screenshot_path'] ?? null;
+
+        $result = null;
+
+        // 1. If reference provided or in payload, try verifying by reference/URL
+        if (!empty($reference)) {
+            $result = $linksEtService->verify($reference);
+        }
+
+        // 2. If reference verify didn't succeed and screenshot exists, verify image
+        if ((empty($result) || empty($result['ok'])) && !empty($screenshotPath)) {
+            $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($screenshotPath);
+            if (file_exists($fullPath)) {
+                $result = $linksEtService->verifyImage($fullPath);
+            }
+        }
+
+        if (empty($result)) {
+            return back()->with('error', 'No receipt URL, reference, or screenshot available to verify.');
+        }
+
+        // Store verification details in gateway_payload
+        $isOk = !empty($result['ok']);
+        $receipt = $result['receipt'] ?? ($result['upstream']['result']['receipt'] ?? null);
+
+        $payload['links_et_verification'] = [
+            'verified_at' => now()->toIso8601String(),
+            'ok' => $isOk,
+            'providerKey' => $result['providerKey'] ?? ($result['detected']['provider'] ?? null),
+            'detected' => $result['detected'] ?? null,
+            'upstream_attempted' => $result['upstream']['attempted'] ?? false,
+            'raw_result' => $result,
+        ];
+
+        if ($receipt) {
+            $extractedAmount = \App\Services\LinksEtService::extractAmount($receipt);
+            $extractedRef = \App\Services\LinksEtService::extractReference($receipt);
+            $extractedPayer = \App\Services\LinksEtService::extractPayerName($receipt);
+
+            $payload['links_et_verification']['extracted_amount'] = $extractedAmount;
+            $payload['links_et_verification']['extracted_reference'] = $extractedRef;
+            $payload['links_et_verification']['extracted_payer'] = $extractedPayer;
+            $payload['links_et_verification']['receipt_source'] = $receipt['source'] ?? null;
+
+            if ($extractedAmount !== null) {
+                $expectedAmount = (float) $payment->amount;
+                $amountMatches = abs($extractedAmount - $expectedAmount) < 0.50;
+                $payload['links_et_verification']['amount_matches'] = $amountMatches;
+
+                if ($amountMatches && $isOk) {
+                    $payment->gateway_status = 'paid';
+                }
+            }
+        }
+
+        $payment->gateway_payload = $payload;
+        $payment->save();
+
+        if ($isOk) {
+            return back()->with('success', 'Receipt verified at source by links.et!');
+        }
+
+        $errorMessage = $result['error']['message'] ?? 'Could not verify receipt at source.';
+        return back()->with('error', "links.et verification: {$errorMessage}");
     }
 }

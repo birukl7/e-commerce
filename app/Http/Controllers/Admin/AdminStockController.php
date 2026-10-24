@@ -48,7 +48,7 @@ class AdminStockController extends Controller
         
         $activeTab = request()->string('tab', 'alerts')->toString();
 
-        return Inertia::render('admin/stock/index', [
+        return Inertia::render('Admin/stock/index', [
             'activeTab' => $activeTab,
             'tabs' => [
                 'alerts' => 'Stock Alerts',

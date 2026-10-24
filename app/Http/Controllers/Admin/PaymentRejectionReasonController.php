@@ -16,7 +16,7 @@ class PaymentRejectionReasonController extends Controller
     {
         $reasons = PaymentRejectionReason::ordered()->get();
 
-        return Inertia::render('admin/payment-rejection-reasons/index', [
+        return Inertia::render('Admin/payment-rejection-reasons/index', [
             'reasons' => $reasons,
         ]);
     }

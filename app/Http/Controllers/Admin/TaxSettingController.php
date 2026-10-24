@@ -50,7 +50,7 @@ class TaxSettingController extends Controller
         $taxSettings = TaxSetting::with('taxClass')->get();
         $taxClasses = TaxClass::active()->get();
         
-        return Inertia::render('admin/tax/settings/Index', [
+        return Inertia::render('Admin/tax/settings/Index', [
             'taxSettings' => $taxSettings,
             'taxClasses' => $taxClasses,
         ]);

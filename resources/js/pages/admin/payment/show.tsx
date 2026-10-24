@@ -10,7 +10,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Calendar, CreditCard, Mail, MapPin, Package, Phone, CheckCircle, XCircle, Eye, Clock, AlertTriangle, Ban, TrendingDown, FileImage, User, X } from 'lucide-react';
+import { ArrowLeft, Calendar, CreditCard, Mail, MapPin, Package, Phone, CheckCircle, XCircle, Eye, Clock, AlertTriangle, Ban, TrendingDown, FileImage, User, X, Link2, ShieldCheck, RefreshCw, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
@@ -125,6 +125,13 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
         rejection_reason_code: '',
         notes: ''
     });
+
+    const verifyLinksEtForm = useForm({});
+
+    const handleVerifyLinksEt = (e: React.FormEvent) => {
+        e.preventDefault();
+        verifyLinksEtForm.post(`/admin/payments/${payment.id}/verify-links-et`);
+    };
 
     const formatCurrency = (amount: number, currency = 'ETB') => {
         return new Intl.NumberFormat('en-US', {
@@ -408,6 +415,95 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                                 />
                                             </div>
                                         )}
+
+                                        {/* links.et Source Verification Card */}
+                                        <div className="md:col-span-2 rounded-xl border border-sky-500/20 bg-sky-950/20 p-4 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <ShieldCheck className="h-5 w-5 text-sky-400" />
+                                                    <span className="text-sm font-semibold text-white">links.et Bank Verification</span>
+                                                    {payment.gateway_payload.links_et_verification ? (
+                                                        payment.gateway_payload.links_et_verification.ok ? (
+                                                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-xs font-mono">
+                                                                VERIFIED AT SOURCE
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className="text-amber-400 border-amber-500/30 text-xs">
+                                                                UNCONFIRMED
+                                                            </Badge>
+                                                        )
+                                                    ) : (
+                                                        <Badge variant="outline" className="text-zinc-400 border-zinc-700 text-xs">
+                                                            NOT VERIFIED
+                                                        </Badge>
+                                                    )}
+                                                </div>
+
+                                                <form onSubmit={handleVerifyLinksEt}>
+                                                    <Button
+                                                        type="submit"
+                                                        size="sm"
+                                                        disabled={verifyLinksEtForm.processing}
+                                                        variant="outline"
+                                                        className="h-8 gap-1.5 text-xs bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/30"
+                                                    >
+                                                        <RefreshCw className={`h-3.5 w-3.5 ${verifyLinksEtForm.processing ? 'animate-spin' : ''}`} />
+                                                        {verifyLinksEtForm.processing ? 'Verifying...' : 'Verify at Source'}
+                                                    </Button>
+                                                </form>
+                                            </div>
+
+                                            {payment.gateway_payload.links_et_verification && (
+                                                <div className="grid gap-2 text-xs sm:grid-cols-2 pt-2 border-t border-sky-500/10">
+                                                    <div>
+                                                        <span className="text-muted-foreground">Provider: </span>
+                                                        <span className="font-semibold text-white capitalize">
+                                                            {payment.gateway_payload.links_et_verification.providerKey || 'N/A'}
+                                                        </span>
+                                                        {payment.gateway_payload.links_et_verification.receipt_source && (
+                                                            <span className="ml-1 text-[11px] text-zinc-400 font-mono">
+                                                                ({payment.gateway_payload.links_et_verification.receipt_source})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground">Extracted Reference: </span>
+                                                        <span className="font-mono text-white">
+                                                            {payment.gateway_payload.links_et_verification.extracted_reference || 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground">Bank Settled Amount: </span>
+                                                        <span className="font-semibold text-white">
+                                                            {payment.gateway_payload.links_et_verification.extracted_amount !== undefined && payment.gateway_payload.links_et_verification.extracted_amount !== null
+                                                                ? `${payment.gateway_payload.links_et_verification.extracted_amount} ETB`
+                                                                : 'N/A'}
+                                                        </span>
+                                                        {payment.gateway_payload.links_et_verification.amount_matches !== undefined && (
+                                                            <span className={`ml-1 text-[11px] ${payment.gateway_payload.links_et_verification.amount_matches ? 'text-emerald-400' : 'text-amber-400 font-bold'}`}>
+                                                                ({payment.gateway_payload.links_et_verification.amount_matches ? 'Matches Order' : 'Mismatch!'})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-muted-foreground">Verified At: </span>
+                                                        <span className="text-zinc-300">
+                                                            {payment.gateway_payload.links_et_verification.verified_at
+                                                                ? formatDate(payment.gateway_payload.links_et_verification.verified_at)
+                                                                : 'N/A'}
+                                                        </span>
+                                                    </div>
+                                                    {payment.gateway_payload.links_et_verification.extracted_payer && (
+                                                        <div className="sm:col-span-2">
+                                                            <span className="text-muted-foreground">Payer Name at Bank: </span>
+                                                            <span className="text-white font-medium">
+                                                                {payment.gateway_payload.links_et_verification.extracted_payer}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
 

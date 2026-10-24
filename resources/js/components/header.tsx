@@ -52,6 +52,8 @@ const Header = () => {
   const cartButtonRef = useRef<HTMLButtonElement>(null)
   const headerRef = useRef<HTMLElement>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const [isSignupOpen, setIsSignupOpen] = useState(false)
 
   // Safe route helper that handles cases where route might not be available
   const safeRoute = (name: string, params?: any, absolute?: boolean): string => {
@@ -116,6 +118,18 @@ const Header = () => {
   }
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const authAction = params.get("auth")
+      if (authAction === "login") {
+        setIsLoginOpen(true)
+      } else if (authAction === "register") {
+        setIsSignupOpen(true)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (shouldChooseRole) {
       window.dispatchEvent(new Event("auth:choose-role"))
     }
@@ -134,8 +148,24 @@ const Header = () => {
 
   return (
     <>
-      <LoginDialog listenForOpenEvent />
-      <SignupDialog listenForOpenEvent />
+      <LoginDialog
+        open={isLoginOpen}
+        onOpenChange={setIsLoginOpen}
+        onOpenSignup={() => {
+          setIsLoginOpen(false)
+          setTimeout(() => setIsSignupOpen(true), 150)
+        }}
+        listenForOpenEvent
+      />
+      <SignupDialog
+        open={isSignupOpen}
+        onOpenChange={setIsSignupOpen}
+        onOpenLogin={() => {
+          setIsSignupOpen(false)
+          setTimeout(() => setIsLoginOpen(true), 150)
+        }}
+        listenForOpenEvent
+      />
       <ChooseRoleDialog listenForOpenEvent />
       <header
         ref={headerRef}
@@ -262,7 +292,10 @@ const Header = () => {
                   <div className="flex items-center space-x-1 pl-2">
                     <Button
                       size="sm"
-                      onClick={() => window.dispatchEvent(new CustomEvent("auth:open-login"))}
+                      onClick={() => {
+                        setIsLoginOpen(true)
+                        window.dispatchEvent(new CustomEvent("auth:open-login"))
+                      }}
                     >
                       {t("header.signIn")}
                     </Button>
@@ -319,9 +352,8 @@ const Header = () => {
                             className="w-full"
                             onClick={() => {
                               closeMobileMenu()
-                              window.setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent("auth:open-login"))
-                              }, 150)
+                              setIsLoginOpen(true)
+                              window.dispatchEvent(new CustomEvent("auth:open-login"))
                             }}
                           >
                             {t("header.signIn")}
@@ -331,9 +363,8 @@ const Header = () => {
                             className="w-full bg-transparent"
                             onClick={() => {
                               closeMobileMenu()
-                              window.setTimeout(() => {
-                                window.dispatchEvent(new CustomEvent("auth:open-signup"))
-                              }, 150)
+                              setIsSignupOpen(true)
+                              window.dispatchEvent(new CustomEvent("auth:open-signup"))
                             }}
                           >
                             {t("header.signUp")}

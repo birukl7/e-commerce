@@ -41,10 +41,16 @@ return [
     ],
 
     'chapa' => [
-    'public_key' => env('CHAPA_PUBLIC_KEY'),
-    'secret_key' => env('CHAPA_SECRET_KEY'),
-    'base_url' => env('CHAPA_BASE_URL', 'https://api.chapa.co/v1'),
-],
+        'public_key' => env('CHAPA_PUBLIC_KEY'),
+        'secret_key' => env('CHAPA_SECRET_KEY'),
+        'base_url' => env('CHAPA_BASE_URL', 'https://api.chapa.co/v1'),
+    ],
 
+    'links_et' => [
+        'api_key' => env('LINKS_ET_API_KEY'),
+        'base_url' => env('LINKS_ET_BASE_URL', 'https://links.et'),
+        'timeout' => env('LINKS_ET_TIMEOUT', 35),
+        'wait_ms' => env('LINKS_ET_WAIT_MS', 2000),
+    ],
 
 ];

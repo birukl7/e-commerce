@@ -212,46 +212,63 @@ export function ReviewSection({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {/* Rating Overview */}
-      <div className="border-t pt-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('reviews.customerReviews')}</h2>
-
-        <div className="grid md:grid-cols-2 gap-8 mb-8">
-          {/* Overall Rating */}
-          <div className="text-center">
-            <div className="text-4xl font-bold text-gray-900 mb-2">{averageRating.toFixed(1)}</div>
-            <div className="flex justify-center mb-2">{renderStars(Math.round(averageRating))}</div>
-            <p className="text-gray-600">{reviewsCount} {t('reviews.reviews')}</p>
+      <div className="rounded-xl bg-gray-50/70 p-4 border border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            {reviewsCount > 0 ? (
+              <>
+                <span className="text-3xl font-extrabold text-gray-900">{averageRating.toFixed(1)}</span>
+                <div>
+                  <div className="flex items-center">{renderStars(Math.round(averageRating))}</div>
+                  <p className="text-xs text-gray-500 mt-0.5">{reviewsCount} {t('reviews.reviews')}</p>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-gray-400" />
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">{t('reviews.noReviewsYet')}</h3>
+                  <p className="text-xs text-gray-500">{t('reviews.beTheFirst', 'Be the first to share your thoughts!')}</p>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Rating Breakdown */}
-          <div className="space-y-2">
+          {/* Write Review Button */}
+          {auth.user && !userHasReviewed && (
+            <Button
+              onClick={() => setShowReviewForm(!showReviewForm)}
+              size="sm"
+              className="rounded-full text-xs font-semibold px-4 py-1.5 h-auto self-start sm:self-auto"
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+              {showReviewForm ? t('reviews.cancel') : t('reviews.writeReview')}
+            </Button>
+          )}
+        </div>
+
+        {/* Rating Breakdown only when reviews exist */}
+        {reviewsCount > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-200/60 grid grid-cols-5 gap-2">
             {[5, 4, 3, 2, 1].map((rating) => (
-              <div key={rating} className="flex items-center gap-3">
-                <span className="text-sm font-medium w-8">{rating}</span>
-                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div key={rating} className="flex flex-col items-center text-center">
+                <span className="text-[11px] font-medium text-gray-600 flex items-center gap-0.5">
+                  {rating} <Star className="h-2.5 w-2.5 fill-yellow-400 text-yellow-400" />
+                </span>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 my-1 overflow-hidden">
                   <div
-                    className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                    className="bg-yellow-400 h-1.5 rounded-full"
                     style={{ width: `${getRatingPercentage(rating)}%` }}
                   />
                 </div>
-                <span className="text-sm text-gray-600 w-8">{(ratingBreakdown?.[rating] ?? 0)}</span>
+                <span className="text-[10px] text-gray-400">{ratingBreakdown?.[rating] ?? 0}</span>
               </div>
             ))}
           </div>
-        </div>
-
-        {/* Write Review Button */}
-        {auth.user && !userHasReviewed && (
-          <div className="mb-8">
-            <Button onClick={() => setShowReviewForm(!showReviewForm)} className="flex items-center gap-2">
-              <MessageSquare className="h-4 w-4" />
-              {t('reviews.writeReview')}
-            </Button>
-          </div>
         )}
+      </div>
 
         {/* Review Form */}
         {showReviewForm && (
@@ -312,110 +329,104 @@ export function ReviewSection({
           </div>
         )}
 
-        {/* Filters and Sorting */}
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <span className="text-sm font-medium">{t('reviews.sortBy')}</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="newest">{t('reviews.newest')}</option>
-              <option value="oldest">{t('reviews.oldest')}</option>
-              <option value="highest_rating">{t('reviews.highestRating')}</option>
-              <option value="lowest_rating">{t('reviews.lowestRating')}</option>
-              <option value="most_helpful">{t('reviews.mostHelpful')}</option>
-            </select>
-          </div>
+        {/* Filters and Sorting (only when multiple reviews exist) */}
+        {reviews?.data?.length > 1 && (
+          <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-gray-600">
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-gray-500">{t('reviews.sortBy')}:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="border border-gray-200 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="newest">{t('reviews.newest')}</option>
+                <option value="oldest">{t('reviews.oldest')}</option>
+                <option value="highest_rating">{t('reviews.highestRating')}</option>
+                <option value="lowest_rating">{t('reviews.lowestRating')}</option>
+                <option value="most_helpful">{t('reviews.mostHelpful')}</option>
+              </select>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{t('reviews.filterByRating')}</span>
-            <select
-              value={filterRating || ""}
-              onChange={(e) => setFilterRating(e.target.value ? Number.parseInt(e.target.value) : null)}
-              className="border border-gray-300 rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">{t('reviews.allRatings')}</option>
-              <option value="5">5 {t('reviews.stars')}</option>
-              <option value="4">4 {t('reviews.stars')}</option>
-              <option value="3">3 {t('reviews.stars')}</option>
-              <option value="2">2 {t('reviews.stars')}</option>
-              <option value="1">1 {t('reviews.star')}</option>
-            </select>
+            <div className="flex items-center gap-1.5">
+              <span className="font-medium text-gray-500">{t('reviews.filterByRating')}:</span>
+              <select
+                value={filterRating || ""}
+                onChange={(e) => setFilterRating(e.target.value ? Number.parseInt(e.target.value) : null)}
+                className="border border-gray-200 rounded-md px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">{t('reviews.allRatings')}</option>
+                <option value="5">5 {t('reviews.stars')}</option>
+                <option value="4">4 {t('reviews.stars')}</option>
+                <option value="3">3 {t('reviews.stars')}</option>
+                <option value="2">2 {t('reviews.stars')}</option>
+                <option value="1">1 {t('reviews.star')}</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Reviews List */}
-        <div className="space-y-6">
+        <div className="space-y-3 pt-1">
           {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="text-gray-600 mt-2">{t('reviews.loadingReviews')}</p>
+            <div className="text-center py-4">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto"></div>
+              <p className="text-xs text-gray-500 mt-2">{t('reviews.loadingReviews')}</p>
             </div>
           ) : reviews?.data?.length > 0 ? (
             reviews.data.map((review) => (
-              <div key={review.id} className="border-b border-gray-200 pb-6">
-                <div className="flex items-start gap-4">
+              <div key={review.id} className="border-b border-gray-100 pb-3 last:border-0">
+                <div className="flex items-start gap-2.5">
                   <div className="flex-shrink-0">
                     {review.user_avatar ? (
                       <img
                         src={review.user_avatar || "/placeholder.svg"}
                         alt={review.user_name}
-                        className="w-10 h-10 rounded-full"
+                        className="w-7 h-7 rounded-full object-cover"
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gray-300 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-gray-600" />
+                      <div className="w-7 h-7 bg-gray-200 rounded-full flex items-center justify-center">
+                        <User className="h-3.5 w-3.5 text-gray-500" />
                       </div>
                     )}
                   </div>
 
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-gray-900">{review.user_name}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-gray-900 truncate">{review.user_name}</span>
+                      <span className="text-[11px] text-gray-400 shrink-0">{formatDate(review.created_at)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1 my-1">
+                      {renderStars(review.rating)}
                       {review.is_verified_purchase && (
-                        <span className="inline-flex items-center gap-1 text-xs text-green-600">
-                          <CheckCircle className="h-3 w-3" />
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-green-700 font-medium ml-1.5">
+                          <CheckCircle className="h-2.5 w-2.5" />
                           {t('reviews.verifiedPurchase')}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 mb-2">
-                      {renderStars(review.rating)}
-                      <span className="text-sm text-gray-600">{formatDate(review.created_at)}</span>
-                    </div>
+                    {review.title && <h4 className="text-xs font-semibold text-gray-900 mt-1">{review.title}</h4>}
+                    <p className="text-xs text-gray-600 mt-1 leading-relaxed">{review.comment}</p>
 
-                    {review.title && <h4 className="font-medium text-gray-900 mb-2">{review.title}</h4>}
-
-                    <p className="text-gray-700 mb-3 leading-relaxed">{review.comment}</p>
-
-                    <div className="flex items-center gap-4">
+                    <div className="mt-2 flex items-center">
                       <button
                         onClick={() => handleHelpfulVote(review.id)}
                         disabled={!auth.user}
-                        className={`flex items-center gap-1 text-sm transition-colors ${
-                          review.is_helpful_to_user ? "text-blue-600" : "text-gray-600 hover:text-blue-600"
+                        className={`inline-flex items-center gap-1 text-[11px] transition-colors ${
+                          review.is_helpful_to_user ? "text-primary font-medium" : "text-gray-400 hover:text-gray-700"
                         } ${!auth.user ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
                       >
-                        <ThumbsUp className="h-4 w-4" />
-                        {t('reviews.helpful')} ({review.helpful_count})
+                        <ThumbsUp className="h-3 w-3" />
+                        <span>{t('reviews.helpful')} ({review.helpful_count})</span>
                       </button>
                     </div>
                   </div>
                 </div>
               </div>
             ))
-          ) : (
-            <div className="text-center py-8">
-              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">{t('reviews.noReviewsYet')}</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
-    </div>
   )
 }

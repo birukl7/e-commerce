@@ -16,7 +16,7 @@ class AdminBrandController extends Controller
 
     public function show(Brand $brand)
     {
-        return Inertia::render('admin/brand/show', [
+        return Inertia::render('Admin/brand/show', [
             'brand' => $brand
         ]);
     }

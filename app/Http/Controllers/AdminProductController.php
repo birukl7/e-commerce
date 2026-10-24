@@ -85,7 +85,7 @@ class AdminProductController extends Controller
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
-        return Inertia::render('admin/product/index', [
+        return Inertia::render('Admin/product/index', [
             'products' => $products,
             'categories' => $categories,
             'brands' => $brands,
@@ -109,7 +109,7 @@ class AdminProductController extends Controller
         $categories = Category::where('is_active', true)->orderBy('name')->get();
         $brands = Brand::where('is_active', true)->orderBy('name')->get();
 
-        return Inertia::render('admin/product/show', [
+        return Inertia::render('Admin/product/show', [
             'product' => $product,
             'categories' => $categories,
             'brands' => $brands,

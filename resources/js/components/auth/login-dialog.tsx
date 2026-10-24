@@ -5,12 +5,11 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogClose,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Loader2 } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 
 const GoogleIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24">
@@ -36,11 +35,23 @@ const AppleIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
 interface LoginDialogProps {
   trigger?: React.ReactNode
   listenForOpenEvent?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onOpenSignup?: () => void
 }
 
-export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialogProps) {
+export function LoginDialog({
+  trigger,
+  listenForOpenEvent = false,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  onOpenSignup,
+}: LoginDialogProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : internalOpen
+
   const [step, setStep] = useState<"email" | "password">("email")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -54,15 +65,23 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
     const openHandler = () => {
       setStep("email")
       setErrorMessage(null)
-      setOpen(true)
+      if (isControlled) {
+        controlledOnOpenChange?.(true)
+      } else {
+        setInternalOpen(true)
+      }
     }
 
     window.addEventListener("auth:open-login", openHandler)
     return () => window.removeEventListener("auth:open-login", openHandler)
-  }, [listenForOpenEvent])
+  }, [listenForOpenEvent, isControlled, controlledOnOpenChange])
 
   const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen)
+    if (isControlled) {
+      controlledOnOpenChange?.(isOpen)
+    } else {
+      setInternalOpen(isOpen)
+    }
     if (!isOpen) {
       setStep("email")
       setPassword("")
@@ -195,30 +214,47 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
   }
 
   const openSignup = () => {
-    setOpen(false)
-    window.setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("auth:open-signup"))
-    }, 150)
+    handleOpenChange(false)
+    if (onOpenSignup) {
+      onOpenSignup()
+    } else {
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("auth:open-signup"))
+      }, 150)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       {trigger ? <button type="button" onClick={() => setOpen(true)} className="inline-flex">{trigger}</button> : null}
-      <DialogContent className="w-full max-w-[420px] rounded-3xl p-8 bg-white shadow-2xl border-0 sm:max-w-[420px]">
+      <DialogContent 
+        hideDefaultClose
+        className="w-[calc(100%-2rem)] max-w-[420px] rounded-[32px] p-8 sm:p-9 bg-white shadow-2xl border-0 overflow-visible relative"
+      >
+        {/* Floating circular close button outside/top-right edge */}
+        <button
+          type="button"
+          onClick={() => handleOpenChange(false)}
+          className="absolute -top-3 -right-3 z-50 flex h-11 w-11 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md border-2 border-white shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
+          aria-label="Close"
+        >
+          <X className="h-5 w-5 stroke-[2.5]" />
+        </button>
+
         {/* Brand Logo Header */}
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ef4e2a] text-white shadow-sm mb-3">
-            <span className="font-serif font-black text-2xl tracking-tighter">S</span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F1641E] text-white shadow-sm mb-4">
+            <span className="font-serif font-black text-2xl tracking-tighter">E</span>
           </div>
-          <DialogTitle className="font-serif text-[28px] font-bold text-slate-900 tracking-tight leading-tight">
-            {t("auth.specialStartsOnSerdo", "Special starts on Serdo")}
+          <DialogTitle className="font-serif text-[28px] font-normal text-slate-900 tracking-tight leading-snug">
+            {t("auth.specialStartsOnSerdo", "Special starts on Etsy")}
           </DialogTitle>
-          <p className="mt-1.5 text-sm text-slate-600">
-            {t("auth.newToSerdo", "New to Serdo?")}{" "}
+          <p className="mt-2 text-sm text-slate-700">
+            {t("auth.newToSerdo", "New to Etsy?")}{" "}
             <button
               type="button"
               onClick={openSignup}
-              className="font-medium text-slate-900 underline underline-offset-2 hover:text-[#ef4e2a] transition-colors"
+              className="font-medium text-slate-900 underline underline-offset-4 hover:text-[#F1641E] transition-colors"
             >
               {t("auth.createAccount", "Create an account")}
             </button>
@@ -226,7 +262,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
         </div>
 
         {errorMessage && (
-          <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600 text-center">
+          <div className="mt-4 rounded-xl bg-red-50 border border-red-200 px-3.5 py-2.5 text-xs text-red-600 text-center font-medium">
             {errorMessage}
           </div>
         )}
@@ -247,7 +283,6 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
                 onChange={(event) => setEmail(event.target.value)}
                 autoComplete="email"
                 required
-                placeholder="you@example.com"
                 className="h-12 rounded-xl border-slate-300 px-4 text-base shadow-xs focus-visible:border-slate-800 focus-visible:ring-1 focus-visible:ring-slate-800"
                 autoFocus
               />
@@ -258,7 +293,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
                 id="stay-signed-in"
                 checked={staySignedIn}
                 onCheckedChange={(checked) => setStaySignedIn(!!checked)}
-                className="rounded-md border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:border-slate-900"
+                className="rounded border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:border-slate-900"
               />
               <label
                 htmlFor="stay-signed-in"
@@ -270,7 +305,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-base transition-all shadow-sm"
+              className="w-full h-12 rounded-full bg-[#312B35] hover:bg-slate-800 text-white font-semibold text-base transition-all shadow-sm"
               disabled={!email.trim()}
             >
               {t("auth.signIn", "Sign in")}
@@ -287,7 +322,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
                     setErrorMessage(null)
                     setStep("email")
                   }}
-                  className="text-xs text-[#ef4e2a] hover:underline"
+                  className="text-xs text-[#F1641E] hover:underline"
                 >
                   Change
                 </button>
@@ -316,7 +351,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
                 id="stay-signed-in-step2"
                 checked={staySignedIn}
                 onCheckedChange={(checked) => setStaySignedIn(!!checked)}
-                className="rounded-md border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:border-slate-900"
+                className="rounded border-slate-400 data-[state=checked]:bg-slate-900 data-[state=checked]:border-slate-900"
               />
               <label
                 htmlFor="stay-signed-in-step2"
@@ -328,7 +363,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-full bg-[#ef4e2a] hover:bg-[#ef4e2a]/90 text-white font-semibold text-base transition-all shadow-sm"
+              className="w-full h-12 rounded-full bg-[#312B35] hover:bg-slate-800 text-white font-semibold text-base transition-all shadow-sm"
               disabled={isSubmitting || !password}
             >
               {isSubmitting ? (
@@ -340,17 +375,17 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
         )}
 
         {/* Divider */}
-        <div className="relative my-5">
+        <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <span className="w-full border-t border-slate-200" />
           </div>
-          <span className="relative mx-auto flex w-fit bg-white px-3 text-xs text-slate-400">
+          <span className="relative mx-auto flex w-fit bg-white px-3 text-xs text-slate-500">
             {t("auth.or", "or")}
           </span>
         </div>
 
         {/* Social round buttons */}
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex items-center justify-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={handleGoogle}
@@ -378,13 +413,13 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
         </div>
 
         {/* Footer Terms */}
-        <p className="mt-6 text-center text-xs text-slate-500 leading-relaxed px-2">
+        <p className="mt-6 text-center text-xs text-slate-600 leading-relaxed px-1">
           {t("auth.termsAgreementLogin", "By continuing, you agree to our")}{" "}
           <a
             href={typeof route === "function" ? (route("terms") as string) : "/terms"}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 text-slate-700 hover:text-slate-900 font-medium"
+            className="underline underline-offset-2 text-slate-800 hover:text-slate-950 font-normal"
           >
             {t("auth.termsOfService", "Terms of Use")}
           </a>{" "}
@@ -393,7 +428,7 @@ export function LoginDialog({ trigger, listenForOpenEvent = false }: LoginDialog
             href={typeof route === "function" ? (route("privacy") as string) : "/privacy"}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-2 text-slate-700 hover:text-slate-900 font-medium"
+            className="underline underline-offset-2 text-slate-800 hover:text-slate-950 font-normal"
           >
             Privacy Policy
           </a>

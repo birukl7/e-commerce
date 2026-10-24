@@ -51,7 +51,7 @@ class PaymentController extends Controller
                 return redirect()->route('checkout')->with('error', 'Invalid amount specified');
             }
 
-            return Inertia::render('admin/payment/select-method', [
+            return Inertia::render('Admin/payment/select-method', [
                 'order_id' => $orderId,
                 'amount' => floatval($amount),
                 'currency' => $currency,

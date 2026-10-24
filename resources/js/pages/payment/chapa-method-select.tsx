@@ -308,11 +308,21 @@ export default function ChapaMethodSelect({
   const methodCategories = categorizeMethods()
   
   const getMethodIcon = (code: string) => {
-    const iconClass = "h-8 w-8"
-    if (code === 'telebirr') return <Smartphone className={`${iconClass} text-orange-500`} />
-    if (code === 'cbe') return <Wallet className={`${iconClass} text-primary`} />
-    // Removed bank debit card icons
-    return <Smartphone className={`${iconClass} text-gray-500`} />
+    if (code === 'telebirr') {
+      return (
+        <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-white p-0.5 shadow-xs overflow-hidden">
+          <img src="/image/telebirr-logo.png" alt="Telebirr" className="h-full w-full object-contain" />
+        </div>
+      )
+    }
+    if (code === 'cbe') {
+      return (
+        <div className="h-8 w-8 flex items-center justify-center rounded-lg bg-white p-0.5 shadow-xs overflow-hidden">
+          <img src="/image/cbe-logo.png" alt="CBE" className="h-full w-full object-contain" />
+        </div>
+      )
+    }
+    return <Smartphone className="h-8 w-8 text-gray-500" />
   }
 
   return (

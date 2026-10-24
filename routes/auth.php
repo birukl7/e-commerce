@@ -19,12 +19,12 @@ Route::post('admin-login', [AuthenticatedSessionController::class, 'adminStore']
     ->name('admin.login');
 
 Route::middleware('guest')->group(function () {
-    Route::get('register', [RegisteredUserController::class, 'create'])
+    Route::get('register', fn() => redirect('/?auth=register'))
         ->name('register');
     
     Route::post('register', [RegisteredUserController::class, 'store']);
 
-    Route::get('login', [AuthenticatedSessionController::class, 'create'])
+    Route::get('login', fn() => redirect('/?auth=login'))
         ->name('login');
     
     Route::post('login', [AuthenticatedSessionController::class, 'store']);

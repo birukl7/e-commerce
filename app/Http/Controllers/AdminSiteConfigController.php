@@ -115,7 +115,7 @@ class AdminSiteConfigController extends Controller
         // Load Chapa payment methods
         $chapaPaymentMethods = ChapaPaymentMethod::ordered()->get();
 
-        return Inertia::render('admin/site-config/index', [
+        return Inertia::render('Admin/site-config/index', [
             'settings' => $settings,
             'offlinePaymentMethods' => $offlinePaymentMethods,
             'chapaPaymentMethods' => $chapaPaymentMethods,

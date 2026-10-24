@@ -40,7 +40,7 @@ class AdminProductRequestController extends Controller
             return $productRequest;
         });
         
-        return Inertia::render('admin/product-request/index', [
+        return Inertia::render('Admin/product-request/index', [
             'product_requests' => $product_requests,
             'filters' => [
                 'status' => $request->input('status'),
@@ -69,7 +69,7 @@ class AdminProductRequestController extends Controller
         // This ensures we calculate workflow_status based on the latest payment status
         $productRequest->workflow_status = $productRequest->getWorkflowStatus();
         
-        return Inertia::render('admin/product-request/show', [
+        return Inertia::render('Admin/product-request/show', [
             'product_request' => $productRequest,
             'payment_transactions' => $paymentTransactions,
         ]);
@@ -81,7 +81,7 @@ class AdminProductRequestController extends Controller
     public function edit(ProductRequest $productRequest)
     {
         $productRequest->load('user');
-        return Inertia::render('admin/product-request/edit', [
+        return Inertia::render('Admin/product-request/edit', [
             'product_request' => $productRequest,
         ]);
     }

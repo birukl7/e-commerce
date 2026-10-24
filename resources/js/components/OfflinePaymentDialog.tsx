@@ -1,5 +1,5 @@
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Building, Check, Copy, Loader2, Smartphone, Upload, X } from 'lucide-react';
+import { Building, Check, Copy, Loader2, ShieldCheck, Smartphone, Upload, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
@@ -61,6 +61,7 @@ export default function OfflinePaymentDialog({
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [verifyingStep, setVerifyingStep] = useState<string>('Verifying receipt with bank...');
     const [copied, setCopied] = useState(false);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -216,6 +217,16 @@ export default function OfflinePaymentDialog({
         }
 
         setIsSubmitting(true);
+        setVerifyingStep('Uploading proof & contacting Ethiopian bank verifier...');
+
+        // Step-up messages for clear live feedback while links.et talks to upstream bank
+        const stepTimer1 = setTimeout(() => {
+            setVerifyingStep('Verifying receipt with bank at source via links.et...');
+        }, 2500);
+
+        const stepTimer2 = setTimeout(() => {
+            setVerifyingStep('Validating reference and settled amount against order...');
+        }, 6000);
 
         try {
             const formData = new FormData();
@@ -372,16 +383,32 @@ export default function OfflinePaymentDialog({
                                                 >
                                                     <div className="mb-2.5">
                                                         {isCbe ? (
-                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 font-extrabold text-xs tracking-wider">
-                                                                CBE
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm border border-zinc-700/60 overflow-hidden">
+                                                                <img
+                                                                    src="/image/cbe-logo.png"
+                                                                    alt="Commercial Bank of Ethiopia"
+                                                                    className="h-full w-full object-contain"
+                                                                />
                                                             </div>
                                                         ) : isTele ? (
-                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 font-extrabold text-xs tracking-wider">
-                                                                tele
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm border border-zinc-700/60 overflow-hidden">
+                                                                <img
+                                                                    src="/image/telebirr-logo.png"
+                                                                    alt="Telebirr"
+                                                                    className="h-full w-full object-contain"
+                                                                />
+                                                            </div>
+                                                        ) : method.logo ? (
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm border border-zinc-700/60 overflow-hidden">
+                                                                <img
+                                                                    src={method.logo}
+                                                                    alt={method.name}
+                                                                    className="h-full w-full object-contain"
+                                                                />
                                                             </div>
                                                         ) : (
-                                                            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-xs">
-                                                                {method.type === 'bank' ? <Building className="h-5 w-5" /> : <Smartphone className="h-5 w-5" />}
+                                                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-800 text-zinc-300 border border-zinc-700 font-bold text-xs">
+                                                                {method.type === 'bank' ? <Building className="h-6 w-6" /> : <Smartphone className="h-6 w-6" />}
                                                             </div>
                                                         )}
                                                     </div>
@@ -451,11 +478,11 @@ export default function OfflinePaymentDialog({
                                     <div className="space-y-3">
                                         <div>
                                             <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                                                Transaction Reference Number
+                                                Transaction Reference or Receipt Link
                                             </label>
                                             <input
                                                 type="text"
-                                                placeholder="Reference number (e.g. FT2408...)"
+                                                placeholder="Receipt URL, Telebirr reference (ABCD1234), or CBE FT..."
                                                 value={paymentReference}
                                                 onChange={(e) => setPaymentReference(e.target.value)}
                                                 className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
@@ -525,8 +552,8 @@ export default function OfflinePaymentDialog({
                                     >
                                         {isSubmitting ? (
                                             <>
-                                                <Loader2 className="h-5 w-5 animate-spin" />
-                                                <span>Confirming Payment...</span>
+                                                <Loader2 className="h-5 w-5 animate-spin text-sky-600" />
+                                                <span className="text-sm font-semibold">{verifyingStep}</span>
                                             </>
                                         ) : (
                                             <span>Confirm Payment</span>
@@ -535,6 +562,26 @@ export default function OfflinePaymentDialog({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Full dialog live verification loader overlay */}
+                        {isSubmitting && (
+                            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-3xl bg-black/85 backdrop-blur-md p-6 text-center animate-in fade-in duration-200">
+                                <div className="relative flex items-center justify-center mb-5">
+                                    <div className="absolute h-20 w-20 rounded-full border border-sky-500/20 animate-ping" />
+                                    <div className="h-16 w-16 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center">
+                                        <ShieldCheck className="h-8 w-8 text-sky-400 animate-pulse" />
+                                    </div>
+                                </div>
+                                <h3 className="text-xl font-bold text-white mb-2">Live Receipt Verification</h3>
+                                <p className="text-sm text-sky-300 font-medium max-w-sm mb-4">
+                                    {verifyingStep}
+                                </p>
+                                <div className="flex items-center gap-2 text-xs text-zinc-400 bg-zinc-900/90 border border-zinc-800 rounded-full px-4 py-2">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin text-sky-400" />
+                                    <span>Cross-checking with Ethiopian banking network via links.et</span>
+                                </div>
+                            </div>
+                        )}
                     </form>
                 )}
             </DialogContent>
