@@ -84,7 +84,7 @@ export default function Footer({ settings }: FooterProps) {
 
         {/* Links Section */}
         <div className="pl-0 md:pl-80 py-12 px-4 md:px-8">
-          <div className="max-w-6xl mx-auto">
+          <div className="max-w-[1280px] mx-auto">
             {/* Dynamic Footer Columns */}
             {settings?.footer_columns && settings.footer_columns.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
@@ -225,7 +225,7 @@ export default function Footer({ settings }: FooterProps) {
 
       {/* Bottom Bar */}
       <div className="border-t border-gray-700 py-4 px-4 md:px-8">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           {/* Location/Language Selector */}
           <div className="flex items-center gap-2 text-sm text-gray-300">
             <span>🇪🇹</span>

@@ -21,6 +21,7 @@ type MainLayout = {
   breadcrumbs?: BreadcrumbItem[]
   showBreadcrumbs?: boolean
   showBackButton?: boolean
+  backButtonTitle?: ReactNode
 }
 
 const MainLayout: React.FC<MainLayout> = ({
@@ -32,6 +33,7 @@ const MainLayout: React.FC<MainLayout> = ({
   breadcrumbs = [],
   showBreadcrumbs = true,
   showBackButton = false,
+  backButtonTitle,
 }) => {
   const handleBack = () => {
     // Try to use Inertia's router first, fallback to browser history
@@ -54,16 +56,24 @@ const MainLayout: React.FC<MainLayout> = ({
           {/* Back Button */}
           {showBackButton && (
             <div className="border-b bg-white">
-              <div className="max-w-[1280px] mx-auto px-4 py-3">
+              <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex items-center gap-3">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleBack}
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground -ml-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
                   Back
                 </Button>
+                {backButtonTitle && (
+                  <>
+                    <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+                    <h1 className="text-base sm:text-lg font-bold text-gray-900 leading-none">
+                      {backButtonTitle}
+                    </h1>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -71,14 +81,14 @@ const MainLayout: React.FC<MainLayout> = ({
           {/* Breadcrumbs */}
           {showBreadcrumbs && breadcrumbs.length > 0 && (
             <div className="border-b bg-gray-50/50">
-              <div className="max-w-[1280px] mx-auto px-4 py-3">
+              <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <BreadcrumbWrapper items={breadcrumbs} />
               </div>
             </div>
           )}
 
           {/* Main Content */}
-          <div className={`max-w-[1280px] mx-auto ${contentMarginTop}`}>{children}</div>
+          <main className={`max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 ${contentMarginTop}`}>{children}</main>
 
           {/* Footer */}
           <div>{footerOff ? <Footer /> : <></>}</div>

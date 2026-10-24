@@ -7,7 +7,6 @@ import { FeaturedInterests } from "@/components/homepage/featured-interests";
 import FeaturedProducts from "@/components/homepage/featured-products";
 import GiftShowcase from "@/components/homepage/gift-showcase";
 import DealsCarousel from "@/components/homepage/deals-carousel";
-import Section from "@/components/ui/section";
 import CTASection from "@/components/homepage/cta-section";
 import AboutSection from "@/components/homepage/about-section";
 import Footer from "@/components/footer";
@@ -33,34 +32,40 @@ function WelcomeContent({ settings, featuredProducts }: WelcomeProps) {
         {/* Header */}
         <Header />
 
-        {/* Hero Section - Split Asymmetric */}
-        <section className="container mx-auto px-4 pt-6 pb-8">
-          <HomePageBanner settings={settings} />
-        </section>
-
-        {/* Featured Interests (Category Cards) */}
-        <section className="container mx-auto px-4">
-          <FeaturedInterests />
-        </section>
-
-        {/* Featured Products Section */}
-        {featuredProducts && Object.keys(featuredProducts).length > 0 && (
-          <section className="py-10">
-            <FeaturedProducts products={featuredProducts} />
+        {/* Centered Main Layout */}
+        <main className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          {/* Hero Section - Split Asymmetric */}
+          <section className="pt-6 pb-2">
+            <HomePageBanner settings={settings} />
           </section>
-        )}
 
-        <Section>
-          <CTASection />
-        </Section>
+          {/* Featured Interests (Category Cards) */}
+          <section>
+            <FeaturedInterests />
+          </section>
 
-        <section className="container mx-auto px-4">
-          <GiftShowcase />
-        </section>
+          {/* Featured Products Section */}
+          {featuredProducts && Object.keys(featuredProducts).length > 0 && (
+            <section>
+              <FeaturedProducts products={featuredProducts} />
+            </section>
+          )}
 
-        <section className="container mx-auto px-4">
-          <DealsCarousel />
-        </section>
+          {/* CTA Section */}
+          <section>
+            <CTASection />
+          </section>
+
+          {/* Gift Showcase */}
+          <section>
+            <GiftShowcase />
+          </section>
+
+          {/* Deals Carousel */}
+          <section className="pb-8">
+            <DealsCarousel />
+          </section>
+        </main>
 
         <AboutSection settings={settings} />
         <Footer settings={settings} />

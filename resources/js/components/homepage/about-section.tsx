@@ -20,7 +20,7 @@ interface AboutSectionProps {
 export default function AboutSection({ settings }: AboutSectionProps) {
   return (
     <section className="w-full bg-[#F0E6D3] py-16 md:py-20 lg:py-24">
-      <div className="container mx-auto px-4 md:px-6 lg:px-8">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12 md:mb-16">
           <h2

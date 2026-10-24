@@ -79,8 +79,8 @@ export default function FeaturedProducts({ products: productsByCategory }: Featu
     };
 
     return (
-        <section className="py-8 bg-[#FAF6F0]">
-            <div className="container mx-auto px-4">
+        <section className="w-full py-2">
+            <div className="w-full">
                 <div className="mb-10">
                     <h2
                         className="text-2xl font-bold text-[#222222]"
