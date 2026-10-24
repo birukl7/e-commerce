@@ -2,10 +2,9 @@
 import { useCart } from '@/contexts/cart-context';
 import type { SharedData } from '@/types';
 import { router, usePage } from '@inertiajs/react';
-import { Heart, RotateCcw, Share2, Shield, Star, Tag, FileText, MessageSquare, Truck } from 'lucide-react';
+import { ChevronDown, Heart, MessageSquare, Share2, Star } from 'lucide-react';
 import { useCallback, useEffect, useState, useRef } from 'react';
 import { Button } from '../ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { ReviewSection } from './review-section';
 import { useTranslation } from 'react-i18next';
 
@@ -89,6 +88,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
     const [quantity, setQuantity] = useState(1);
     const [isWishlisted, setIsWishlisted] = useState(false);
     const [wishlistLoading, setWishlistLoading] = useState(false);
+    const [isReviewsExpanded, setIsReviewsExpanded] = useState(false);
     const { addToCart, isCartDrawerOpen } = useCart();
     const quantityRef = useRef(quantity);
     
@@ -249,10 +249,8 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                     )}
                 </div>
                 <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
-                <div className="mt-1 flex items-center gap-3 text-xs text-gray-500">
-                    <span>{t('productDetail.sku')} {product.sku}</span>
-                    <span>•</span>
-                    <div className="flex items-center gap-1">
+                {product.reviews_count > 0 && (
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-500">
                         <div className="flex items-center">
                             {[...Array(5)].map((_, i) => (
                                 <Star
@@ -267,7 +265,7 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                             {product.average_rating.toFixed(1)} ({product.reviews_count})
                         </span>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Price & Stock */}
@@ -358,65 +356,39 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                 </div>
             )}
 
-            {/* Quick Benefits Badges */}
-            <div className="grid grid-cols-3 gap-2 py-2 border-t border-gray-100 text-[11px] text-gray-600">
-                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
-                    <Truck className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="truncate">Fast Shipping</span>
+            {/* Product Description */}
+            {product.description && (
+                <div className="border-t border-gray-100 pt-3">
+                    <p className="text-sm leading-relaxed text-gray-600">{product.description}</p>
                 </div>
-                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
-                    <Shield className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="truncate">Authentic</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-gray-50/80 px-2.5 py-1.5 rounded-md">
-                    <RotateCcw className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="truncate">Easy Returns</span>
-                </div>
-            </div>
+            )}
 
-            {/* Tabbed Secondary Information */}
-            <div className="pt-1">
-                <Tabs defaultValue="description" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 bg-gray-100/80 p-1 rounded-lg">
-                        <TabsTrigger value="description" className="text-xs font-semibold py-1.5">
-                            <FileText className="h-3.5 w-3.5 mr-1.5" />
-                            Description & Details
-                        </TabsTrigger>
-                        <TabsTrigger value="reviews" className="text-xs font-semibold py-1.5">
-                            <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                            Reviews ({product.reviews_count})
-                        </TabsTrigger>
-                    </TabsList>
+            {/* Expandable Reviews */}
+            <div className="border-t border-gray-100 pt-2">
+                <button
+                    type="button"
+                    onClick={() => setIsReviewsExpanded(!isReviewsExpanded)}
+                    className="flex w-full items-center justify-between py-2.5 text-left text-sm font-semibold text-gray-900 hover:text-primary transition-colors cursor-pointer"
+                >
+                    <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-gray-500" />
+                        <span>{t('productDetail.reviews', 'Reviews')} ({product.reviews_count || 0})</span>
+                        {product.reviews_count > 0 && (
+                            <span className="flex items-center text-xs font-normal text-gray-500">
+                                • <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 mx-1" />
+                                {product.average_rating.toFixed(1)}
+                            </span>
+                        )}
+                    </div>
+                    <ChevronDown
+                        className={`h-4 w-4 text-gray-500 transition-transform duration-200 ${
+                            isReviewsExpanded ? 'rotate-180' : ''
+                        }`}
+                    />
+                </button>
 
-                    <TabsContent value="description" className="mt-3 space-y-4">
-                        <div className="prose prose-sm text-gray-600 leading-relaxed text-sm">
-                            <p>{product.description}</p>
-                        </div>
-
-                        <div className="bg-gray-50/70 p-3.5 rounded-lg border border-gray-100">
-                            <h4 className="text-xs font-semibold text-gray-900 uppercase tracking-wider mb-2.5">Specifications</h4>
-                            <dl className="grid grid-cols-2 gap-3 text-xs">
-                                <div>
-                                    <dt className="font-medium text-gray-500">{t('productDetail.category')}</dt>
-                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.category?.name}</dd>
-                                </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">{t('productDetail.brand')}</dt>
-                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.brand?.name}</dd>
-                                </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">{t('productDetail.sku')}</dt>
-                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.sku}</dd>
-                                </div>
-                                <div>
-                                    <dt className="font-medium text-gray-500">{t('productDetail.availability')}</dt>
-                                    <dd className="font-semibold text-gray-900 mt-0.5">{product.stock_quantity} {t('productDetail.unitsInStock')}</dd>
-                                </div>
-                            </dl>
-                        </div>
-                    </TabsContent>
-
-                    <TabsContent value="reviews" className="mt-3">
+                {isReviewsExpanded && (
+                    <div className="pt-3">
                         <ReviewSection
                             productId={product.id}
                             averageRating={product.average_rating}
@@ -425,8 +397,8 @@ export function ProductDetails({ product, reviews, userHasReviewed }: ProductDet
                             reviews={reviews}
                             userHasReviewed={userHasReviewed}
                         />
-                    </TabsContent>
-                </Tabs>
+                    </div>
+                )}
             </div>
         </div>
     );
