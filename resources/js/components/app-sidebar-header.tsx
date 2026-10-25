@@ -353,23 +353,35 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                     )}
                 </div>
 
-                {/* User Profile Chip */}
-                <div className="flex items-center gap-2 pl-1.5 py-1 pr-2.5 sm:pr-3 bg-white rounded-full border border-neutral-200 shadow-xs">
+                {/* User Profile Chip - Clicking navigates to Admin Profile Settings */}
+                <Link
+                    href="/settings/admin/profile"
+                    className="flex items-center gap-2 pl-1.5 py-1 pr-2.5 sm:pr-3 bg-white hover:bg-neutral-50 rounded-full border border-neutral-200 shadow-xs transition-all active:scale-95 group"
+                    title="Admin Profile & Settings"
+                >
                     <div
-                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-xs shrink-0"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full overflow-hidden flex items-center justify-center text-white text-xs font-bold shadow-xs shrink-0 group-hover:opacity-90 transition-opacity bg-neutral-900"
                         style={{ backgroundColor: primaryColor }}
                     >
-                        {user?.name ? user.name.slice(0, 2).toUpperCase() : 'AD'}
+                        {user?.avatar || (user as any)?.profile_image_url ? (
+                            <img
+                                src={user?.avatar || (user as any)?.profile_image_url}
+                                alt={user?.name || 'Admin'}
+                                className="w-full h-full object-cover"
+                            />
+                        ) : (
+                            user?.name ? user.name.slice(0, 2).toUpperCase() : 'AD'
+                        )}
                     </div>
                     <div className="hidden md:block text-left pr-1 leading-tight">
-                        <p className="text-xs font-bold text-neutral-800 truncate max-w-[120px]">
+                        <p className="text-xs font-bold text-neutral-800 group-hover:text-neutral-950 truncate max-w-[120px]">
                             {user?.name || 'Admin'}
                         </p>
                         <p className="text-[10px] text-neutral-400 truncate max-w-[120px]">
                             {user?.email || 'admin@store.com'}
                         </p>
                     </div>
-                </div>
+                </Link>
             </div>
         </header>
     );

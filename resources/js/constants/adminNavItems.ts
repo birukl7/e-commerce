@@ -46,7 +46,7 @@ export const adminNavItems = [
   },
   {
     name: 'Settings',
-    href: '/admin/settings',
+    href: '/settings/admin/profile',
     icon: 'Settings',
   },
 ];

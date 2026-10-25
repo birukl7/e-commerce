@@ -22,4 +22,9 @@ Route::middleware('auth')->group(function () {
     Route::get('settings/appearance', function () {
         return Inertia::render('settings/appearance');
     })->name('appearance');
+
+    // Admin profile settings routes
+    Route::get('settings/admin/profile', [ProfileController::class, 'editAdmin'])->name('admin.profile.edit');
+    Route::patch('settings/admin/profile', [ProfileController::class, 'updateAdmin'])->name('admin.profile.update');
+    Route::put('settings/admin/password', [ProfileController::class, 'updateAdminPassword'])->name('admin.password.update');
 });

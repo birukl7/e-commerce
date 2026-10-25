@@ -48,6 +48,9 @@ class AdminMenuService
                     'href' => route('admin.tax.settings.index'), 
                     'icon' => 'Percent'
                 ]
+            ],
+            'Settings' => [
+                ['title' => 'Settings', 'href' => '/settings/admin/profile', 'icon' => 'Settings']
             ]
         ];
 

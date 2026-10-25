@@ -98,7 +98,8 @@ class HandleInertiaRequests extends Middleware
             'paymentStats',
             'site-config',
             'admin/tax',
-            'stock-notifications'
+            'stock-notifications',
+            'settings/admin',
         ];
 
         $path = $request->path();

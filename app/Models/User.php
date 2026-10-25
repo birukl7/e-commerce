@@ -59,6 +59,16 @@ class User extends Authenticatable implements MustVerifyEmailContract
         'is_supplier' => 'boolean',
         'status' => 'string',
     ];
+
+    /**
+     * The accessors to append to the model's array and JSON representation.
+     *
+     * @var list<string>
+     */
+    protected $appends = [
+        'avatar',
+        'profile_image_url',
+    ];
     
     // Relationships
     public function addresses()
@@ -103,9 +113,24 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     // Accessors & Mutators
+    public function getAvatarAttribute()
+    {
+        if ($this->profile_image) {
+            // If already a full URL (e.g. from Google OAuth), return as is
+            if (filter_var($this->profile_image, FILTER_VALIDATE_URL)) {
+                return $this->profile_image;
+            }
+            return asset('storage/' . $this->profile_image);
+        }
+        return null;
+    }
+
     public function getProfileImageUrlAttribute()
     {
         if ($this->profile_image) {
+            if (filter_var($this->profile_image, FILTER_VALIDATE_URL)) {
+                return $this->profile_image;
+            }
             return asset('storage/' . $this->profile_image);
         }
         return asset('images/default-avatar.png');

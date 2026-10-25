@@ -117,4 +117,75 @@ class ProfileController extends Controller
 
         return back()->with('status', 'password-updated');
     }
+
+    /**
+     * Display the admin's profile settings form.
+     */
+    public function editAdmin(Request $request): Response
+    {
+        $user = $request->user()->load('addresses');
+
+        $primaryAddress = $user->addresses
+            ->where('is_default', true)
+            ->sortByDesc('updated_at')
+            ->first() ?? $user->addresses->first();
+
+        return Inertia::render('Admin/settings/profile', [
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            'status' => session('status'),
+            'address' => $primaryAddress,
+        ]);
+    }
+
+    /**
+     * Update the admin's profile information.
+     */
+    public function updateAdmin(ProfileUpdateRequest $request): RedirectResponse
+    {
+        $user = $request->user();
+        $validated = $request->validated();
+
+        if ($request->hasFile('profile_image')) {
+            if ($user->profile_image) {
+                Storage::disk('public')->delete($user->profile_image);
+            }
+
+            $path = $request->file('profile_image')->store('profile-images', 'public');
+            $validated['profile_image'] = $path;
+        }
+
+        $user->fill($validated);
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
+
+        $user->save();
+
+        return Redirect::route('admin.profile.edit')->with('status', 'profile-updated');
+    }
+
+    /**
+     * Update the admin's password.
+     */
+    public function updateAdminPassword(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => [
+                'required', 
+                'confirmed', 
+                'min:8',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/',
+            ],
+        ], [
+            'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+        ]);
+
+        $request->user()->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return Redirect::route('admin.profile.edit')->with('status', 'password-updated');
+    }
 }

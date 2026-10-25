@@ -10,7 +10,19 @@ const appName = import.meta.env.VITE_APP_NAME || 'Serdo';
 
 createInertiaApp({
     title: (title) => title ? `${title} - ${appName}` : appName,
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: (name) => {
+        const pages = import.meta.glob('./pages/**/*.tsx');
+        return (
+            pages[`./pages/${name}.tsx`]
+                ? resolvePageComponent(`./pages/${name}.tsx`, pages)
+                : resolvePageComponent(
+                      Object.keys(pages).find(
+                          (key) => key.toLowerCase() === `./pages/${name.toLowerCase()}.tsx`
+                      ) || `./pages/${name}.tsx`,
+                      pages
+                  )
+        );
+    },
     setup({ el, App, props }) {
         const root = createRoot(el);
         root.render(
@@ -50,3 +62,4 @@ window.addEventListener('message', (event: MessageEvent) => {
         }, 300);
     }
 }, false);
+ 
