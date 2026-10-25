@@ -119,7 +119,7 @@ export function LoginDialog({
         },
         onFinish: () => setIsSubmitting(false),
         onSuccess: () => {
-          setOpen(false)
+          handleOpenChange(false)
           setPassword("")
           setStep("email")
         },
@@ -131,12 +131,12 @@ export function LoginDialog({
     const messageHandler = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return
       if (event.data?.type === "oauth-success") {
-        setOpen(false)
+        handleOpenChange(false)
       }
     }
 
     const customEventHandler = () => {
-      setOpen(false)
+      handleOpenChange(false)
     }
 
     window.addEventListener("message", messageHandler)
@@ -174,7 +174,7 @@ export function LoginDialog({
             const data = JSON.parse(oauthData)
             if (Date.now() - data.timestamp < 10000) {
               localStorage.removeItem("oauth_success")
-              setOpen(false)
+              handleOpenChange(false)
               window.location.reload()
               return true
             }
@@ -226,7 +226,7 @@ export function LoginDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {trigger ? <button type="button" onClick={() => setOpen(true)} className="inline-flex">{trigger}</button> : null}
+      {trigger ? <button type="button" onClick={() => handleOpenChange(true)} className="inline-flex">{trigger}</button> : null}
       <DialogContent 
         hideDefaultClose
         className="w-[calc(100%-2rem)] max-w-[420px] rounded-[32px] p-8 sm:p-9 bg-white shadow-2xl border-0 overflow-visible relative"

@@ -112,7 +112,7 @@ export function SignupDialog({
         },
         onFinish: () => setIsSubmitting(false),
         onSuccess: () => {
-          setOpen(false)
+          handleOpenChange(false)
           setPassword("")
         },
       }
@@ -146,7 +146,7 @@ export function SignupDialog({
 
       if (event.data?.type === "oauth-success") {
         const redirectUrl: string = event.data.redirectUrl || (route("home") as string)
-        setOpen(false)
+        handleOpenChange(false)
         router.visit(redirectUrl)
       }
     }
@@ -168,7 +168,7 @@ export function SignupDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      {trigger ? <button type="button" onClick={() => setOpen(true)} className="inline-flex">{trigger}</button> : null}
+      {trigger ? <button type="button" onClick={() => handleOpenChange(true)} className="inline-flex">{trigger}</button> : null}
       <DialogContent 
         hideDefaultClose
         className="w-[calc(100%-2rem)] max-w-[420px] rounded-[32px] p-8 sm:p-9 bg-white shadow-2xl border-0 overflow-visible relative"

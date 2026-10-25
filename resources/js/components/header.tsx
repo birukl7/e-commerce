@@ -121,13 +121,20 @@ const Header = () => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search)
       const authAction = params.get("auth")
-      if (authAction === "login") {
-        setIsLoginOpen(true)
-      } else if (authAction === "register") {
-        setIsSignupOpen(true)
+      if (!auth.user) {
+        if (authAction === "login") {
+          setIsLoginOpen(true)
+        } else if (authAction === "register") {
+          setIsSignupOpen(true)
+        }
+      } else if (authAction) {
+        // If already logged in, strip auth query param from URL without reloading
+        const url = new URL(window.location.href)
+        url.searchParams.delete("auth")
+        window.history.replaceState({}, document.title, url.toString())
       }
     }
-  }, [])
+  }, [auth.user])
 
   useEffect(() => {
     if (shouldChooseRole) {

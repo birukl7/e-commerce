@@ -12,24 +12,18 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import AppLayout from '@/layouts/app-layout';
 import MainLayout from '@/layouts/app/main-layout';
-import { BreadcrumbItem, NavItem } from '@/types';
+import { UserHeaderNav } from '@/components/user-header-nav';
+import { BreadcrumbItem } from '@/types';
 import { Link, router } from '@inertiajs/react';
 import {
-    Bookmark,
     Calendar,
     CheckCircle,
     Clock,
     DollarSign,
     Download,
-    LayoutDashboard,
     Loader2,
-    MessageSquare,
     Package,
-    Package2,
-    Settings,
-    ShoppingBag,
     Truck,
     XCircle,
 } from 'lucide-react';
@@ -117,41 +111,6 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 export default function UserOrders({ orders = [] }: UserOrdersProps) {
     const { t } = useTranslation()
-
-
-
-    const defaultMainNavItems: NavItem[] = [
-        {
-            title: t('header.dashboard'),
-            href: '/user-dashboard',
-            icon: LayoutDashboard,
-        },
-        {
-            title: t('header.bookmarkedProducts'),
-            href: '/user-wishlist',
-            icon: Bookmark,
-        },
-        {
-            title: t('header.orders'),
-            href: '/user-order',
-            icon: ShoppingBag,
-        },
-        {
-            title: t('header.requests'),
-            href: '/user-request',
-            icon: MessageSquare,
-        },
-        {
-            title: t('header.boughtProducts'),
-            href: '/user-products',
-            icon: Package2,
-        },
-        {
-            title: t('header.settings'),
-            href: '/settings/profile',
-            icon: Settings,
-        },
-    ];
 
     // Placeholder for orders without images - shows "No Image" clearly
     // Using encoded SVG data URI
@@ -392,16 +351,20 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
     };
 
     return (
-        <MainLayout title={t('orders.orderHistory') + ' - Serdo'} className={''} footerOff={false} contentMarginTop={'mt-[60px]'}>
-            <AppLayout
-                logoDisplay=" invisible"
-                sidebarStyle="mt-[20px]"
-                breadcrumbs={breadcrumbs}
-                mainNavItems={defaultMainNavItems}
-                footerNavItems={[]}
-            >
-                <div>
-                    {/* Header */}
+        <MainLayout
+            title={t('orders.orderHistory') + ' - Serdo'}
+            className="bg-[#FAFAFA]"
+            footerOff={false}
+            contentMarginTop="mt-[70px]"
+            breadcrumbs={breadcrumbs}
+            showBreadcrumbs={false}
+        >
+            <div className="min-h-screen bg-[#FAFAFA] text-neutral-900 pb-16">
+                <UserHeaderNav activeTab="orders" />
+
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                    <div>
+                        {/* Header */}
 
                     {orders.length === 0 ? (
                         <Card>
@@ -905,8 +868,9 @@ export default function UserOrders({ orders = [] }: UserOrdersProps) {
                             </Dialog>
                         </>
                     )}
-                </div>
-            </AppLayout>
+                    </div>
+                </main>
+            </div>
         </MainLayout>
     );
 }

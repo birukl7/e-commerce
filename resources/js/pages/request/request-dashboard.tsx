@@ -1,10 +1,7 @@
-"use client"
-import AppLayout from "@/layouts/app-layout"
-import type React from "react"
-
 import MainLayout from "@/layouts/app/main-layout"
-import type { NavItem, BreadcrumbItem } from "@/types"
-import { BrickWall, Bookmark, ShoppingBag, MessageSquare, Package2, Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, LayoutDashboard, Edit, Trash2, Settings } from "lucide-react"
+import { UserHeaderNav } from "@/components/user-header-nav"
+import type { BreadcrumbItem } from "@/types"
+import { Plus, Clock, CheckCircle, XCircle, Eye, Upload, X, Edit, Trash2, BrickWall } from "lucide-react"
 import { useForm, Link, router } from "@inertiajs/react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -210,39 +207,6 @@ export default function RequestDashboard({ requests }: RequestProps) {
       href: "/user-request",
     },
   ]
-  
-  const defaultMainNavItems: NavItem[] = [
-    {
-      title: t("header.dashboard"),
-      href: "/user-dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: t("header.bookmarkedProducts"),
-      href: "/user-wishlist",
-      icon: Bookmark,
-    },
-    {
-      title: t("header.orders"),
-      href: "/user-order",
-      icon: ShoppingBag,
-    },
-    {
-      title: t("header.requests"),
-      href: "/user-request",
-      icon: MessageSquare,
-    },
-    {
-      title: t("header.boughtProducts"),
-      href: "/user-products",
-      icon: Package2,
-    },
-    {
-      title: t("header.settings"),
-      href: "/settings/profile",
-      icon: Settings,
-    },
-  ]
 
 
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -296,15 +260,19 @@ export default function RequestDashboard({ requests }: RequestProps) {
   }
 
   return (
-    <MainLayout title={t('header.requests')} className={""} footerOff={false} contentMarginTop={"mt-[60px]"}>
-      <AppLayout
-        logoDisplay=" invisible"
-        sidebarStyle="mt-[20px]"
-        breadcrumbs={breadcrumbs}
-        mainNavItems={defaultMainNavItems}
-        footerNavItems={[]}
-      >
-        <div className="flex h-full flex-1 flex-col gap-6 rounded-xl p-6">
+    <MainLayout
+      title={t('header.requests')}
+      className="bg-[#FAFAFA]"
+      footerOff={false}
+      contentMarginTop="mt-[70px]"
+      breadcrumbs={breadcrumbs}
+      showBreadcrumbs={false}
+    >
+      <div className="min-h-screen bg-[#FAFAFA] text-neutral-900 pb-16">
+        <UserHeaderNav activeTab="requests" />
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="flex h-full flex-1 flex-col gap-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
@@ -665,8 +633,9 @@ export default function RequestDashboard({ requests }: RequestProps) {
               </Button>
             </div>
           )}
-        </div>
-      </AppLayout>
+          </div>
+        </main>
+      </div>
     </MainLayout>
   )
 }

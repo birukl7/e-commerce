@@ -131,6 +131,22 @@ export default function AdminProfile({ mustVerifyEmail, status, address }: Admin
                 setImagePreview(reader.result as string);
             };
             reader.readAsDataURL(file);
+
+            // Auto-upload immediately so user doesn't have to scroll down to click save
+            const formData = new FormData();
+            formData.append('_method', 'PATCH');
+            formData.append('name', profileForm.data.name);
+            formData.append('email', profileForm.data.email);
+            if (profileForm.data.phone) {
+                formData.append('phone', profileForm.data.phone);
+            }
+            formData.append('profile_image', file);
+
+            profileForm.post(route('admin.profile.update'), {
+                data: formData as any,
+                preserveScroll: true,
+                forceFormData: true,
+            });
         }
     };
 

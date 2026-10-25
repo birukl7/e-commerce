@@ -1,4 +1,4 @@
-import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
+import { type BreadcrumbItem, type SharedData } from '@/types';
 import { Transition } from '@headlessui/react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FormEventHandler, useEffect } from 'react';
@@ -9,16 +9,8 @@ import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/app-layout';
 import MainLayout from '@/layouts/app/main-layout';
-import {
-    Bookmark,
-    ShoppingBag,
-    MessageSquare,
-    Package2,
-    LayoutDashboard,
-    Settings as SettingsIcon,
-} from 'lucide-react';
+import { UserHeaderNav } from '@/components/user-header-nav';
 import { useTranslation } from 'react-i18next';
 
 
@@ -60,40 +52,6 @@ export default function Profile({ mustVerifyEmail, status, address }: ProfilePro
 
     const { t } = useTranslation()
 
-    const userNavItems: NavItem[] = [
-        {
-            title: t('header.dashboard'),
-            href: '/user-dashboard',
-            icon: LayoutDashboard,
-        },
-        {
-            title: t('header.bookmarkedProducts'),
-            href: '/user-wishlist',
-            icon: Bookmark,
-        },
-        {
-            title: t('header.orders'),
-            href: '/user-order',
-            icon: ShoppingBag,
-        },
-        {
-            title: t('header.requests'),
-            href: '/user-request',
-            icon: MessageSquare,
-        },
-        {
-            title: t('header.boughtProducts'),
-            href: '/user-products',
-            icon: Package2,
-        },
-        {
-            title: t('header.settings'),
-            href: '/settings/profile',
-            icon: SettingsIcon,
-        },
-    ];
-    
-    
     const breadcrumbs: BreadcrumbItem[] = [
         {
             title: t('header.settings'),
@@ -159,17 +117,21 @@ export default function Profile({ mustVerifyEmail, status, address }: ProfilePro
     };
 
     return (
-        <MainLayout title={t('header.settings')} className={''} footerOff={false} contentMarginTop="mt-[60px]">
-            <AppLayout
-                logoDisplay=" invisible"
-                sidebarStyle="mt-[20px]"
-                breadcrumbs={breadcrumbs}
-                mainNavItems={userNavItems}
-                footerNavItems={[]}
-            >
+        <MainLayout
+            title={t('header.settings')}
+            className="bg-[#FAFAFA]"
+            footerOff={false}
+            contentMarginTop="mt-[70px]"
+            breadcrumbs={breadcrumbs}
+            showBreadcrumbs={false}
+        >
+            <div className="min-h-screen bg-[#FAFAFA] text-neutral-900 pb-16">
+                <UserHeaderNav activeTab="settings" />
+
                 <Head title={t('header.settings')} />
 
-                <div className="flex h-full flex-1 flex-col gap-10 rounded-xl p-6 overflow-x-auto">
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+                    <div className="flex h-full flex-1 flex-col gap-10">
                     <section className="space-y-6 rounded-xl border border-sidebar-border/70 bg-white p-6 shadow-sm">
                         <HeadingSmall title={t('settings.profileInformation') || 'Profile information'} description={t('settings.updatePersonalDetails') || 'Update your personal details'} />
 
@@ -388,8 +350,9 @@ export default function Profile({ mustVerifyEmail, status, address }: ProfilePro
                     <section className="rounded-xl border border-sidebar-border/70 bg-white p-6 shadow-sm">
                         <DeleteUser />
                     </section>
-                </div>
-            </AppLayout>
+                    </div>
+                </main>
+            </div>
         </MainLayout>
     );
 }
