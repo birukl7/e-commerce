@@ -16,7 +16,7 @@ interface TaxClassesTabProps {
     taxClasses?: TaxClassItem[];
 }
 
-export default function TaxClassesTab({ classes = [], taxClasses = [] }: TaxClassesTabProps) {
+export default function TaxClassesTab({ classes = []}: TaxClassesTabProps) {
     const [showForm, setShowForm] = useState(false);
     const [editingClass, setEditingClass] = useState<TaxClassItem | null>(null);
     

@@ -75,6 +75,23 @@ class Order extends Model
         return 'order_number';
     }
 
+    /**
+     * Retrieve the model for a bound value.
+     * Allows route model binding to work with both order_number AND numeric id.
+     */
+    public function resolveRouteBinding($value, $field = null)
+    {
+        $field = $field ?? $this->getRouteKeyName();
+
+        if (is_numeric($value)) {
+            return $this->where('id', $value)
+                ->orWhere($field, $value)
+                ->first();
+        }
+
+        return $this->where($field, $value)->first();
+    }
+
     // Scopes
     public function scopeByStatus($query, $status)
     {

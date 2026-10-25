@@ -1,32 +1,35 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, SharedData } from '@/types';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
-import { useMemo } from 'react';
-import { 
-    BarChart3, 
-    CreditCard, 
-    DollarSign, 
-    Eye, 
-    FileText, 
-    Search, 
-    ShoppingCart, 
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    BarChart3,
+    CreditCard,
+    ShoppingCart,
     TrendingUp,
-    CheckCircle,
-    AlertTriangle,
-    Ban,
-    ExternalLink,
+    Search,
+    ChevronDown,
+    ArrowUpRight,
+    ArrowDownLeft,
+    CheckCircle2,
+    Clock,
+    AlertCircle,
+    XCircle,
+    Eye,
+    Palette,
+    X,
     Filter,
-    Tags,
-    MessageSquare,
-    Users,
-    Settings
+    ChevronLeft,
+    ChevronRight,
+    Sparkles,
+    Calendar,
+    Check,
+    DollarSign,
+    RefreshCw,
+    ExternalLink
 } from 'lucide-react';
-
 
 interface PaymentTransaction {
     id: number;
@@ -96,450 +99,748 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: '/admin-dashboard',
     },
     {
-        title: 'Sales Dashboard',
+        title: 'Sales & Transactions',
         href: '/admin/sales',
     },
 ];
 
+// Curated primary color presets inspired by Donezo & modern luxury design
+const COLOR_PRESETS = [
+    { name: 'Donezo Forest', hex: '#1E5338' },
+    { name: 'Pine Emerald', hex: '#0D9488' },
+    { name: 'Royal Indigo', hex: '#4338CA' },
+    { name: 'Ocean Cyan', hex: '#0284C7' },
+    { name: 'Sunset Amber', hex: '#D97706' },
+    { name: 'Crimson Rose', hex: '#BE123C' },
+    { name: 'Obsidian Noir', hex: '#18181B' },
+];
+
 export default function AdminSalesIndex({ payments, orders, stats, filters }: AdminSalesProps) {
     const { unseenPaymentsCount } = usePage<SharedData & { unseenPaymentsCount?: number }>().props;
-    
-    const adminNavItems = useMemo(() => [
-        { title: 'Dashboard', href: '/admin-dashboard', icon: BarChart3 },
-        { title: 'Products', href: '/admin/products', icon: ShoppingCart },
-        { 
-            title: 'Sales Dashboard', 
-            href: '/admin/sales', 
-            icon: BarChart3, 
-            isActive: true,
-            badge: unseenPaymentsCount && unseenPaymentsCount > 0 ? unseenPaymentsCount : undefined
-        },
-        { title: 'Categories & Brands', href: '/admin/categories', icon: Tags },
-        { title: 'Product Requests', href: '/admin/product-requests', icon: MessageSquare },
-        { title: 'Customers', href: '/admin/customers', icon: Users },
-        { title: 'Site Configuration', href: '/site-config', icon: Settings },
-    ], [unseenPaymentsCount]);
-    
-    const searchForm = useForm({
-        search: filters.search || '',
-    });
+
+    // Theme color state with localStorage persistence
+    const [primaryColor, setPrimaryColor] = useState<string>('#1E5338');
+    const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
+
+    // Active tab state
+    const [activeTab, setActiveTab] = useState<'payments' | 'orders'>(
+        (filters.tab === 'orders' ? 'orders' : 'payments')
+    );
+
+    // Search query state
+    const [searchQuery, setSearchQuery] = useState<string>(filters.search || '');
+    const [isSearching, setIsSearching] = useState<boolean>(false);
+
+    // Load saved color preference on mount
+    useEffect(() => {
+        try {
+            const savedColor = localStorage.getItem('serdo_dashboard_primary_color');
+            if (savedColor) {
+                setPrimaryColor(savedColor);
+            }
+        } catch (e) {
+            // Ignore
+        }
+
+        const handleThemeChange = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handleThemeChange);
+        return () => window.removeEventListener('serdo:theme-color-changed', handleThemeChange);
+    }, []);
+
+    const handleColorChange = (hex: string) => {
+        setPrimaryColor(hex);
+        try {
+            localStorage.setItem('serdo_dashboard_primary_color', hex);
+        } catch (e) {
+            // Ignore
+        }
+    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get('/admin/sales', {
-            search: searchForm.data.search,
-            tab: filters.tab || 'payments',
-        }, {
-            preserveState: true,
-            replace: true,
-        });
+        setIsSearching(true);
+        router.get(
+            '/admin/sales',
+            {
+                search: searchQuery,
+                tab: activeTab,
+            },
+            {
+                preserveState: true,
+                replace: true,
+                onFinish: () => setIsSearching(false),
+            }
+        );
+    };
+
+    const handleTabChange = (tab: 'payments' | 'orders') => {
+        setActiveTab(tab);
+        router.get(
+            '/admin/sales',
+            {
+                tab,
+                search: searchQuery || undefined,
+            },
+            {
+                preserveState: true,
+                replace: true,
+            }
+        );
+    };
+
+    const formatCurrency = (amount: number, currency = 'ETB') => {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: currency === 'ETB' ? 'USD' : currency,
+            maximumFractionDigits: 0,
+        }).format(amount).replace('$', currency + ' ');
     };
 
     const getPaymentType = (payment: PaymentTransaction): string => {
-        // First, check gateway_payload for payment_type (most reliable)
         if (payment.gateway_payload) {
-            const payload = typeof payment.gateway_payload === 'string' 
-                ? JSON.parse(payment.gateway_payload) 
-                : payment.gateway_payload;
-            
+            const payload =
+                typeof payment.gateway_payload === 'string'
+                    ? (() => {
+                          try {
+                              return JSON.parse(payment.gateway_payload);
+                          } catch {
+                              return {};
+                          }
+                      })()
+                    : payment.gateway_payload;
+
             if (payload?.payment_type) {
                 if (payload.payment_type === 'product_request_advance' || payload.payment_type === 'advance') {
-                    return 'Product Request Advance';
+                    return 'Request Advance';
                 } else if (payload.payment_type === 'product_request_final' || payload.payment_type === 'final') {
-                    return 'Product Request Final';
+                    return 'Request Final';
                 }
             }
         }
-        
-        // Fall back to checking product_request_id and tx_ref prefix
+
         if (payment.product_request_id) {
             const txRef = payment.tx_ref;
             if (txRef.startsWith('ADV-')) {
-                return 'Product Request Advance';
+                return 'Request Advance';
             } else if (txRef.startsWith('FINAL-')) {
-                return 'Product Request Final';
+                return 'Request Final';
             }
-            // If it's a product request but we can't determine type, assume advance
-            // (since final payments typically come after advance)
-            return 'Product Request Advance';
+            return 'Request Advance';
         }
-        return 'Normal Purchase';
+        return 'Standard Order';
     };
 
-    const getPaymentTypeBadge = (payment: PaymentTransaction) => {
-        const paymentType = getPaymentType(payment);
-        if (paymentType === 'Product Request Advance') {
-            return <Badge className="bg-orange-100 text-orange-800">Request Advance</Badge>;
-        } else if (paymentType === 'Product Request Final') {
-            return <Badge className="bg-purple-100 text-purple-800">Request Final</Badge>;
-        } else if (paymentType === 'Product Request') {
-            return <Badge className="bg-blue-100 text-blue-800">Product Request</Badge>;
-        }
-        return <Badge className="bg-gray-100 text-gray-800">Normal Purchase</Badge>;
-    };
-
-    const getStatusBadge = (status: string, type: 'gateway' | 'admin') => {
-        const baseClasses = "inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full";
-        
-        if (type === 'gateway') {
-            switch (status) {
-                case 'paid':
-                    return <Badge className={`${baseClasses} bg-green-100 text-green-800`}><CheckCircle className="h-3 w-3"/>Paid</Badge>;
-                case 'pending':
-                    return <Badge className={`${baseClasses} bg-yellow-100 text-yellow-800`}><AlertTriangle className="h-3 w-3"/>Pending</Badge>;
-                case 'proof_uploaded':
-                    return <Badge className={`${baseClasses} bg-blue-100 text-blue-800`}><FileText className="h-3 w-3"/>Proof Uploaded</Badge>;
-                case 'failed':
-                    return <Badge className={`${baseClasses} bg-red-100 text-red-800`}><Ban className="h-3 w-3"/>Failed</Badge>;
-                default:
-                    return <Badge className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</Badge>;
-            }
-        } else {
-            switch (status) {
-                case 'unseen':
-                    return <Badge className={`${baseClasses} bg-yellow-100 text-yellow-800`}><AlertTriangle className="h-3 w-3"/>Unseen</Badge>;
-                case 'seen':
-                    return <Badge className={`${baseClasses} bg-blue-100 text-blue-800`}><Eye className="h-3 w-3"/>Seen</Badge>;
-                case 'approved':
-                    return <Badge className={`${baseClasses} bg-green-100 text-green-800`}><CheckCircle className="h-3 w-3"/>Approved</Badge>;
-                case 'rejected':
-                    return <Badge className={`${baseClasses} bg-red-100 text-red-800`}><Ban className="h-3 w-3"/>Rejected</Badge>;
-                default:
-                    return <Badge className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</Badge>;
-            }
-        }
-    };
-
-    const getOrderStatusBadge = (status: string) => {
-        const baseClasses = "inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full";
-        
-        switch (status) {
-            case 'processing':
-                return <Badge className={`${baseClasses} bg-blue-100 text-blue-800`}><AlertTriangle className="h-3 w-3"/>Processing</Badge>;
-            case 'shipped':
-                return <Badge className={`${baseClasses} bg-purple-100 text-purple-800`}><TrendingUp className="h-3 w-3"/>Shipped</Badge>;
-            case 'delivered':
-                return <Badge className={`${baseClasses} bg-green-100 text-green-800`}><CheckCircle className="h-3 w-3"/>Delivered</Badge>;
-            case 'cancelled':
-                return <Badge className={`${baseClasses} bg-red-100 text-red-800`}><Ban className="h-3 w-3"/>Cancelled</Badge>;
-            default:
-                return <Badge className={`${baseClasses} bg-gray-100 text-gray-800`}>{status}</Badge>;
-        }
+    // Color avatars generator
+    const getAvatarColors = (name: string) => {
+        const colors = [
+            { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+            { bg: 'bg-blue-100 text-blue-800 border-blue-200' },
+            { bg: 'bg-purple-100 text-purple-800 border-purple-200' },
+            { bg: 'bg-amber-100 text-amber-800 border-amber-200' },
+            { bg: 'bg-rose-100 text-rose-800 border-rose-200' },
+            { bg: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+        ];
+        const code = (name || 'U').charCodeAt(0);
+        return colors[code % colors.length];
     };
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
-            <Head title="Sales Dashboard" />
-            
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
-                <div className="flex w-full flex-col p-6 font-sans max-w-7xl mx-auto">
-                    {/* Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-primary/10 rounded-xl">
-                                <BarChart3 className="h-8 w-8 text-primary" />
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={[]} footerNavItems={[]}>
+            <Head title="Sales & Payments | Donezo Style" />
+
+            <div className="min-h-screen bg-[#F6F8FA] p-4 sm:p-6 lg:p-8 font-sans text-neutral-900 transition-colors duration-300">
+                <div className="max-w-[1440px] mx-auto space-y-6">
+
+                    {/* ========================================================== */}
+                    {/* TOP HEADER: Search Bar & Actions                           */}
+                    {/* ========================================================== */}
+                    <header className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        {/* Search Bar with Shortcut Pill */}
+                        <form onSubmit={handleSearch} className="relative w-full md:w-[420px]">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search by customer, tx reference, order #..."
+                                className="w-full bg-white pl-11 pr-24 py-2.5 rounded-full text-sm text-neutral-800 placeholder-neutral-400 border border-neutral-200/80 shadow-xs focus:outline-none focus:ring-2 focus:ring-neutral-400/30 transition-all"
+                            />
+                            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setSearchQuery('');
+                                            router.get('/admin/sales', { tab: activeTab }, { preserveState: true });
+                                        }}
+                                        className="p-1 text-neutral-400 hover:text-neutral-600 rounded-full"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                                <button
+                                    type="submit"
+                                    disabled={isSearching}
+                                    className="px-3 py-1 bg-neutral-900 hover:bg-neutral-800 text-white text-[11px] font-semibold rounded-full shadow-xs transition-colors"
+                                >
+                                    {isSearching ? '...' : 'Search'}
+                                </button>
                             </div>
-                            <div>
-                                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                                    Sales Dashboard
+                        </form>
+
+                        {/* Top Right Actions */}
+                        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                            {/* Direct Link to Main Admin Dashboard */}
+                            <Link
+                                href="/admin-dashboard"
+                                className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-neutral-50 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-700 shadow-xs transition-all active:scale-95"
+                            >
+                                <BarChart3 className="w-3.5 h-3.5 text-neutral-500" />
+                                <span>Overview</span>
+                            </Link>
+                        </div>
+                    </header>
+
+                    {/* ========================================================== */}
+                    {/* TITLE ROW: Sales Header + Action Buttons                   */}
+                    {/* ========================================================== */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                        <div>
+                            <div className="flex items-center gap-2.5">
+                                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+                                    Sales & Revenue
                                 </h1>
-                                <p className="text-lg text-muted-foreground mt-1">
-                                    Comprehensive view of payments and orders with consolidated management
-                                </p>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-200">
+                                    <Sparkles className="w-3 h-3 text-neutral-500" />
+                                    Live Stream
+                                </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-neutral-400 mt-1 font-normal">
+                                Consolidated audit of customer payments, receipts, and order fulfillments.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                            <Link
+                                href="/admin/orders"
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-neutral-200 text-neutral-700 text-xs sm:text-sm font-semibold shadow-xs hover:bg-neutral-50 active:scale-95 transition-all"
+                            >
+                                <ShoppingCart className="w-4 h-4 text-neutral-500" />
+                                <span>Manage Orders</span>
+                            </Link>
+
+                            <Link
+                                href="/admin/payment"
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-xs sm:text-sm font-semibold shadow-xs hover:opacity-95 active:scale-95 transition-all"
+                                style={{ backgroundColor: primaryColor }}
+                            >
+                                <CreditCard className="w-4 h-4" />
+                                <span>Offline Approval</span>
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* ========================================================== */}
+                    {/* ROW 1: 4 TOP METRIC CARDS (Signature Donezo style)         */}
+                    {/* ========================================================== */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Card 1: Primary Colored Card (Total Revenue) */}
+                        <div
+                            className="relative overflow-hidden rounded-[26px] p-6 text-white shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px]"
+                            style={{ backgroundColor: primaryColor }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-medium text-white/80">Total Revenue</span>
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-xs">
+                                    <ArrowUpRight className="w-4 h-4" style={{ color: primaryColor }} />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                                    {formatCurrency(stats.total_revenue || 0)}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-medium text-white backdrop-blur-xs">
+                                    <TrendingUp className="w-3 h-3" />
+                                    <span>Verified cleared store earnings</span>
+                                </div>
                             </div>
                         </div>
-                        
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-green-100 rounded-lg">
-                                        <DollarSign className="h-5 w-5 text-green-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                                        <p className="text-lg font-bold text-gray-900">ETB {stats.total_revenue.toLocaleString()}</p>
-                                    </div>
+
+                        {/* Card 2: White Card (Total Transactions) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Total Transactions</span>
+                                <div className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-700 hover:bg-neutral-50">
+                                    <CreditCard className="w-4 h-4" />
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                        <CreditCard className="h-5 w-5 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Total Transactions</p>
-                                        <p className="text-lg font-bold text-gray-900">{stats.total_transactions}</p>
-                                    </div>
+                            <div className="space-y-3">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {stats.total_transactions}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-600">
+                                    <DollarSign className="w-3 h-3 text-emerald-600" />
+                                    <span>Recorded gateway & offline checkouts</span>
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-yellow-100 rounded-lg">
-                                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Awaiting Approval</p>
-                                        <p className="text-lg font-bold text-gray-900">{stats.awaiting_approval}</p>
-                                    </div>
+                        </div>
+
+                        {/* Card 3: White Card (Awaiting Approval) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Awaiting Approval</span>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    stats.awaiting_approval > 0 
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                        : 'border border-neutral-200 text-neutral-400'
+                                }`}>
+                                    {stats.awaiting_approval}
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <ShoppingCart className="h-5 w-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                                        <p className="text-lg font-bold text-gray-900">{stats.total_orders}</p>
-                                    </div>
+                            <div className="space-y-3">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {stats.awaiting_approval}
+                                </div>
+                                <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+                                    stats.awaiting_approval > 0
+                                        ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                        : 'bg-neutral-100 text-neutral-600'
+                                }`}>
+                                    <Clock className="w-3 h-3" />
+                                    <span>Receipt slips awaiting admin signoff</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Card 4: White Card (Total Store Orders) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[170px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Total Orders</span>
+                                <div className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-700 hover:bg-neutral-50">
+                                    <ShoppingCart className="w-4 h-4" />
+                                </div>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {stats.total_orders}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-600">
+                                    <TrendingUp className="w-3 h-3 text-emerald-600" />
+                                    <span>{stats.completed_orders || 0} fulfilled • {stats.pending_orders || 0} active</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Search and Filters */}
-                    <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden mb-6">
-                        <div className="p-6">
-                            <form onSubmit={handleSearch} className="flex gap-4">
-                                <div className="flex-1">
-                                    <div className="relative">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                        <Input
-                                            type="text"
-                                            placeholder="Search by customer name, transaction reference, or order number..."
-                                            value={searchForm.data.search}
-                                            onChange={(e) => searchForm.setData('search', e.target.value)}
-                                            className="pl-10 border-gray-200 focus:border-primary focus:ring-primary"
-                                        />
-                                    </div>
-                                </div>
-                                <Button type="submit" disabled={searchForm.processing}>
-                                    {searchForm.processing ? 'Searching...' : 'Search'}
-                                </Button>
-                            </form>
+                    {/* ========================================================== */}
+                    {/* ROW 2: TABS SWITCHER (Payments vs Orders)                   */}
+                    {/* ========================================================== */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        {/* Rounded Pill Tabs */}
+                        <div className="inline-flex items-center bg-white p-1 rounded-full border border-neutral-200/80 shadow-xs">
+                            <button
+                                onClick={() => handleTabChange('payments')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                                    activeTab === 'payments'
+                                        ? 'text-white shadow-xs'
+                                        : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                                style={activeTab === 'payments' ? { backgroundColor: primaryColor } : {}}
+                            >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Payments</span>
+                                <span
+                                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                        activeTab === 'payments'
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-neutral-100 text-neutral-600'
+                                    }`}
+                                >
+                                    {payments.meta.total}
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={() => handleTabChange('orders')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                                    activeTab === 'orders'
+                                        ? 'text-white shadow-xs'
+                                        : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                                style={activeTab === 'orders' ? { backgroundColor: primaryColor } : {}}
+                            >
+                                <ShoppingCart className="w-3.5 h-3.5" />
+                                <span>Orders</span>
+                                <span
+                                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                        activeTab === 'orders'
+                                            ? 'bg-white/20 text-white'
+                                            : 'bg-neutral-100 text-neutral-600'
+                                    }`}
+                                >
+                                    {orders.meta.total}
+                                </span>
+                            </button>
                         </div>
+
+                        {/* Search Feedback Info */}
+                        {filters.search && (
+                            <div className="flex items-center gap-2 text-xs text-neutral-500">
+                                <span>Filtering by: <strong className="text-neutral-800">"{filters.search}"</strong></span>
+                                <button
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        router.get('/admin/sales', { tab: activeTab }, { preserveState: true });
+                                    }}
+                                    className="text-neutral-400 hover:text-neutral-700 underline text-[11px]"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Main Content Tabs */}
-                    <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-                        <Tabs defaultValue="payments" className="w-full">
-                            <div className="border-b border-gray-200/50 bg-white/30 px-6 py-4">
-                                <TabsList className="grid w-full grid-cols-2 bg-gray-100/50 p-1 rounded-xl">
-                                    <TabsTrigger value="payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                        <CreditCard className="h-4 w-4" />
-                                        <span>Payments ({payments.meta.total})</span>
-                                    </TabsTrigger>
-                                    <TabsTrigger value="orders" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                        <ShoppingCart className="h-4 w-4" />
-                                        <span>Orders ({orders.meta.total})</span>
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
+                    {/* ========================================================== */}
+                    {/* ROW 3: MODERN DATA TABLE CONTAINER                          */}
+                    {/* ========================================================== */}
+                    <div className="rounded-[26px] bg-white border border-neutral-100 shadow-xs overflow-hidden">
+                        {activeTab === 'payments' ? (
+                            /* PAYMENTS TABLE */
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead>
+                                        <tr className="border-b border-neutral-100 bg-neutral-50/70 text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
+                                            <th className="py-3.5 px-5">Type</th>
+                                            <th className="py-3.5 px-4">Transaction / Ref</th>
+                                            <th className="py-3.5 px-4">Order Link</th>
+                                            <th className="py-3.5 px-4">Customer</th>
+                                            <th className="py-3.5 px-4">Amount</th>
+                                            <th className="py-3.5 px-4">Gateway Status</th>
+                                            <th className="py-3.5 px-4">Admin Status</th>
+                                            <th className="py-3.5 px-4">Date</th>
+                                            <th className="py-3.5 px-5 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {payments.data.map((payment) => {
+                                            const pType = getPaymentType(payment);
+                                            const avatar = getAvatarColors(payment.customer_name);
 
-                            {/* Payments Tab */}
-                            <TabsContent value="payments" className="space-y-6 mt-0">
-                                <div className="p-6">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b border-gray-200">
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Type</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Transaction</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Order</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Customer</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Amount</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Gateway Status</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Admin Status</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Date</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {payments.data.map((payment) => (
-                                                    <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                                                        <td className="py-3 px-2">
-                                                            {getPaymentTypeBadge(payment)}
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="font-mono text-xs">#{payment.tx_ref}</div>
-                                                            <div className="text-xs text-gray-500">{payment.payment_method}</div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            {payment.order_id ? (
-                                                                <Link 
-                                                                    href={`/admin/orders/${payment.order_id}`}
-                                                                    className="text-blue-600 hover:text-blue-800 font-medium"
-                                                                >
-                                                                    #{payment.order_id}
-                                                                </Link>
-                                                            ) : (
-                                                                <span className="text-gray-400">-</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium">{payment.customer_name}</span>
-                                                                <span className="text-xs text-gray-500">{payment.customer_email}</span>
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="font-medium">
-                                                                {new Intl.NumberFormat('en-US', { 
-                                                                    style: 'currency', 
-                                                                    currency: payment.currency === 'ETB' ? 'USD' : payment.currency 
-                                                                }).format(payment.amount).replace('$', payment.currency + ' ')}
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            {getStatusBadge(payment.gateway_status, 'gateway')}
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            {getStatusBadge(payment.admin_status, 'admin')}
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="text-xs text-gray-500">
-                                                                {new Date(payment.created_at).toLocaleDateString()}
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                asChild
-                                                                className="text-xs"
+                                            return (
+                                                <tr
+                                                    key={payment.id}
+                                                    className="hover:bg-neutral-50/70 transition-colors group"
+                                                >
+                                                    {/* Type */}
+                                                    <td className="py-4 px-5">
+                                                        <span
+                                                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                                                pType === 'Request Advance'
+                                                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                                    : pType === 'Request Final'
+                                                                    ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                                                                    : 'bg-neutral-100 text-neutral-700 border border-neutral-200'
+                                                            }`}
+                                                        >
+                                                            {pType}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Transaction Ref */}
+                                                    <td className="py-4 px-4">
+                                                        <div className="font-mono text-[11px] font-bold text-neutral-800">
+                                                            #{payment.tx_ref}
+                                                        </div>
+                                                        <div className="text-[10px] text-neutral-400 capitalize">
+                                                            {payment.payment_method.replace('_', ' ')}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Order Link */}
+                                                    <td className="py-4 px-4">
+                                                        {payment.order_id ? (
+                                                            <Link
+                                                                href={`/admin/orders/${payment.order_id}`}
+                                                                className="inline-flex items-center gap-1 font-mono text-[11px] font-bold hover:underline"
+                                                                style={{ color: primaryColor }}
                                                             >
-                                                                <Link href={`/paymentStats/${payment.id}`}>
-                                                                    <Eye className="h-3 w-3 mr-1" />
-                                                                    View Details
-                                                                </Link>
-                                                            </Button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                {payments.data.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={9} className="py-8 text-center text-gray-500">
-                                                            No payments found
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    {/* Pagination */}
-                                    {payments.links && payments.links.length > 3 && (
-                                        <div className="flex justify-center mt-6">
-                                            <div className="flex gap-2">
-                                                {payments.links.map((link, index) => (
-                                                    <Button
-                                                        key={index}
-                                                        variant={link.active ? "default" : "outline"}
-                                                        size="sm"
-                                                        onClick={() => link.url && router.get(link.url)}
-                                                        disabled={!link.url}
-                                                        className="text-xs"
-                                                    >
-                                                        {link.label}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </TabsContent>
+                                                                #{payment.order_id}
+                                                                <ExternalLink className="w-2.5 h-2.5 opacity-60" />
+                                                            </Link>
+                                                        ) : (
+                                                            <span className="text-neutral-300 font-mono text-xs">—</span>
+                                                        )}
+                                                    </td>
 
-                            {/* Orders Tab */}
-                            <TabsContent value="orders" className="space-y-6 mt-0">
-                                <div className="p-6">
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b border-gray-200">
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Order</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Customer</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Amount</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Status</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Date</th>
-                                                    <th className="text-left py-3 px-2 font-medium text-gray-700">Actions</th>
+                                                    {/* Customer */}
+                                                    <td className="py-4 px-4">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div
+                                                                className={`w-7 h-7 rounded-full ${avatar.bg} ${avatar.border} border flex items-center justify-center font-bold text-[10px] shrink-0`}
+                                                            >
+                                                                {(payment.customer_name || 'U').slice(0, 2).toUpperCase()}
+                                                            </div>
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-bold text-neutral-800 truncate">
+                                                                    {payment.customer_name}
+                                                                </p>
+                                                                <p className="text-[10px] text-neutral-400 truncate">
+                                                                    {payment.customer_email}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Amount */}
+                                                    <td className="py-4 px-4">
+                                                        <span className="font-extrabold text-neutral-900 text-xs">
+                                                            {formatCurrency(payment.amount, payment.currency)}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Gateway Status */}
+                                                    <td className="py-4 px-4">
+                                                        <span
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                payment.gateway_status === 'paid'
+                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                    : payment.gateway_status === 'pending'
+                                                                    ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                                                    : payment.gateway_status === 'proof_uploaded'
+                                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                                    : 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                            }`}
+                                                        >
+                                                            {payment.gateway_status === 'paid' && <CheckCircle2 className="w-3 h-3" />}
+                                                            {payment.gateway_status === 'pending' && <Clock className="w-3 h-3" />}
+                                                            {payment.gateway_status === 'proof_uploaded' && <ArrowDownLeft className="w-3 h-3" />}
+                                                            {payment.gateway_status === 'failed' && <XCircle className="w-3 h-3" />}
+                                                            <span className="capitalize">{payment.gateway_status.replace('_', ' ')}</span>
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Admin Status */}
+                                                    <td className="py-4 px-4">
+                                                        <span
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                payment.admin_status === 'approved'
+                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                    : payment.admin_status === 'seen'
+                                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                                    : payment.admin_status === 'rejected'
+                                                                    ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                                    : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                                            }`}
+                                                        >
+                                                            <span className="capitalize">{payment.admin_status}</span>
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Date */}
+                                                    <td className="py-4 px-4 text-neutral-400 text-[11px]">
+                                                        {new Date(payment.created_at).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric',
+                                                        })}
+                                                    </td>
+
+                                                    {/* Actions */}
+                                                    <td className="py-4 px-5 text-right">
+                                                        <Link
+                                                            href={`/paymentStats/${payment.id}`}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 text-[11px] font-semibold shadow-xs transition-all active:scale-95"
+                                                        >
+                                                            <Eye className="w-3 h-3 text-neutral-500" />
+                                                            <span>Details</span>
+                                                        </Link>
+                                                    </td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {orders.data.map((order) => (
-                                                    <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50/50">
-                                                        <td className="py-3 px-2">
-                                                            <div className="font-mono text-sm font-medium">#{order.order_number}</div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-medium">{order.user.name}</span>
-                                                                <span className="text-xs text-gray-500">{order.user.email}</span>
+                                            );
+                                        })}
+
+                                        {payments.data.length === 0 && (
+                                            <tr>
+                                                <td colSpan={9} className="py-16 text-center text-neutral-400">
+                                                    <CreditCard className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm font-semibold text-neutral-700">No payment records found</p>
+                                                    <p className="text-xs text-neutral-400 mt-0.5">
+                                                        Try adjusting your search query or clear the filter.
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            /* ORDERS TABLE */
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs">
+                                    <thead>
+                                        <tr className="border-b border-neutral-100 bg-neutral-50/70 text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
+                                            <th className="py-3.5 px-5">Order #</th>
+                                            <th className="py-3.5 px-4">Customer</th>
+                                            <th className="py-3.5 px-4">Total Amount</th>
+                                            <th className="py-3.5 px-4">Fulfillment Status</th>
+                                            <th className="py-3.5 px-4">Created Date</th>
+                                            <th className="py-3.5 px-5 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-neutral-100">
+                                        {orders.data.map((order) => {
+                                            const avatar = getAvatarColors(order.user?.name || '');
+                                            const isDelivered = order.status === 'delivered';
+                                            const isProcessing = order.status === 'processing';
+                                            const isShipped = order.status === 'shipped';
+                                            const isCancelled = order.status === 'cancelled';
+
+                                            return (
+                                                <tr
+                                                    key={order.id}
+                                                    className="hover:bg-neutral-50/70 transition-colors group"
+                                                >
+                                                    {/* Order # */}
+                                                    <td className="py-4 px-5">
+                                                        <div className="font-mono text-xs font-bold text-neutral-900">
+                                                            #{order.order_number}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Customer */}
+                                                    <td className="py-4 px-4">
+                                                        <div className="flex items-center gap-2.5">
+                                                            <div
+                                                                className={`w-7 h-7 rounded-full ${avatar.bg} ${avatar.border} border flex items-center justify-center font-bold text-[10px] shrink-0`}
+                                                            >
+                                                                {(order.user?.name || 'U').slice(0, 2).toUpperCase()}
                                                             </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="font-medium">
-                                                                ETB {order.total_amount.toLocaleString()}
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-bold text-neutral-800 truncate">
+                                                                    {order.user?.name || 'Customer'}
+                                                                </p>
+                                                                <p className="text-[10px] text-neutral-400 truncate">
+                                                                    {order.user?.email}
+                                                                </p>
                                                             </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            {getOrderStatusBadge(order.status)}
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="text-xs text-gray-500">
-                                                                {new Date(order.created_at).toLocaleDateString()}
-                                                            </div>
-                                                        </td>
-                                                        <td className="py-3 px-2">
-                                                            <div className="flex gap-1">
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    asChild
-                                                                    className="text-xs"
-                                                                >
-                                                                    <Link href={`/admin/orders/${order.id}`}>
-                                                                        <ExternalLink className="h-3 w-3 mr-1" />
-                                                                        View Details
-                                                                    </Link>
-                                                                </Button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                                {orders.data.length === 0 && (
-                                                    <tr>
-                                                        <td colSpan={6} className="py-8 text-center text-gray-500">
-                                                            No orders found
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    
-                                    {/* Pagination */}
-                                    {orders.links && orders.links.length > 3 && (
-                                        <div className="flex justify-center mt-6">
-                                            <div className="flex gap-2">
-                                                {orders.links.map((link, index) => (
-                                                    <Button
-                                                        key={index}
-                                                        variant={link.active ? "default" : "outline"}
-                                                        size="sm"
-                                                        onClick={() => link.url && router.get(link.url)}
-                                                        disabled={!link.url}
-                                                        className="text-xs"
-                                                    >
-                                                        {link.label}
-                                                    </Button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                                        </div>
+                                                    </td>
+
+                                                    {/* Total Amount */}
+                                                    <td className="py-4 px-4">
+                                                        <span className="font-extrabold text-neutral-900 text-xs">
+                                                            {formatCurrency(order.total_amount)}
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Status Badge */}
+                                                    <td className="py-4 px-4">
+                                                        <span
+                                                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                                                isDelivered
+                                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                    : isShipped
+                                                                    ? 'bg-purple-50 text-purple-700 border border-purple-200/60'
+                                                                    : isProcessing
+                                                                    ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                                    : isCancelled
+                                                                    ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                                    : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                                            }`}
+                                                        >
+                                                            {isDelivered && <CheckCircle2 className="w-3 h-3" />}
+                                                            {isShipped && <TrendingUp className="w-3 h-3" />}
+                                                            {isProcessing && <Clock className="w-3 h-3" />}
+                                                            {isCancelled && <XCircle className="w-3 h-3" />}
+                                                            <span className="capitalize">{order.status}</span>
+                                                        </span>
+                                                    </td>
+
+                                                    {/* Date */}
+                                                    <td className="py-4 px-4 text-neutral-400 text-[11px]">
+                                                        {new Date(order.created_at).toLocaleDateString('en-US', {
+                                                            month: 'short',
+                                                            day: 'numeric',
+                                                            year: 'numeric',
+                                                        })}
+                                                    </td>
+
+                                                    {/* Actions */}
+                                                    <td className="py-4 px-5 text-right">
+                                                        <Link
+                                                            href={`/admin/orders/${order.order_number || order.id}`}
+                                                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 text-[11px] font-semibold shadow-xs transition-all active:scale-95"
+                                                        >
+                                                            <Eye className="w-3 h-3 text-neutral-500" />
+                                                            <span>Manage</span>
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+
+                                        {orders.data.length === 0 && (
+                                            <tr>
+                                                <td colSpan={6} className="py-16 text-center text-neutral-400">
+                                                    <ShoppingCart className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                    <p className="text-sm font-semibold text-neutral-700">No orders found</p>
+                                                    <p className="text-xs text-neutral-400 mt-0.5">
+                                                        Try adjusting your search query or clear the filter.
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Pagination Bar */}
+                        {((activeTab === 'payments' && payments.links && payments.links.length > 3) ||
+                            (activeTab === 'orders' && orders.links && orders.links.length > 3)) && (
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-100 bg-neutral-50/40">
+                                <span className="text-xs text-neutral-400 font-medium">
+                                    Showing{' '}
+                                    <strong className="text-neutral-700">
+                                        {activeTab === 'payments' ? payments.data.length : orders.data.length}
+                                    </strong>{' '}
+                                    of{' '}
+                                    <strong className="text-neutral-700">
+                                        {activeTab === 'payments' ? payments.meta.total : orders.meta.total}
+                                    </strong>{' '}
+                                    records
+                                </span>
+
+                                <div className="flex items-center gap-1.5">
+                                    {(activeTab === 'payments' ? payments.links : orders.links).map((link, idx) => {
+                                        // Clean label
+                                        const label = link.label
+                                            .replace('&laquo; Previous', 'Prev')
+                                            .replace('Next &raquo;', 'Next');
+
+                                        return (
+                                            <button
+                                                key={idx}
+                                                onClick={() => link.url && router.get(link.url, {}, { preserveState: true })}
+                                                disabled={!link.url}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                                                    link.active
+                                                        ? 'text-white shadow-xs'
+                                                        : link.url
+                                                        ? 'bg-white border border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+                                                        : 'bg-neutral-100 text-neutral-300 cursor-not-allowed border border-neutral-200/50'
+                                                }`}
+                                                style={link.active ? { backgroundColor: primaryColor } : {}}
+                                                dangerouslySetInnerHTML={{ __html: label }}
+                                            />
+                                        );
+                                    })}
                                 </div>
-                            </TabsContent>
-                        </Tabs>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

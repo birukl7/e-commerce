@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ProductDetails } from '@/components/product/product-detail'
 import { ProductImageGallery } from '@/components/product/product-image-gallery'
 import MainLayout from '@/layouts/app/main-layout'
@@ -80,7 +81,7 @@ interface ShowProps {
 
 
 
-const Show = ({ product, related_products, reviews, userHasReviewed }: ShowProps) => {
+const Show = ({ product, reviews, userHasReviewed }: ShowProps) => {
   const { t } = useTranslation()
 
   return (

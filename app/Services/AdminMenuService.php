@@ -58,7 +58,9 @@ class AdminMenuService
     private function getSalesMenuItems(): array
     {
         return [
-            ['title' => 'Sales Dashboard', 'href' => route('admin.sales.index'), 'icon' => 'BarChart3']
+            ['title' => 'Sales Dashboard', 'href' => route('admin.sales.index'), 'icon' => 'BarChart3'],
+            ['title' => 'Orders', 'href' => '/admin/orders', 'icon' => 'ShoppingCart'],
+            ['title' => 'Payments', 'href' => route('admin.payment.index'), 'icon' => 'CreditCard'],
         ];
     }
 

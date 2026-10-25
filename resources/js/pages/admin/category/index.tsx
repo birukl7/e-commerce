@@ -1,5 +1,3 @@
-'use client';
-
 import BrandDialog from '@/components/brand-dialog';
 import CategoryDialog from '@/components/category-dialog';
 import ConfirmationDialog from '@/components/confirmation-dialog';
@@ -10,8 +8,8 @@ import H3 from '@/components/ui/h3';
 import AppLayout from '@/layouts/app-layout';
 import { BreadcrumbItem } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
-import { ImageIcon, PencilIcon, PlusIcon, TrashIcon } from 'lucide-react';
-import { useState } from 'react';
+import { ImageIcon, PencilIcon, PlusIcon, TrashIcon, Layers, Sparkles, CheckCircle2, Tags, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
 interface Brand {
@@ -168,53 +166,98 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         }
     };
 
+    const [primaryColor, setPrimaryColor] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('serdo_dashboard_primary_color') || '#1E5338';
+        }
+        return '#1E5338';
+    });
+
+    useEffect(() => {
+        const handler = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handler);
+        return () => window.removeEventListener('serdo:theme-color-changed', handler);
+    }, []);
+
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredCategories = categories.filter(c => 
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (c.description && c.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const filteredBrands = brands.filter(b => 
+        b.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (b.description && b.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+
+    const activeCategoriesCount = categories.filter(c => c.is_active).length;
+    const activeBrandsCount = brands.filter(b => b.is_active).length;
+
     const CategoryCard = ({ category }: { category: Category }) => (
-        <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
-            <div className="relative aspect-video bg-gray-100">
-                {category.image ? (
-                    <img src={category.image} alt={category.name} className="h-full w-full object-cover" />
-                ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-12 w-12 text-gray-400" />
+        <div className="group overflow-hidden rounded-[24px] border border-gray-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md flex flex-col justify-between">
+            <div>
+                <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden">
+                    {category.image ? (
+                        <img src={category.image} alt={category.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gray-50 text-gray-400">
+                            <ImageIcon className="h-10 w-10 stroke-[1.5]" />
+                        </div>
+                    )}
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                        {category.parent && (
+                            <span className="rounded-full bg-black/60 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold text-white">
+                                Subcategory
+                            </span>
+                        )}
+                        <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-md shadow-sm ${
+                                category.is_active 
+                                    ? 'bg-emerald-500/90 text-white' 
+                                    : 'bg-red-500/90 text-white'
+                            }`}
+                        >
+                            {category.is_active ? 'Active' : 'Inactive'}
+                        </span>
                     </div>
-                )}
-                <div className="absolute top-2 right-2">
-                    <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            category.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                    >
-                        {category.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                </div>
+
+                <div className="p-5">
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-1">{category.name}</h3>
+                    </div>
+                    {category.parent && (
+                        <p className="text-xs text-gray-500 mb-2">
+                            Parent: <span className="font-semibold text-gray-700">{category.parent.name}</span>
+                        </p>
+                    )}
+                    <p className="line-clamp-2 text-xs text-gray-500 leading-relaxed min-h-[32px]">
+                        {category.description || 'No description provided.'}
+                    </p>
                 </div>
             </div>
-            <div className="p-4">
-                <div className="mb-2 flex items-start justify-between">
-                    <H3>{category.name}</H3>
-                    {category.parent && <span className="rounded-full bg-blue-100 px-2 py-1 text-xs text-blue-800">Sub-category</span>}
-                </div>
-                <p className="mb-3 line-clamp-2 text-sm text-gray-600">{category.description}</p>
-                {category.parent && (
-                    <p className="mb-3 text-xs text-gray-500">
-                        Parent: <span className="font-medium">{category.parent.name}</span>
-                    </p>
-                )}
-                <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">Sort: {category.sort_order}</span>
-                    <div className="flex space-x-1">
+
+            <div className="px-5 pb-5 pt-0">
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <span className="text-xs font-mono text-gray-400">Order: {category.sort_order}</span>
+                    <div className="flex items-center gap-1">
                         <button
                             onClick={() => openDialog('category', 'edit', category)}
-                            className="rounded-full p-2 text-green-600 transition-colors hover:bg-green-50"
-                            title="Edit"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                            title="Edit Category"
                         >
-                            <PencilIcon className="h-4 w-4" />
+                            <PencilIcon className="h-3.5 w-3.5" />
                         </button>
                         <button
                             onClick={() => handleDelete('category', category.id, category.name)}
-                            className="rounded-full p-2 text-red-600 transition-colors hover:bg-red-50"
-                            title="Delete"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                            title="Delete Category"
                         >
-                            <TrashIcon className="h-4 w-4" />
+                            <TrashIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
                 </div>
@@ -223,44 +266,52 @@ const Index = ({ categories = [], brands = [] }: Props) => {
     );
 
     const BrandCard = ({ brand }: { brand: Brand }) => (
-        <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
-            <div className="relative aspect-square bg-gray-100 p-4">
-                {brand.logo ? (
-                    <img src={`/storage/${brand.logo}`} alt={brand.name} className="h-full w-full object-contain" />
-                ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-12 w-12 text-gray-400" />
+        <div className="group overflow-hidden rounded-[24px] border border-gray-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md flex flex-col justify-between">
+            <div>
+                <div className="relative aspect-video bg-gray-50 p-6 flex items-center justify-center overflow-hidden border-b border-gray-100">
+                    {brand.logo ? (
+                        <img src={`/storage/${brand.logo}`} alt={brand.name} className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-105" />
+                    ) : (
+                        <div className="flex h-full w-full items-center justify-center text-gray-300">
+                            <ImageIcon className="h-10 w-10 stroke-[1.5]" />
+                        </div>
+                    )}
+                    <div className="absolute top-3 right-3">
+                        <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-md shadow-sm ${
+                                brand.is_active ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+                            }`}
+                        >
+                            {brand.is_active ? 'Active' : 'Inactive'}
+                        </span>
                     </div>
-                )}
-                <div className="absolute top-2 right-2">
-                    <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${
-                            brand.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}
-                    >
-                        {brand.is_active ? 'Active' : 'Inactive'}
-                    </span>
+                </div>
+
+                <div className="p-5">
+                    <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-1 mb-1.5">{brand.name}</h3>
+                    <p className="line-clamp-2 text-xs text-gray-500 leading-relaxed min-h-[32px]">
+                        {brand.description || 'No description provided.'}
+                    </p>
                 </div>
             </div>
-            <div className="p-4">
-                <H3>{brand.name}</H3>
-                <p className="mb-3 line-clamp-2 text-sm text-gray-600">{brand.description}</p>
-                <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">/{brand.slug}</span>
-                    <div className="flex space-x-1">
+
+            <div className="px-5 pb-5 pt-0">
+                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                    <span className="text-xs font-mono text-gray-400">/{brand.slug}</span>
+                    <div className="flex items-center gap-1">
                         <button
                             onClick={() => openDialog('brand', 'edit', brand)}
-                            className="rounded-full p-2 text-green-600 transition-colors hover:bg-green-50"
-                            title="Edit"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                            title="Edit Brand"
                         >
-                            <PencilIcon className="h-4 w-4" />
+                            <PencilIcon className="h-3.5 w-3.5" />
                         </button>
                         <button
                             onClick={() => handleDelete('brand', brand.id, brand.name)}
-                            className="rounded-full p-2 text-red-600 transition-colors hover:bg-red-50"
-                            title="Delete"
+                            className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                            title="Delete Brand"
                         >
-                            <TrashIcon className="h-4 w-4" />
+                            <TrashIcon className="h-3.5 w-3.5" />
                         </button>
                     </div>
                 </div>
@@ -272,71 +323,170 @@ const Index = ({ categories = [], brands = [] }: Props) => {
         <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Categories & Brands Management" />
 
-            <div className="px-4 py-8 sm:px-6 lg:px-8 mx-auto max-w-7xl">
+            <div className="min-h-screen bg-[#F6F8FA] p-6 lg:p-8 font-sans">
                 {/* Header */}
-                <div className="mb-8">
-                    <H1 className="text-3xl font-bold text-gray-900">Categories & Brands</H1>
-                    <p className="mt-2 text-gray-600">Manage your e-commerce categories and brands</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Catalog Taxonomy</span>
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-medium text-emerald-600">Active</span>
+                        </div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 mt-1">Categories & Brands</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">Organize your store collections, hierarchy, and manufacturer partners</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        {activeTab === 'categories' ? (
+                            <button
+                                onClick={() => openDialog('category', 'create')}
+                                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 cursor-pointer"
+                                style={{ backgroundColor: primaryColor }}
+                            >
+                                <PlusIcon className="h-4 w-4" />
+                                Add Category
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => openDialog('brand', 'create')}
+                                className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 cursor-pointer"
+                                style={{ backgroundColor: primaryColor }}
+                            >
+                                <PlusIcon className="h-4 w-4" />
+                                Add Brand
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* Tabs */}
-                <div className="mb-6 border-b border-gray-200">
-                    <nav className="-mb-px flex space-x-8">
+                {/* 4 Donezo Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {/* Primary Hero Metric */}
+                    <div 
+                        className="relative overflow-hidden rounded-[26px] p-6 text-white shadow-lg transition-transform hover:-translate-y-0.5"
+                        style={{ backgroundColor: primaryColor }}
+                    >
+                        <div className="absolute top-0 right-0 -mr-6 -mt-6 h-32 w-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+                        <div className="flex items-center justify-between relative z-10">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Total Categories</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+                                <Tags className="h-5 w-5 text-white" />
+                            </div>
+                        </div>
+                        <div className="mt-4 relative z-10">
+                            <h3 className="text-3xl font-black tracking-tight text-white">{categories.length}</h3>
+                            <p className="text-xs font-medium text-white/80 mt-1">{activeCategoriesCount} live in navigation</p>
+                        </div>
+                    </div>
+
+                    {/* Active Categories Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Categories</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50">
+                                <Layers className="h-5 w-5 text-emerald-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-emerald-600">{activeCategoriesCount}</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Available to shoppers</p>
+                        </div>
+                    </div>
+
+                    {/* Total Brands Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Total Brands</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-50">
+                                <Sparkles className="h-5 w-5 text-purple-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-purple-600">{brands.length}</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">{activeBrandsCount} active partners</p>
+                        </div>
+                    </div>
+
+                    {/* Active Brands Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Active Brands</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50">
+                                <CheckCircle2 className="h-5 w-5 text-blue-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-blue-600">{activeBrandsCount}</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Published storefront brands</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Filter & Pill Tabs Strip */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                    {/* Modern Pill Switcher */}
+                    <div className="inline-flex rounded-2xl bg-gray-200/60 p-1 border border-gray-200/50">
                         <button
                             onClick={() => setActiveTab('categories')}
-                            className={`border-b-2 px-1 py-2 text-sm font-medium cursor-pointer ${
+                            className={`rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
                                 activeTab === 'categories'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
                             }`}
                         >
                             Categories ({categories.length})
                         </button>
                         <button
                             onClick={() => setActiveTab('brands')}
-                            className={`border-b-2 px-1 py-2 text-sm font-medium cursor-pointer ${
+                            className={`rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
                                 activeTab === 'brands'
-                                    ? 'border-blue-500 text-blue-600'
-                                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                                    ? 'bg-white text-gray-900 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-900'
                             }`}
                         >
                             Brands ({brands.length})
                         </button>
-                    </nav>
+                    </div>
+
+                    {/* Search Bar */}
+                    <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder={activeTab === 'categories' ? "Search categories..." : "Search brands..."}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full rounded-2xl border border-gray-200/80 bg-white pl-10 pr-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300"
+                        />
+                    </div>
                 </div>
 
-                {/* Content */}
+                {/* Content Cards Grid */}
                 {activeTab === 'categories' && (
                     <div>
-                        <div className="mb-6 flex items-center justify-between">
-                            <H2>Categories</H2>
-                            <Button
-                                onClick={() => openDialog('category', 'create')}
-                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                            >
-                                <PlusIcon className="mr-2 h-4 w-4" />
-                                Add Category
-                            </Button>
-                        </div>
-
-                        {categories.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {categories.map((category) => (
+                        {filteredCategories.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                {filteredCategories.map((category) => (
                                     <CategoryCard key={category.id} category={category} />
                                 ))}
                             </div>
                         ) : (
-                            <div className="py-12 text-center">
-                                <ImageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-                                <H3>No categories found</H3>
-                                <p className="mb-4 text-gray-600">Get started by creating your first category.</p>
-                                <Button
+                            <div className="rounded-[26px] border border-gray-200/80 bg-white p-12 text-center shadow-sm">
+                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                                    <Tags className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-base font-bold text-gray-900">No categories found</h3>
+                                <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">
+                                    {searchQuery ? "No categories match your search term." : "Get started by creating your store's first category taxonomy."}
+                                </p>
+                                <button
                                     onClick={() => openDialog('category', 'create')}
-                                    className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
+                                    className="mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 cursor-pointer"
+                                    style={{ backgroundColor: primaryColor }}
                                 >
-                                    <PlusIcon className="mr-2 h-4 w-4" />
+                                    <PlusIcon className="h-4 w-4" />
                                     Add Category
-                                </Button>
+                                </button>
                             </div>
                         )}
                     </div>
@@ -344,33 +494,27 @@ const Index = ({ categories = [], brands = [] }: Props) => {
 
                 {activeTab === 'brands' && (
                     <div>
-                        <div className="mb-6 flex items-center justify-between">
-                            <H2>Brands</H2>
-                            <Button
-                                onClick={() => openDialog('brand', 'create')}
-                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                            >
-                                <PlusIcon className="mr-2 h-4 w-4" />
-                                Add Brand
-                            </Button>
-                        </div>
-
-                        {brands.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                                {brands.map((brand) => (
+                        {filteredBrands.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                                {filteredBrands.map((brand) => (
                                     <BrandCard key={brand.id} brand={brand} />
                                 ))}
                             </div>
                         ) : (
-                            <div className="py-12 text-center">
-                                <ImageIcon className="mx-auto mb-4 h-12 w-12 text-gray-400" />
-                                <H3>No brands found</H3>
-                                <p className="mb-4 text-gray-600">Get started by creating your first brand.</p>
+                            <div className="rounded-[26px] border border-gray-200/80 bg-white p-12 text-center shadow-sm">
+                                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-400">
+                                    <Sparkles className="h-6 w-6" />
+                                </div>
+                                <h3 className="text-base font-bold text-gray-900">No brands found</h3>
+                                <p className="mt-1 text-sm text-gray-500 max-w-sm mx-auto">
+                                    {searchQuery ? "No brands match your search query." : "Get started by adding manufacturers or brands for your catalog."}
+                                </p>
                                 <button
                                     onClick={() => openDialog('brand', 'create')}
-                                    className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+                                    className="mt-4 inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-bold text-white shadow-sm transition-all hover:opacity-90 cursor-pointer"
+                                    style={{ backgroundColor: primaryColor }}
                                 >
-                                    <PlusIcon className="mr-2 h-4 w-4" />
+                                    <PlusIcon className="h-4 w-4" />
                                     Add Brand
                                 </button>
                             </div>

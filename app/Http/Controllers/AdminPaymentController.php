@@ -21,12 +21,7 @@ class AdminPaymentController extends Controller
      */
     public function index(Request $request)
     {
-        \Log::info('AdminPaymentController@index hit', [
-            'path' => $request->path(),
-            'full_url' => $request->fullUrl(),
-            'query' => $request->query(),
-            'intended_component' => 'Admin/payment/index',
-        ]);
+
         
         try {
         // Note: Using leftJoin on order_id may fail if order_id is stored as order_number string
@@ -162,11 +157,6 @@ class AdminPaymentController extends Controller
             'recentOfflinePayments' => $recentOfflinePayments,
         ]);
 
-        \Log::info('AdminPaymentController@index returning component', [
-            'component' => 'Admin/payment/index',
-            'payments_count' => $payments->total(),
-            'response_type' => get_class($response),
-        ]);
 
         return $response;
         } catch (\Throwable $e) {
@@ -220,8 +210,8 @@ class AdminPaymentController extends Controller
         if ($order && !$isProductRequestPayment) {
             // Only load order items for regular orders, not product requests
             // Use numeric order ID (order->id) for the query
-            $orderItems = DB::table('order_items as oi')
-                ->join('products as p', 'oi.product_id', '=', 'p.id')
+            $rawItems = DB::table('order_items as oi')
+                ->leftJoin('products as p', 'oi.product_id', '=', 'p.id')
                 ->leftJoin('product_images as pi', function($join) {
                     $join->on('p.id', '=', 'pi.product_id')
                          ->where('pi.is_primary', true);
@@ -234,6 +224,30 @@ class AdminPaymentController extends Controller
                 ])
                 ->where('oi.order_id', $order->id)
                 ->get();
+
+            $orderItems = $rawItems->map(function ($item) {
+                $snapshot = is_string($item->product_snapshot) 
+                    ? json_decode($item->product_snapshot, true) 
+                    : $item->product_snapshot;
+
+                $image = null;
+                if ($item->primary_image) {
+                    $image = \App\Services\ImageUrlService::formatImageUrl($item->primary_image);
+                } elseif (isset($snapshot['image']) && $snapshot['image']) {
+                    $image = \App\Services\ImageUrlService::formatImageUrl($snapshot['image']);
+                }
+
+                return [
+                    'id' => $item->id,
+                    'product_id' => $item->product_id,
+                    'product_name' => $item->product_name ?? ($snapshot['name'] ?? 'Product Item'),
+                    'product_slug' => $item->product_slug ?? null,
+                    'primary_image' => $image,
+                    'quantity' => (int) $item->quantity,
+                    'price' => (float) $item->price,
+                    'total' => (float) $item->total,
+                ];
+            })->toArray();
         }
 
         $customerPaymentHistory = PaymentTransaction::where('customer_email', $payment->customer_email)

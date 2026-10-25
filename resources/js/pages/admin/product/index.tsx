@@ -1,9 +1,8 @@
-'use client';
-
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import { EyeIcon, FilterIcon, ImageIcon, PackageIcon, PencilIcon, PlusIcon, SearchIcon, TrashIcon, XIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 // import ProductDialog from "@/components/product-dialog"
 import ConfirmationDialog from '@/components/confirmation-dialog';
 import ProductDialog from '@/components/product-dialog';
@@ -202,71 +201,123 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         }
     };
 
+    const [primaryColor, setPrimaryColor] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('serdo_dashboard_primary_color') || '#1E5338';
+        }
+        return '#1E5338';
+    });
+
+    useEffect(() => {
+        const handler = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handler);
+        return () => window.removeEventListener('serdo:theme-color-changed', handler);
+    }, []);
+
+    const inStockCount = products.data.filter(p => p.stock_status === 'in_stock').length;
+    const lowOrOutCount = products.data.filter(p => p.stock_status === 'out_of_stock' || p.stock_quantity <= 5).length;
+    const featuredCount = products.data.filter(p => p.featured).length;
+
     const ProductCard = ({ product }: { product: Product }) => {
-        const primaryImage = product.images.find((img) => img.is_primary) || product.images[0];
+        const primaryImage = product.images?.find((img) => img.is_primary) || product.images?.[0];
 
         return (
-            <div className="overflow-hidden rounded-lg bg-white shadow-md transition-shadow hover:shadow-lg">
-                <div className="relative aspect-square bg-gray-100">
-                    {primaryImage ? (
-                        <img src={primaryImage.image_path} alt={product.name} className="h-full w-full object-cover" />
-                    ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                            <ImageIcon className="h-12 w-12 text-gray-400" />
-                        </div>
-                    )}
-                    <div className="absolute top-2 right-2 flex flex-col gap-1">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusColor(product.status)}`}>{product.status}</span>
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStockStatusColor(product.stock_status)}`}>
-                            {product.stock_status.replace('_', ' ')}
-                        </span>
-                        {product.featured && (
-                            <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">Featured</span>
+            <div className="group overflow-hidden rounded-[24px] border border-gray-200/80 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md flex flex-col justify-between">
+                <div>
+                    <div className="relative aspect-square bg-gray-50 overflow-hidden border-b border-gray-100">
+                        {primaryImage ? (
+                            <img 
+                                src={primaryImage.image_path} 
+                                alt={product.name} 
+                                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                            />
+                        ) : (
+                            <div className="flex h-full w-full items-center justify-center text-gray-300">
+                                <ImageIcon className="h-12 w-12 stroke-[1.5]" />
+                            </div>
                         )}
+                        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold backdrop-blur-md shadow-xs ${
+                                product.status === 'published' ? 'bg-emerald-500/90 text-white' : 'bg-gray-700/80 text-white'
+                            }`}>
+                                {product.status}
+                            </span>
+                            <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold backdrop-blur-md shadow-xs ${
+                                product.stock_status === 'in_stock' 
+                                    ? 'bg-emerald-100/90 text-emerald-800' 
+                                    : product.stock_status === 'out_of_stock'
+                                    ? 'bg-red-500/90 text-white'
+                                    : 'bg-amber-100/90 text-amber-800'
+                            }`}>
+                                {product.stock_status.replace('_', ' ')}
+                            </span>
+                            {product.featured && (
+                                <span className="rounded-full bg-purple-600/90 text-white px-2.5 py-0.5 text-[11px] font-bold shadow-xs">
+                                    Featured
+                                </span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="p-5">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-1">{product.name}</h3>
+                        </div>
+                        <p className="line-clamp-2 text-xs text-gray-500 leading-relaxed min-h-[32px] mb-3">
+                            {product.description || 'No product description provided.'}
+                        </p>
+
+                        <div className="flex items-baseline justify-between mb-2">
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-black text-gray-950">
+                                    {formatPrice(product.sale_price || product.price)}
+                                </span>
+                                {product.sale_price && (
+                                    <span className="text-xs text-gray-400 line-through">
+                                        {formatPrice(product.price)}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-xs font-mono text-gray-400">SKU: {product.sku}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                            <span className="font-medium">Stock: <strong className="text-gray-800">{product.stock_quantity}</strong></span>
+                            <span className="truncate max-w-[120px] text-gray-600">{product.category?.name || 'Uncategorized'}</span>
+                        </div>
                     </div>
                 </div>
-                <div className="p-4">
-                    <div className="mb-2 flex items-start justify-between">
-                        <H3 className="line-clamp-2">{product.name}</H3>
-                    </div>
-                    <p className="mb-2 line-clamp-2 text-sm text-gray-600">{product.description}</p>
-                    <div className="mb-3 flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                            <span className="text-lg font-semibold text-gray-900">{formatPrice(product.sale_price || product.price)}</span>
-                            {product.sale_price && <span className="text-sm text-gray-500 line-through">{formatPrice(product.price)}</span>}
-                        </div>
-                        <span className="text-xs text-gray-500">SKU: {product.sku}</span>
-                    </div>
-                    <div className="mb-3 flex items-center justify-between text-xs text-gray-500">
-                        <span>Stock: {product.stock_quantity}</span>
-                        <span>{product.category?.name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">{product.brand.name}</span>
-                        <div className="flex space-x-1">
+
+                <div className="px-5 pb-5 pt-0">
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <span className="text-xs font-semibold text-gray-500 truncate max-w-[110px]">
+                            {product.brand?.name || 'No Brand'}
+                        </span>
+                        <div className="flex items-center gap-1">
                             <Link
                                 href={`/admin/products/${product.id}`}
-                                className="rounded-full p-2 text-blue-600 transition-colors hover:bg-blue-50"
-                                title="View"
+                                className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600 cursor-pointer"
+                                title="View Details"
                             >
-                                <EyeIcon className="h-4 w-4" />
+                                <EyeIcon className="h-3.5 w-3.5" />
                             </Link>
-                            <Button
+                            <button
                                 onClick={() => openDialog('edit', product)}
-                                className="rounded-full p-2 text-green-600 transition-colors hover:bg-green-50"
-                                title="Edit"
-                                variant="ghost"
+                                className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-emerald-50 hover:text-emerald-700 cursor-pointer"
+                                title="Edit Product"
                             >
-                                <PencilIcon className="h-4 w-4" />
-                            </Button>
-                            <Button
+                                <PencilIcon className="h-3.5 w-3.5" />
+                            </button>
+                            <button
                                 onClick={() => handleDelete(product.id, product.name)}
-                                className="rounded-full p-2 text-red-600 transition-colors hover:bg-red-50"
-                                title="Delete"
-                                variant="ghost"
+                                className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-600 transition-colors hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                                title="Delete Product"
                             >
-                                <TrashIcon className="h-4 w-4" />
-                            </Button>
+                                <TrashIcon className="h-3.5 w-3.5" />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -278,72 +329,157 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
         <AppLayout mainNavItems={adminNavItems} breadcrumbs={breadcrumbs} footerNavItems={[]}>
             <Head title="Products Management" />
 
-            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-[#F6F8FA] p-6 lg:p-8 font-sans">
                 {/* Header */}
-                <div className="mb-8">
-                    <H1 className="text-3xl font-bold text-gray-900">Products Management</H1>
-                    <p className="mt-2 text-gray-600">Manage your e-commerce products</p>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Catalog Inventory</span>
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="text-xs font-medium text-emerald-600">Active</span>
+                        </div>
+                        <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 mt-1">Products Management</h1>
+                        <p className="text-sm text-gray-500 mt-0.5">Manage stock, variants, brand associations, pricing, and showcase listings</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => openDialog('create')}
+                            className="inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:opacity-90 cursor-pointer"
+                            style={{ backgroundColor: primaryColor }}
+                        >
+                            <PlusIcon className="h-4 w-4" />
+                            Add Product
+                        </button>
+                    </div>
+                </div>
+
+                {/* 4 Donezo Metric Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    {/* Primary Hero Metric */}
+                    <div 
+                        className="relative overflow-hidden rounded-[26px] p-6 text-white shadow-lg transition-transform hover:-translate-y-0.5"
+                        style={{ backgroundColor: primaryColor }}
+                    >
+                        <div className="absolute top-0 right-0 -mr-6 -mt-6 h-32 w-32 rounded-full bg-white/10 blur-xl pointer-events-none" />
+                        <div className="flex items-center justify-between relative z-10">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-white/80">Total Products</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+                                <PackageIcon className="h-5 w-5 text-white" />
+                            </div>
+                        </div>
+                        <div className="mt-4 relative z-10">
+                            <h3 className="text-3xl font-black tracking-tight text-white">{products.total}</h3>
+                            <p className="text-xs font-medium text-white/80 mt-1">Total active SKUs in database</p>
+                        </div>
+                    </div>
+
+                    {/* In Stock Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Available Stock</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50">
+                                <PackageIcon className="h-5 w-5 text-emerald-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-emerald-600">{inStockCount} on page</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Ready for fulfillment</p>
+                        </div>
+                    </div>
+
+                    {/* Low / Out of Stock Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Low or Depleted</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50">
+                                <FilterIcon className="h-5 w-5 text-amber-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-amber-600">{lowOrOutCount} items</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Restock recommended</p>
+                        </div>
+                    </div>
+
+                    {/* Featured Metric */}
+                    <div className="rounded-[26px] border border-gray-200/80 bg-white p-6 shadow-sm transition-transform hover:-translate-y-0.5">
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Featured Showcase</span>
+                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-purple-50">
+                                <EyeIcon className="h-5 w-5 text-purple-600" />
+                            </div>
+                        </div>
+                        <div className="mt-4">
+                            <h3 className="text-3xl font-black tracking-tight text-purple-600">{featuredCount} spotlighted</h3>
+                            <p className="text-xs font-medium text-gray-500 mt-1">Displayed on storefront hero</p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Content */}
                 <div>
                     {/* Search and Filter Bar */}
                     <div className="mb-6 space-y-4">
-                        <div className="flex items-center justify-between">
-                            <H2>Products</H2>
-                            <Button
-                                onClick={() => openDialog('create')}
-                                className="inline-flex items-center rounded-lg px-4 py-2 text-white transition-colors"
-                            >
-                                <PlusIcon className="mr-2 h-4 w-4" />
-                                Add Product
-                            </Button>
-                        </div>
 
-                        {/* Search Bar */}
-                        <div className="flex flex-col gap-4 sm:flex-row">
+                        {/* Search Bar & Action Buttons */}
+                        <div className="flex flex-col gap-3 sm:flex-row">
                             <div className="relative flex-1">
-                                <SearchIcon className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-                                <Input
+                                <SearchIcon className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+                                <input
                                     type="text"
-                                    placeholder="Search products by name, SKU, or description..."
+                                    placeholder="Search products by title, SKU, or keywords..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                     onKeyPress={handleKeyPress}
-                                    className="h-10 pl-10"
+                                    className="w-full rounded-2xl border border-gray-200/80 bg-white pl-10 pr-4 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 shadow-xs"
                                 />
                             </div>
                             <div className="flex gap-2">
-                                <Button onClick={handleSearch} className="h-10 px-4 py-2">
+                                <button
+                                    onClick={handleSearch}
+                                    className="inline-flex items-center rounded-2xl px-5 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:opacity-90 cursor-pointer"
+                                    style={{ backgroundColor: primaryColor }}
+                                >
                                     Search
-                                </Button>
-                                <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="h-10 px-4 py-2">
-                                    <FilterIcon className="mr-2 h-4 w-4" />
-                                    Filters
+                                </button>
+                                <button
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    className={`inline-flex items-center gap-1.5 rounded-2xl border px-4 py-2.5 text-xs font-semibold transition-all cursor-pointer ${
+                                        showFilters || hasActiveFilters 
+                                            ? 'border-gray-900 bg-gray-900 text-white' 
+                                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <FilterIcon className="h-3.5 w-3.5" />
+                                    <span>Filters</span>
                                     {hasActiveFilters && (
-                                        <span className="ml-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-xs text-white">
-                                            !
+                                        <span className="ml-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-bold text-white">
+                                            ✓
                                         </span>
                                     )}
-                                </Button>
+                                </button>
                                 {hasActiveFilters && (
-                                    <Button onClick={clearFilters} variant="outline" className="h-10 px-4 py-2 text-red-600 hover:text-red-700">
-                                        <XIcon className="mr-2 h-4 w-4" />
+                                    <button
+                                        onClick={clearFilters}
+                                        className="inline-flex items-center gap-1.5 rounded-2xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors cursor-pointer"
+                                    >
+                                        <XIcon className="h-3.5 w-3.5" />
                                         Clear
-                                    </Button>
+                                    </button>
                                 )}
                             </div>
                         </div>
 
                         {/* Filter Panel */}
                         {showFilters && (
-                            <div className="space-y-4 rounded-lg bg-gray-50 p-4">
+                            <div className="space-y-4 rounded-[24px] border border-gray-200/80 bg-white p-6 shadow-sm">
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                                     {/* Category Filter */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Category</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Category</label>
                                         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="All Categories" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -359,9 +495,9 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Brand Filter */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Brand</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Brand</label>
                                         <Select value={selectedBrand} onValueChange={setSelectedBrand}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="All Brands" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -377,9 +513,9 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Status Filter */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Publish Status</label>
                                         <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="All Statuses" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -393,9 +529,9 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Stock Status Filter */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Stock Status</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Stock Availability</label>
                                         <Select value={selectedStockStatus} onValueChange={setSelectedStockStatus}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="All Stock Statuses" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -411,9 +547,9 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-3 lg:grid-cols-5">
                                     {/* Featured Filter */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Featured</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Featured</label>
                                         <Select value={selectedFeatured} onValueChange={setSelectedFeatured}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="All Products" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -426,31 +562,31 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
 
                                     {/* Price Range */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Min Price</label>
-                                        <Input
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Min Price (ETB)</label>
+                                        <input
                                             type="number"
                                             placeholder="0"
                                             value={minPrice}
                                             onChange={(e) => setMinPrice(e.target.value)}
-                                            className="w-full"
+                                            className="w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-3 py-2 text-xs text-gray-800"
                                         />
                                     </div>
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Max Price</label>
-                                        <Input
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Max Price (ETB)</label>
+                                        <input
                                             type="number"
-                                            placeholder="1000"
+                                            placeholder="100000"
                                             value={maxPrice}
                                             onChange={(e) => setMaxPrice(e.target.value)}
-                                            className="w-full"
+                                            className="w-full rounded-2xl border border-gray-200 bg-gray-50/60 px-3 py-2 text-xs text-gray-800"
                                         />
                                     </div>
 
                                     {/* Sort Options */}
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Sort By</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Sort By</label>
                                         <Select value={sortBy} onValueChange={setSortBy}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="Sort By" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -463,9 +599,9 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                         </Select>
                                     </div>
                                     <div>
-                                        <label className="mb-1 block text-sm font-medium text-gray-700">Order</label>
+                                        <label className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-gray-400">Order</label>
                                         <Select value={sortDirection} onValueChange={setSortDirection}>
-                                            <SelectTrigger className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                                            <SelectTrigger className="w-full rounded-2xl border-gray-200 bg-gray-50/60 text-xs">
                                                 <SelectValue placeholder="Order" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -476,10 +612,14 @@ const Index = ({ products, categories = [], brands = [], filters = {} }: Props) 
                                     </div>
                                 </div>
 
-                                <div className="flex justify-end">
-                                    <Button onClick={handleSearch} className="px-6 py-2">
+                                <div className="flex justify-end pt-2">
+                                    <button
+                                        onClick={handleSearch}
+                                        className="inline-flex items-center rounded-2xl px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-all hover:opacity-90 cursor-pointer"
+                                        style={{ backgroundColor: primaryColor }}
+                                    >
                                         Apply Filters
-                                    </Button>
+                                    </button>
                                 </div>
                             </div>
                         )}

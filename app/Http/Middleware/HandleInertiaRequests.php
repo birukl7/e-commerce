@@ -67,10 +67,12 @@ class HandleInertiaRequests extends Middleware
             // Get flat menu items and add badge to Sales Dashboard
             $flatItems = $adminMenuService->getFlatMenuItems();
             foreach ($flatItems as &$item) {
-                // Check if this is the Sales Dashboard item by href or title
                 $isSalesDashboard = (isset($item['href']) && (str_contains($item['href'], 'admin/sales') || str_contains($item['href'], '/admin/sales'))) ||
                                    (isset($item['title']) && $item['title'] === 'Sales Dashboard');
-                if ($isSalesDashboard && $unseenPaymentsCount > 0) {
+                $isPayments = (isset($item['href']) && (str_contains($item['href'], 'admin/payment') || str_contains($item['href'], '/admin/payment'))) ||
+                              (isset($item['title']) && $item['title'] === 'Payments');
+
+                if (($isSalesDashboard || $isPayments) && $unseenPaymentsCount > 0) {
                     $item['badge'] = $unseenPaymentsCount;
                 }
             }

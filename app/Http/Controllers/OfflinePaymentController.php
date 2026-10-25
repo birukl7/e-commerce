@@ -256,6 +256,32 @@ class OfflinePaymentController extends Controller
                     ] + $logContext);
                 }
 
+                // Ensure order items are created if cart items are present and order doesn't have items yet
+                $cartItemsRaw = $request->input('cart_items');
+                $cartItems = is_string($cartItemsRaw) ? json_decode($cartItemsRaw, true) : $cartItemsRaw;
+                if (!empty($cartItems) && is_array($cartItems) && $order->items()->count() === 0) {
+                    foreach ($cartItems as $item) {
+                        $itemId = $item['id'] ?? null;
+                        $quantity = is_numeric($item['quantity'] ?? null) ? (int)$item['quantity'] : 1;
+                        $price = is_numeric($item['price'] ?? null) ? (float)$item['price'] : 0.0;
+                        if ($quantity > 0 && $price >= 0) {
+                            \App\Models\OrderItem::create([
+                                'order_id' => $order->id,
+                                'product_id' => $itemId,
+                                'product_snapshot' => json_encode([
+                                    'id' => $itemId,
+                                    'name' => $item['name'] ?? 'Product',
+                                    'price' => $price,
+                                    'image' => $item['image'] ?? null,
+                                ]),
+                                'quantity' => $quantity,
+                                'price' => $price,
+                                'total' => $price * $quantity,
+                            ]);
+                        }
+                    }
+                }
+
                 // Create payment transaction record
                 $paymentData = [
                     'tx_ref' => $txRef,

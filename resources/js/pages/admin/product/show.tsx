@@ -1,4 +1,5 @@
-import { CustomLink } from "@/components/link"
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { Button } from "@/components/ui/button"
 import H1 from "@/components/ui/h1"
 import AppLayout from "@/layouts/app-layout"

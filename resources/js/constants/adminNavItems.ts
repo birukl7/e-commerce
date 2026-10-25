@@ -41,7 +41,7 @@ export const adminNavItems = [
   },
   {
     name: 'Payments',
-    href: '/admin/payments',
+    href: '/admin/payment',
     icon: 'CreditCard',
   },
   {

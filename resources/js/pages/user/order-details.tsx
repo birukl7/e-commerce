@@ -1,10 +1,8 @@
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import MainLayout from '@/layouts/app/main-layout';
 import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowLeft,
-    CheckCircle2,
     Download,
     MapPin,
     RotateCcw,

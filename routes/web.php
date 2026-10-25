@@ -298,8 +298,9 @@ Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session']
     Route::post('/admin/payments/{payment}/mark-seen', [AdminPaymentController::class, 'markSeen'])->name('admin.payments.mark_seen');
     Route::post('/admin/payments/bulk-action', [AdminPaymentController::class, 'bulkAction'])->name('admin.payments.bulk_action');
     Route::get('/admin/payments/export', [AdminPaymentController::class, 'export'])->name('admin.payments.export');
-    Route::get('/paymentStats', [AdminPaymentController::class, 'index'])->name('admin.payments.index');
-    Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::get('/admin/payments/{payment}', [AdminPaymentController::class, 'show'])->name('admin.payments.show');
+    Route::get('/paymentStats', [AdminPaymentController::class, 'index']);
+    Route::get('/paymentStats/{payment}', [AdminPaymentController::class, 'show']);
     Route::post('/admin/payments/{payment}/verify-links-et', [AdminPaymentController::class, 'verifyWithLinksEt'])->name('admin.payments.verify_links_et');
     
     // Payment Rejection Reasons Management

@@ -1,14 +1,10 @@
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, usePage } from '@inertiajs/react';
-import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { Head, Link } from '@inertiajs/react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
     ArrowUpRight,
-    Search,
-    Bell,
-    Mail,
     Plus,
-    Palette,
     Play,
     Pause,
     RotateCcw,
@@ -16,13 +12,8 @@ import {
     AlertCircle,
     Package,
     TrendingUp,
-    ChevronDown,
-    X,
-    Check,
-    CheckCheck,
-    ShoppingBag,
 } from 'lucide-react';
-import { useAdminNotifications, requestBrowserPermission } from '@/hooks/useAdminNotifications';
+import { requestBrowserPermission } from '@/hooks/useAdminNotifications';
 
 interface DashboardStats {
     totalSales: number;
@@ -90,35 +81,19 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-// Curated primary color presets inspired by Donezo & modern luxury design
-const COLOR_PRESETS = [
-    { name: 'Donezo Forest', hex: '#1E5338', text: 'text-emerald-950', border: 'border-[#1E5338]' },
-    { name: 'Pine Emerald', hex: '#0D9488', text: 'text-teal-950', border: 'border-[#0D9488]' },
-    { name: 'Royal Indigo', hex: '#4338CA', text: 'text-indigo-950', border: 'border-[#4338CA]' },
-    { name: 'Ocean Cyan', hex: '#0284C7', text: 'text-sky-950', border: 'border-[#0284C7]' },
-    { name: 'Sunset Amber', hex: '#D97706', text: 'text-amber-950', border: 'border-[#D97706]' },
-    { name: 'Crimson Rose', hex: '#BE123C', text: 'text-rose-950', border: 'border-[#BE123C]' },
-    { name: 'Obsidian Noir', hex: '#18181B', text: 'text-zinc-950', border: 'border-[#18181B]' },
-];
 
 export default function AdminDashboard({
     stats,
     recentOrders = [],
     topSellingProducts = [],
 }: AdminDashboardProps) {
-    const { auth } = usePage<{ auth?: { user?: { name?: string; email?: string } } }>().props;
-    const user = auth?.user;
 
     // Theme color state with localStorage persistence
     const [primaryColor, setPrimaryColor] = useState<string>('#1E5338');
-    const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
-    const [searchQuery, setSearchQuery] = useState<string>('');
     const [analyticsPeriod, setAnalyticsPeriod] = useState<'week' | 'month'>('week');
     const [showNotifications, setShowNotifications] = useState<boolean>(false);
     const notifPanelRef = useRef<HTMLDivElement>(null);
 
-    // Real-time admin notifications
-    const { notifications, unreadCount, markRead, markAllRead } = useAdminNotifications();
 
     // Live session timer state
     const [timerSeconds, setTimerSeconds] = useState<number>(5048); // 01:24:08 initially
@@ -136,6 +111,13 @@ export default function AdminDashboard({
         }
         // Ask for browser push notification permission
         requestBrowserPermission();
+
+        const handleThemeChange = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handleThemeChange);
+        return () => window.removeEventListener('serdo:theme-color-changed', handleThemeChange);
     }, []);
 
     // Close notification panel when clicking outside
@@ -151,25 +133,6 @@ export default function AdminDashboard({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showNotifications]);
 
-    const formatNotifTime = useCallback((dateStr: string) => {
-        const diff = Date.now() - new Date(dateStr).getTime();
-        const mins = Math.floor(diff / 60000);
-        if (mins < 1) return 'just now';
-        if (mins < 60) return `${mins}m ago`;
-        const hrs = Math.floor(mins / 60);
-        if (hrs < 24) return `${hrs}h ago`;
-        return `${Math.floor(hrs / 24)}d ago`;
-    }, []);
-
-    // Save color to localStorage and update CSS variable
-    const handleColorChange = (hex: string) => {
-        setPrimaryColor(hex);
-        try {
-            localStorage.setItem('serdo_dashboard_primary_color', hex);
-        } catch (e) {
-            // Ignore
-        }
-    };
 
     // Live timer ticking
     useEffect(() => {
@@ -274,279 +237,9 @@ export default function AdminDashboard({
                 <div className="max-w-[1440px] mx-auto space-y-6">
 
                     {/* ========================================================== */}
-                    {/* TOP HEADER: Search, Notifications, Profile & Color Switcher */}
+                    {/* TITLE ROW: Dashboard Header + Primary Action              */}
                     {/* ========================================================== */}
-                    <header className="flex flex-col md:flex-row items-center justify-between gap-4">
-                        {/* Search Bar with Shortcut Pill */}
-                        <div className="relative w-full md:w-96">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
-                            <input
-                                type="text"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Search orders, products, customers..."
-                                className="w-full bg-white pl-11 pr-14 py-2.5 rounded-full text-sm text-neutral-800 placeholder-neutral-400 border border-neutral-200/80 shadow-xs focus:outline-none focus:ring-2 focus:ring-neutral-400/30 transition-all"
-                            />
-                            <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1 text-[11px] font-medium text-neutral-400 bg-neutral-100 border border-neutral-200/70 px-1.5 py-0.5 rounded-md pointer-events-none">
-                                <kbd>⌘</kbd>
-                                <kbd>F</kbd>
-                            </div>
-                        </div>
-
-                        {/* Actions: Theme Color Switcher, Notifications, Messages & User Profile */}
-                        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-                            {/* Color Theme Switcher Pill */}
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowColorPicker(!showColorPicker)}
-                                    className="flex items-center gap-2 px-3.5 py-2 bg-white hover:bg-neutral-50 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-700 shadow-xs transition-all active:scale-95"
-                                    title="Change Dashboard Primary Color"
-                                >
-                                    <span
-                                        className="w-3.5 h-3.5 rounded-full shadow-xs border border-white"
-                                        style={{ backgroundColor: primaryColor }}
-                                    />
-                                    <span>Theme</span>
-                                    <ChevronDown className={`w-3.5 h-3.5 text-neutral-400 transition-transform ${showColorPicker ? 'rotate-180' : ''}`} />
-                                </button>
-
-                                {/* Theme Customizer Dropdown Panel */}
-                                {showColorPicker && (
-                                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-neutral-200/80 p-4 z-50 animate-in fade-in zoom-in-95 duration-150">
-                                        <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                                            <div className="flex items-center gap-2">
-                                                <Palette className="w-4 h-4 text-neutral-600" />
-                                                <span className="text-xs font-bold text-neutral-800">Dashboard Theme</span>
-                                            </div>
-                                            <button
-                                                onClick={() => setShowColorPicker(false)}
-                                                className="text-neutral-400 hover:text-neutral-600 p-1"
-                                            >
-                                                <X className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
-
-                                        <p className="text-[11px] text-neutral-500 mt-2 mb-3">
-                                            Pick a primary accent color for your dashboard cards, charts, and buttons.
-                                        </p>
-
-                                        {/* Presets Grid */}
-                                        <div className="grid grid-cols-4 gap-2 mb-3">
-                                            {COLOR_PRESETS.map((preset) => (
-                                                <button
-                                                    key={preset.hex}
-                                                    onClick={() => handleColorChange(preset.hex)}
-                                                    className={`group relative flex flex-col items-center justify-center p-2 rounded-xl border transition-all ${
-                                                        primaryColor.toLowerCase() === preset.hex.toLowerCase()
-                                                            ? 'border-neutral-900 bg-neutral-50 shadow-xs'
-                                                            : 'border-neutral-200/60 hover:border-neutral-300 bg-white'
-                                                    }`}
-                                                    title={preset.name}
-                                                >
-                                                    <span
-                                                        className="w-6 h-6 rounded-full shadow-xs border border-black/10 flex items-center justify-center text-white text-[10px]"
-                                                        style={{ backgroundColor: preset.hex }}
-                                                    >
-                                                        {primaryColor.toLowerCase() === preset.hex.toLowerCase() && '✓'}
-                                                    </span>
-                                                    <span className="text-[9px] font-medium text-neutral-600 mt-1 truncate max-w-full">
-                                                        {preset.name.split(' ')[0]}
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </div>
-
-                                        {/* Custom Color Input */}
-                                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-neutral-100">
-                                            <label className="text-[11px] font-medium text-neutral-600">Custom Shade:</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="color"
-                                                    value={primaryColor}
-                                                    onChange={(e) => handleColorChange(e.target.value)}
-                                                    className="w-7 h-7 rounded-lg cursor-pointer border border-neutral-200 p-0.5 bg-white"
-                                                />
-                                                <span className="text-[11px] font-mono text-neutral-700 uppercase bg-neutral-50 px-2 py-0.5 rounded border border-neutral-200">
-                                                    {primaryColor}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Reset Button */}
-                                        <button
-                                            onClick={() => handleColorChange('#1E5338')}
-                                            className="w-full mt-3 py-1.5 text-[11px] font-medium text-neutral-600 hover:text-neutral-900 bg-neutral-100 hover:bg-neutral-200 rounded-lg transition-colors"
-                                        >
-                                            Reset to Donezo Forest Green
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Mail / Inbox Icon */}
-                            <button
-                                className="w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors shadow-xs active:scale-95"
-                                title="Messages"
-                            >
-                                <Mail className="w-4 h-4" />
-                            </button>
-
-                            {/* Notifications Bell with Live Dropdown */}
-                            <div className="relative" ref={notifPanelRef}>
-                                <button
-                                    onClick={() => setShowNotifications((v) => !v)}
-                                    className="relative w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors shadow-xs active:scale-95"
-                                    title="Notifications"
-                                >
-                                    <Bell className="w-4 h-4" />
-                                    {unreadCount > 0 && (
-                                        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
-                                            {unreadCount > 99 ? '99+' : unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-
-                                {/* Notification Dropdown Panel */}
-                                {showNotifications && (
-                                    <div className="absolute right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-2xl border border-neutral-200/80 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                                        {/* Header */}
-                                        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
-                                            <div className="flex items-center gap-2">
-                                                <Bell className="w-4 h-4 text-neutral-600" />
-                                                <span className="text-sm font-bold text-neutral-900">Notifications</span>
-                                                {unreadCount > 0 && (
-                                                    <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold">
-                                                        {unreadCount} unread
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                {unreadCount > 0 && (
-                                                    <button
-                                                        onClick={() => markAllRead()}
-                                                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
-                                                        title="Mark all as read"
-                                                    >
-                                                        <CheckCheck className="w-3.5 h-3.5" />
-                                                        All read
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => setShowNotifications(false)}
-                                                    className="p-1 text-neutral-400 hover:text-neutral-600 rounded"
-                                                >
-                                                    <X className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Notification List */}
-                                        <div className="max-h-[380px] overflow-y-auto divide-y divide-neutral-50">
-                                            {notifications.length === 0 ? (
-                                                <div className="flex flex-col items-center justify-center py-10 text-neutral-400">
-                                                    <Bell className="w-8 h-8 mb-2 opacity-30" />
-                                                    <p className="text-xs">No notifications yet</p>
-                                                </div>
-                                            ) : (
-                                                notifications.map((n) => (
-                                                    <div
-                                                        key={n.id}
-                                                        onClick={() => !n.is_read && markRead(n.id)}
-                                                        className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors ${
-                                                            n.is_read
-                                                                ? 'bg-white hover:bg-neutral-50'
-                                                                : 'bg-emerald-50/60 hover:bg-emerald-50'
-                                                        }`}
-                                                    >
-                                                        {/* Icon */}
-                                                        <div
-                                                            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs mt-0.5 ${
-                                                                n.type === 'payment_review_required'
-                                                                    ? 'bg-amber-500'
-                                                                    : n.type === 'payment_approved'
-                                                                    ? 'bg-emerald-500'
-                                                                    : 'bg-neutral-400'
-                                                            }`}
-                                                        >
-                                                            {n.type === 'payment_review_required' ? (
-                                                                <ShoppingBag className="w-3.5 h-3.5" />
-                                                            ) : n.type === 'payment_approved' ? (
-                                                                <Check className="w-3.5 h-3.5" />
-                                                            ) : (
-                                                                <Bell className="w-3.5 h-3.5" />
-                                                            )}
-                                                        </div>
-
-                                                        {/* Text */}
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className={`text-xs font-semibold truncate ${
-                                                                n.is_read ? 'text-neutral-600' : 'text-neutral-900'
-                                                            }`}>
-                                                                {n.title}
-                                                            </p>
-                                                            <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-2">
-                                                                {n.message}
-                                                            </p>
-                                                            {n.data?.customer_phone && (
-                                                                <a
-                                                                    href={`tel:${n.data.customer_phone}`}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full hover:bg-emerald-200 transition-colors"
-                                                                >
-                                                                    📞 {String(n.data.customer_phone)}
-                                                                </a>
-                                                            )}
-                                                            <p className="text-[10px] text-neutral-400 mt-1">{formatNotifTime(n.created_at)}</p>
-                                                        </div>
-
-                                                        {/* Unread dot */}
-                                                        {!n.is_read && (
-                                                            <span className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-emerald-500" />
-                                                        )}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-
-                                        {/* Footer */}
-                                        <div className="px-4 py-2.5 border-t border-neutral-100 bg-neutral-50">
-                                            <Link
-                                                href="/admin/payment"
-                                                onClick={() => setShowNotifications(false)}
-                                                className="flex items-center justify-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
-                                            >
-                                                <ShoppingBag className="w-3.5 h-3.5" />
-                                                View all payments
-                                            </Link>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* User Profile Chip */}
-                            <div className="flex items-center gap-2.5 pl-2 py-1 pr-3 bg-white rounded-full border border-neutral-200 shadow-xs">
-                                <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-xs"
-                                    style={{ backgroundColor: primaryColor }}
-                                >
-                                    {user?.name ? user.name.slice(0, 2).toUpperCase() : 'TM'}
-                                </div>
-                                <div className="hidden sm:block text-left pr-1 leading-tight">
-                                    <p className="text-xs font-bold text-neutral-800 truncate max-w-[120px]">
-                                        {user?.name || 'Totok Michael'}
-                                    </p>
-                                    <p className="text-[10px] text-neutral-400 truncate max-w-[120px]">
-                                        {user?.email || 'tmichael20@mail.com'}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </header>
-
-                    {/* ========================================================== */}
-                    {/* TITLE ROW: Dashboard Header + Primary & Secondary Actions */}
-                    {/* ========================================================== */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
                         <div>
                             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
                                 Dashboard
@@ -565,14 +258,6 @@ export default function AdminDashboard({
                                 <Plus className="w-4 h-4" />
                                 <span>Add Product</span>
                             </Link>
-
-                            <button
-                                onClick={() => setShowColorPicker(!showColorPicker)}
-                                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-white border border-neutral-200 text-neutral-700 text-xs sm:text-sm font-semibold shadow-xs hover:bg-neutral-50 active:scale-95 transition-all"
-                            >
-                                <Palette className="w-4 h-4 text-neutral-500" />
-                                <span>Theme Color</span>
-                            </button>
                         </div>
                     </div>
 

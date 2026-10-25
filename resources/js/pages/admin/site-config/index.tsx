@@ -1,6 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import ImageUpload from '@/components/ui/image-upload';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
-import { Head, useForm, router, Link } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import React from 'react';
-import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, CheckCircle, AlertTriangle, Eye, Ban, Plus, X, Edit } from 'lucide-react';
+import { FileImage, FileText, Globe, Info, Palette, Settings, CreditCard, Plus, X, Edit } from 'lucide-react';
 import { adminNavItems } from '@/constants/adminNavItems';
 
 interface OfflinePaymentMethod {
@@ -96,7 +96,7 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
         banner_secondary_image?: number;
     }>({});
 
-    const { data, setData, post, processing, errors, reset, transform } = useForm({
+    const { data, setData, post, processing, errors, transform } = useForm({
         // Homepage Banner
         banner_main_title: settings.banner_main_title || '',
         banner_main_subtitle: settings.banner_main_subtitle || '',
@@ -241,133 +241,160 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
         }));
     };
 
+    const [primaryColor, setPrimaryColor] = React.useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('serdo_dashboard_primary_color') || '#1E5338';
+        }
+        return '#1E5338';
+    });
+
+    React.useEffect(() => {
+        const handler = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handler);
+        return () => window.removeEventListener('serdo:theme-color-changed', handler);
+    }, []);
+
     return (
         <>
             <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
                 <Head title="Site Configuration" />
                 
-                <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100/50">
-                <div className="flex w-full flex-col p-6 font-sans max-w-7xl mx-auto">
-                    {/* Enhanced Header */}
-                    <div className="mb-8">
-                        <div className="flex items-center gap-3 mb-4">
-                            <div className="p-3 bg-primary/10 rounded-xl">
-                                <Settings className="h-8 w-8 text-primary" />
+                <div className="min-h-screen bg-[#F6F8FA] p-6 lg:p-8 font-sans">
+                    {/* Header Section */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Store Settings & Branding</span>
+                                <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                <span className="text-xs font-medium text-emerald-600">Saved</span>
                             </div>
-                            <div>
-                                <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                                    Site Configuration
-                                </h1>
-                                <p className="text-lg text-muted-foreground mt-1">
-                                    Customize your website's content, appearance, and legal pages
-                                </p>
+                            <h1 className="text-3xl font-extrabold tracking-tight text-gray-950 mt-1">Site Configuration</h1>
+                            <p className="text-sm text-gray-500 mt-0.5">Customize homepage hero banners, company story, footer links, payment accounts, and legal terms</p>
+                        </div>
+                    </div>
+
+                    {/* 5 Donezo Metric Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
+                        {/* Primary Hero Metric */}
+                        <div 
+                            className="relative overflow-hidden rounded-[26px] p-5 text-white shadow-lg transition-transform hover:-translate-y-0.5"
+                            style={{ backgroundColor: primaryColor }}
+                        >
+                            <div className="absolute top-0 right-0 -mr-6 -mt-6 h-28 w-28 rounded-full bg-white/10 blur-xl pointer-events-none" />
+                            <div className="flex items-center justify-between relative z-10">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-white/80">Homepage</span>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-md">
+                                    <Globe className="h-4 w-4 text-white" />
+                                </div>
+                            </div>
+                            <div className="mt-3 relative z-10">
+                                <h3 className="text-2xl font-black tracking-tight text-white">2 Banners</h3>
+                                <p className="text-[11px] font-medium text-white/80 mt-0.5">Main hero & promo</p>
                             </div>
                         </div>
-                        
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-6">
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-blue-100 rounded-lg">
-                                        <Globe className="h-5 w-5 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Homepage</p>
-                                        <p className="text-lg font-bold text-gray-900">2 Banners</p>
-                                    </div>
+
+                        {/* About Section Metric */}
+                        <div className="rounded-[26px] border border-gray-200/80 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">About Story</span>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50">
+                                    <Info className="h-4 w-4 text-emerald-600" />
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-green-100 rounded-lg">
-                                        <Info className="h-5 w-5 text-green-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">About</p>
-                                        <p className="text-lg font-bold text-gray-900">3 Sections</p>
-                                    </div>
+                            <div className="mt-3">
+                                <h3 className="text-2xl font-black tracking-tight text-emerald-600">3 Sections</h3>
+                                <p className="text-[11px] font-medium text-gray-500 mt-0.5">Pillars & vision</p>
+                            </div>
+                        </div>
+
+                        {/* Footer Metric */}
+                        <div className="rounded-[26px] border border-gray-200/80 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Store Footer</span>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-purple-50">
+                                    <Palette className="h-4 w-4 text-purple-600" />
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-purple-100 rounded-lg">
-                                        <Palette className="h-5 w-5 text-purple-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Footer</p>
-                                        <p className="text-lg font-bold text-gray-900">6 Fields</p>
-                                    </div>
+                            <div className="mt-3">
+                                <h3 className="text-2xl font-black tracking-tight text-purple-600">6 Fields</h3>
+                                <p className="text-[11px] font-medium text-gray-500 mt-0.5">Links & social contacts</p>
+                            </div>
+                        </div>
+
+                        {/* Offline Pay Metric */}
+                        <div className="rounded-[26px] border border-gray-200/80 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Manual Pay</span>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-red-50">
+                                    <CreditCard className="h-4 w-4 text-red-600" />
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-red-100 rounded-lg">
-                                        <FileImage className="h-5 w-5 text-red-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Offline Pay</p>
-                                        <p className="text-lg font-bold text-gray-900">{offlinePaymentMethods.length} Methods</p>
-                                    </div>
+                            <div className="mt-3">
+                                <h3 className="text-2xl font-black tracking-tight text-red-600">{offlinePaymentMethods.length} Methods</h3>
+                                <p className="text-[11px] font-medium text-gray-500 mt-0.5">Bank transfer / CBE / Telebirr</p>
+                            </div>
+                        </div>
+
+                        {/* Legal Metric */}
+                        <div className="rounded-[26px] border border-gray-200/80 bg-white p-5 shadow-sm transition-transform hover:-translate-y-0.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Legal Terms</span>
+                                <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-blue-50">
+                                    <FileText className="h-4 w-4 text-blue-600" />
                                 </div>
                             </div>
-                            <div className="bg-white/70 backdrop-blur-sm border border-white/20 rounded-xl p-4 shadow-sm">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-primary-100 rounded-lg">
-                                        <FileText className="h-5 w-5 text-primary-600" />
-                                    </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Legal</p>
-                                        <p className="text-lg font-bold text-gray-900">2 Pages</p>
-                                    </div>
-                                </div>
+                            <div className="mt-3">
+                                <h3 className="text-2xl font-black tracking-tight text-blue-600">2 Pages</h3>
+                                <p className="text-[11px] font-medium text-gray-500 mt-0.5">Privacy policy & terms</p>
                             </div>
                         </div>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-8">
-                        <div className="bg-white/50 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-                            <Tabs defaultValue="homepage" className="w-full">
-                                <div className="border-b border-gray-200/50 bg-white/30 px-6 py-4">
-                                    <TabsList className="grid w-full grid-cols-6 bg-gray-100/50 p-1 rounded-xl">
-                                        <TabsTrigger value="homepage" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <Globe className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Homepage</span>
+                        <div className="bg-white rounded-[26px] border border-gray-200/80 shadow-sm overflow-hidden p-6">
+                            <Tabs defaultValue="homepage" className="w-full space-y-6">
+                                <div className="overflow-x-auto pb-2">
+                                    <TabsList className="h-11 bg-gray-200/60 p-1 rounded-2xl border border-gray-200/50 inline-flex min-w-full sm:min-w-0">
+                                        <TabsTrigger value="homepage" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <Globe className="h-3.5 w-3.5 mr-2" />
+                                            <span>Homepage</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="about" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <Info className="h-4 w-4" />
-                                            <span className="hidden sm:inline">About</span>
+                                        <TabsTrigger value="about" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <Info className="h-3.5 w-3.5 mr-2" />
+                                            <span>About Story</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="footer" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <Palette className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Footer</span>
+                                        <TabsTrigger value="footer" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <Palette className="h-3.5 w-3.5 mr-2" />
+                                            <span>Footer & Links</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="chapa-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <CreditCard className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Chapa Methods</span>
+                                        <TabsTrigger value="chapa-payments" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <CreditCard className="h-3.5 w-3.5 mr-2" />
+                                            <span>Chapa Gateways</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="offline-payments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <FileImage className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Offline Submit</span>
+                                        <TabsTrigger value="offline-payments" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <FileImage className="h-3.5 w-3.5 mr-2" />
+                                            <span>Offline Accounts</span>
                                         </TabsTrigger>
-                                        <TabsTrigger value="legal" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm rounded-lg transition-all cursor-pointer">
-                                            <FileText className="h-4 w-4" />
-                                            <span className="hidden sm:inline">Legal</span>
+                                        <TabsTrigger value="legal" className="rounded-xl px-4 py-2 font-semibold text-xs tracking-wide data-[state=active]:bg-white data-[state=active]:text-gray-900 data-[state=active]:shadow-sm transition-all cursor-pointer">
+                                            <FileText className="h-3.5 w-3.5 mr-2" />
+                                            <span>Legal Pages</span>
                                         </TabsTrigger>
                                     </TabsList>
                                 </div>
 
-                                {/* <div className="p-6"> */}
-
                                 {/* Homepage Banner Tab */}
-                                <TabsContent value="homepage" className="space-y-8 mt-0">
-                                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className="p-2 bg-blue-100 rounded-lg">
-                                                <Globe className="h-5 w-5 text-blue-600" />
+                                <TabsContent value="homepage" className="space-y-8 mt-0 outline-none">
+                                    <div className="rounded-[22px] bg-blue-50/70 p-5 border border-blue-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-100 text-blue-600">
+                                                <Globe className="h-5 w-5" />
                                             </div>
                                             <div>
-                                                <h3 className="text-lg font-semibold text-blue-900">Homepage Banners</h3>
-                                                <p className="text-sm text-blue-700">Configure your main homepage banners and call-to-actions</p>
+                                                <h3 className="text-base font-bold text-blue-950">Homepage Banners</h3>
+                                                <p className="text-xs text-blue-700">Configure your hero promotions, banners, buttons, and call-to-actions</p>
                                             </div>
                                         </div>
                                     </div>
@@ -1894,7 +1921,6 @@ export default function SiteConfig({ settings, offlinePaymentMethods, chapaPayme
                             </form>
                         </DialogContent>
                     </Dialog>
-                </div>
                 </div>
             </AppLayout>
         </>

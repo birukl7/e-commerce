@@ -1,82 +1,46 @@
-'use client';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/app-layout';
+import { adminNavItems } from '@/constants/adminNavItems';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowUpDown, CreditCard, DollarSign, Download, Eye, Filter, Search, TrendingDown, TrendingUp, X, CheckCircle, Clock, AlertTriangle, Ban } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { adminNavItems } from '@/constants/adminNavItems';
-
-interface PaymentTransaction {
-    id: number;
-    tx_ref: string;
-    order_id: string | null;
-    product_request_id: number | null;
-    customer_name: string;
-    customer_email: string;
-    customer_phone: string | null;
-    customer_id: number | null;
-    amount: number;
-    currency: string;
-    payment_method: string;
-    gateway_status: 'pending' | 'proof_uploaded' | 'paid' | 'failed' | 'refunded';
-    admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
-    created_at: string;
-    updated_at: string;
-    order_total: number | null;
-    order_status: string | null;
-    order_date: string | null;
-    admin_name: string | null;
-    admin_action_at: string | null;
-    gateway_payload?: any;
-}
+import React, { useEffect, useState } from 'react';
+import {
+    AlertTriangle,
+    ArrowUpRight,
+    CheckCircle2,
+    Clock,
+    CreditCard,
+    DollarSign,
+    Download,
+    Eye,
+    Receipt,
+    Search,
+    ShieldCheck,
+    TrendingUp,
+    X,
+    XCircle,
+} from 'lucide-react';
 
 interface PaymentStats {
     total_transactions: number;
-    gateway_paid: number;
-    awaiting_approval: number;
     fully_completed: number;
+    pending_approval: number;
+    awaiting_approval: number;
     unseen_payments: number;
+    rejected_payments: number;
     total_revenue: number;
     pending_revenue: number;
-}
-
-interface PaymentFilters {
-    search?: string;
-    gateway_status?: string;
-    admin_status?: string;
-    payment_method?: string;
-    date_from?: string;
-    date_to?: string;
-    priority?: string;
-}
-
-interface PaginatedPayments {
-    data: PaymentTransaction[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number;
-    to: number;
-    links: Array<{
-        url: string | null;
-        label: string;
-        active: boolean;
-    }>;
+    gateway_paid: number;
+    offline_count: number;
+    chapa_count: number;
 }
 
 interface PaymentRow {
     id: number;
     tx_ref: string;
     order_id: string | null;
-    product_request_id: number | null;
     customer_name: string;
     customer_email: string;
     amount: number;
@@ -86,114 +50,75 @@ interface PaymentRow {
     admin_status: 'unseen' | 'seen' | 'approved' | 'rejected';
     created_at: string;
     gateway_payload?: any;
+    product_request_id?: number | null;
 }
 
 interface AdminPaymentIndexProps {
-    payments: PaginatedPayments;
     stats: PaymentStats;
-    filters: PaymentFilters;
+    filters: {
+        search?: string;
+        gateway_status?: string;
+        admin_status?: string;
+        payment_method?: string;
+        date_from?: string;
+        date_to?: string;
+        priority?: string;
+    };
     recentChapaPayments: PaymentRow[];
     recentOfflinePayments: PaymentRow[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Admin Dashboard',
-        href: '/admin-dashboard',
-    },
-    {
-        title: 'Payment Statistics',
-        href: '/admin/payment',
-    },
+    { title: 'Admin Dashboard', href: '/admin-dashboard' },
+    { title: 'Payment Management', href: '/admin/payment' },
 ];
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error?: any }>{
-    constructor(props: any) {
-        super(props);
-        this.state = { hasError: false };
-    }
-    static getDerivedStateFromError(error: any) {
-        return { hasError: true, error };
-    }
-    componentDidCatch(error: any, errorInfo: any) {
-        // Log to console to help diagnose client-side crashes
-        console.error('AdminPaymentIndex runtime error:', error, errorInfo);
-    }
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="p-6">
-                    <h2 className="text-red-600 font-semibold mb-2">Something went wrong on this page.</h2>
-                    <p className="text-sm text-muted-foreground">Please reload. If the issue persists, share the browser console error.</p>
-                </div>
-            );
-        }
-        return this.props.children as any;
-    }
-}
-
-export default function AdminPaymentIndex({ payments, stats, filters, recentChapaPayments, recentOfflinePayments }: AdminPaymentIndexProps) {
+export default function AdminPaymentIndex({
+    stats,
+    filters,
+    recentChapaPayments = [],
+    recentOfflinePayments = [],
+}: AdminPaymentIndexProps) {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [gatewayStatusFilter, setGatewayStatusFilter] = useState(filters.gateway_status || 'all');
     const [adminStatusFilter, setAdminStatusFilter] = useState(filters.admin_status || 'all');
     const [paymentMethodFilter, setPaymentMethodFilter] = useState(filters.payment_method || 'all');
     const [dateFromFilter, setDateFromFilter] = useState(filters.date_from || '');
     const [dateToFilter, setDateToFilter] = useState(filters.date_to || '');
-    const [priorityFilter, setPriorityFilter] = useState(filters.priority || '');
-    
-    // Bulk actions
     const [selectedPayments, setSelectedPayments] = useState<number[]>([]);
     const [showBulkActions, setShowBulkActions] = useState(false);
-    const [isClient, setIsClient] = useState(false);
-
-    useEffect(() => {
-        setIsClient(true);
-    }, []);
+    const [activeTab, setActiveTab] = useState<'offline' | 'chapa'>('offline');
+    const [primaryColor, setPrimaryColor] = useState<string>('#1E5338');
 
     const bulkActionForm = useForm({
         action: '',
         payment_ids: [] as number[],
     });
 
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('serdo_dashboard_primary_color');
+            if (saved) setPrimaryColor(saved);
+        } catch {
+            // Ignore
+        }
+
+        const handleThemeChange = (e: any) => {
+            const color = typeof e.detail === 'string' ? e.detail : (e.detail?.color || e.detail?.hex);
+            if (color) setPrimaryColor(color);
+        };
+        window.addEventListener('serdo:theme-color-changed', handleThemeChange);
+        return () => window.removeEventListener('serdo:theme-color-changed', handleThemeChange);
+    }, []);
+
     const formatCurrency = (amount: number, currency = 'ETB') => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
             currency: currency === 'ETB' ? 'USD' : currency,
-            minimumFractionDigits: 2,
+            maximumFractionDigits: 0,
         })
             .format(amount)
             .replace('$', currency + ' ');
-    };
-
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
-    const getGatewayStatusBadge = (status: string) => {
-        const variants = {
-            'pending': { variant: 'secondary', class: 'bg-gray-100 text-gray-800', icon: Clock },
-            'proof_uploaded': { variant: 'secondary', class: 'bg-blue-100 text-blue-800', icon: AlertTriangle },
-            'paid': { variant: 'default', class: 'bg-green-100 text-green-800', icon: CheckCircle },
-            'failed': { variant: 'destructive', class: 'bg-red-100 text-red-800', icon: Ban },
-            'refunded': { variant: 'outline', class: 'bg-purple-100 text-purple-800', icon: TrendingDown }
-        };
-        return variants[status as keyof typeof variants] || variants.pending;
-    };
-
-    const getAdminStatusBadge = (status: string) => {
-        const variants = {
-            'unseen': { variant: 'secondary', class: 'bg-yellow-100 text-yellow-800 border-yellow-300', icon: AlertTriangle },
-            'seen': { variant: 'secondary', class: 'bg-blue-100 text-blue-800', icon: Eye },
-            'approved': { variant: 'default', class: 'bg-green-100 text-green-800', icon: CheckCircle },
-            'rejected': { variant: 'destructive', class: 'bg-red-100 text-red-800', icon: Ban }
-        };
-        return variants[status as keyof typeof variants] || variants.unseen;
     };
 
     const handleSearch = () => {
@@ -204,7 +129,6 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
         if (paymentMethodFilter !== 'all') params.append('payment_method', paymentMethodFilter);
         if (dateFromFilter) params.append('date_from', dateFromFilter);
         if (dateToFilter) params.append('date_to', dateToFilter);
-        if (priorityFilter) params.append('priority', priorityFilter);
 
         router.get('/admin/payment', Object.fromEntries(params), {
             preserveState: true,
@@ -219,7 +143,6 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
         setPaymentMethodFilter('all');
         setDateFromFilter('');
         setDateToFilter('');
-        setPriorityFilter('');
         router.get('/admin/payment', {}, { preserveState: true, preserveScroll: true });
     };
 
@@ -236,11 +159,9 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
 
     const handleBulkAction = (action: string) => {
         if (selectedPayments.length === 0) return;
-        
         bulkActionForm.setData({
             action,
             payment_ids: selectedPayments,
-            notes: ''
         });
         setShowBulkActions(true);
     };
@@ -251,197 +172,231 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                 setSelectedPayments([]);
                 setShowBulkActions(false);
                 bulkActionForm.reset();
-            }
+            },
         });
     };
 
-    const togglePaymentSelection = (paymentId: number) => {
-        setSelectedPayments(prev => 
-            prev.includes(paymentId) 
-                ? prev.filter(id => id !== paymentId)
-                : [...prev, paymentId]
-        );
-    };
-
-    const getPaymentPriority = (payment: PaymentTransaction) => {
-        if ((payment.gateway_status === 'paid' || payment.gateway_status === 'proof_uploaded') && payment.admin_status === 'unseen') {
-            return 'urgent';
-        }
-        if ((payment.gateway_status === 'paid' || payment.gateway_status === 'proof_uploaded') && payment.admin_status === 'seen') {
-            return 'high';
-        }
-        return 'normal';
-    };
-
-    const getPaymentType = (payment: PaymentRow | PaymentTransaction): string => {
-        // First, check gateway_payload for payment_type (most reliable)
+    const getPaymentType = (payment: PaymentRow): string => {
         if (payment.gateway_payload) {
-            const payload = typeof payment.gateway_payload === 'string' 
-                ? JSON.parse(payment.gateway_payload) 
-                : payment.gateway_payload;
-            
+            const payload =
+                typeof payment.gateway_payload === 'string'
+                    ? (() => {
+                          try {
+                              return JSON.parse(payment.gateway_payload);
+                          } catch {
+                              return {};
+                          }
+                      })()
+                    : payment.gateway_payload;
+
             if (payload?.payment_type) {
                 if (payload.payment_type === 'product_request_advance' || payload.payment_type === 'advance') {
-                    return 'Product Request Advance';
+                    return 'Request Advance';
                 } else if (payload.payment_type === 'product_request_final' || payload.payment_type === 'final') {
-                    return 'Product Request Final';
+                    return 'Request Final';
                 }
             }
         }
-        
-        // Fall back to checking product_request_id and tx_ref prefix
-        if ((payment as any).product_request_id) {
+        if (payment.product_request_id) {
             const txRef = payment.tx_ref;
-            if (txRef.startsWith('ADV-')) {
-                return 'Product Request Advance';
-            } else if (txRef.startsWith('FINAL-')) {
-                return 'Product Request Final';
-            }
-            // If it's a product request but we can't determine type, assume advance
-            // (since final payments typically come after advance)
-            return 'Product Request Advance';
+            if (txRef.startsWith('ADV-')) return 'Request Advance';
+            if (txRef.startsWith('FINAL-')) return 'Request Final';
+            return 'Request Advance';
         }
-        return 'Normal Purchase';
+        return 'Standard Checkout';
     };
 
-    const getPaymentTypeBadge = (payment: PaymentRow | PaymentTransaction) => {
-        const paymentType = getPaymentType(payment);
-        if (paymentType === 'Product Request Advance') {
-            return <Badge className="bg-orange-100 text-orange-800">Request Advance</Badge>;
-        } else if (paymentType === 'Product Request Final') {
-            return <Badge className="bg-purple-100 text-purple-800">Request Final</Badge>;
-        } else if (paymentType === 'Product Request') {
-            return <Badge className="bg-blue-100 text-blue-800">Product Request</Badge>;
-        }
-        return <Badge className="bg-gray-100 text-gray-800">Normal Purchase</Badge>;
+    const getCustomerAvatarColor = (name: string) => {
+        const list = [
+            'bg-emerald-100 text-emerald-800 border-emerald-200',
+            'bg-blue-100 text-blue-800 border-blue-200',
+            'bg-purple-100 text-purple-800 border-purple-200',
+            'bg-amber-100 text-amber-800 border-amber-200',
+            'bg-rose-100 text-rose-800 border-rose-200',
+        ];
+        return list[(name || 'U').charCodeAt(0) % list.length];
     };
+
+    const activeList = activeTab === 'offline' ? recentOfflinePayments : recentChapaPayments;
 
     return (
-        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}> 
-            <Head title="Payment Statistics" />
-            <ErrorBoundary>
-            <div className="flex h-full flex-1 flex-col gap-6 overflow-x-auto rounded-xl p-6 font-sans w-full max-w-7xl mx-auto">
-                {/* Header Section */}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Payment Management</h1>
-                        <p className="text-muted-foreground">Monitor gateway status and approve payments</p>
-                    </div>
-                    <div className="flex gap-2">
-                        {selectedPayments.length > 0 && (
-                            <div className="flex gap-2">
-                                <Button variant="outline" onClick={() => handleBulkAction('mark_seen')}>
+        <AppLayout breadcrumbs={breadcrumbs} mainNavItems={adminNavItems} footerNavItems={[]}>
+            <Head title="Payment Verification & Audit | Donezo Style" />
+
+            <div className="min-h-screen bg-[#F6F8FA] p-4 sm:p-6 lg:p-8 font-sans text-neutral-900 transition-colors duration-300">
+                <div className="max-w-[1440px] mx-auto space-y-6">
+
+                    {/* Title Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+                        <div>
+                            <div className="flex items-center gap-2.5">
+                                <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-neutral-900">
+                                    Payments & Receipts
+                                </h1>
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-neutral-100 text-neutral-700 border border-neutral-200">
+                                    <ShieldCheck className="w-3 h-3 text-neutral-500" />
+                                    Verification Hub
+                                </span>
+                            </div>
+                            <p className="text-xs sm:text-sm text-neutral-400 mt-1 font-normal">
+                                Audit Chapa gateway payments, review offline bank receipts, and authorize customer purchases.
+                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2.5">
+                            {selectedPayments.length > 0 && (
+                                <button
+                                    onClick={() => handleBulkAction('mark_seen')}
+                                    className="px-4 py-2.5 rounded-full bg-white border border-neutral-200 text-neutral-700 text-xs sm:text-sm font-semibold shadow-xs hover:bg-neutral-50 active:scale-95 transition-all"
+                                >
                                     Mark Seen ({selectedPayments.length})
-                                </Button>
-                            </div>
-                        )}
-                        <Button onClick={handleExport} className="flex items-center gap-2">
-                            <Download className="h-4 w-4" />
-                            Export CSV
-                        </Button>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={handleExport}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white border border-neutral-200 text-neutral-700 text-xs sm:text-sm font-semibold shadow-xs hover:bg-neutral-50 active:scale-95 transition-all"
+                            >
+                                <Download className="w-4 h-4 text-neutral-500" />
+                                <span>Export CSV</span>
+                            </button>
+
+                            <Link
+                                href="/admin/sales"
+                                className="flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-xs sm:text-sm font-semibold shadow-xs hover:opacity-95 active:scale-95 transition-all"
+                                style={{ backgroundColor: primaryColor }}
+                            >
+                                <TrendingUp className="w-4 h-4" />
+                                <span>Sales Hub</span>
+                            </Link>
+                        </div>
                     </div>
-                </div>
 
-                {/* Enhanced Key Metrics Cards */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Confirmed Revenue</CardTitle>
-                            <CheckCircle className="h-4 w-4 text-green-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.total_revenue)}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Fully completed: {stats.fully_completed}</span>
+                    {/* Metric Strip (Signature 4-Card Style) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Card 1: Primary Accent (Confirmed Revenue) */}
+                        <div
+                            className="relative overflow-hidden rounded-[26px] p-6 text-white shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px]"
+                            style={{ backgroundColor: primaryColor }}
+                        >
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-medium text-white/80">Confirmed Revenue</span>
+                                <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-xs">
+                                    <ArrowUpRight className="w-4 h-4" style={{ color: primaryColor }} />
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Pending Approval</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-orange-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-orange-600">{formatCurrency(stats.pending_revenue)}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Awaiting approval: {stats.awaiting_approval}</span>
+                            <div className="space-y-2">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">
+                                    {formatCurrency(stats.total_revenue || 0)}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/15 text-[11px] font-medium text-white backdrop-blur-xs">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    <span>{stats.fully_completed} verified transactions</span>
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
 
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Gateway Paid</CardTitle>
-                            <DollarSign className="h-4 w-4 text-primary" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-foreground">{stats.gateway_paid}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Gateway confirmed payments</span>
+                        {/* Card 2: White Card (Pending Approval Revenue) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Pending Review Slip</span>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    stats.awaiting_approval > 0
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                        : 'border border-neutral-200 text-neutral-400'
+                                }`}>
+                                    {stats.awaiting_approval}
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-border/50 shadow-sm transition-shadow hover:shadow-md">
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">Needs Attention</CardTitle>
-                            <Clock className="h-4 w-4 text-red-600" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">{stats.unseen_payments}</div>
-                            <div className="flex items-center gap-1 text-xs">
-                                <span className="text-muted-foreground">Unseen payments</span>
+                            <div className="space-y-2">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {formatCurrency(stats.pending_revenue || 0)}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-[11px] font-semibold text-amber-700 border border-amber-200/60">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{stats.awaiting_approval} slips waiting for approval</span>
+                                </div>
                             </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                        </div>
 
-                {/* Enhanced Filters Section */}
-                <Card className="border-border/50 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-lg font-semibold">
-                            <Filter className="h-5 w-5" />
-                            Filters & Quick Actions
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-8">
-                            <div className="relative">
-                                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        {/* Card 3: White Card (Needs Attention / Unseen) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Needs Attention</span>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                    stats.unseen_payments > 0
+                                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                        : 'border border-neutral-200 text-neutral-400'
+                                }`}>
+                                    {stats.unseen_payments}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {stats.unseen_payments}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-50 text-[11px] font-semibold text-rose-700 border border-rose-200/60">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    <span>Unseen incoming submissions</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Card 4: White Card (Gateway Paid Total) */}
+                        <div className="rounded-[26px] bg-white p-6 border border-neutral-100 shadow-xs transition-transform duration-200 hover:-translate-y-0.5 flex flex-col justify-between min-h-[160px]">
+                            <div className="flex items-start justify-between">
+                                <span className="text-xs font-semibold text-neutral-400">Gateway Confirmed</span>
+                                <div className="w-8 h-8 rounded-full border border-neutral-200 flex items-center justify-center text-neutral-700 hover:bg-neutral-50">
+                                    <CreditCard className="w-4 h-4 text-emerald-600" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <div className="text-3xl sm:text-4xl font-extrabold tracking-tight text-neutral-900">
+                                    {stats.gateway_paid}
+                                </div>
+                                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-neutral-100 text-[11px] font-semibold text-neutral-600">
+                                    <DollarSign className="w-3 h-3 text-emerald-600" />
+                                    <span>{stats.chapa_count} Chapa • {stats.offline_count} Offline</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Filter Bar */}
+                    <div className="rounded-[26px] bg-white border border-neutral-100 shadow-xs p-5">
+                        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                                 <Input
-                                    placeholder="Search transactions..."
+                                    placeholder="Search by tx ref, customer name, order #..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                    className="pl-10 rounded-full border-neutral-200/80 text-xs py-2 bg-neutral-50/60 focus:bg-white"
                                 />
                             </div>
 
-                            {isClient ? (
+                            <div className="w-full sm:w-44">
                                 <Select value={gatewayStatusFilter} onValueChange={setGatewayStatusFilter}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="rounded-full border-neutral-200/80 text-xs py-2 bg-white">
                                         <SelectValue placeholder="Gateway Status" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="rounded-2xl">
                                         <SelectItem value="all">All Gateway Status</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="proof_uploaded">Proof Uploaded</SelectItem>
                                         <SelectItem value="paid">Paid</SelectItem>
+                                        <SelectItem value="proof_uploaded">Proof Uploaded</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
                                         <SelectItem value="failed">Failed</SelectItem>
-                                        <SelectItem value="refunded">Refunded</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            ) : (
-                                <div className="h-10 rounded-md border bg-muted" />
-                            )}
+                            </div>
 
-                            {isClient ? (
+                            <div className="w-full sm:w-44">
                                 <Select value={adminStatusFilter} onValueChange={setAdminStatusFilter}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="rounded-full border-neutral-200/80 text-xs py-2 bg-white">
                                         <SelectValue placeholder="Admin Status" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="rounded-2xl">
                                         <SelectItem value="all">All Admin Status</SelectItem>
                                         <SelectItem value="unseen">Unseen</SelectItem>
                                         <SelectItem value="seen">Seen</SelectItem>
@@ -449,228 +404,325 @@ export default function AdminPaymentIndex({ payments, stats, filters, recentChap
                                         <SelectItem value="rejected">Rejected</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            ) : (
-                                <div className="h-10 rounded-md border bg-muted" />
-                            )}
+                            </div>
 
-                            {isClient ? (
+                            <div className="w-full sm:w-44">
                                 <Select value={paymentMethodFilter} onValueChange={setPaymentMethodFilter}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="rounded-full border-neutral-200/80 text-xs py-2 bg-white">
                                         <SelectValue placeholder="Payment Method" />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent className="rounded-2xl">
                                         <SelectItem value="all">All Methods</SelectItem>
-                                        <SelectItem value="chapa">Chapa</SelectItem>
+                                        <SelectItem value="offline">Bank Transfer / Offline</SelectItem>
+                                        <SelectItem value="chapa">Chapa Gateway</SelectItem>
                                         <SelectItem value="telebirr">Telebirr</SelectItem>
-                                        <SelectItem value="cbe">CBE</SelectItem>
-                                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                                        <SelectItem value="paypal">PayPal</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            ) : (
-                                <div className="h-10 rounded-md border bg-muted" />
-                            )}
+                            </div>
 
-                            {isClient ? (
-                                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Priority" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="">All Priorities</SelectItem>
-                                        <SelectItem value="needs_attention">Needs Attention</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            ) : (
-                                <div className="h-10 rounded-md border bg-muted" />
-                            )}
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="date"
+                                    value={dateFromFilter}
+                                    onChange={(e) => setDateFromFilter(e.target.value)}
+                                    className="rounded-full border-neutral-200/80 text-xs py-2 w-36 bg-white"
+                                />
+                                <Input
+                                    type="date"
+                                    value={dateToFilter}
+                                    onChange={(e) => setDateToFilter(e.target.value)}
+                                    className="rounded-full border-neutral-200/80 text-xs py-2 w-36 bg-white"
+                                />
+                            </div>
 
-                            <Input type="date" placeholder="From Date" value={dateFromFilter} onChange={(e) => setDateFromFilter(e.target.value)} />
-
-                            <Input type="date" placeholder="To Date" value={dateToFilter} onChange={(e) => setDateToFilter(e.target.value)} />
-
-                            <div className="flex gap-2">
-                                <Button onClick={handleSearch} className="flex-1">
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={handleSearch}
+                                    className="px-5 py-2 text-white text-xs font-semibold rounded-full shadow-xs transition-colors hover:opacity-95"
+                                    style={{ backgroundColor: primaryColor }}
+                                >
                                     Apply
-                                </Button>
-                                <Button variant="outline" onClick={clearFilters}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={clearFilters}
+                                    className="p-2 rounded-full border border-neutral-200 hover:bg-neutral-50 text-neutral-400 hover:text-neutral-700 transition-colors"
+                                    title="Clear Filters"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
 
-                {/* Match Site Config Payments Tab: Chapa / Offline subtabs with recent lists */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <CreditCard className="h-5 w-5" />
-                            Payments (Quick Review)
-                        </CardTitle>
-                        <CardDescription>Review and take action on recent Chapa and Offline payments</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="mt-2">
-                            <div className="border-b mb-4" />
-                            <div className="grid grid-cols-2 max-w-xs mb-2">
-                                <Button variant="ghost" className="justify-start" onClick={() => router.reload({ only: ['recentChapaPayments','recentOfflinePayments'] })}>Chapa</Button>
-                                <Button variant="ghost" className="justify-start" onClick={() => router.reload({ only: ['recentChapaPayments','recentOfflinePayments'] })}>Offline</Button>
-                            </div>
-                            {/* Chapa table */}
-                            <div className="overflow-x-auto mt-4">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="text-left py-2">Tx Ref</th>
-                                            <th className="text-left py-2">Order</th>
-                                            <th className="text-left py-2">Customer</th>
-                                            <th className="text-left py-2">Amount</th>
-                                            <th className="text-left py-2">Gateway</th>
-                                            <th className="text-left py-2">Admin</th>
-                                            <th className="text-left py-2">Date</th>
-                                            <th className="text-left py-2">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {recentChapaPayments.map(p => (
-                                            <tr key={p.id} className="border-b hover:bg-muted/30">
-                                                <td className="py-2">
-                                                    {getPaymentTypeBadge(p)}
+                    {/* Method Tabs Switcher */}
+                    <div className="flex items-center justify-between">
+                        <div className="inline-flex items-center bg-white p-1 rounded-full border border-neutral-200/80 shadow-xs">
+                            <button
+                                onClick={() => setActiveTab('offline')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                                    activeTab === 'offline' ? 'text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                                style={activeTab === 'offline' ? { backgroundColor: primaryColor } : {}}
+                            >
+                                <Receipt className="w-3.5 h-3.5" />
+                                <span>Offline & Bank Receipts</span>
+                                <span
+                                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                        activeTab === 'offline' ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-600'
+                                    }`}
+                                >
+                                    {recentOfflinePayments.length}
+                                </span>
+                            </button>
+
+                            <button
+                                onClick={() => setActiveTab('chapa')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                                    activeTab === 'chapa' ? 'text-white shadow-xs' : 'text-neutral-500 hover:text-neutral-800'
+                                }`}
+                                style={activeTab === 'chapa' ? { backgroundColor: primaryColor } : {}}
+                            >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Chapa Online Gateway</span>
+                                <span
+                                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                                        activeTab === 'chapa' ? 'bg-white/20 text-white' : 'bg-neutral-100 text-neutral-600'
+                                    }`}
+                                >
+                                    {recentChapaPayments.length}
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Payments Table */}
+                    <div className="rounded-[26px] bg-white border border-neutral-100 shadow-xs overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs">
+                                <thead>
+                                    <tr className="border-b border-neutral-100 bg-neutral-50/70 text-neutral-400 font-semibold uppercase tracking-wider text-[10px]">
+                                        <th className="py-3.5 px-5 w-12 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={activeList.length > 0 && selectedPayments.length === activeList.length}
+                                                onChange={() => {
+                                                    if (selectedPayments.length === activeList.length) {
+                                                        setSelectedPayments([]);
+                                                    } else {
+                                                        setSelectedPayments(activeList.map((p) => p.id));
+                                                    }
+                                                }}
+                                                className="rounded border-neutral-300 text-neutral-900 focus:ring-0"
+                                            />
+                                        </th>
+                                        <th className="py-3.5 px-4">Type</th>
+                                        <th className="py-3.5 px-4">Transaction / Method</th>
+                                        <th className="py-3.5 px-4">Order Link</th>
+                                        <th className="py-3.5 px-4">Customer</th>
+                                        <th className="py-3.5 px-4">Amount</th>
+                                        <th className="py-3.5 px-4">Gateway Status</th>
+                                        <th className="py-3.5 px-4">Admin Status</th>
+                                        <th className="py-3.5 px-4">Date</th>
+                                        <th className="py-3.5 px-5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-neutral-100">
+                                    {activeList.map((p) => {
+                                        const pType = getPaymentType(p);
+                                        const avatarClass = getCustomerAvatarColor(p.customer_name);
+
+                                        return (
+                                            <tr key={p.id} className="hover:bg-neutral-50/70 transition-colors group">
+                                                <td className="py-4 px-5 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedPayments.includes(p.id)}
+                                                        onChange={() => {
+                                                            setSelectedPayments((prev) =>
+                                                                prev.includes(p.id) ? prev.filter((id) => id !== p.id) : [...prev, p.id]
+                                                            );
+                                                        }}
+                                                        className="rounded border-neutral-300 text-neutral-900 focus:ring-0"
+                                                    />
                                                 </td>
-                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
-                                                <td className="py-2">{p.order_id ?? '-'}</td>
-                                                <td className="py-2">
-                                                    <div className="flex flex-col">
-                                                        <span>{p.customer_name}</span>
-                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
+
+                                                {/* Type */}
+                                                <td className="py-4 px-4">
+                                                    <span
+                                                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                                                            pType === 'Request Advance'
+                                                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                                                : pType === 'Request Final'
+                                                                ? 'bg-purple-50 text-purple-800 border border-purple-200'
+                                                                : 'bg-neutral-100 text-neutral-700 border border-neutral-200'
+                                                        }`}
+                                                    >
+                                                        {pType}
+                                                    </span>
+                                                </td>
+
+                                                {/* Tx Ref */}
+                                                <td className="py-4 px-4">
+                                                    <div className="font-mono text-[11px] font-bold text-neutral-800">
+                                                        #{p.tx_ref}
+                                                    </div>
+                                                    <div className="text-[10px] text-neutral-400 capitalize">
+                                                        {p.payment_method.replace('_', ' ')}
                                                     </div>
                                                 </td>
-                                                <td className="py-2">{formatCurrency(p.amount, p.currency)}</td>
-                                                <td className="py-2">
-                                                    {p.gateway_status === 'paid' && <Badge className="bg-green-100 text-green-800">paid</Badge>}
-                                                    {p.gateway_status === 'pending' && <Badge className="bg-gray-100 text-gray-800">pending</Badge>}
-                                                    {p.gateway_status === 'failed' && <Badge className="bg-red-100 text-red-800">failed</Badge>}
+
+                                                {/* Order Link */}
+                                                <td className="py-4 px-4">
+                                                    {p.order_id ? (
+                                                        <Link
+                                                            href={`/admin/orders/${p.order_id}`}
+                                                            className="font-mono text-[11px] font-bold hover:underline"
+                                                            style={{ color: primaryColor }}
+                                                        >
+                                                            #{p.order_id}
+                                                        </Link>
+                                                    ) : (
+                                                        <span className="text-neutral-300 font-mono text-xs">—</span>
+                                                    )}
                                                 </td>
-                                                <td className="py-2">
-                                                    {/* Quick admin status chip mimic */}
-                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
-                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
-                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
-                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
+
+                                                {/* Customer */}
+                                                <td className="py-4 px-4">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div
+                                                            className={`w-7 h-7 rounded-full ${avatarClass} border flex items-center justify-center font-bold text-[10px] shrink-0`}
+                                                        >
+                                                            {(p.customer_name || 'U').slice(0, 2).toUpperCase()}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-xs font-bold text-neutral-800 truncate">
+                                                                {p.customer_name}
+                                                            </p>
+                                                            <p className="text-[10px] text-neutral-400 truncate">
+                                                                {p.customer_email}
+                                                            </p>
+                                                        </div>
+                                                    </div>
                                                 </td>
-                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
-                                                <td className="py-2">
-                                                    <Link href={`/admin/payments/${p.id}`}>
-                                                        <Button size="sm" variant="outline" type="button">
-                                                            <Eye className="h-3 w-3 mr-1" />
-                                                            View Details
-                                                        </Button>
+
+                                                {/* Amount */}
+                                                <td className="py-4 px-4">
+                                                    <span className="font-extrabold text-neutral-900 text-xs">
+                                                        {formatCurrency(p.amount, p.currency)}
+                                                    </span>
+                                                </td>
+
+                                                {/* Gateway Status */}
+                                                <td className="py-4 px-4">
+                                                    <span
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                                            p.gateway_status === 'paid'
+                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                : p.gateway_status === 'proof_uploaded'
+                                                                ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                                : p.gateway_status === 'pending'
+                                                                ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                                                : 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                        }`}
+                                                    >
+                                                        {p.gateway_status === 'paid' && <CheckCircle2 className="w-3 h-3" />}
+                                                        {p.gateway_status === 'proof_uploaded' && <Clock className="w-3 h-3" />}
+                                                        {p.gateway_status === 'pending' && <Clock className="w-3 h-3" />}
+                                                        {p.gateway_status === 'failed' && <XCircle className="w-3 h-3" />}
+                                                        <span className="capitalize">{p.gateway_status.replace('_', ' ')}</span>
+                                                    </span>
+                                                </td>
+
+                                                {/* Admin Status */}
+                                                <td className="py-4 px-4">
+                                                    <span
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                                            p.admin_status === 'approved'
+                                                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+                                                                : p.admin_status === 'seen'
+                                                                ? 'bg-blue-50 text-blue-700 border border-blue-200/60'
+                                                                : p.admin_status === 'rejected'
+                                                                ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                                                                : 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                                                        }`}
+                                                    >
+                                                        <span className="capitalize">{p.admin_status}</span>
+                                                    </span>
+                                                </td>
+
+                                                {/* Date */}
+                                                <td className="py-4 px-4 text-neutral-400 text-[11px]">
+                                                    {new Date(p.created_at).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        year: 'numeric',
+                                                    })}
+                                                </td>
+
+                                                {/* Actions */}
+                                                <td className="py-4 px-5 text-right">
+                                                    <Link
+                                                        href={`/admin/payments/${p.id}`}
+                                                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 text-neutral-700 text-[11px] font-semibold shadow-xs transition-all active:scale-95"
+                                                    >
+                                                        <Eye className="w-3 h-3 text-neutral-500" />
+                                                        <span>View Details</span>
                                                     </Link>
                                                 </td>
                                             </tr>
-                                        ))}
-                                        {recentChapaPayments.length === 0 && (
-                                            <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No recent Chapa payments</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                        );
+                                    })}
 
-                            {/* Offline table */}
-                            <div className="overflow-x-auto mt-8">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b">
-                                            <th className="text-left py-2">Type</th>
-                                            <th className="text-left py-2">Tx Ref</th>
-                                            <th className="text-left py-2">Order</th>
-                                            <th className="text-left py-2">Customer</th>
-                                            <th className="text-left py-2">Amount</th>
-                                            <th className="text-left py-2">Gateway</th>
-                                            <th className="text-left py-2">Admin</th>
-                                            <th className="text-left py-2">Date</th>
-                                            <th className="text-left py-2">Actions</th>
+                                    {activeList.length === 0 && (
+                                        <tr>
+                                            <td colSpan={10} className="py-16 text-center text-neutral-400">
+                                                <CreditCard className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                                                <p className="text-sm font-semibold text-neutral-700">No payment records found</p>
+                                                <p className="text-xs text-neutral-400 mt-0.5">
+                                                    No transactions match the selected filter criteria.
+                                                </p>
+                                            </td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        {recentOfflinePayments.map(p => (
-                                            <tr key={p.id} className="border-b hover:bg-muted/30">
-                                                <td className="py-2">
-                                                    {getPaymentTypeBadge(p)}
-                                                </td>
-                                                <td className="py-2 font-mono">#{p.tx_ref}</td>
-                                                <td className="py-2">{p.order_id ?? '-'}</td>
-                                                <td className="py-2">
-                                                    <div className="flex flex-col">
-                                                        <span>{p.customer_name}</span>
-                                                        <span className="text-xs text-muted-foreground">{p.customer_email}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="py-2">{formatCurrency(p.amount, p.currency)}</td>
-                                                <td className="py-2">
-                                                    {p.gateway_status === 'proof_uploaded' && <Badge className="bg-blue-100 text-blue-800">proof uploaded</Badge>}
-                                                </td>
-                                                <td className="py-2">
-                                                    {p.admin_status === 'unseen' && <Badge className="bg-yellow-100 text-yellow-800 flex items-center gap-1"><AlertTriangle className="h-3 w-3"/>unseen</Badge>}
-                                                    {p.admin_status === 'seen' && <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1"><Eye className="h-3 w-3"/>seen</Badge>}
-                                                    {p.admin_status === 'approved' && <Badge className="bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle className="h-3 w-3"/>approved</Badge>}
-                                                    {p.admin_status === 'rejected' && <Badge className="bg-red-100 text-red-800 flex items-center gap-1"><Ban className="h-3 w-3"/>rejected</Badge>}
-                                                </td>
-                                                <td className="py-2">{new Date(p.created_at).toLocaleString()}</td>
-                                                <td className="py-2">
-                                                    <Link href={`/admin/payments/${p.id}`}>
-                                                        <Button size="sm" variant="outline" type="button">
-                                                            <Eye className="h-3 w-3 mr-1" />
-                                                            View Details
-                                                        </Button>
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {recentOfflinePayments.length === 0 && (
-                                            <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">No recent Offline payments</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
 
-                {/* Bulk Action Modal */}
-                {showBulkActions && bulkActionForm.data.action === 'mark_seen' && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                        <Card className="w-full max-w-md mx-4">
-                            <CardHeader>
-                                <CardTitle>Bulk Action: Mark as Seen</CardTitle>
-                                <CardDescription>
-                                    This will mark {selectedPayments.length} selected payments as seen
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="flex gap-2">
-                                    <Button
+                    {/* Bulk Action Confirmation Modal */}
+                    {showBulkActions && bulkActionForm.data.action === 'mark_seen' && (
+                        <div className="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+                            <div className="w-full max-w-md bg-white rounded-[26px] p-6 shadow-2xl border border-neutral-100 animate-in fade-in zoom-in-95">
+                                <h3 className="text-base font-extrabold text-neutral-900">Mark Payments as Seen</h3>
+                                <p className="text-xs text-neutral-500 mt-1">
+                                    You are about to acknowledge <strong>{selectedPayments.length}</strong> selected payments.
+                                </p>
+                                <div className="flex gap-2.5 mt-5">
+                                    <button
+                                        type="button"
                                         onClick={submitBulkAction}
                                         disabled={bulkActionForm.processing}
-                                        className="flex-1"
+                                        className="flex-1 py-2 rounded-full text-white text-xs font-semibold shadow-xs transition-colors hover:opacity-95"
+                                        style={{ backgroundColor: primaryColor }}
                                     >
-                                        Confirm Mark Seen
-                                    </Button>
-                                    <Button
-                                        variant="outline"
+                                        Confirm
+                                    </button>
+                                    <button
+                                        type="button"
                                         onClick={() => setShowBulkActions(false)}
-                                        className="flex-1"
+                                        className="flex-1 py-2 rounded-full border border-neutral-200 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors"
                                     >
                                         Cancel
-                                    </Button>
+                                    </button>
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
+                            </div>
+                        </div>
+                    )}
+
+                </div>
             </div>
-            </ErrorBoundary>
         </AppLayout>
     );
 }
