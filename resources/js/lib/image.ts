@@ -1,14 +1,16 @@
 export function getImageUrl(rawPath?: string | null, options?: { bucket?: string; placeholderText?: string; width?: number; height?: number }) {
   const path = (rawPath || '').toString().trim();
 
-  if (!path) {
-    const text = options?.placeholderText || 'Image';
-    const w = options?.width || 300;
-    const h = options?.height || 300;
-    return `/placeholder.svg?height=${h}&width=${w}&text=${encodeURIComponent(text)}`;
+  const placeholderFallback = '/image/placeholder.png';
+
+  if (!path || path.includes('placeholder.svg')) {
+    return placeholderFallback;
   }
 
   if (path.startsWith('http://') || path.startsWith('https://')) {
+    if (path.includes('/image/image/')) {
+      return path.replace('/image/image/', '/image/');
+    }
     return path;
   }
 
@@ -22,7 +24,8 @@ export function getImageUrl(rawPath?: string | null, options?: { bucket?: string
 
   // Allow serving built-in public assets under /image/
   if (path.startsWith('/image/') || path.startsWith('image/')) {
-    return path.startsWith('/') ? path : `/${path}`;
+    const normalized = path.startsWith('/') ? path : `/${path}`;
+    return normalized.replace('/image/image/', '/image/');
   }
 
   // If a bucket is provided, assume filename or relative path under that bucket

@@ -40,7 +40,14 @@ const formatETB = (amount: number) => {
 }
 
 export function ProductCard({ product, index }: ProductCardProps) {
+  const initialImage = getImageUrl(product.image, { placeholderText: product.name, width: 400, height: 400, bucket: "products" }) || '/image/placeholder.png';
+  const [imgSrc, setImgSrc] = React.useState<string>(initialImage);
 
+  const handleImageError = () => {
+    if (imgSrc !== '/image/placeholder.png') {
+      setImgSrc('/image/placeholder.png');
+    }
+  };
 
   const isOnSale = product.sale_price && product.sale_price < product.price
   const isOutOfStock = product.stock_status === "out_of_stock"
@@ -51,12 +58,12 @@ export function ProductCard({ product, index }: ProductCardProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-100">
           <img
-            src={getImageUrl(product.image, { placeholderText: product.name, width: 400, height: 400, bucket: "products" })}
-            alt={product.images.find((img) => img.is_primary)?.alt_text || product.name}
+            src={imgSrc}
+            alt={product.images?.find((img) => img.is_primary)?.alt_text || product.name}
             className={`h-full w-full object-cover transition-transform duration-200 group-hover:scale-105 ${
               isOutOfStock ? "opacity-50" : ""
             }`}
-            // onError={handleImageError}
+            onError={handleImageError}
             loading={index > 3 ? "lazy" : "eager"}
           />
 

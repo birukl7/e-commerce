@@ -201,13 +201,13 @@ class CategoryController extends Controller
      */
     private function transformProduct($product)
     {
-        // Get the primary image or first image (your existing logic)
+        // Get the primary image or first image
         $primaryImage = $product->images->where('is_primary', true)->first()
                      ?? $product->images->first();
                             
-        $product_image = $primaryImage
-             ? asset('/image/' . ltrim($primaryImage->image_path, '/'))
-            : asset('/placeholder.svg?height=300&width=300&text=No%20Image'); // fallback image (inline placeholder)
+        $product_image = $primaryImage && $primaryImage->image_path
+             ? (ImageUrlService::formatImageUrl($primaryImage->image_path) ?? asset('image/placeholder.png'))
+             : asset('image/placeholder.png');
 
         return [
             'id' => $product->id,
@@ -221,7 +221,7 @@ class CategoryController extends Controller
             'images' => $product->images->map(function ($image) {
                 return [
                     'id' => $image->id,
-                    'url' => asset('/image/' . ltrim($image->image_path, '/')),
+                    'url' => ImageUrlService::formatImageUrl($image->image_path) ?? asset('image/placeholder.png'),
                     'alt_text' => $image->alt_text,
                     'is_primary' => $image->is_primary,
                 ];

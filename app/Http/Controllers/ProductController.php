@@ -283,7 +283,7 @@ class ProductController extends Controller
                     ? ImageUrlService::formatImageUrl($product->images->where('is_primary', true)->first()->image_path)
                     : ($product->images->first() 
                         ? ImageUrlService::formatImageUrl($product->images->first()->image_path)
-                        : ImageUrlService::formatImageUrl('/placeholder.svg?height=500&width=500&text=No%20Image')),
+                        : asset('image/placeholder.png')),
                 'category' => [
                     'id' => $product->category->id,
                     'name' => $product->category->name,
@@ -318,13 +318,13 @@ class ProductController extends Controller
                     'sale_price' => $product->sale_price ? (float) $product->sale_price : null,
                     'current_price' => (float) ($product->sale_price ?? $product->price),
                     'description' => $product->description,
-                    'image' => $primaryImage 
-                        ? asset('image/' . $primaryImage->image_path)
-                            : asset('/placeholder.svg?height=240&width=240&text=No%20Image'),
+                    'image' => $primaryImage && $primaryImage->image_path
+                        ? (ImageUrlService::formatImageUrl($primaryImage->image_path) ?? asset('image/placeholder.png'))
+                        : asset('image/placeholder.png'),
                     'images' => $product->images->map(function ($image) {
                         return [
                             'id' => $image->id,
-                            'url' => asset('image/' . $image->image_path),
+                            'url' => ImageUrlService::formatImageUrl($image->image_path) ?? asset('image/placeholder.png'),
                             'alt_text' => $image->alt_text,
                             'is_primary' => $image->is_primary,
                         ];

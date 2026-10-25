@@ -24,34 +24,31 @@ export function SubCategoriesSection({ subcategories }: SubCategoriesSectionProp
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.currentTarget
-    const categoryName = target.alt
-
-    target.src = `/placeholder.svg?height=200&width=200&query=${encodeURIComponent(categoryName)}`
-    // Prevent infinite error loops
+    target.src = '/image/placeholder.png'
     target.onerror = null
   }
 
   const getImageUrl = (category: SubCategory) => {
-    if (!category.image) {
-      return `/placeholder.svg?height=200&width=200&query=${encodeURIComponent(category.name)}`
+    if (!category.image || category.image.includes('placeholder.svg')) {
+      return '/image/placeholder.png'
     }
 
-    // Fix the URL - convert from full URL to correct path
     const imageUrl = category.image
 
-    // If it's a full URL from Laravel's asset() helper, extract just the filename
     if (imageUrl.includes("/storage/image/")) {
       const filename = imageUrl.split("/storage/image/").pop()
       return `/image/${filename}`
     }
 
-    // If it's already a relative path, use it as is
     if (imageUrl.startsWith("/image/")) {
-      return imageUrl
+      return imageUrl.replace('/image/image/', '/image/')
     }
 
-    // Default fallback
-    return `/image/${imageUrl}`
+    if (imageUrl.startsWith("image/")) {
+      return `/${imageUrl}`.replace('/image/image/', '/image/')
+    }
+
+    return `/image/${imageUrl}`.replace('/image/image/', '/image/')
   }
 
   if (!subcategories || subcategories.length === 0) {
