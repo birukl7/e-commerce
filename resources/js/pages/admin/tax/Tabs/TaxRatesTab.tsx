@@ -131,7 +131,9 @@ export default function TaxRatesTab({ taxRates = [], taxClasses = [] }: TaxRates
     
     const deleteRate = (id: number) => {
         if (confirm('Are you sure you want to delete this tax rate?')) {
-            router.delete(route('admin.tax.rates.destroy', id));
+            router.delete(route('admin.tax.rates.destroy', id), {
+                preserveScroll: true,
+            });
         }
     };
     

@@ -2,11 +2,11 @@ import { Button } from '@/components/ui/button';
 import { CartProvider, useCart } from '@/contexts/cart-context';
 import MainLayout from '@/layouts/app/main-layout';
 import { Link, usePage } from '@inertiajs/react';
-import { CreditCard, Minus, Plus, ShoppingCart, Upload, X } from 'lucide-react';
+import { Minus, Plus, ShoppingCart, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxInfoDialog from '@/components/TaxInfoDialog';
-import OfflinePaymentDialog from '@/components/OfflinePaymentDialog';
+import AppAlertDialog, { AppAlertType } from '@/components/AppAlertDialog';
 import H1 from '@/components/ui/h1';
 import { useTranslation } from 'react-i18next';
 
@@ -20,13 +20,31 @@ type TaxSetting = {
 };
 
 function CheckoutContent() {
-    const { items, getTotalPrice, removeFromCart, updateQuantity, clearCart, getTotalItems } = useCart();
-    const [showPaymentMethods, setShowPaymentMethods] = useState(false);
+    const { items, getTotalPrice, removeFromCart, updateQuantity, getTotalItems } = useCart();
     const [showTaxInfoDialog, setShowTaxInfoDialog] = useState(false);
-    const [showOfflinePaymentDialog, setShowOfflinePaymentDialog] = useState(false);
-    const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
     const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
     const { t } = useTranslation();
+
+    // In-App Alert Dialog State
+    const [alertState, setAlertState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        type?: AppAlertType;
+    }>({
+        isOpen: false,
+        message: '',
+        type: 'info',
+    });
+
+    const showAlert = (message: string, title?: string, type: AppAlertType = 'info') => {
+        setAlertState({
+            isOpen: true,
+            title,
+            message,
+            type,
+        });
+    };
 
     const subtotal = getTotalPrice();
     const taxCalc = useTaxCalculation(subtotal, activeTaxes as TaxSetting[]);
@@ -38,79 +56,16 @@ function CheckoutContent() {
         }).format(price);
     };
 
-    // Generate order ID and prepare payment data
-    const generateOrderId = () => {
-        return 'ORDER-' + Math.random().toString(36).substr(2, 9).toUpperCase() + '-' + Date.now();
-    };
+
 
     const handlePayNow = () => {
         if (items.length === 0) {
-            alert(t('checkout.yourCartIsEmpty'));
+            showAlert(t('checkout.yourCartIsEmpty'), 'Cart Empty', 'info');
             return;
         }
 
-        const orderId = generateOrderId();
-        setPendingOrderId(orderId);
-        setShowOfflinePaymentDialog(true);
     };
 
-    // Update the handlePaymentMethod function in your checkout component
-    const handlePaymentMethod = async (method: 'online' | 'offline') => {
-        try {
-            // Generate order ID once and store it
-            const orderId = generateOrderId();
-            const amount = taxCalc.total; // include taxes in amount
-            const currency = 'ETB';
-
-            // Prepare cart items data
-            const cartItemsData = items.map((item) => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                quantity: item.quantity,
-                image: item.image || '',
-            }));
-
-            if (method === 'online') {
-                // Redirect to Chapa method selection page
-                const params = new URLSearchParams({
-                    order_id: orderId,
-                    amount: amount.toString(),
-                    currency: currency,
-                    cart_items: JSON.stringify(cartItemsData),
-                });
-                
-                // Redirect to Chapa method selection page
-                window.location.href = route('payment.chapa.method') + '?' + params.toString();
-            } else {
-                // For offline payment, create order first, then open the dialog
-                // The order will be created when the dialog opens by calling the backend
-                // Store the order ID and open the dialog
-                setPendingOrderId(orderId);
-                setShowOfflinePaymentDialog(true);
-                setShowPaymentMethods(false);
-            }
-        } catch (error) {
-            console.error('Payment processing error:', error);
-            alert(`Failed to process payment: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
-        }
-    };
-
-    // Prepare cart items data for the dialog
-    const cartItemsData = items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        image: item.image || '',
-    }));
-
-    // Prepare tax breakdown for the dialog
-    const taxBreakdown = taxCalc.taxes?.map((tax) => ({
-        name: tax.name,
-        amount: tax.amount,
-        rate: tax.type === 'percentage' ? tax.rate : 0, // Only show rate for percentage taxes
-    })) || [];
 
     return (
         <div className="py-8">
@@ -245,23 +200,16 @@ function CheckoutContent() {
                     />
                 )}
 
-                {/* Offline Payment Dialog */}
-                {pendingOrderId && (
-                    <OfflinePaymentDialog
-                        isOpen={showOfflinePaymentDialog}
-                        onClose={() => {
-                            setShowOfflinePaymentDialog(false);
-                            setPendingOrderId(null);
-                        }}
-                        orderId={pendingOrderId}
-                        totalAmount={taxCalc.total}
-                        currency="ETB"
-                        cartItems={cartItemsData}
-                        subtotal={subtotal}
-                        taxBreakdown={taxBreakdown}
-                        paymentType="regular"
-                    />
-                )}
+
+
+                {/* In-App Alert Dialog */}
+                <AppAlertDialog
+                    isOpen={alertState.isOpen}
+                    onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+                    title={alertState.title}
+                    message={alertState.message}
+                    type={alertState.type}
+                />
             </div>
         </div>
     );

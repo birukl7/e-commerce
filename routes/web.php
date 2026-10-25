@@ -625,8 +625,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/verify/{tx_ref}', [PaymentController::class, 'verifyPayment'])->name('verify');
         
         // Offline payment routes
-        Route::post('/offline/submit', [PaymentController::class, 'submitOffline'])->name('offline.submit');
-        Route::get('/offline/success', [PaymentController::class, 'offlineSubmissionSuccess'])->name('offline.success');
+        Route::post('/offline/submit', [\App\Http\Controllers\OfflinePaymentController::class, 'submit'])->name('offline.submit');
+        Route::get('/offline/success', [\App\Http\Controllers\OfflinePaymentController::class, 'success'])->name('offline.success');
         Route::get('/offline/methods', [\App\Http\Controllers\OfflinePaymentController::class, 'getMethods'])->name('offline.methods');
         
         // Generic success/failed pages

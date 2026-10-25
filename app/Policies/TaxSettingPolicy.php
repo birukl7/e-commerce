@@ -65,11 +65,6 @@ class TaxSettingPolicy
      */
     public function delete(User $user, TaxSetting $taxSetting): bool
     {
-        // Prevent deletion if there are products using this tax setting
-        if ($taxSetting->products()->exists()) {
-            return false;
-        }
-        
         return $user->can('delete tax settings') || $this->hasTaxAdminAccess($user);
     }
 
@@ -86,11 +81,6 @@ class TaxSettingPolicy
      */
     public function forceDelete(User $user, TaxSetting $taxSetting): bool
     {
-        // Only allow force delete if there are no products using this tax setting
-        if ($taxSetting->products()->withTrashed()->exists()) {
-            return false;
-        }
-        
         return $user->can('force delete tax settings') || $this->hasTaxAdminAccess($user);
     }
     

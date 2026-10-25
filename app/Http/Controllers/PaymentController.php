@@ -352,9 +352,10 @@ class PaymentController extends Controller
                 'amount' => 'required|numeric|min:1',
                 'currency' => 'required|string',
                 'offline_payment_method_id' => 'required|integer|exists:offline_payment_methods,id',
-                'payment_reference' => 'nullable|string|max:255',
+                'payment_reference' => 'nullable|string|max:1000',
+                'payment_link' => 'nullable|string|max:1000',
                 'payment_notes' => 'nullable|string|max:5000',
-                'payment_screenshot' => 'required|image|max:5120', // 5MB
+                'payment_screenshot' => 'nullable|image|max:5120', // 5MB
                 'payment_type' => 'nullable|string',
                 'product_request_id' => 'nullable|integer',
             ]);

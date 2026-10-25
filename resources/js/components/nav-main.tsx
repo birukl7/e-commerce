@@ -64,13 +64,6 @@ export function NavMain({ items = [] }: { items: NavItemWithChildren[] }) {
         // Check if current URL matches the item's href or any of its children or tabs
         const isActive = isItemActive(item, page.url);
         
-        // Check if any tab is active
-        const activeTab = item.tabs?.find(tab => 
-            page.url === tab.href || 
-            (page.url.startsWith(tab.href) && 
-             (page.url[tab.href.length] === '/' || 
-              page.url.length === tab.href.length))
-        );
         
         return (
             <div key={item.href} className={level > 0 ? 'pl-4' : ''}>

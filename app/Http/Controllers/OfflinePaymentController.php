@@ -105,10 +105,19 @@ class OfflinePaymentController extends Controller
                 'amount' => 'required|numeric|min:0.01',
                 'currency' => 'required|string|max:3',
                 'offline_payment_method_id' => 'required|exists:offline_payment_methods,id',
-                'payment_reference' => 'nullable|string|max:255',
+                'payment_reference' => 'nullable|string|max:1000',
+                'payment_link' => 'nullable|string|max:1000',
                 'payment_notes' => 'nullable|string|max:1000',
-                'payment_screenshot' => 'required|image|max:5120', // 5MB max
+                'payment_screenshot' => 'nullable|image|max:5120', // 5MB max (optional fallback)
             ]);
+
+            // Ensure either payment link / reference or screenshot is provided
+            $paymentLinkOrRef = trim($request->input('payment_link') ?? $request->input('payment_reference') ?? '');
+            if (empty($paymentLinkOrRef) && !$request->hasFile('payment_screenshot')) {
+                return back()->withErrors([
+                    'payment_link' => 'Please provide your payment link or transaction reference number.'
+                ])->withInput();
+            }
 
             // Get the offline payment method
             $offlineMethod = OfflinePaymentMethod::findOrFail($request->offline_payment_method_id);
@@ -125,7 +134,7 @@ class OfflinePaymentController extends Controller
             DB::beginTransaction();
             
             try {
-                // Store the uploaded screenshot
+                // Store the uploaded screenshot if provided
                 $screenshotPath = null;
                 if ($request->hasFile('payment_screenshot')) {
                     $file = $request->file('payment_screenshot');
@@ -152,7 +161,7 @@ class OfflinePaymentController extends Controller
                         'order_number' => $request->order_id,
                         'user_id' => auth()->id(),
                         'status' => 'processing',
-                        'payment_status' => 'pending_verification',
+                        'payment_status' => 'pending',
                         'payment_method' => 'offline',
                         'currency' => $request->currency,
                         'subtotal' => $request->amount,
@@ -171,7 +180,7 @@ class OfflinePaymentController extends Controller
                 } else {
                     // Update existing order
                     $order->update([
-                        'payment_status' => 'pending_verification',
+                        'payment_status' => 'pending',
                         'payment_method' => 'offline',
                         'total_amount' => $request->amount,
                         'currency' => $request->currency,
@@ -179,7 +188,7 @@ class OfflinePaymentController extends Controller
                     
                     Log::info('Existing order updated', [
                         'order_id' => $order->id,
-                        'payment_status' => 'pending_verification'
+                        'payment_status' => 'pending'
                     ] + $logContext);
                 }
 
@@ -286,15 +295,46 @@ class OfflinePaymentController extends Controller
 
                                     if ($amountMatches && $isVerifiedOk) {
                                         $payment->gateway_status = 'paid';
+                                        
+                                        // Automatic confirmation: No admin manual review needed when verified at source by links.et
+                                        $payment->admin_status = 'approved';
+                                        $payment->admin_notes = 'Automatically verified and approved at source via links.et';
+                                        $payment->admin_action_at = now();
+
+                                        Log::info('Payment auto-approved via links.et source verification', [
+                                            'payment_id' => $payment->id,
+                                            'extracted_amount' => $extractedAmount,
+                                            'expected_amount' => $expectedAmount
+                                        ] + $logContext);
                                     }
                                 }
                             }
 
                             $payment->gateway_payload = $payload;
                             $payment->save();
+
+                            // If auto-approved, finalize order directly so it is marked paid and ready for fulfillment
+                            if ($payment->admin_status === 'approved' && $payment->gateway_status === 'paid') {
+                                try {
+                                    $this->paymentFinalizer->finalizeOrder($payment->fresh());
+                                    
+                                    $context = ($payment->product_request_id !== null) ? 'advance' : 'checkout';
+                                    event(new PaymentApproved($payment->fresh(), $context));
+                                    Log::info('Order automatically finalized via links.et verification without admin intervention', [
+                                        'payment_id' => $payment->id,
+                                        'order_id' => $payment->order_id
+                                    ] + $logContext);
+                                } catch (\Throwable $fe) {
+                                    Log::error('Failed to auto-finalize order after links.et verification', [
+                                        'error' => $fe->getMessage()
+                                    ] + $logContext);
+                                }
+                            }
+
                             Log::info('Live links.et verification completed', [
                                 'payment_id' => $payment->id,
-                                'ok' => $isVerifiedOk
+                                'ok' => $isVerifiedOk,
+                                'auto_approved' => ($payment->admin_status === 'approved')
                             ] + $logContext);
                         }
                     } catch (\Throwable $ve) {
@@ -307,28 +347,39 @@ class OfflinePaymentController extends Controller
                 DB::commit();
                 Log::info('Database transaction committed successfully', $logContext);
 
-                // If AJAX / JSON request, return JSON so frontend can redirect cleanly
-                if ($request->wantsJson() || $request->ajax()) {
-                    return response()->json([
-                        'success' => true,
-                        'redirect' => route('payment.offline.success', [
-                            'submission_ref' => $txRef,
-                            'order_id' => $request->order_id,
-                            'amount' => $request->amount,
-                            'currency' => $request->currency,
-                            'payment_method' => $offlineMethod->name,
-                        ])
+                $isAutoApproved = ($payment->admin_status === 'approved' && $payment->gateway_status === 'paid');
+
+                // Determine redirect target: If verified and approved, send directly to order details!
+                $orderRedirectUrl = null;
+                if ($isAutoApproved && $order) {
+                    $orderRedirectUrl = route('user.orders.show', ['order' => $order->order_number ?? $order->id]);
+                } else {
+                    $orderRedirectUrl = route('payment.offline.success', [
+                        'submission_ref' => $txRef,
+                        'order_id' => $request->order_id,
+                        'amount' => $request->amount,
+                        'currency' => $request->currency,
+                        'payment_method' => $offlineMethod->name,
                     ]);
                 }
 
-                // Redirect to success page
-                return redirect()->route('payment.offline.success', [
-                    'submission_ref' => $txRef,
-                    'order_id' => $request->order_id,
-                    'amount' => $request->amount,
-                    'currency' => $request->currency,
-                    'payment_method' => $offlineMethod->name,
-                ]);
+                // If AJAX / JSON request, return JSON so frontend can display verification success and redirect
+                if ($request->wantsJson() || $request->ajax()) {
+                    return response()->json([
+                        'success' => true,
+                        'verified' => $isAutoApproved,
+                        'message' => $isAutoApproved ? 'Payment successfully verified! Redirecting to your order...' : 'Payment submitted for review.',
+                        'order_number' => $order ? $order->order_number : null,
+                        'order_id' => $order ? $order->id : $request->order_id,
+                        'redirect' => $orderRedirectUrl
+                    ]);
+                }
+
+                // Redirect to order page if verified, or success page if pending manual review
+                return redirect($orderRedirectUrl)->with(
+                    'success', 
+                    $isAutoApproved ? 'Payment successfully verified!' : 'Payment submitted successfully.'
+                );
 
             } catch (\Exception $e) {
                 DB::rollBack();
@@ -345,6 +396,13 @@ class OfflinePaymentController extends Controller
                 'request_data' => $request->except(['payment_screenshot']),
                 'request_id' => $requestId
             ]);
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment could not be processed at this time. Please check your payment details or try again.'
+                ], 500);
+            }
 
             return back()->withErrors([
                 'submission' => 'Failed to submit payment proof. Please try again.'

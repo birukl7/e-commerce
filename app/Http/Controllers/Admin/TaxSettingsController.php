@@ -181,18 +181,23 @@ class TaxSettingsController extends Controller
     public function destroyClass(TaxClass $taxClass)
     {
         if ($taxClass->is_default) {
+            if (request()->wantsJson()) {
+                return response()->json(['error' => 'Cannot delete the default tax class.'], 422);
+            }
             return redirect()->back()
                 ->with('error', 'Cannot delete the default tax class.');
         }
 
-        if ($taxClass->taxSettings()->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete tax class with associated tax rates.');
-        }
+        // Delete associated tax settings/rates or disassociate them so the tax class can be cleanly deleted
+        $taxClass->taxSettings()->delete();
 
         $taxClass->delete();
 
-        return redirect()->route('admin.tax.settings.tab', 'classes')
+        if (request()->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Tax class and associated rates deleted successfully.']);
+        }
+
+        return redirect()->back()
             ->with('success', 'Tax class deleted successfully.');
     }
     
@@ -293,7 +298,11 @@ class TaxSettingsController extends Controller
     {
         $taxSetting->delete();
 
-        return redirect()->route('admin.tax.settings.tab', 'rates')
+        if (request()->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Tax rate deleted successfully.']);
+        }
+
+        return redirect()->back()
             ->with('success', 'Tax rate deleted successfully.');
     }
 

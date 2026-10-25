@@ -71,11 +71,6 @@ class TaxClassPolicy
             return false;
         }
         
-        // Prevent deleting if there are associated tax rates
-        if ($taxClass->taxRates()->exists()) {
-            return false;
-        }
-        
         return $this->hasTaxAdminAccess($user);
     }
 

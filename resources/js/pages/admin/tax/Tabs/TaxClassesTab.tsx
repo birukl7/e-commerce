@@ -57,8 +57,10 @@ export default function TaxClassesTab({ classes = [], taxClasses = [] }: TaxClas
     };
     
     const deleteClass = (id: number) => {
-        if (confirm('Are you sure you want to delete this tax class?')) {
-            router.delete(route('admin.tax.classes.destroy', id));
+        if (confirm('Are you sure you want to delete this tax class? All associated tax rates will also be removed.')) {
+            router.delete(route('admin.tax.classes.destroy', id), {
+                preserveScroll: true,
+            });
         }
     };
     

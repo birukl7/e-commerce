@@ -873,8 +873,10 @@ class PaymentFinalizer
             $adminQuery->where('is_active', true);
         }
         
-        $admins = $adminQuery->get();
-        
+        $reviewUrl = \Illuminate\Support\Facades\Route::has('admin.payments.show') 
+            ? route('admin.payments.show', $payment->id) 
+            : url('/paymentStats/' . $payment->id);
+
         foreach ($admins as $admin) {
             $this->notificationService->sendAccountActivity(
                 $admin,
@@ -884,7 +886,7 @@ class PaymentFinalizer
                     'order_id' => $payment->order_id,
                     'amount' => $payment->amount,
                     'payment_method' => $payment->payment_method,
-                    'review_url' => route('admin.payments.review', $payment->id)
+                    'review_url' => $reviewUrl
                 ]
             );
         }
