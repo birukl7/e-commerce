@@ -43,6 +43,7 @@ class AccountActivity extends Mailable
             'password_changed' => 'Your Password Has Been Changed',
             'new_device_login' => 'New Login Detected',
             'account_verified' => 'Account Successfully Verified',
+            'payment_review_required' => 'Payment Review Required - Contact Customer',
             default => 'Account Notification',
         };
     }

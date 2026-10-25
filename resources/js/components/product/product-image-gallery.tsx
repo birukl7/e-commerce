@@ -22,10 +22,10 @@ interface ProductImageGalleryProps {
     onAddToCart?: (productId: number) => void;
 }
 
-export function ProductImageGallery({ images, productName, productId, price, onAddToCart }: ProductImageGalleryProps) {
+export function ProductImageGallery({ images, productName }: ProductImageGalleryProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [isZoomed, setIsZoomed] = useState(false);
-    const [isAddingToCart, setIsAddingToCart] = useState(false);
+
 
     // Sort images by primary first, then by sort_order
     const sortedImages = [...images].sort((a, b) => {
@@ -53,17 +53,6 @@ export function ProductImageGallery({ images, productName, productId, price, onA
     const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
         const target = e.currentTarget;
         target.src = `/placeholder.svg?height=500&width=500&text=${encodeURIComponent(productName)}`;
-    };
-
-    console.log("currentImage", currentImage);
-
-
-
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(price);
     };
 
     return (

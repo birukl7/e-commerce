@@ -1,29 +1,28 @@
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
     ArrowUpRight,
     Search,
     Bell,
     Mail,
     Plus,
-    FileDown,
     Palette,
     Play,
     Pause,
     RotateCcw,
-    Sparkles,
-    CheckCircle2,
     Clock,
     AlertCircle,
-    ShoppingBag,
     Package,
     TrendingUp,
-    ExternalLink,
     ChevronDown,
     X,
+    Check,
+    CheckCheck,
+    ShoppingBag,
 } from 'lucide-react';
+import { useAdminNotifications, requestBrowserPermission } from '@/hooks/useAdminNotifications';
 
 interface DashboardStats {
     totalSales: number;
@@ -106,10 +105,6 @@ export default function AdminDashboard({
     stats,
     recentOrders = [],
     topSellingProducts = [],
-    salesByCategory = [],
-    productRequestSummary,
-    customerRegistrationTrends = [],
-    paymentStats,
 }: AdminDashboardProps) {
     const { auth } = usePage<{ auth?: { user?: { name?: string; email?: string } } }>().props;
     const user = auth?.user;
@@ -119,12 +114,17 @@ export default function AdminDashboard({
     const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [analyticsPeriod, setAnalyticsPeriod] = useState<'week' | 'month'>('week');
+    const [showNotifications, setShowNotifications] = useState<boolean>(false);
+    const notifPanelRef = useRef<HTMLDivElement>(null);
+
+    // Real-time admin notifications
+    const { notifications, unreadCount, markRead, markAllRead } = useAdminNotifications();
 
     // Live session timer state
     const [timerSeconds, setTimerSeconds] = useState<number>(5048); // 01:24:08 initially
     const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true);
 
-    // Load saved color preference on mount
+    // Load saved color preference on mount + request browser notification permission
     useEffect(() => {
         try {
             const savedColor = localStorage.getItem('serdo_dashboard_primary_color');
@@ -134,6 +134,31 @@ export default function AdminDashboard({
         } catch (e) {
             // Ignore localStorage errors
         }
+        // Ask for browser push notification permission
+        requestBrowserPermission();
+    }, []);
+
+    // Close notification panel when clicking outside
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (notifPanelRef.current && !notifPanelRef.current.contains(e.target as Node)) {
+                setShowNotifications(false);
+            }
+        }
+        if (showNotifications) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showNotifications]);
+
+    const formatNotifTime = useCallback((dateStr: string) => {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
     }, []);
 
     // Save color to localStorage and update CSS variable
@@ -366,14 +391,137 @@ export default function AdminDashboard({
                                 <Mail className="w-4 h-4" />
                             </button>
 
-                            {/* Notifications Bell */}
-                            <button
-                                className="relative w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors shadow-xs active:scale-95"
-                                title="Notifications"
-                            >
-                                <Bell className="w-4 h-4" />
-                                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500" />
-                            </button>
+                            {/* Notifications Bell with Live Dropdown */}
+                            <div className="relative" ref={notifPanelRef}>
+                                <button
+                                    onClick={() => setShowNotifications((v) => !v)}
+                                    className="relative w-10 h-10 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-600 hover:bg-neutral-50 transition-colors shadow-xs active:scale-95"
+                                    title="Notifications"
+                                >
+                                    <Bell className="w-4 h-4" />
+                                    {unreadCount > 0 && (
+                                        <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow">
+                                            {unreadCount > 99 ? '99+' : unreadCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {/* Notification Dropdown Panel */}
+                                {showNotifications && (
+                                    <div className="absolute right-0 mt-2 w-[360px] bg-white rounded-2xl shadow-2xl border border-neutral-200/80 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-100">
+                                            <div className="flex items-center gap-2">
+                                                <Bell className="w-4 h-4 text-neutral-600" />
+                                                <span className="text-sm font-bold text-neutral-900">Notifications</span>
+                                                {unreadCount > 0 && (
+                                                    <span className="px-1.5 py-0.5 rounded-full bg-red-100 text-red-600 text-[10px] font-bold">
+                                                        {unreadCount} unread
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                {unreadCount > 0 && (
+                                                    <button
+                                                        onClick={() => markAllRead()}
+                                                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 rounded-lg transition-colors"
+                                                        title="Mark all as read"
+                                                    >
+                                                        <CheckCheck className="w-3.5 h-3.5" />
+                                                        All read
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => setShowNotifications(false)}
+                                                    className="p-1 text-neutral-400 hover:text-neutral-600 rounded"
+                                                >
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Notification List */}
+                                        <div className="max-h-[380px] overflow-y-auto divide-y divide-neutral-50">
+                                            {notifications.length === 0 ? (
+                                                <div className="flex flex-col items-center justify-center py-10 text-neutral-400">
+                                                    <Bell className="w-8 h-8 mb-2 opacity-30" />
+                                                    <p className="text-xs">No notifications yet</p>
+                                                </div>
+                                            ) : (
+                                                notifications.map((n) => (
+                                                    <div
+                                                        key={n.id}
+                                                        onClick={() => !n.is_read && markRead(n.id)}
+                                                        className={`flex gap-3 px-4 py-3 cursor-pointer transition-colors ${
+                                                            n.is_read
+                                                                ? 'bg-white hover:bg-neutral-50'
+                                                                : 'bg-emerald-50/60 hover:bg-emerald-50'
+                                                        }`}
+                                                    >
+                                                        {/* Icon */}
+                                                        <div
+                                                            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white text-xs mt-0.5 ${
+                                                                n.type === 'payment_review_required'
+                                                                    ? 'bg-amber-500'
+                                                                    : n.type === 'payment_approved'
+                                                                    ? 'bg-emerald-500'
+                                                                    : 'bg-neutral-400'
+                                                            }`}
+                                                        >
+                                                            {n.type === 'payment_review_required' ? (
+                                                                <ShoppingBag className="w-3.5 h-3.5" />
+                                                            ) : n.type === 'payment_approved' ? (
+                                                                <Check className="w-3.5 h-3.5" />
+                                                            ) : (
+                                                                <Bell className="w-3.5 h-3.5" />
+                                                            )}
+                                                        </div>
+
+                                                        {/* Text */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-xs font-semibold truncate ${
+                                                                n.is_read ? 'text-neutral-600' : 'text-neutral-900'
+                                                            }`}>
+                                                                {n.title}
+                                                            </p>
+                                                            <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-2">
+                                                                {n.message}
+                                                            </p>
+                                                            {n.data?.customer_phone && (
+                                                                <a
+                                                                    href={`tel:${n.data.customer_phone}`}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className="inline-flex items-center gap-1 mt-1 text-[10px] font-medium text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full hover:bg-emerald-200 transition-colors"
+                                                                >
+                                                                    📞 {String(n.data.customer_phone)}
+                                                                </a>
+                                                            )}
+                                                            <p className="text-[10px] text-neutral-400 mt-1">{formatNotifTime(n.created_at)}</p>
+                                                        </div>
+
+                                                        {/* Unread dot */}
+                                                        {!n.is_read && (
+                                                            <span className="flex-shrink-0 w-2 h-2 mt-1.5 rounded-full bg-emerald-500" />
+                                                        )}
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="px-4 py-2.5 border-t border-neutral-100 bg-neutral-50">
+                                            <Link
+                                                href="/admin/payment"
+                                                onClick={() => setShowNotifications(false)}
+                                                className="flex items-center justify-center gap-1.5 text-xs font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                                            >
+                                                <ShoppingBag className="w-3.5 h-3.5" />
+                                                View all payments
+                                            </Link>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
                             {/* User Profile Chip */}
                             <div className="flex items-center gap-2.5 pl-2 py-1 pr-3 bg-white rounded-full border border-neutral-200 shadow-xs">

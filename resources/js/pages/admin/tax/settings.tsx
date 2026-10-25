@@ -18,7 +18,6 @@ type Props = {
 };
 
 export default function TaxSettings({
-    auth,
     activeTab,
     tabs,
     classes = [],

@@ -148,6 +148,28 @@
                             <a href="{{ route('home') }}" class="button">Start Shopping</a>
                         </div>
                         @break
+
+                    @case('payment_review_required')
+                        <h3>Offline Payment Review Required</h3>
+                        <p>A new offline payment has been submitted and requires admin review:</p>
+                        
+                        <ul>
+                            <li><strong>Order ID:</strong> #{{ $activityData['order_id'] ?? 'N/A' }}</li>
+                            <li><strong>Amount:</strong> {{ $activityData['amount'] ?? 'N/A' }} {{ $activityData['payment_method'] ?? '' }}</li>
+                            @if(!empty($activityData['customer_name']))
+                            <li><strong>Customer Name:</strong> {{ $activityData['customer_name'] }}</li>
+                            @endif
+                            @if(!empty($activityData['customer_phone']))
+                            <li><strong>Customer Mobile (Contact):</strong> <a href="tel:{{ $activityData['customer_phone'] }}" style="color:#ef4e2a;font-weight:bold;text-decoration:none;">{{ $activityData['customer_phone'] }}</a></li>
+                            @endif
+                        </ul>
+
+                        @if(!empty($activityData['review_url']))
+                        <div class="action">
+                            <a href="{{ $activityData['review_url'] }}" class="button">Review & Approve Payment</a>
+                        </div>
+                        @endif
+                        @break
                         
                     @default
                         <p>{{ $message ?? 'There has been recent activity on your account that requires your attention.' }}</p>

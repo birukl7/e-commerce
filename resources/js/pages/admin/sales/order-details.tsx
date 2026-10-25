@@ -11,15 +11,12 @@ import {
     AlertTriangle,
     Ban,
     Eye,
-    ShoppingCart,
     User,
     MapPin,
     CreditCard,
     Package,
     Calendar,
-    DollarSign,
     FileText,
-    ExternalLink,
     ImageIcon,
 } from 'lucide-react';
 import { adminNavItems } from '@/constants/adminNavItems';

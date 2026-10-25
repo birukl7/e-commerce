@@ -105,17 +105,72 @@ class OfflinePaymentController extends Controller
                 'amount' => 'required|numeric|min:0.01',
                 'currency' => 'required|string|max:3',
                 'offline_payment_method_id' => 'required|exists:offline_payment_methods,id',
+                'customer_phone' => 'required|string|min:9|max:25',
                 'payment_reference' => 'nullable|string|max:1000',
                 'payment_link' => 'nullable|string|max:1000',
                 'payment_notes' => 'nullable|string|max:1000',
-                'payment_screenshot' => 'nullable|image|max:5120', // 5MB max (optional fallback)
+                'payment_screenshot' => 'nullable|image|max:5120', // optional fallback
+            ], [
+                'customer_phone.required' => 'Your mobile phone number is required so our admin team can contact you.',
+                'customer_phone.min' => 'Please provide a valid mobile number (at least 9 digits).',
             ]);
 
-            // Ensure either payment link / reference or screenshot is provided
-            $paymentLinkOrRef = trim($request->input('payment_link') ?? $request->input('payment_reference') ?? '');
-            if (empty($paymentLinkOrRef) && !$request->hasFile('payment_screenshot')) {
+            $customerPhone = trim($request->input('customer_phone', ''));
+            $currentUser = auth()->user();
+
+            // Sync user profile phone if missing or changed so they don't have to re-enter next time
+            if ($currentUser && (empty($currentUser->phone) || $currentUser->phone !== $customerPhone)) {
+                try {
+                    $currentUser->update(['phone' => $customerPhone]);
+                } catch (\Throwable $e) {
+                    Log::warning('Could not update user phone on profile', ['error' => $e->getMessage()]);
+                }
+            }
+
+            // Ensure transaction reference or receipt link is provided as a required field
+            $paymentLinkOrRef = trim($request->input('payment_reference') ?? $request->input('payment_link') ?? '');
+            if (empty($paymentLinkOrRef)) {
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'The transaction reference or receipt link is required.',
+                        'errors' => [
+                            'payment_reference' => ['The transaction reference or receipt link is required.'],
+                        ],
+                    ], 422);
+                }
                 return back()->withErrors([
-                    'payment_link' => 'Please provide your payment link or transaction reference number.'
+                    'payment_reference' => 'The transaction reference or receipt link is required.'
+                ])->withInput();
+            }
+
+            if (empty($request->payment_reference) && !empty($paymentLinkOrRef)) {
+                $request->merge(['payment_reference' => $paymentLinkOrRef]);
+            }
+
+            // Check if this payment reference / link was already used in an approved transaction
+            $alreadyUsed = PaymentTransaction::where(function ($q) {
+                    $q->where('admin_status', 'approved')
+                      ->orWhere('gateway_status', 'paid');
+                })
+                ->where(function ($q) use ($paymentLinkOrRef) {
+                    $q->where('gateway_payload->payment_reference', $paymentLinkOrRef)
+                      ->orWhere('gateway_payload->links_et_verification->extracted_reference', $paymentLinkOrRef);
+                })
+                ->exists();
+
+            if ($alreadyUsed) {
+                if ($request->wantsJson()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'This payment reference or receipt link has already been used for a completed order.',
+                        'errors' => [
+                            'payment_reference' => ['This payment reference or receipt link has already been used for a completed order.'],
+                        ],
+                    ], 422);
+                }
+                return back()->withErrors([
+                    'payment_reference' => 'This payment reference or receipt link has already been used for a completed order.'
                 ])->withInput();
             }
 
@@ -154,7 +209,11 @@ class OfflinePaymentController extends Controller
                     
                     // Extract shipping address from request
                     $shippingAddress = $request->get('shipping_address');
-                    $shippingData = $this->extractShippingAddressData($shippingAddress, auth()->user());
+                    $shippingData = $this->extractShippingAddressData($shippingAddress, $currentUser);
+                    if (!empty($customerPhone)) {
+                        $shippingData['shipping_phone'] = $customerPhone;
+                        $shippingData['billing_phone'] = $customerPhone;
+                    }
                     
                     // Create basic order for offline payment
                     $order = Order::create([
@@ -179,12 +238,17 @@ class OfflinePaymentController extends Controller
                     ] + $logContext);
                 } else {
                     // Update existing order
-                    $order->update([
+                    $orderUpdate = [
                         'payment_status' => 'pending',
                         'payment_method' => 'offline',
                         'total_amount' => $request->amount,
                         'currency' => $request->currency,
-                    ]);
+                    ];
+                    if (!empty($customerPhone)) {
+                        $orderUpdate['shipping_phone'] = $customerPhone;
+                        $orderUpdate['billing_phone'] = $customerPhone;
+                    }
+                    $order->update($orderUpdate);
                     
                     Log::info('Existing order updated', [
                         'order_id' => $order->id,
@@ -198,14 +262,15 @@ class OfflinePaymentController extends Controller
                     'order_id' => $order->id, // Use the actual order ID
                     'amount' => $request->amount,
                     'currency' => $request->currency,
-                    'customer_email' => auth()->user()->email,
-                    'customer_name' => auth()->user()->name,
-                    'customer_phone' => auth()->user()->phone,
+                    'customer_email' => $currentUser->email,
+                    'customer_name' => $currentUser->name,
+                    'customer_phone' => $customerPhone,
                     'payment_method' => 'offline',
                     'gateway_status' => 'pending',
                     'admin_status' => 'pending_review',
                     'gateway_payload' => [
                         'offline_method_id' => $offlineMethod->id,
+                        'customer_phone' => $customerPhone,
                         'payment_reference' => $request->payment_reference,
                         'payment_notes' => $request->payment_notes,
                         'screenshot_path' => $screenshotPath,
@@ -231,13 +296,46 @@ class OfflinePaymentController extends Controller
                     'tx_ref' => $txRef
                 ] + $logContext);
 
-                Log::info('Payment transaction created', [
-                    'payment_id' => $payment->id,
-                    'tx_ref' => $txRef
-                ] + $logContext);
-
-                // Use PaymentFinalizer to handle proof upload
+                // Use PaymentFinalizer to handle proof upload & dispatch notifications
                 $this->paymentFinalizer->handleProofUpload($payment);
+
+                // Create database notification for admins with customer contact phone
+                try {
+                    $adminUsers = \App\Models\User::role('admin')->get();
+                    $reviewUrl = \Illuminate\Support\Facades\Route::has('admin.payments.show') 
+                        ? route('admin.payments.show', $payment->id) 
+                        : url('/paymentStats/' . $payment->id);
+
+                    foreach ($adminUsers as $adminUser) {
+                        \App\Models\Notification::create([
+                            'user_id' => $adminUser->id,
+                            'type' => 'offline_payment_submitted',
+                            'title' => 'New Offline Payment Submitted',
+                            'message' => "Order #{$order->order_number} received payment of {$payment->amount} {$payment->currency} from {$currentUser->name}. Contact Mobile: {$customerPhone}",
+                            'data' => [
+                                'payment_id' => $payment->id,
+                                'tx_ref' => $payment->tx_ref,
+                                'order_id' => $order->id,
+                                'order_number' => $order->order_number,
+                                'amount' => $payment->amount,
+                                'currency' => $payment->currency,
+                                'customer_name' => $currentUser->name,
+                                'customer_phone' => $customerPhone,
+                                'payment_reference' => $request->payment_reference,
+                                'review_url' => $reviewUrl,
+                            ],
+                        ]);
+                    }
+                } catch (\Throwable $ne) {
+                    Log::warning('Failed to create admin notification for offline payment submission', [
+                        'payment_id' => $payment->id,
+                        'error' => $ne->getMessage(),
+                    ]);
+                }
+
+                // Commit the order creation transaction immediately so SQLite database lock is released
+                DB::commit();
+                Log::info('Database transaction committed successfully for offline payment', $logContext);
 
                 // --- LIVE ACTION: Verify with links.et immediately during submission ---
                 if ($this->linksEtService->isConfigured()) {
@@ -288,12 +386,39 @@ class OfflinePaymentController extends Controller
                                 $payload['links_et_verification']['extracted_payer'] = $extractedPayer;
                                 $payload['links_et_verification']['receipt_source'] = $receipt['source'] ?? null;
 
+                                // Prevent reuse of the same bank receipt across multiple orders
+                                $isDuplicateReceipt = false;
+                                if (!empty($extractedRef)) {
+                                    $duplicateTx = PaymentTransaction::where('id', '!=', $payment->id)
+                                        ->where(function ($q) {
+                                            $q->where('admin_status', 'approved')
+                                              ->orWhere('gateway_status', 'paid');
+                                        })
+                                        ->where(function ($q) use ($extractedRef) {
+                                            $q->where('gateway_payload->links_et_verification->extracted_reference', $extractedRef)
+                                              ->orWhere('gateway_payload->payment_reference', $extractedRef);
+                                        })
+                                        ->first();
+
+                                    if ($duplicateTx) {
+                                        $isDuplicateReceipt = true;
+                                        $payload['links_et_verification']['is_duplicate'] = true;
+                                        $payload['links_et_verification']['duplicate_order_id'] = $duplicateTx->order_id;
+                                        $payment->admin_notes = "FLAGGED: Duplicate receipt ({$extractedRef}) already approved in Order #{$duplicateTx->order_id}";
+                                        Log::warning('Duplicate payment receipt detected during links.et verification', [
+                                            'payment_id' => $payment->id,
+                                            'extracted_ref' => $extractedRef,
+                                            'duplicate_with' => $duplicateTx->id,
+                                        ]);
+                                    }
+                                }
+
                                 if ($extractedAmount !== null) {
                                     $expectedAmount = (float) $payment->amount;
                                     $amountMatches = abs($extractedAmount - $expectedAmount) < 0.50;
                                     $payload['links_et_verification']['amount_matches'] = $amountMatches;
 
-                                    if ($amountMatches && $isVerifiedOk) {
+                                    if ($amountMatches && $isVerifiedOk && !$isDuplicateReceipt) {
                                         $payment->gateway_status = 'paid';
                                         
                                         // Automatic confirmation: No admin manual review needed when verified at source by links.et
@@ -344,9 +469,6 @@ class OfflinePaymentController extends Controller
                     }
                 }
 
-                DB::commit();
-                Log::info('Database transaction committed successfully', $logContext);
-
                 $isAutoApproved = ($payment->admin_status === 'approved' && $payment->gateway_status === 'paid');
 
                 // Determine redirect target: If verified and approved, send directly to order details!
@@ -382,7 +504,9 @@ class OfflinePaymentController extends Controller
                 );
 
             } catch (\Exception $e) {
-                DB::rollBack();
+                if (DB::transactionLevel() > 0) {
+                    DB::rollBack();
+                }
                 Log::error('Database transaction failed during offline payment submission', [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()

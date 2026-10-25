@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useTaxCalculation } from '@/hooks/useTaxCalculation';
 import TaxInfoDialog from '@/components/TaxInfoDialog';
 import OfflinePaymentDialog from '@/components/OfflinePaymentDialog';
+import AppAlertDialog, { AppAlertType } from '@/components/AppAlertDialog';
 import H1 from '@/components/ui/h1';
 import { useTranslation } from 'react-i18next';
 
@@ -28,6 +29,27 @@ function CheckoutContent() {
     const { activeTaxes = [] } = usePage<{ activeTaxes: TaxSetting[] }>().props;
     const { t } = useTranslation();
 
+    // In-App Alert Dialog State
+    const [alertState, setAlertState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        type?: AppAlertType;
+    }>({
+        isOpen: false,
+        message: '',
+        type: 'info',
+    });
+
+    const showAlert = (message: string, title?: string, type: AppAlertType = 'info') => {
+        setAlertState({
+            isOpen: true,
+            title,
+            message,
+            type,
+        });
+    };
+
     const subtotal = getTotalPrice();
     const taxCalc = useTaxCalculation(subtotal, activeTaxes as TaxSetting[]);
 
@@ -45,7 +67,7 @@ function CheckoutContent() {
 
     const handlePayNow = () => {
         if (items.length === 0) {
-            alert(t('checkout.yourCartIsEmpty'));
+            showAlert(t('checkout.yourCartIsEmpty'), 'Cart Empty', 'info');
             return;
         }
 
@@ -92,7 +114,7 @@ function CheckoutContent() {
             }
         } catch (error) {
             console.error('Payment processing error:', error);
-            alert(`Failed to process payment: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`);
+            showAlert(`Failed to process payment: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`, 'Payment Error', 'error');
         }
     };
 
@@ -262,6 +284,15 @@ function CheckoutContent() {
                         paymentType="regular"
                     />
                 )}
+
+                {/* In-App Alert Dialog */}
+                <AppAlertDialog
+                    isOpen={alertState.isOpen}
+                    onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+                    title={alertState.title}
+                    message={alertState.message}
+                    type={alertState.type}
+                />
             </div>
         </div>
     );

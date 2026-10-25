@@ -732,6 +732,8 @@ class UserDashboardController extends Controller
             'updated_at' => $firstOrder->updated_at,
             'shipped_at' => $firstOrder->shipped_at,
             'delivered_at' => $firstOrder->delivered_at,
+            'customer_name' => $order->user->name ?? $firstOrder->shipping_fullname ?? 'Valued Customer',
+            'customer_email' => $order->user->email ?? $firstOrder->shipping_email ?? '',
             'items' => $items,
         ];
 

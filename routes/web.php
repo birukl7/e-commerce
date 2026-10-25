@@ -282,6 +282,11 @@ Route::get('/paypal/payment/status', [PayPalController::class, 'getPaymentStatus
 // Admin routes
 Route::middleware(['web', 'auth', 'verified', 'admin', 'validate.admin.session'])->group(function () {
     Route::get('/admin-dashboard',[AdminDashboardController::class, 'index'])->name('admin.dashboard');
+
+    // Admin real-time notification polling endpoints
+    Route::get('/api/admin/notifications', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'index'])->name('admin.notifications.index');
+    Route::post('/api/admin/notifications/{notification}/mark-read', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'markRead'])->name('admin.notifications.mark-read');
+    Route::post('/api/admin/notifications/mark-all-read', [\App\Http\Controllers\Admin\AdminNotificationController::class, 'markAllRead'])->name('admin.notifications.mark-all-read');
     
     Route::get("/admin/sales", [AdminSalesController::class, 'index'])->name('admin.sales.index');
     Route::get("/admin/sales/orders/{order}", [AdminSalesController::class, 'showOrder'])->name('admin.sales.orders.show');

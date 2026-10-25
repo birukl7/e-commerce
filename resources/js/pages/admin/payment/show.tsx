@@ -721,10 +721,18 @@ export default function ShowPayment({ payment, orderItems, customerPaymentHistor
                                     </div>
                                     {payment.customer_phone && (
                                         <div className="space-y-2">
-                                            <Label className="text-sm font-medium text-muted-foreground">Phone</Label>
+                                            <Label className="text-sm font-medium text-muted-foreground">Mobile (Contact Number)</Label>
                                             <div className="flex items-center gap-2">
-                                                <Phone className="h-4 w-4 text-muted-foreground" />
-                                                <p className="text-sm">{payment.customer_phone}</p>
+                                                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                                    <Phone className="h-4 w-4" />
+                                                </div>
+                                                <a
+                                                    href={`tel:${payment.customer_phone}`}
+                                                    className="font-mono text-sm font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                                                    title="Click to call customer"
+                                                >
+                                                    {payment.customer_phone}
+                                                </a>
                                             </div>
                                         </div>
                                     )}

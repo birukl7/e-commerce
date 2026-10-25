@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react"
 import { getImageUrl } from "@/lib/image"
-import { Star, Tag } from "lucide-react"
-import type React from "react"
+import { Tag } from "lucide-react"
+import React from "react"
 
 interface ProductImage {
   id: number

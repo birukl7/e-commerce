@@ -1,8 +1,9 @@
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Building, Check, Copy, Loader2, ShieldCheck, Smartphone, Upload, X } from 'lucide-react';
-import React, { useEffect, useRef, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Building, Check, Copy, Link as LinkIcon, Loader2, Phone, ShieldCheck, Smartphone, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useTranslation } from 'react-i18next';
+import AppAlertDialog, { AppAlertType } from '@/components/AppAlertDialog';
 
 interface OfflinePaymentMethod {
     id: number;
@@ -11,6 +12,7 @@ interface OfflinePaymentMethod {
     description: string;
     instructions: string;
     details: Record<string, any>;
+    logo?: string;
 }
 
 interface TaxBreakdownItem {
@@ -53,17 +55,37 @@ export default function OfflinePaymentDialog({
     description,
 }: OfflinePaymentDialogProps) {
     const { t } = useTranslation();
+    const { auth } = usePage<{ auth?: { user?: { id: number; name: string; email: string; phone?: string | null } } }>().props;
     const [offlinePaymentMethods, setOfflinePaymentMethods] = useState<OfflinePaymentMethod[]>([]);
     const [selectedOfflineMethod, setSelectedOfflineMethod] = useState('');
     const [paymentReference, setPaymentReference] = useState('');
+    const [customerPhone, setCustomerPhone] = useState(auth?.user?.phone || '');
     const [paymentNotes, setPaymentNotes] = useState('');
-    const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [verifyingStep, setVerifyingStep] = useState<string>('Verifying receipt with bank...');
+    const [verifyingStep, setVerifyingStep] = useState<string>('Verifying transaction reference with bank...');
     const [copied, setCopied] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    // In-App Alert Dialog State
+    const [alertState, setAlertState] = useState<{
+        isOpen: boolean;
+        title?: string;
+        message: string;
+        type?: AppAlertType;
+    }>({
+        isOpen: false,
+        message: '',
+        type: 'error',
+    });
+
+    const showAlert = (message: string, title?: string, type: AppAlertType = 'error') => {
+        setAlertState({
+            isOpen: true,
+            title,
+            message,
+            type,
+        });
+    };
 
     // Simple URL builder
     const buildUrl = (path: string, params?: Record<string, any>) => {
@@ -86,36 +108,25 @@ export default function OfflinePaymentDialog({
         amount: totalAmount,
         currency: currency,
         offline_payment_method_id: '',
+        customer_phone: auth?.user?.phone || '',
         payment_reference: '',
         payment_notes: '',
-        payment_screenshot: null as File | null,
     });
 
     useEffect(() => {
         if (isOpen) {
             createOrderIfNeeded();
             fetchOfflinePaymentMethods();
+            if (!customerPhone && auth?.user?.phone) {
+                setCustomerPhone(auth.user.phone);
+            }
         } else {
             setSelectedOfflineMethod('');
             setPaymentReference('');
             setPaymentNotes('');
-            setPaymentScreenshot(null);
-            setPreviewUrl(null);
             offlineForm.reset();
         }
     }, [isOpen]);
-
-    useEffect(() => {
-        if (!paymentScreenshot) {
-            setPreviewUrl(null);
-            return;
-        }
-        const url = URL.createObjectURL(paymentScreenshot);
-        setPreviewUrl(url);
-        return () => {
-            URL.revokeObjectURL(url);
-        };
-    }, [paymentScreenshot]);
 
     const createOrderIfNeeded = async () => {
         try {
@@ -177,56 +188,41 @@ export default function OfflinePaymentDialog({
         setTimeout(() => setCopied(false), 2000);
     };
 
-    const onDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
-    const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const file = e.dataTransfer.files?.[0];
-        if (!file) return;
-        if (!file.type.startsWith('image/')) {
-            alert('Please upload an image file');
-            return;
-        }
-        setPaymentScreenshot(file);
-    };
-
-    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0] || null;
-        if (file && !file.type.startsWith('image/')) {
-            alert('Please upload an image file');
-            return;
-        }
-        setPaymentScreenshot(file);
-    };
-
     const handleOfflineSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!selectedOfflineMethod) {
-            alert('Please select a payment method');
+            showAlert('Please select a payment method before proceeding.', 'Payment Method Required', 'warning');
             return;
         }
 
-        if (!paymentScreenshot) {
-            alert('Please upload a payment screenshot');
+        if (!customerPhone.trim()) {
+            showAlert('Please enter your mobile phone number so our admin team can contact you.', 'Mobile Number Required', 'warning');
+            return;
+        }
+
+        const cleanedPhone = customerPhone.replace(/[\s\-()]/g, '');
+        if (cleanedPhone.length < 9) {
+            showAlert('Please enter a valid mobile phone number with at least 9 digits.', 'Invalid Mobile Number', 'warning');
+            return;
+        }
+
+        if (!paymentReference.trim()) {
+            showAlert('Please enter your transaction reference number or receipt link.', 'Reference Required', 'warning');
             return;
         }
 
         setIsSubmitting(true);
-        setVerifyingStep('Uploading proof & contacting Ethiopian bank verifier...');
+        setVerifyingStep('Verifying transaction reference with bank...');
 
         // Step-up messages for clear live feedback while links.et talks to upstream bank
         const stepTimer1 = setTimeout(() => {
             setVerifyingStep('Verifying receipt with bank at source via links.et...');
-        }, 2500);
+        }, 2000);
 
         const stepTimer2 = setTimeout(() => {
             setVerifyingStep('Validating reference and settled amount against order...');
-        }, 6000);
+        }, 5000);
 
         try {
             const formData = new FormData();
@@ -235,7 +231,8 @@ export default function OfflinePaymentDialog({
                 amount: totalAmount.toString(),
                 currency: currency,
                 offline_payment_method_id: selectedOfflineMethod,
-                payment_reference: paymentReference,
+                customer_phone: customerPhone.trim(),
+                payment_reference: paymentReference.trim(),
                 payment_notes: paymentNotes,
                 payment_type: paymentType || 'regular',
                 product_request_id: productRequestId?.toString() || '',
@@ -246,10 +243,6 @@ export default function OfflinePaymentDialog({
             Object.entries(formFields).forEach(([key, value]) => {
                 formData.append(key, value as string);
             });
-
-            if (paymentScreenshot) {
-                formData.append('payment_screenshot', paymentScreenshot);
-            }
 
             if (cartItems && cartItems.length > 0) {
                 formData.append('cart_items', JSON.stringify(cartItems));
@@ -296,24 +289,24 @@ export default function OfflinePaymentDialog({
                 }
             } else {
                 if (result.errors) {
+                    if (result.errors.customer_phone) {
+                        offlineForm.setError('customer_phone', result.errors.customer_phone[0]);
+                    }
                     if (result.errors.payment_reference) {
                         offlineForm.setError('payment_reference', result.errors.payment_reference[0]);
-                    }
-                    if (result.errors.payment_screenshot) {
-                        offlineForm.setError('payment_screenshot', result.errors.payment_screenshot[0]);
                     }
                 }
 
                 if (result.message) {
-                    alert(result.message);
+                    showAlert(result.message, 'Payment Could Not Be Processed', 'error');
                 } else {
-                    alert('An error occurred while processing your payment. Please try again.');
+                    showAlert('Payment could not be processed at this time. Please check your payment details or try again.', 'Payment Failed', 'error');
                 }
                 setIsSubmitting(false);
             }
         } catch (error) {
             console.error('Error submitting payment:', error);
-            alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            showAlert(error instanceof Error ? error.message : 'An unexpected error occurred while processing your payment. Please try again.', 'Payment Error', 'error');
             setIsSubmitting(false);
         }
     };
@@ -466,79 +459,117 @@ export default function OfflinePaymentDialog({
 
                             {/* Right Column: Step 3 & Submit Button */}
                             <div className="space-y-6 flex flex-col justify-between">
-                                {/* Step 3: Enter reference & upload proof */}
-                                <div className="space-y-3">
+                                {/* Step 3: Contact & Payment Reference */}
+                                <div className="space-y-4">
                                     <div className="flex items-center gap-2.5">
                                         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-[11px] font-bold text-white shrink-0">
                                             3
                                         </span>
-                                        <h4 className="text-sm font-bold text-white">Enter reference number & upload proof</h4>
+                                        <h4 className="text-sm font-bold text-white">Contact & Payment Reference</h4>
                                     </div>
 
-                                    <div className="space-y-3">
+                                    <div className="space-y-4">
+                                        {/* Required Mobile Phone Field */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                                                Transaction Reference or Receipt Link
-                                            </label>
-                                            <input
-                                                type="text"
-                                                placeholder="Receipt URL, Telebirr reference (ABCD1234), or CBE FT..."
-                                                value={paymentReference}
-                                                onChange={(e) => setPaymentReference(e.target.value)}
-                                                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm text-white placeholder:text-zinc-500 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-                                            />
-                                            {offlineForm.errors.payment_reference && (
-                                                <p className="mt-1 text-xs text-red-400">{offlineForm.errors.payment_reference}</p>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="text-xs font-semibold text-zinc-300 flex items-center gap-1.5">
+                                                    <Phone className="h-3.5 w-3.5 text-zinc-400" />
+                                                    Contact Mobile Number <span className="text-red-400">*</span>
+                                                </label>
+                                                <span className="text-[11px] text-zinc-500 font-medium">Required for contact</span>
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    type="tel"
+                                                    required
+                                                    placeholder="e.g. 0911223344 or +251911223344"
+                                                    value={customerPhone}
+                                                    onChange={(e) => {
+                                                        setCustomerPhone(e.target.value);
+                                                        if (offlineForm.errors.customer_phone) {
+                                                            offlineForm.clearErrors('customer_phone');
+                                                        }
+                                                    }}
+                                                    className="w-full rounded-xl border border-zinc-700 bg-zinc-900/90 pl-10 pr-9 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-white focus:outline-none focus:ring-1 focus:ring-white transition-all font-mono"
+                                                />
+                                                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                                                {customerPhone && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setCustomerPhone('')}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {offlineForm.errors.customer_phone && (
+                                                <p className="mt-1.5 text-xs text-red-400 font-medium">{offlineForm.errors.customer_phone}</p>
                                             )}
+                                            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
+                                                Our admin team will use this number to contact you to confirm payment & arrange delivery.
+                                            </p>
+                                        </div>
+
+                                        {/* Required Transaction Reference Field */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1.5">
+                                                <label className="text-xs font-semibold text-zinc-300">
+                                                    Transaction Reference or Receipt Link <span className="text-red-400">*</span>
+                                                </label>
+                                                <span className="text-[11px] text-zinc-500 font-medium">Required</span>
+                                            </div>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    placeholder="Paste Telebirr ref (e.g. 1045...), CBE FT..., or receipt URL"
+                                                    value={paymentReference}
+                                                    onChange={(e) => {
+                                                        setPaymentReference(e.target.value);
+                                                        if (offlineForm.errors.payment_reference) {
+                                                            offlineForm.clearErrors('payment_reference');
+                                                        }
+                                                    }}
+                                                    className="w-full rounded-xl border border-zinc-700 bg-zinc-900/90 pl-10 pr-9 py-3.5 text-sm text-white placeholder:text-zinc-500 focus:border-white focus:outline-none focus:ring-1 focus:ring-white transition-all font-mono"
+                                                />
+                                                <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                                                {paymentReference && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPaymentReference('')}
+                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white p-1"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {offlineForm.errors.payment_reference && (
+                                                <p className="mt-1.5 text-xs text-red-400 font-medium">{offlineForm.errors.payment_reference}</p>
+                                            )}
+                                            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
+                                                Copy and paste the transaction reference ID from your banking SMS/confirmation screen (Telebirr, CBE Birr, Commercial Bank) or the web receipt link.
+                                            </p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-semibold text-zinc-400 mb-1">
-                                                Payment Screenshot / Receipt <span className="text-red-400">*</span>
+                                            <label className="block text-xs font-semibold text-zinc-400 mb-1.5">
+                                                Sender Notes <span className="text-zinc-500 font-normal">(optional)</span>
                                             </label>
-                                            <div
-                                                onDragOver={onDragOver}
-                                                onDrop={onDrop}
-                                                onClick={() => fileInputRef.current?.click()}
-                                                className="flex min-h-[110px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/60 p-4 text-center hover:border-zinc-700 hover:bg-zinc-900 transition-all"
-                                            >
-                                                <input
-                                                    ref={fileInputRef}
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="hidden"
-                                                    onChange={onFileChange}
-                                                />
+                                            <input
+                                                type="text"
+                                                placeholder="Remarks or special instructions"
+                                                value={paymentNotes}
+                                                onChange={(e) => setPaymentNotes(e.target.value)}
+                                                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none focus:ring-1 focus:ring-zinc-600"
+                                            />
+                                        </div>
 
-                                                {paymentScreenshot && previewUrl ? (
-                                                    <div className="flex items-center gap-3 w-full">
-                                                        <img src={previewUrl} alt="Receipt preview" className="h-12 w-12 rounded-lg object-cover border border-zinc-700 shrink-0" />
-                                                        <div className="flex-1 text-left truncate">
-                                                            <p className="text-xs font-semibold text-white truncate">{paymentScreenshot.name}</p>
-                                                            <p className="text-[11px] text-zinc-400">{(paymentScreenshot.size / 1024 / 1024).toFixed(2)} MB</p>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setPaymentScreenshot(null);
-                                                            }}
-                                                            className="rounded-full bg-zinc-800 p-1.5 text-zinc-400 hover:text-white"
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex flex-col items-center gap-1.5 text-zinc-400 py-2">
-                                                        <Upload className="h-5 w-5 text-zinc-300" />
-                                                        <span className="text-xs font-semibold text-zinc-200">Upload receipt screenshot</span>
-                                                        <span className="text-[10px] text-zinc-500">PNG, JPG or GIF up to 5MB</span>
-                                                    </div>
-                                                )}
+                                        <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-3.5 flex items-start gap-2.5">
+                                            <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                                            <div className="text-[11px] text-zinc-400 leading-relaxed">
+                                                <span className="text-zinc-300 font-medium">Automatic verification:</span> Our system instantly cross-references your transaction reference against the banking network.
                                             </div>
-                                            {offlineForm.errors.payment_screenshot && (
-                                                <p className="mt-1 text-xs text-red-400">{offlineForm.errors.payment_screenshot}</p>
-                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -547,7 +578,7 @@ export default function OfflinePaymentDialog({
                                 <div className="pt-2">
                                     <button
                                         type="submit"
-                                        disabled={isSubmitting || !paymentScreenshot}
+                                        disabled={isSubmitting || !selectedOfflineMethod || !paymentReference.trim() || !customerPhone.trim()}
                                         className="w-full rounded-full bg-white py-4 text-base font-bold text-black transition-all hover:bg-zinc-200 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 shadow-lg cursor-pointer flex items-center justify-center gap-2"
                                     >
                                         {isSubmitting ? (
@@ -584,6 +615,15 @@ export default function OfflinePaymentDialog({
                         )}
                     </form>
                 )}
+
+                {/* In-App Alert Dialog */}
+                <AppAlertDialog
+                    isOpen={alertState.isOpen}
+                    onClose={() => setAlertState((prev) => ({ ...prev, isOpen: false }))}
+                    title={alertState.title}
+                    message={alertState.message}
+                    type={alertState.type}
+                />
             </DialogContent>
         </Dialog>
     );

@@ -877,6 +877,8 @@ class PaymentFinalizer
             ? route('admin.payments.show', $payment->id) 
             : url('/paymentStats/' . $payment->id);
 
+        $admins = $adminQuery->get();
+
         foreach ($admins as $admin) {
             $this->notificationService->sendAccountActivity(
                 $admin,
@@ -886,6 +888,8 @@ class PaymentFinalizer
                     'order_id' => $payment->order_id,
                     'amount' => $payment->amount,
                     'payment_method' => $payment->payment_method,
+                    'customer_name' => $payment->customer_name,
+                    'customer_phone' => $payment->customer_phone,
                     'review_url' => $reviewUrl
                 ]
             );
